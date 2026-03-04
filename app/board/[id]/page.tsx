@@ -8,12 +8,10 @@ export default async function PostDetailPage(props: any) {
   const params = await props.params;
   const postId = params.id;
 
-  // 💡 1. 방문자 신분증 검사: 지금 이 글을 보고 있는 사람의 닉네임을 확인합니다!
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('ojemi_user');
   const currentUser = userCookie ? userCookie.value : null;
 
-  // 조회수 올리기
   await sql`UPDATE posts SET views = COALESCE(views, 0) + 1 WHERE id = ${postId}`;
 
   const { rows: postRows } = await sql`SELECT * FROM posts WHERE id = ${postId}`;
@@ -23,7 +21,6 @@ export default async function PostDetailPage(props: any) {
     return <div className="p-20 text-center text-2xl font-bold">글을 찾을 수 없습니다 😭</div>;
   }
 
-  // 💡 2. 진짜 주인 확인: 지금 보는 사람(currentUser)과 글쓴이(post.author)가 같은 사람인가?!
   const isAuthor = currentUser === post.author;
 
   const { rows: comments } = await sql`SELECT * FROM comments WHERE post_id = ${postId} ORDER BY created_at DESC`;
@@ -39,16 +36,17 @@ export default async function PostDetailPage(props: any) {
 
   const addComment = async (formData: FormData) => {
     'use server';
-    // 댓글 달려면 로그인이 되어 있어야 합니다!
-    if (!currentUser) {
-      redirect('/login');
-    }
-
+    if (!currentUser) redirect('/login');
     const content = formData.get('content') as string;
     if (!content) return;
-    
-    // 💡 3. 댓글도 진짜 닉네임으로 달기!
     await sql`INSERT INTO comments (post_id, author, content) VALUES (${postId}, ${currentUser}, ${content})`;
+    revalidatePath(`/board/${postId}`);
+  };
+
+  // 💡 미나의 새로운 마법: 추천 버튼을 누르면 숫자가 1씩 쑥쑥 올라갑니다!
+  const likePost = async () => {
+    'use server';
+    await sql`UPDATE posts SET likes = COALESCE(likes, 0) + 1 WHERE id = ${postId}`;
     revalidatePath(`/board/${postId}`);
   };
 
@@ -57,8 +55,6 @@ export default async function PostDetailPage(props: any) {
       <header className="bg-white p-4 border-b">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
           <Link href="/" className="text-2xl font-black text-[#3b4890]">OJEMI</Link>
-          
-          {/* 로그인한 상태면 이름 띄워주기 */}
           {currentUser && (
             <div className="text-sm font-bold text-gray-600">
               반갑습니다, <span className="text-[#3b4890]">{currentUser}</span>님!
@@ -74,8 +70,10 @@ export default async function PostDetailPage(props: any) {
             <h1 className="text-3xl font-black text-gray-900 mb-4">{post.title}</h1>
             <div className="flex justify-between text-gray-500 text-sm">
               <div className="font-bold text-[#3b4890] text-base">{post.author}</div>
-              <div className="flex gap-4">
+              <div className="flex gap-4 items-center">
                 <span className="text-red-500 font-bold">👀 조회수 {post.views || 0}</span>
+                {/* 💡 상단에도 추천수를 예쁘게 띄워줍니다! */}
+                <span className="text-blue-600 font-bold">👍 추천수 {post.likes || 0}</span>
                 <span>{formattedDate}</span>
               </div>
             </div>
@@ -85,10 +83,18 @@ export default async function PostDetailPage(props: any) {
             {post.content}
           </div>
 
+          {/* 💡 핵심: 글을 다 읽고 나서 쾅! 누를 수 있는 대형 추천 버튼 구역 */}
+          <div className="mt-8 flex justify-center">
+            <form action={likePost}>
+              <button type="submit" className="flex flex-col items-center justify-center w-24 h-24 rounded-full border-2 border-[#3b4890] bg-white text-[#3b4890] hover:bg-[#3b4890] hover:text-white transition-all shadow-md group">
+                <span className="text-3xl mb-1 group-hover:scale-125 transition-transform">👍</span>
+                <span className="font-bold text-sm">추천 {post.likes || 0}</span>
+              </button>
+            </form>
+          </div>
+
           <div className="mt-10 border-t pt-6 flex justify-between items-center">
-            
             <div className="flex gap-2">
-              {/* 🚨 핵심 보안: 주인이 맞을 때(isAuthor)만 이 수정/삭제 버튼들을 보여줍니다! */}
               {isAuthor && (
                 <>
                   <Link href={`/board/${postId}/edit`} className="px-6 py-2 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] transition-colors shadow-sm">
@@ -102,12 +108,12 @@ export default async function PostDetailPage(props: any) {
                 </>
               )}
             </div>
-
             <Link href="/board" className="px-6 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors">
               목록으로 돌아가기
             </Link>
           </div>
 
+          {/* 수다방(댓글) 구역 생략 없이 그대로! */}
           <div className="mt-12 bg-gray-50 p-6 rounded-lg border border-gray-200">
             <h3 className="text-xl font-black text-gray-800 mb-4">💬 왁자지껄 수다방 <span className="text-[#3b4890]">({comments.length})</span></h3>
             

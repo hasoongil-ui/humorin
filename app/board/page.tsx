@@ -19,24 +19,19 @@ export default async function BoardPage() {
         </div>
       </header>
 
-      {/* 💡 미나의 해결책: 투명 가위(overflow-x-auto)를 없애고 flex-wrap을 넣었습니다! */}
       <nav className="bg-[#3b4890] text-gray-300 relative z-40">
         <div className="max-w-5xl mx-auto flex flex-wrap relative">
           {['💯 백베스트', '👑 천베스트', '투데이 베스트', '전체글 보기', '유머', '감동', '공포', '일상', '그냥 혼잣말', '핫뉴스'].map((menu) => (
             <div key={menu} className="relative group px-4 py-3 cursor-pointer">
-              
               <span className="font-bold text-sm group-hover:text-white transition-colors">
                 {menu}
               </span>
-
-              {/* 💬 드디어 투명 가위에서 구출된 클리앙 스타일 말풍선! */}
               <div className="absolute left-1/2 -translate-x-1/2 top-full mt-0 hidden group-hover:block z-50">
                 <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-b-[6px] border-transparent border-b-white mx-auto"></div>
                 <div className="bg-white text-gray-800 text-xs font-bold px-3 py-1.5 border border-gray-300 shadow-lg whitespace-nowrap rounded-sm">
                   {menu} 바로가기
                 </div>
               </div>
-
             </div>
           ))}
         </div>
@@ -55,6 +50,8 @@ export default async function BoardPage() {
             <div className="w-16">번호</div>
             <div className="flex-1">제목</div>
             <div className="w-24">글쓴이</div>
+            {/* 💡 추천 칸 추가! */}
+            <div className="w-16 text-blue-600">추천</div>
             <div className="w-20">조회수</div>
             <div className="w-32">날짜</div>
           </div>
@@ -69,6 +66,8 @@ export default async function BoardPage() {
                   {post.title}
                 </div>
                 <div className="w-24 text-gray-600 font-bold">{post.author}</div>
+                {/* 💡 목록에도 추천수 데이터가 나오게 추가! */}
+                <div className="w-16 text-blue-600 font-extrabold">{post.likes || 0}</div>
                 <div className="w-20 text-red-500 font-bold">{post.views || 0}</div>
                 <div className="w-32 text-gray-400">{formatDate(post.date)}</div>
               </Link>
