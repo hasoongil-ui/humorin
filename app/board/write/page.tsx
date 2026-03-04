@@ -3,9 +3,8 @@ import Link from 'next/link';
 export default function WritePost() {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans pb-20">
-      {/* 오재미 통합 헤더 (오유 스타일 게시판 상단 메뉴 적용) */}
+      {/* 오재미 통합 헤더 (오유 스타일) */}
       <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
-        {/* 1층: 로고 및 로그인 */}
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="text-3xl font-extrabold text-blue-600 tracking-tighter cursor-pointer hover:text-blue-800 transition">
             <Link href="/">OJEMI</Link>
@@ -18,10 +17,8 @@ export default function WritePost() {
           </div>
         </div>
 
-        {/* 2층: 게시판 카테고리 (하순길 대표님 기획 반영) */}
         <div className="bg-blue-600 text-white text-sm font-medium">
           <div className="max-w-6xl mx-auto px-6 py-0 flex items-center overflow-x-auto whitespace-nowrap hide-scrollbar">
-            {/* 명예의 전당 (백베, 천베) */}
             <Link href="#" className="py-3 px-4 bg-blue-800 hover:bg-blue-900 transition flex items-center space-x-1">
               <span>💯</span><span>백베스트</span>
             </Link>
@@ -29,7 +26,6 @@ export default function WritePost() {
               <span>👑</span><span>천베스트</span>
             </Link>
             
-            {/* 일반 게시판 (원하는 대로 계속 추가 가능) */}
             <div className="h-4 w-px bg-blue-400 mx-2"></div>
             <Link href="#" className="py-3 px-3 hover:bg-blue-500 transition">투데이 베스트</Link>
             <Link href="/board" className="py-3 px-3 hover:bg-blue-500 transition">전체글 보기</Link>
@@ -44,7 +40,7 @@ export default function WritePost() {
         </div>
       </header>
 
-      {/* 글쓰기 메인 영역 (클리앙 스타일의 깔끔한 폼) */}
+      {/* 글쓰기 메인 영역 */}
       <main className="max-w-4xl mx-auto mt-10 px-6">
         <h1 className="text-2xl font-bold mb-6 flex items-center">
           <span className="text-blue-600 mr-2">✍️</span> 게시물 작성
@@ -71,24 +67,45 @@ export default function WritePost() {
               />
             </div>
 
-            {/* 본문 작성 */}
-            <div>
+            {/* 🌟 명품 에디터 영역 🌟 */}
+            <div className="border border-gray-300 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 transition">
+              
+              {/* 에디터 툴바 */}
+              <div className="bg-gray-50 border-b border-gray-300 px-4 py-3 flex items-center space-x-5 overflow-x-auto whitespace-nowrap">
+                <button className="flex items-center text-gray-700 hover:text-blue-600 transition font-bold text-sm">
+                  <span className="text-lg mr-1">🖼️</span> 사진
+                </button>
+                <button className="flex items-center text-gray-700 hover:text-blue-600 transition font-bold text-sm">
+                  <span className="text-lg mr-1">🎬</span> 영상
+                </button>
+                <div className="h-5 w-px bg-gray-300"></div>
+                <button className="font-extrabold text-gray-700 hover:text-black transition" title="굵게">B</button>
+                <button className="italic font-serif text-gray-700 hover:text-black transition" title="기울임">I</button>
+                <button className="underline text-gray-700 hover:text-black transition" title="밑줄">U</button>
+                <button className="line-through text-gray-700 hover:text-black transition" title="취소선">S</button>
+                <div className="h-5 w-px bg-gray-300"></div>
+                <button className="text-gray-700 hover:text-black transition flex items-center text-sm font-medium" title="글자색">
+                  <span className="w-4 h-4 rounded-full bg-red-500 inline-block mr-1 border border-gray-300"></span> 색상
+                </button>
+              </div>
+              
+              {/* 본문 작성 칸 */}
               <textarea 
-                placeholder="내용을 입력해 주세요. (욕설 및 비방글은 삭제될 수 있습니다.)" 
-                className="w-full border border-gray-300 rounded-lg px-4 py-4 h-96 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none"
+                placeholder="내용을 입력해 주세요. 툴바의 사진 아이콘을 눌러 본문 중간에 이미지를 삽입할 수 있습니다." 
+                className="w-full px-5 py-5 h-96 focus:outline-none resize-none text-gray-800 leading-relaxed"
               ></textarea>
             </div>
 
-            {/* 첨부파일 (디자인만) */}
+            {/* 일반 첨부파일 영역 */}
             <div className="flex items-center border border-gray-200 rounded-lg p-3 bg-gray-50">
               <button className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded shadow-sm text-sm hover:bg-gray-50 transition">
-                📁 파일 첨부
+                📎 파일 첨부
               </button>
-              <span className="text-sm text-gray-400 ml-3">첨부된 파일이 없습니다. (최대 10MB)</span>
+              <span className="text-sm text-gray-400 ml-3">일반 첨부파일을 여기에 추가하세요. (최대 10MB)</span>
             </div>
           </div>
 
-          {/* 하단 버튼 영역 */}
+          {/* 하단 버튼 */}
           <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
             <Link href="/board" className="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition">
               취소
