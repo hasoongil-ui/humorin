@@ -1,23 +1,27 @@
 import { sql } from '@vercel/postgres';
+import { redirect } from 'next/navigation';
 import Link from 'next/link';
 
-// 💡 미나의 최신 패치: props에서 params를 확실하게 기다렸다가(await) 뽑아옵니다!
 export default async function PostDetailPage(props: any) {
   const params = await props.params;
   const postId = params.id;
 
-  // 📦 뽑아온 번호로 창고에서 정확하게 글을 가져옵니다.
   const { rows } = await sql`SELECT * FROM posts WHERE id = ${postId}`;
   const post = rows[0];
 
-  // 혹시라도 글이 없으면 보여줄 에러 화면
   if (!post) {
     return <div className="p-20 text-center text-2xl font-bold">글을 찾을 수 없습니다 😭</div>;
   }
 
-  // 날짜 예쁘게 만들기
   const date = new Date(post.date);
   const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+  // 💡 미나의 최신 파쇄기 마법: 버튼을 누르면 창고에서 글을 완전히 찢어버리고, 목록으로 튕겨냅니다!
+  const deletePost = async () => {
+    'use server';
+    await sql`DELETE FROM posts WHERE id = ${postId}`;
+    redirect('/board');
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
@@ -50,7 +54,15 @@ export default async function PostDetailPage(props: any) {
             {post.content}
           </div>
 
-          <div className="mt-10 border-t pt-6 flex justify-end">
+          <div className="mt-10 border-t pt-6 flex justify-between items-center">
+            
+            {/* 🚨 파쇄기 가동 버튼 구역 🚨 */}
+            <form action={deletePost}>
+              <button type="submit" className="px-6 py-2 bg-red-500 text-white rounded font-bold hover:bg-red-600 transition-colors shadow-sm">
+                🗑️ 이 글 완전 삭제하기
+              </button>
+            </form>
+
             <Link href="/board" className="px-6 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors">
               목록으로 돌아가기
             </Link>
