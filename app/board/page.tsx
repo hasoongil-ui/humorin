@@ -1,6 +1,9 @@
 import { sql } from '@vercel/postgres';
 import Link from 'next/link';
 
+// 💡 미나의 강력 부적: "옛날 기억 지우고, 무조건 창고 가서 새로 확인해!"
+export const dynamic = 'force-dynamic';
+
 function formatDate(dateString: any) {
   const date = new Date(dateString);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -45,7 +48,6 @@ export default async function BoardPage() {
             <div className="text-center py-10 text-gray-500">아직 창고에 등록된 명품 글이 없습니다.</div>
           ) : (
             rows.map((post) => (
-              /* 💡 바로 여기가 핵심! 목록 전체를 Link(손잡이)로 감싸서 어디든 누르면 넘어갑니다! */
               <Link href={`/board/${post.id}`} key={post.id} className="flex border-b border-gray-100 py-3 text-sm hover:bg-blue-50 items-center text-center cursor-pointer transition-colors group">
                 <div className="w-16 text-gray-400">{post.id}</div>
                 <div className="flex-1 text-left px-4 font-semibold text-gray-800 group-hover:text-blue-600 group-hover:underline">
