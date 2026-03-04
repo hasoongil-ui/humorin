@@ -16,7 +16,6 @@ export default async function PostDetailPage(props: any) {
   const date = new Date(post.date);
   const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 
-  // 💡 미나의 최신 파쇄기 마법: 버튼을 누르면 창고에서 글을 완전히 찢어버리고, 목록으로 튕겨냅니다!
   const deletePost = async () => {
     'use server';
     await sql`DELETE FROM posts WHERE id = ${postId}`;
@@ -56,12 +55,18 @@ export default async function PostDetailPage(props: any) {
 
           <div className="mt-10 border-t pt-6 flex justify-between items-center">
             
-            {/* 🚨 파쇄기 가동 버튼 구역 🚨 */}
-            <form action={deletePost}>
-              <button type="submit" className="px-6 py-2 bg-red-500 text-white rounded font-bold hover:bg-red-600 transition-colors shadow-sm">
-                🗑️ 이 글 완전 삭제하기
-              </button>
-            </form>
+            {/* 💡 미나가 추가한 수정 버튼과 삭제 버튼이 나란히 있는 구역! */}
+            <div className="flex gap-2">
+              <Link href={`/board/${postId}/edit`} className="px-6 py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 transition-colors shadow-sm">
+                ✍️ 이 글 수정하기
+              </Link>
+
+              <form action={deletePost}>
+                <button type="submit" className="px-6 py-2 bg-red-500 text-white rounded font-bold hover:bg-red-600 transition-colors shadow-sm">
+                  🗑️ 이 글 완전 삭제하기
+                </button>
+              </form>
+            </div>
 
             <Link href="/board" className="px-6 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors">
               목록으로 돌아가기
