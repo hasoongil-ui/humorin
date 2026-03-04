@@ -1,114 +1,71 @@
+import { sql } from '@vercel/postgres';
 import Link from 'next/link';
 
-export default function Board() {
-  return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans pb-20">
-      {/* 오재미 통합 헤더 (오유 스타일 게시판 상단 메뉴 적용 & 로그인/회원가입 연결) */}
-      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="text-3xl font-extrabold text-blue-600 tracking-tighter cursor-pointer hover:text-blue-800 transition">
-            <Link href="/">OJEMI</Link>
-          </div>
-          <div className="space-x-3">
-            <Link href="/login" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition">로그인</Link>
-            <Link href="/signup" className="text-sm font-medium bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-sm">
-              회원가입
-            </Link>
-          </div>
-        </div>
+// ⏱️ 날짜를 "2026-03-04" 처럼 예쁘게 보여주는 마법 코드입니다!
+function formatDate(dateString: any) {
+  const date = new Date(dateString);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
-        <div className="bg-blue-600 text-white text-sm font-medium">
-          <div className="max-w-6xl mx-auto px-6 py-0 flex items-center overflow-x-auto whitespace-nowrap hide-scrollbar">
-            <Link href="#" className="py-3 px-4 bg-blue-800 hover:bg-blue-900 transition flex items-center space-x-1">
-              <span>💯</span><span>백베스트</span>
-            </Link>
-            <Link href="#" className="py-3 px-4 bg-yellow-500 text-yellow-900 hover:bg-yellow-400 transition flex items-center space-x-1 font-bold">
-              <span>👑</span><span>천베스트</span>
-            </Link>
-            
-            <div className="h-4 w-px bg-blue-400 mx-2"></div>
-            <Link href="#" className="py-3 px-3 hover:bg-blue-500 transition">투데이 베스트</Link>
-            <Link href="/board" className="py-3 px-3 bg-blue-700 hover:bg-blue-500 transition">전체글 보기</Link>
-            <div className="h-4 w-px bg-blue-400 mx-2"></div>
-            <Link href="#" className="py-3 px-3 hover:bg-blue-500 transition text-yellow-200">유머</Link>
-            <Link href="#" className="py-3 px-3 hover:bg-blue-500 transition">감동</Link>
-            <Link href="#" className="py-3 px-3 hover:bg-blue-500 transition">공포</Link>
-            <Link href="#" className="py-3 px-3 hover:bg-blue-500 transition">일상</Link>
-            <Link href="#" className="py-3 px-3 hover:bg-blue-500 transition">그냥 혼잣말</Link>
-            <Link href="#" className="py-3 px-3 hover:bg-blue-500 transition font-bold text-red-200">핫뉴스</Link>
-          </div>
+export default async function BoardPage() {
+  // 📦 여기가 핵심! 창고(posts 상자)에서 최신순(ORDER BY date DESC)으로 보물을 꺼내옵니다!
+  const { rows } = await sql`SELECT * FROM posts ORDER BY date DESC`;
+
+  return (
+    <div className="min-h-screen bg-gray-100 font-sans">
+      {/* 상단 로고 */}
+      <header className="bg-white p-4 border-b">
+        <div className="max-w-5xl mx-auto flex justify-between items-center">
+          <Link href="/" className="text-2xl font-black text-blue-600">OJEMI</Link>
         </div>
       </header>
 
-      {/* 게시판 메인 영역 */}
-      <main className="max-w-5xl mx-auto mt-12 px-6">
-        <div className="flex justify-between items-end mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">자유게시판 (전체글)</h1>
-            <p className="text-gray-500 mt-2">오재미 회원들과 자유롭게 소통하는 공간입니다.</p>
-          </div>
-          <div className="flex space-x-3 items-center">
-            <div className="flex space-x-2">
-              <input type="text" placeholder="검색어를 입력하세요" className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500" />
-              <button className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700">검색</button>
-            </div>
-            {/* 🌟 글쓰기 버튼 순간이동 연결 🌟 */}
-            <Link href="/board/write" className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-md transition flex items-center">
-              <span className="mr-1">✍️</span> 글쓰기
+      {/* 파란색 명품 메뉴바 */}
+      <nav className="bg-blue-600 text-white overflow-x-auto">
+        <div className="max-w-5xl mx-auto flex">
+          {['💯 백베스트', '👑 천베스트', '투데이 베스트', '전체글 보기', '유머', '감동', '공포', '일상', '그냥 혼잣말', '핫뉴스'].map((menu) => (
+            <div key={menu} className="px-4 py-3 hover:bg-blue-700 font-bold text-sm cursor-pointer">{menu}</div>
+          ))}
+        </div>
+      </nav>
+
+      {/* 게시판 리스트 본체 */}
+      <main className="max-w-5xl mx-auto p-4 mt-4">
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          
+          {/* 글쓰기 버튼 */}
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-800">전체글 보기</h2>
+            <Link href="/board/write" className="px-6 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 shadow-md">
+              ✍️ 폼나게 글쓰기
             </Link>
           </div>
-        </div>
 
-        {/* 게시글 목록 (테이블) */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-gray-500 text-sm border-b border-gray-200">
-                <th className="py-4 px-6 font-medium w-16 text-center">번호</th>
-                <th className="py-4 px-6 font-medium">제목</th>
-                <th className="py-4 px-6 font-medium w-32 text-center">작성자</th>
-                <th className="py-4 px-6 font-medium w-24 text-center">조회</th>
-                <th className="py-4 px-6 font-medium w-32 text-center">작성일</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm text-gray-700">
-              <tr className="border-b border-gray-100 hover:bg-gray-50 transition cursor-pointer">
-                <td className="py-4 px-6 text-center text-blue-600 font-bold">공지</td>
-                <td className="py-4 px-6 font-medium text-gray-900">오재미 커뮤니티 이용 규칙 안내</td>
-                <td className="py-4 px-6 text-center">운영자</td>
-                <td className="py-4 px-6 text-center">1,204</td>
-                <td className="py-4 px-6 text-center text-gray-400">03.04</td>
-              </tr>
-              <tr className="border-b border-gray-100 hover:bg-gray-50 transition cursor-pointer">
-                <td className="py-4 px-6 text-center text-gray-400">3</td>
-                <td className="py-4 px-6">드디어 나만의 커뮤니티가 생겼네요! 너무 좋습니다. <span className="text-blue-500 text-xs ml-1">[5]</span></td>
-                <td className="py-4 px-6 text-center">하순길대표</td>
-                <td className="py-4 px-6 text-center">45</td>
-                <td className="py-4 px-6 text-center text-gray-400">10:24</td>
-              </tr>
-              <tr className="border-b border-gray-100 hover:bg-gray-50 transition cursor-pointer">
-                <td className="py-4 px-6 text-center text-gray-400">2</td>
-                <td className="py-4 px-6">요즘 주식 시장 어떻게 보시나요?</td>
-                <td className="py-4 px-6 text-center">투자왕</td>
-                <td className="py-4 px-6 text-center">88</td>
-                <td className="py-4 px-6 text-center text-gray-400">09:15</td>
-              </tr>
-              <tr className="hover:bg-gray-50 transition cursor-pointer">
-                <td className="py-4 px-6 text-center text-gray-400">1</td>
-                <td className="py-4 px-6">가입 인사 드립니다. 잘 부탁드려요~</td>
-                <td className="py-4 px-6 text-center">뉴비</td>
-                <td className="py-4 px-6 text-center">12</td>
-                <td className="py-4 px-6 text-center text-gray-400">어제</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        
-        {/* 페이징 */}
-        <div className="flex justify-center mt-8 space-x-2">
-          <button className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 text-white font-bold shadow-md">1</button>
-          <button className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 transition">2</button>
-          <button className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 transition">3</button>
+          {/* 리스트 항목 제목 칸 */}
+          <div className="flex bg-gray-50 border-t border-b border-gray-200 py-3 text-sm font-bold text-gray-600 text-center">
+            <div className="w-16">번호</div>
+            <div className="flex-1">제목</div>
+            <div className="w-24">글쓴이</div>
+            <div className="w-32">날짜</div>
+          </div>
+
+          {/* 🚀 진짜 창고 데이터 뿌려주기! */}
+          {rows.length === 0 ? (
+            <div className="text-center py-10 text-gray-500">아직 창고에 등록된 명품 글이 없습니다. 첫 글의 주인공이 되어보세요!</div>
+          ) : (
+            rows.map((post) => (
+              <div key={post.id} className="flex border-b border-gray-100 py-3 text-sm hover:bg-gray-50 items-center text-center cursor-pointer">
+                <div className="w-16 text-gray-400">{post.id}</div>
+                <div className="flex-1 text-left px-4 font-semibold text-gray-800">
+                  {post.title}
+                </div>
+                {/* 👑 우리 대표님 이름이 딱! 들어가는 곳입니다 */}
+                <div className="w-24 text-gray-600 font-bold">{post.author}</div>
+                <div className="w-32 text-gray-400">{formatDate(post.date)}</div>
+              </div>
+            ))
+          )}
+          
         </div>
       </main>
     </div>
