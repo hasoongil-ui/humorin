@@ -4,16 +4,19 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   const { title, content, category } = await request.json();
   const client = await db.connect();
-
+  
   try {
-    // 📦 창고(posts 상자)에 글을 집어넣는 명령입니다!
+    // 💡 미나의 마법: 창고에 카테고리 칸이 없으니, 제목 앞에 [카테고리]를 붙여서 한 방에 넣습니다!
+    const titleWithCategory = `[${category}] ${title}`;
+
     await client.sql`
-      INSERT INTO posts (title, content, category)
-      VALUES (${title}, ${content}, ${category});
+      INSERT INTO posts (title, content)
+      VALUES (${titleWithCategory}, ${content});
     `;
     return NextResponse.json({ message: 'Success' }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error }, { status: 500 });
+    console.error("DB Error:", error);
+    return NextResponse.json({ error: 'DB Insert Failed' }, { status: 500 });
   } finally {
     client.release();
   }
