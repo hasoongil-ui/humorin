@@ -19,22 +19,19 @@ export default async function BoardPage() {
         </div>
       </header>
 
-      {/* 💡 클리앙 스타일로 진화한 명품 곤색 네비게이션 바! */}
-      <nav className="bg-[#3b4890] text-gray-300 overflow-x-auto">
-        <div className="max-w-5xl mx-auto flex relative">
+      {/* 💡 미나의 해결책: 투명 가위(overflow-x-auto)를 없애고 flex-wrap을 넣었습니다! */}
+      <nav className="bg-[#3b4890] text-gray-300 relative z-40">
+        <div className="max-w-5xl mx-auto flex flex-wrap relative">
           {['💯 백베스트', '👑 천베스트', '투데이 베스트', '전체글 보기', '유머', '감동', '공포', '일상', '그냥 혼잣말', '핫뉴스'].map((menu) => (
             <div key={menu} className="relative group px-4 py-3 cursor-pointer">
               
-              {/* 평소엔 살짝 회색, 마우스 올리면 하얀색으로 세련되게 변함! */}
               <span className="font-bold text-sm group-hover:text-white transition-colors">
                 {menu}
               </span>
 
-              {/* 💬 클리앙 스타일 마법의 말풍선 (평소엔 숨어있다가 마우스 올리면 등장!) */}
+              {/* 💬 드디어 투명 가위에서 구출된 클리앙 스타일 말풍선! */}
               <div className="absolute left-1/2 -translate-x-1/2 top-full mt-0 hidden group-hover:block z-50">
-                {/* 말풍선 위쪽 뾰족한 삼각형 */}
                 <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-b-[6px] border-transparent border-b-white mx-auto"></div>
-                {/* 하얀색 네모 박스 */}
                 <div className="bg-white text-gray-800 text-xs font-bold px-3 py-1.5 border border-gray-300 shadow-lg whitespace-nowrap rounded-sm">
                   {menu} 바로가기
                 </div>
