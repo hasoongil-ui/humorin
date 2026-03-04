@@ -3,28 +3,28 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 
-export default function LoginPage() {
+// 💡 미나의 패치: 주소창에 에러 신호가 있으면 잡아냅니다!
+export default async function LoginPage(props: any) {
+  const searchParams = await props.searchParams;
+  const showError = searchParams.error === '1';
+
   const loginUser = async (formData: FormData) => {
     'use server';
     const userId = formData.get('user_id') as string;
     const password = formData.get('password') as string;
 
-    // 1. 창고에서 아이디와 비밀번호가 똑같은 회원이 있는지 매의 눈으로 찾습니다!
     const { rows } = await sql`
       SELECT * FROM users 
       WHERE user_id = ${userId} AND password = ${password}
     `;
     const user = rows[0];
 
-    // 비밀번호가 틀리거나 없는 아이디면 다시 로그인 화면으로 튕겨냅니다!
+    // 💡 틀렸을 때 그냥 제자리에 두지 않고, ?error=1 이라는 신호를 달아서 보냅니다!
     if (!user) {
-      redirect('/login');
+      redirect('/login?error=1');
     }
     
-    // 2. 💡 미나의 마법: 검문 통과! 대표님 컴퓨터에 'ojemi_user'라는 마법의 출입증(쿠키)을 발급합니다!
     cookies().set('ojemi_user', user.nickname, { httpOnly: true, secure: true });
-
-    // 로그인 성공하면 메인 게시판으로 VIP 모시듯 슝~ 보냅니다!
     redirect('/board');
   };
 
@@ -37,16 +37,22 @@ export default function LoginPage() {
           <h2 className="text-xl font-bold text-gray-800 mt-2">VIP 로그인</h2>
         </div>
 
-        {/* 📝 로그인 검문소 폼 */}
+        {/* 🚨 틀렸을 때 나타나는 빨간색 경고창! */}
+        {showError && (
+          <div className="mb-6 p-3 bg-red-100 text-red-600 text-sm font-bold text-center rounded border border-red-200">
+            아이디나 비밀번호가 틀렸습니다! <br/> 대소문자나 띄어쓰기를 확인해 주세요 😭
+          </div>
+        )}
+
         <form action={loginUser} className="space-y-5">
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">아이디</label>
-            <input name="user_id" required placeholder="아이디 입력" className="w-full p-3 border rounded bg-gray-50 focus:bg-white focus:outline-blue-500 transition-colors" />
+            <input name="user_id" required placeholder="아이디 입력" className="w-full p-3 border rounded bg-gray-50 focus:bg-white focus:outline-blue-500" />
           </div>
           
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">비밀번호</label>
-            <input type="password" name="password" required placeholder="비밀번호 입력" className="w-full p-3 border rounded bg-gray-50 focus:bg-white focus:outline-blue-500 transition-colors" />
+            <input type="password" name="password" required placeholder="비밀번호 입력" className="w-full p-3 border rounded bg-gray-50 focus:bg-white focus:outline-blue-500" />
           </div>
 
           <button type="submit" className="w-full py-4 bg-gray-800 text-white rounded font-black text-lg hover:bg-black shadow-md mt-6 transition-colors">
