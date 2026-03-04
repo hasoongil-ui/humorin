@@ -22,8 +22,16 @@ export default async function PostDetailPage(props: any) {
   }
 
   const isAuthor = currentUser === post.author;
-
   const { rows: comments } = await sql`SELECT * FROM comments WHERE post_id = ${postId} ORDER BY created_at DESC`;
+
+  // 💡 미나의 철통 방어: 이 사람이 이 글에 이미 추천을 눌렀는지 장부(likes)에서 찾아봅니다!
+  let hasLiked = false;
+  if (currentUser) {
+    const { rows: likeRows } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author = ${currentUser}`;
+    if (likeRows.length > 0) {
+      hasLiked = true; // 장부에 이름이 있으면 "너 이미 눌렀어!" 상태로 만듭니다.
+    }
+  }
 
   const date = new Date(post.date);
   const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
@@ -43,9 +51,17 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 💡 미나의 새로운 마법: 추천 버튼을 누르면 숫자가 1씩 쑥쑥 올라갑니다!
   const likePost = async () => {
     'use server';
+    // 추천은 로그인한 회원만 할 수 있습니다!
+    if (!currentUser) redirect('/login');
+
+    // 💡 철통 보안: 창고에 가기 전에 장부를 한 번 더 확인합니다!
+    const { rows: checkRows } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author = ${currentUser}`;
+    if (checkRows.length > 0) return; // 이미 눌렀으면 아무 일도 안 일어나게 막아버립니다.
+
+    // 장부에 이름 딱! 적고, 게시판 추천수 1 딱! 올립니다.
+    await sql`INSERT INTO likes (post_id, author) VALUES (${postId}, ${currentUser})`;
     await sql`UPDATE posts SET likes = COALESCE(likes, 0) + 1 WHERE id = ${postId}`;
     revalidatePath(`/board/${postId}`);
   };
@@ -72,7 +88,6 @@ export default async function PostDetailPage(props: any) {
               <div className="font-bold text-[#3b4890] text-base">{post.author}</div>
               <div className="flex gap-4 items-center">
                 <span className="text-red-500 font-bold">👀 조회수 {post.views || 0}</span>
-                {/* 💡 상단에도 추천수를 예쁘게 띄워줍니다! */}
                 <span className="text-blue-600 font-bold">👍 추천수 {post.likes || 0}</span>
                 <span>{formattedDate}</span>
               </div>
@@ -83,14 +98,21 @@ export default async function PostDetailPage(props: any) {
             {post.content}
           </div>
 
-          {/* 💡 핵심: 글을 다 읽고 나서 쾅! 누를 수 있는 대형 추천 버튼 구역 */}
           <div className="mt-8 flex justify-center">
-            <form action={likePost}>
-              <button type="submit" className="flex flex-col items-center justify-center w-24 h-24 rounded-full border-2 border-[#3b4890] bg-white text-[#3b4890] hover:bg-[#3b4890] hover:text-white transition-all shadow-md group">
-                <span className="text-3xl mb-1 group-hover:scale-125 transition-transform">👍</span>
-                <span className="font-bold text-sm">추천 {post.likes || 0}</span>
+            {/* 💡 똑똑해진 버튼: 이미 눌렀으면 회색으로 바뀌고 더 이상 안 눌립니다! */}
+            {hasLiked ? (
+              <button disabled className="flex flex-col items-center justify-center w-24 h-24 rounded-full border-2 border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed shadow-inner">
+                <span className="text-3xl mb-1 opacity-50">👍</span>
+                <span className="font-bold text-sm">추천완료</span>
               </button>
-            </form>
+            ) : (
+              <form action={likePost}>
+                <button type="submit" className="flex flex-col items-center justify-center w-24 h-24 rounded-full border-2 border-[#3b4890] bg-white text-[#3b4890] hover:bg-[#3b4890] hover:text-white transition-all shadow-md group">
+                  <span className="text-3xl mb-1 group-hover:scale-125 transition-transform">👍</span>
+                  <span className="font-bold text-sm">추천 {post.likes || 0}</span>
+                </button>
+              </form>
+            )}
           </div>
 
           <div className="mt-10 border-t pt-6 flex justify-between items-center">
@@ -113,7 +135,6 @@ export default async function PostDetailPage(props: any) {
             </Link>
           </div>
 
-          {/* 수다방(댓글) 구역 생략 없이 그대로! */}
           <div className="mt-12 bg-gray-50 p-6 rounded-lg border border-gray-200">
             <h3 className="text-xl font-black text-gray-800 mb-4">💬 왁자지껄 수다방 <span className="text-[#3b4890]">({comments.length})</span></h3>
             
