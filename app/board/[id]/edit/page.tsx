@@ -34,7 +34,7 @@ export default async function EditPage(props: any) {
     <div className="min-h-screen bg-gray-100 font-sans">
       <header className="bg-white p-4 border-b">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
-          <Link href="/" className="text-2xl font-black text-blue-600">OJEMI</Link>
+          <Link href="/" className="text-2xl font-black text-[#3b4890]">OJEMI</Link>
         </div>
       </header>
 
@@ -68,7 +68,7 @@ export default async function EditPage(props: any) {
               </Link>
               <button 
                 type="submit"
-                className="px-8 py-2 bg-blue-600 text-white rounded font-extrabold hover:bg-blue-700 shadow-lg"
+                className="px-8 py-2 bg-[#3b4890] text-white rounded font-extrabold hover:bg-blue-700 shadow-lg"
               >
                 ✨ 수정 완료!
               </button>

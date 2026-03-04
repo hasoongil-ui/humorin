@@ -39,11 +39,11 @@ export default function WritePage() {
     <div className="min-h-screen bg-gray-100 font-sans">
       <header className="bg-white p-4 border-b">
         <div className="max-w-5xl mx-auto">
-          <Link href="/" className="text-2xl font-black text-blue-600">OJEMI</Link>
+          <Link href="/" className="text-2xl font-black text-[#3b4890]">OJEMI</Link>
         </div>
       </header>
 
-      <nav className="bg-blue-600 text-white overflow-x-auto">
+      <nav className="bg-[#3b4890] text-white overflow-x-auto">
         <div className="max-w-5xl mx-auto flex">
           {['💯 백베스트', '👑 천베스트', '투데이 베스트', '전체글 보기', '유머', '감동', '공포', '일상', '그냥 혼잣말', '핫뉴스'].map((menu) => (
             <div key={menu} className="px-4 py-3 hover:bg-blue-700 font-bold text-sm cursor-pointer">{menu}</div>
@@ -79,7 +79,7 @@ export default function WritePage() {
             <button className="px-6 py-2 bg-gray-100 rounded hover:bg-gray-200" onClick={() => window.location.href='/board'}>취소</button>
             <button 
               onClick={handleSubmit}
-              className="px-8 py-2 bg-blue-600 text-white rounded font-extrabold hover:bg-blue-700 shadow-lg"
+              className="px-8 py-2 bg-[#3b4890] text-white rounded font-extrabold hover:bg-blue-700 shadow-lg"
             >
               등록
             </button>

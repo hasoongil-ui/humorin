@@ -35,7 +35,7 @@ export default async function SignupPage(props: any) {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center font-sans">
       <div className="bg-white p-8 rounded-lg shadow-md w-96 border border-gray-200">
         <div className="text-center mb-8">
-          <Link href="/" className="text-3xl font-black text-blue-600 tracking-tighter">OJEMI</Link>
+          <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
           <h2 className="text-xl font-bold text-gray-800 mt-2">명품 VIP 회원 가입</h2>
         </div>
 
@@ -59,7 +59,7 @@ export default async function SignupPage(props: any) {
             <label className="block text-sm font-bold text-gray-700 mb-1">게시판 닉네임</label>
             <input name="nickname" required placeholder="예: 하순길대표" className="w-full p-3 border rounded bg-gray-50 focus:bg-white focus:outline-blue-500" />
           </div>
-          <button type="submit" className="w-full py-4 bg-blue-600 text-white rounded font-black text-lg hover:bg-blue-700 shadow-md mt-6 transition-colors">
+          <button type="submit" className="w-full py-4 bg-[#3b4890] text-white rounded font-black text-lg hover:bg-blue-700 shadow-md mt-6 transition-colors">
             🎉 오재미 가입하기
           </button>
         </form>

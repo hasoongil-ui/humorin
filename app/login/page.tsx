@@ -38,7 +38,7 @@ export default async function LoginPage(props: any) {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center font-sans">
       <div className="bg-white p-8 rounded-lg shadow-md w-96 border border-gray-200">
         <div className="text-center mb-8">
-          <Link href="/" className="text-3xl font-black text-blue-600 tracking-tighter">OJEMI</Link>
+          <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
           <h2 className="text-xl font-bold text-gray-800 mt-2">VIP 로그인</h2>
         </div>
 

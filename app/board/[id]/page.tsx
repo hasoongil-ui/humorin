@@ -41,11 +41,11 @@ export default async function PostDetailPage(props: any) {
     <div className="min-h-screen bg-gray-100 font-sans">
       <header className="bg-white p-4 border-b">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
-          <Link href="/" className="text-2xl font-black text-blue-600">OJEMI</Link>
+          <Link href="/" className="text-2xl font-black text-[#3b4890]">OJEMI</Link>
         </div>
       </header>
 
-      <nav className="bg-blue-600 text-white overflow-x-auto">
+      <nav className="bg-[#3b4890] text-white overflow-x-auto">
         <div className="max-w-5xl mx-auto flex">
           {['💯 백베스트', '👑 천베스트', '투데이 베스트', '전체글 보기'].map((menu) => (
             <div key={menu} className="px-4 py-3 hover:bg-blue-700 font-bold text-sm cursor-pointer">{menu}</div>
@@ -59,7 +59,7 @@ export default async function PostDetailPage(props: any) {
           <div className="border-b-2 border-gray-800 pb-4 mb-6">
             <h1 className="text-3xl font-black text-gray-900 mb-4">{post.title}</h1>
             <div className="flex justify-between text-gray-500 text-sm">
-              <div className="font-bold text-blue-600 text-base">{post.author}</div>
+              <div className="font-bold text-[#3b4890] text-base">{post.author}</div>
               
               {/* 💡 조회수 보여주는 곳이 추가되었습니다! */}
               <div className="flex gap-4">
@@ -75,7 +75,7 @@ export default async function PostDetailPage(props: any) {
 
           <div className="mt-10 border-t pt-6 flex justify-between items-center">
             <div className="flex gap-2">
-              <Link href={`/board/${postId}/edit`} className="px-6 py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 transition-colors shadow-sm">
+              <Link href={`/board/${postId}/edit`} className="px-6 py-2 bg-blue-500 text-white rounded font-bold hover:bg-[#3b4890] transition-colors shadow-sm">
                 ✍️ 이 글 수정하기
               </Link>
               <form action={deletePost}>
@@ -90,7 +90,7 @@ export default async function PostDetailPage(props: any) {
           </div>
 
           <div className="mt-12 bg-gray-50 p-6 rounded-lg border border-gray-200">
-            <h3 className="text-xl font-black text-gray-800 mb-4">💬 왁자지껄 수다방 <span className="text-blue-600">({comments.length})</span></h3>
+            <h3 className="text-xl font-black text-gray-800 mb-4">💬 왁자지껄 수다방 <span className="text-[#3b4890]">({comments.length})</span></h3>
             
             <form action={addComment} className="flex gap-2 mb-8">
               <input name="content" placeholder="명품 댓글을 남겨보세요!" className="flex-1 p-3 border rounded focus:outline-blue-500 font-medium" required />
@@ -103,7 +103,7 @@ export default async function PostDetailPage(props: any) {
               ) : (
                 comments.map((c) => (
                   <div key={c.id} className="bg-white p-4 rounded border shadow-sm">
-                    <div className="font-bold text-blue-600 text-sm mb-1">{c.author}</div>
+                    <div className="font-bold text-[#3b4890] text-sm mb-1">{c.author}</div>
                     <div className="text-gray-800">{c.content}</div>
                   </div>
                 ))
