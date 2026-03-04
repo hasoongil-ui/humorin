@@ -1,7 +1,6 @@
 import { sql } from '@vercel/postgres';
 import Link from 'next/link';
 
-// 💡 미나의 강력 부적: "옛날 기억 지우고, 무조건 창고 가서 새로 확인해!"
 export const dynamic = 'force-dynamic';
 
 function formatDate(dateString: any) {
@@ -37,10 +36,12 @@ export default async function BoardPage() {
             </Link>
           </div>
 
+          {/* 💡 제목 칸에 '조회수' 구역 추가! */}
           <div className="flex bg-gray-50 border-t border-b border-gray-200 py-3 text-sm font-bold text-gray-600 text-center">
             <div className="w-16">번호</div>
             <div className="flex-1">제목</div>
             <div className="w-24">글쓴이</div>
+            <div className="w-20">조회수</div>
             <div className="w-32">날짜</div>
           </div>
 
@@ -54,6 +55,8 @@ export default async function BoardPage() {
                   {post.title}
                 </div>
                 <div className="w-24 text-gray-600 font-bold">{post.author}</div>
+                {/* 💡 목록에도 조회수 데이터가 나오게 추가! */}
+                <div className="w-20 text-red-500 font-bold">{post.views || 0}</div>
                 <div className="w-32 text-gray-400">{formatDate(post.date)}</div>
               </Link>
             ))
