@@ -1,9 +1,13 @@
 import { sql } from '@vercel/postgres';
 import Link from 'next/link';
 
-export default async function PostDetailPage({ params }: { params: { id: string } }) {
-  // 📦 창고에서 대표님이 클릭한 딱 그 '번호(id)'의 글만 콕 집어서 가져오는 마법 주문입니다!
-  const { rows } = await sql`SELECT * FROM posts WHERE id = ${params.id}`;
+// 💡 미나의 최신 패치: props에서 params를 확실하게 기다렸다가(await) 뽑아옵니다!
+export default async function PostDetailPage(props: any) {
+  const params = await props.params;
+  const postId = params.id;
+
+  // 📦 뽑아온 번호로 창고에서 정확하게 글을 가져옵니다.
+  const { rows } = await sql`SELECT * FROM posts WHERE id = ${postId}`;
   const post = rows[0];
 
   // 혹시라도 글이 없으면 보여줄 에러 화면
@@ -34,7 +38,6 @@ export default async function PostDetailPage({ params }: { params: { id: string 
       <main className="max-w-5xl mx-auto p-4 mt-4">
         <div className="bg-white rounded-lg shadow-sm border p-8">
           
-          {/* 글 제목과 작성자 정보 */}
           <div className="border-b-2 border-gray-800 pb-4 mb-6">
             <h1 className="text-3xl font-black text-gray-900 mb-4">{post.title}</h1>
             <div className="flex justify-between text-gray-500 text-sm">
@@ -43,12 +46,10 @@ export default async function PostDetailPage({ params }: { params: { id: string 
             </div>
           </div>
 
-          {/* 🌟 진짜 글 내용(본문)이 멋지게 나오는 곳! */}
           <div className="min-h-[300px] text-gray-800 text-lg whitespace-pre-wrap leading-relaxed">
             {post.content}
           </div>
 
-          {/* 하단 버튼 */}
           <div className="mt-10 border-t pt-6 flex justify-end">
             <Link href="/board" className="px-6 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors">
               목록으로 돌아가기
