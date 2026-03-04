@@ -3,7 +3,7 @@ import Link from 'next/link';
 export default function Home() {
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
-      {/* 상단 헤더 (순간이동 메뉴 추가) */}
+      {/* 상단 헤더 (로그인, 회원가입 순간이동 연결 완료) */}
       <header className="flex justify-between items-center p-6 border-b border-gray-100 shadow-sm">
         <div className="text-3xl font-extrabold text-blue-600 tracking-tighter cursor-pointer">
           <Link href="/">OJEMI</Link>
@@ -13,11 +13,15 @@ export default function Home() {
           <span className="cursor-pointer hover:text-gray-900 transition">질문/답변</span>
           <span className="cursor-pointer hover:text-gray-900 transition">갤러리</span>
         </nav>
-        <div className="space-x-4">
-          <button className="text-sm font-medium text-gray-500 hover:text-gray-900 transition">로그인</button>
-          <button className="text-sm font-medium bg-blue-600 text-white px-5 py-2.5 rounded-full hover:bg-blue-700 transition shadow-md">
+        <div className="space-x-4 flex items-center">
+          {/* ✨ 로그인 순간이동 문 ✨ */}
+          <Link href="/login" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition">
+            로그인
+          </Link>
+          {/* ✨ 회원가입 순간이동 문 ✨ */}
+          <Link href="/signup" className="text-sm font-medium bg-blue-600 text-white px-5 py-2.5 rounded-full hover:bg-blue-700 transition shadow-md">
             회원가입
-          </button>
+          </Link>
         </div>
       </header>
 
@@ -31,7 +35,7 @@ export default function Home() {
           이제 세상과 가장 빠르게 소통하세요.
         </p>
 
-        {/* 하단 최신글 피드 (클릭하면 게시판으로 이동) */}
+        {/* 하단 최신글 피드 */}
         <div className="text-left mt-16 border-t border-gray-200 pt-10">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold flex items-center">
