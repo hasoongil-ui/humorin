@@ -9,7 +9,13 @@ export default function WritePage() {
   const [category, setCategory] = useState('유머');
 
   const handleSubmit = async () => {
-    if (!title || !content) return alert('대표님! 제목과 내용을 입력해 주세요!');
+    // 1. 버튼이 살아있는지 확인하는 알림창입니다!
+    alert('대표님, 등록 버튼이 정상적으로 눌렸습니다! 창고로 배달을 시작할게요.');
+
+    if (!title || !content) {
+      alert('제목과 내용을 모두 입력해 주세요!');
+      return;
+    }
 
     try {
       const response = await fetch('/api/post', {
@@ -19,33 +25,32 @@ export default function WritePage() {
       });
 
       if (response.ok) {
-        alert('🎉 대박! 명품 게시판의 첫 글이 창고에 저장되었습니다!');
+        alert('🎉 대박! 글이 창고에 완벽하게 저장되었습니다!');
         window.location.href = '/board'; 
+      } else {
+        alert('창고 배달에 문제가 생겼습니다. (에러 발생)');
       }
     } catch (error) {
-      alert('배달 사고 발생! 미나를 불러주세요.');
+      alert('네트워크 연결이 좋지 않습니다. 다시 시도해 주세요!');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* 명품 상단 로고바 */}
+    <div className="min-h-screen bg-gray-100 font-sans">
       <header className="bg-white p-4 border-b">
         <div className="max-w-5xl mx-auto">
-          <h1 className="text-2xl font-black text-blue-600">OJEMI</h1>
+          <Link href="/" className="text-2xl font-black text-blue-600">OJEMI</Link>
         </div>
       </header>
 
-      {/* 파란색 명품 메뉴바 */}
-      <nav className="bg-blue-600 text-white overflow-x-auto whitespace-nowrap">
+      <nav className="bg-blue-600 text-white overflow-x-auto">
         <div className="max-w-5xl mx-auto flex">
           {['💯 백베스트', '👑 천베스트', '투데이 베스트', '전체글 보기', '유머', '감동', '공포', '일상', '그냥 혼잣말', '핫뉴스'].map((menu) => (
-            <button key={menu} className="px-4 py-3 hover:bg-blue-700 font-bold text-sm">{menu}</button>
+            <div key={menu} className="px-4 py-3 hover:bg-blue-700 font-bold text-sm cursor-pointer">{menu}</div>
           ))}
         </div>
       </nav>
 
-      {/* 게시판 에디터 본체 */}
       <main className="max-w-5xl mx-auto p-4 mt-4">
         <div className="bg-white rounded-lg shadow-sm border p-6">
           <div className="flex gap-2 mb-4">
@@ -54,26 +59,24 @@ export default function WritePage() {
             </select>
             <input 
               className="w-full p-2 border rounded focus:outline-blue-500" 
-              placeholder="제목!!" 
+              placeholder="제목을 입력하세요" 
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
           </div>
 
-          {/* 에디터 툴바 흉내내기 */}
           <div className="border rounded-t bg-gray-50 p-2 flex gap-4 text-sm text-gray-600 border-b-0">
             <span>🖼️ 사진</span> <span>🎬 영상</span> | <b>B</b> <i>I</i> <u>U</u> <s>S</s> | <span className="text-red-500">🔴 색상</span>
           </div>
           <textarea 
             className="w-full p-4 border rounded-b h-96 focus:outline-blue-500 resize-none" 
-            placeholder="여기에 명품 글을 작성해 주세요!"
+            placeholder="내용을 입력하세요"
             value={content}
             onChange={(e) => setContent(e.target.value)}
           />
 
-          {/* 하단 버튼 구역 */}
           <div className="mt-4 flex justify-end gap-2">
-            <button className="px-6 py-2 bg-gray-100 rounded hover:bg-gray-200">취소</button>
+            <button className="px-6 py-2 bg-gray-100 rounded hover:bg-gray-200" onClick={() => window.location.href='/board'}>취소</button>
             <button 
               onClick={handleSubmit}
               className="px-8 py-2 bg-blue-600 text-white rounded font-extrabold hover:bg-blue-700 shadow-lg"
