@@ -4,6 +4,13 @@ import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 
+// 💡 미나의 깔끔 마법: 본문에서도 [카테고리]와 제목을 예쁘게 분리해서 보여줍니다!
+function extractData(fullTitle: string) {
+  if (!fullTitle) return { cat: '일반', cleanTitle: '' };
+  const match = fullTitle.match(/^\[(.*?)\]\s*(.*)$/);
+  return match ? { cat: match[1], cleanTitle: match[2] } : { cat: '일반', cleanTitle: fullTitle };
+}
+
 export default async function PostDetailPage(props: any) {
   const params = await props.params;
   const postId = params.id;
@@ -32,8 +39,12 @@ export default async function PostDetailPage(props: any) {
     }
   }
 
-  const date = new Date(post.date);
-  const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  // 💡 미나의 KST 패치! 상세 화면의 시간도 한국 시간으로 9시간 당겨줍니다!
+  const dbDate = new Date(post.date);
+  const kstDate = new Date(dbDate.getTime() + 9 * 60 * 60 * 1000);
+  const formattedDate = `${kstDate.getFullYear()}-${String(kstDate.getMonth() + 1).padStart(2, '0')}-${String(kstDate.getDate()).padStart(2, '0')} ${String(kstDate.getHours()).padStart(2, '0')}:${String(kstDate.getMinutes()).padStart(2, '0')}`;
+
+  const postData = extractData(post.title);
 
   const deletePost = async () => {
     'use server';
@@ -61,10 +72,10 @@ export default async function PostDetailPage(props: any) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 font-sans">
+    <div className="min-h-screen bg-white font-sans">
       <header className="bg-white p-4 border-b">
-        <div className="max-w-5xl mx-auto flex justify-between items-center">
-          <Link href="/" className="text-2xl font-black text-[#3b4890]">OJEMI</Link>
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
           {currentUser && (
             <div className="text-sm font-bold text-gray-600">
               반갑습니다, <span className="text-[#3b4890]">{currentUser}</span>님!
@@ -73,92 +84,92 @@ export default async function PostDetailPage(props: any) {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto p-2 md:p-4 mt-4 mb-20 overflow-hidden">
-        <div className="bg-white rounded-lg shadow-sm border p-4 md:p-8">
-          
-          <div className="border-b-2 border-gray-800 pb-4 mb-6">
-            <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-4 break-words">{post.title}</h1>
-            <div className="flex flex-col md:flex-row justify-between text-gray-500 text-sm gap-2 md:gap-0">
-              <div className="font-bold text-[#3b4890] text-base">{post.author}</div>
-              <div className="flex flex-wrap gap-4 items-center">
-                <span className="text-red-500 font-bold">👀 조회수 {post.views || 0}</span>
-                <span className="text-blue-600 font-bold">👍 추천수 {post.likes || 0}</span>
-                <span>{formattedDate}</span>
-              </div>
+      <main className="max-w-6xl mx-auto p-4 md:p-6 mt-4 mb-20 overflow-hidden">
+        
+        <div className="border-b-2 border-gray-800 pb-4 mb-8">
+          <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-4 break-words">
+            <span className="text-[#3b4890] mr-2">[{postData.cat}]</span>
+            {postData.cleanTitle}
+          </h1>
+          <div className="flex flex-col md:flex-row justify-between text-gray-500 text-sm gap-2 md:gap-0">
+            <div className="font-bold text-gray-700 text-base">{post.author}</div>
+            <div className="flex flex-wrap gap-4 items-center font-medium">
+              <span className="text-red-500">👀 조회 {post.views || 0}</span>
+              <span className="text-blue-600">👍 추천 {post.likes || 0}</span>
+              <span className="text-gray-400">{formattedDate}</span>
             </div>
           </div>
-
-          {/* 💡 미나의 마법: 영어를 진짜 사진으로 보여주는 주문(dangerouslySetInnerHTML) 장착 완료! */}
-          <div 
-            className="min-h-[200px] md:min-h-[300px] text-gray-800 text-base md:text-lg whitespace-pre-wrap leading-relaxed break-words"
-            dangerouslySetInnerHTML={{ __html: post.content }}
-          />
-
-          <div className="mt-8 flex justify-center">
-            {hasLiked ? (
-              <button disabled className="flex flex-col items-center justify-center w-20 h-20 md:w-24 md:h-24 rounded-full border-2 border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed shadow-inner">
-                <span className="text-2xl md:text-3xl mb-1 opacity-50">👍</span>
-                <span className="font-bold text-xs md:text-sm">추천완료</span>
-              </button>
-            ) : (
-              <form action={likePost}>
-                <button type="submit" className="flex flex-col items-center justify-center w-20 h-20 md:w-24 md:h-24 rounded-full border-2 border-[#3b4890] bg-white text-[#3b4890] hover:bg-[#3b4890] hover:text-white transition-all shadow-md group">
-                  <span className="text-2xl md:text-3xl mb-1 group-hover:scale-125 transition-transform">👍</span>
-                  <span className="font-bold text-xs md:text-sm">추천 {post.likes || 0}</span>
-                </button>
-              </form>
-            )}
-          </div>
-
-          <div className="mt-10 border-t pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-              {isAuthor && (
-                <>
-                  <Link href={`/board/${postId}/edit`} className="w-full text-center px-6 py-2 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] transition-colors shadow-sm">
-                    ✍️ 수정하기
-                  </Link>
-                  <form action={deletePost} className="w-full">
-                    <button type="submit" className="w-full px-6 py-2 bg-red-500 text-white rounded font-bold hover:bg-red-600 transition-colors shadow-sm">
-                      🗑️ 완전 삭제
-                    </button>
-                  </form>
-                </>
-              )}
-            </div>
-            <Link href="/board" className="w-full md:w-auto text-center px-6 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors">
-              목록으로 돌아가기
-            </Link>
-          </div>
-
-          <div className="mt-12 bg-gray-50 p-4 md:p-6 rounded-lg border border-gray-200">
-            <h3 className="text-lg md:text-xl font-black text-gray-800 mb-4">💬 왁자지껄 수다방 <span className="text-[#3b4890]">({comments.length})</span></h3>
-            
-            {currentUser ? (
-              <form action={addComment} className="flex flex-col md:flex-row gap-2 mb-8 w-full">
-                <input name="content" placeholder="명품 댓글을 남겨보세요!" className="w-full md:flex-1 p-3 border rounded focus:outline-[#3b4890] font-medium" required />
-                <button type="submit" className="w-full md:w-auto px-6 py-3 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] transition-colors">등록</button>
-              </form>
-            ) : (
-              <div className="mb-8 p-4 bg-gray-100 text-center text-gray-500 rounded font-bold text-sm md:text-base">
-                댓글을 작성하려면 <Link href="/login" className="text-[#3b4890] hover:underline">로그인</Link>이 필요합니다.
-              </div>
-            )}
-
-            <div className="space-y-3">
-              {comments.length === 0 ? (
-                <div className="text-center text-gray-400 py-4 text-sm md:text-base">아직 댓글이 없습니다. 첫 번째 댓글의 주인공이 되어보세요!</div>
-              ) : (
-                comments.map((c) => (
-                  <div key={c.id} className="bg-white p-3 md:p-4 rounded border shadow-sm break-words">
-                    <div className="font-bold text-[#3b4890] text-xs md:text-sm mb-1">{c.author}</div>
-                    <div className="text-gray-800 text-sm md:text-base">{c.content}</div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
         </div>
+
+        <div 
+          className="min-h-[200px] md:min-h-[400px] text-gray-900 text-base md:text-lg whitespace-pre-wrap leading-relaxed break-words"
+          dangerouslySetInnerHTML={{ __html: post.content }}
+        />
+
+        <div className="mt-12 flex justify-center border-t border-gray-200 pt-10">
+          {hasLiked ? (
+            <button disabled className="flex flex-col items-center justify-center w-24 h-24 rounded-full border-2 border-gray-300 bg-gray-50 text-gray-400 cursor-not-allowed shadow-inner">
+              <span className="text-3xl mb-1 opacity-50">👍</span>
+              <span className="font-bold text-sm">추천완료</span>
+            </button>
+          ) : (
+            <form action={likePost}>
+              <button type="submit" className="flex flex-col items-center justify-center w-24 h-24 rounded-full border-2 border-[#3b4890] bg-white text-[#3b4890] hover:bg-[#3b4890] hover:text-white transition-all shadow-md group">
+                <span className="text-3xl mb-1 group-hover:scale-125 transition-transform">👍</span>
+                <span className="font-bold text-sm">추천 {post.likes || 0}</span>
+              </button>
+            </form>
+          )}
+        </div>
+
+        <div className="mt-12 border-t border-gray-200 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+            {isAuthor && (
+              <>
+                <Link href={`/board/${postId}/edit`} className="w-full text-center px-6 py-2.5 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] transition-colors shadow-sm">
+                  ✍️ 수정하기
+                </Link>
+                <form action={deletePost} className="w-full">
+                  <button type="submit" className="w-full px-6 py-2.5 bg-red-500 text-white rounded font-bold hover:bg-red-600 transition-colors shadow-sm">
+                    🗑️ 완전 삭제
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+          <Link href={`/board?category=${postData.cat !== '일반' ? postData.cat : 'all'}`} className="w-full md:w-auto text-center px-8 py-2.5 bg-gray-800 text-white rounded font-bold hover:bg-gray-900 transition-colors">
+            목록으로
+          </Link>
+        </div>
+
+        <div className="mt-16 bg-gray-50 p-6 rounded-lg border border-gray-200">
+          <h3 className="text-lg font-black text-gray-800 mb-6">💬 댓글 <span className="text-[#3b4890]">({comments.length})</span></h3>
+          
+          {currentUser ? (
+            <form action={addComment} className="flex flex-col md:flex-row gap-2 mb-10 w-full">
+              <input name="content" placeholder="댓글을 남겨보세요." className="w-full md:flex-1 p-3 border border-gray-300 rounded focus:border-[#3b4890] outline-none font-medium" required />
+              <button type="submit" className="w-full md:w-auto px-8 py-3 bg-gray-800 text-white rounded font-bold hover:bg-gray-900 transition-colors">등록</button>
+            </form>
+          ) : (
+            <div className="mb-10 p-4 bg-gray-200 text-center text-gray-600 rounded font-bold text-sm">
+              댓글을 작성하려면 <Link href="/login" className="text-[#3b4890] hover:underline">로그인</Link>이 필요합니다.
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {comments.length === 0 ? (
+              <div className="text-center text-gray-400 py-6 font-medium">아직 등록된 댓글이 없습니다.</div>
+            ) : (
+              comments.map((c) => (
+                <div key={c.id} className="bg-white p-4 rounded border border-gray-200 shadow-sm break-words">
+                  <div className="font-bold text-gray-800 text-sm mb-2">{c.author}</div>
+                  <div className="text-gray-700 text-base">{c.content}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
       </main>
     </div>
   );

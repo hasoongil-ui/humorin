@@ -4,14 +4,20 @@ import Link from 'next/link';
 export const dynamic = 'force-dynamic';
 
 function formatDate(dateString: any) {
-  const date = new Date(dateString);
-  const now = new Date();
-  const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+  // 💡 미나의 KST(한국 시간) 패치! 영국 시간(UTC)에 9시간을 더해줍니다.
+  const dbDate = new Date(dateString);
+  const kstDate = new Date(dbDate.getTime() + 9 * 60 * 60 * 1000);
+  
+  // '오늘'인지 비교하기 위한 '현재 시간'도 한국 시간으로 계산합니다!
+  const nowUtc = new Date();
+  const nowKst = new Date(nowUtc.getTime() + 9 * 60 * 60 * 1000);
+  
+  const isToday = kstDate.getDate() === nowKst.getDate() && kstDate.getMonth() === nowKst.getMonth() && kstDate.getFullYear() === nowKst.getFullYear();
   
   if (isToday) {
-    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    return `${String(kstDate.getHours()).padStart(2, '0')}:${String(kstDate.getMinutes()).padStart(2, '0')}`;
   }
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return `${kstDate.getFullYear()}-${String(kstDate.getMonth() + 1).padStart(2, '0')}-${String(kstDate.getDate()).padStart(2, '0')}`;
 }
 
 function hasImage(content: string) {
@@ -140,7 +146,6 @@ export default async function BoardPage(props: any) {
              keyword ? `🔍 '${keyword}' 검색 결과 (${totalCount}건)` : 
              category !== 'all' ? `[${category}] 게시판` : '전체글 보기'}
           </h2>
-          {/* 💡 미나의 철저한 반영: '전체글'이나 '베스트' 게시판에서는 글쓰기 버튼을 아예 숨깁니다! */}
           {category !== 'all' && bestType === '' && (
             <Link href={`/board/write?category=${category}`} className="px-5 py-2 bg-[#3b4890] text-white rounded text-sm font-bold hover:bg-[#222b5c] transition-colors">
               ✍️ 글쓰기
@@ -225,6 +230,20 @@ export default async function BoardPage(props: any) {
               다음
             </Link>
           )}
+        </div>
+
+        <div className="mt-8 flex justify-center">
+          <form action="/board" method="GET" className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+            {bestType && <input type="hidden" name="best" value={bestType} />}
+            {category !== 'all' && <input type="hidden" name="category" value={category} />}
+            <select className="p-2 border border-gray-300 rounded focus:outline-[#3b4890] text-sm text-gray-600 font-bold bg-white outline-none cursor-pointer">
+              <option value="all">제목 + 글쓴이</option>
+            </select>
+            <input name="q" defaultValue={keyword} placeholder="검색어를 입력하세요" className="p-2 border border-gray-300 rounded w-full md:w-64 focus:outline-[#3b4890] text-sm outline-none" required />
+            <button type="submit" className="px-6 py-2 bg-gray-800 text-white rounded font-bold hover:bg-gray-900 transition-colors text-sm w-full md:w-auto">
+              검색
+            </button>
+          </form>
         </div>
 
       </main>
