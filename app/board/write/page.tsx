@@ -55,19 +55,30 @@ export default function WritePage() {
     setImages(images.filter((_, i) => i !== index));
   };
 
+  // 💡 [수정 완료]: 주소 에러 고치고, 사진을 본문 밑에 찰싹 붙이는 마법 적용!
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isUploading) return;
 
-    const res = await fetch('/api/board', {
+    // 1. 사진 주소들을 본문(content) 밑에 그림 태그(<img...>)로 예쁘게 붙여버립니다!
+    let finalContent = content;
+    if (images.length > 0) {
+      const imageTags = images.map(url => `<img src="${url}" alt="첨부사진" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 15px;" />`).join('\n');
+      finalContent = finalContent + '\n\n' + imageTags;
+    }
+
+    // 2. 주소를 대표님의 진짜 우체통인 '/api/post' 로 정확히 보냅니다!
+    const res = await fetch('/api/post', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, content, author, images }),
+      body: JSON.stringify({ title, content: finalContent, author }), // 합친 finalContent를 보냅니다!
     });
 
     if (res.ok) {
-      router.push('/board');
+      router.push('/board'); // 성공하면 글 목록 화면으로 슝~ 이동!
       router.refresh();
+    } else {
+      alert('글 등록에 실패했습니다. (서버 우체통 에러)');
     }
   };
 
