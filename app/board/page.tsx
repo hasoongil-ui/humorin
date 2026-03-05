@@ -11,31 +11,41 @@ function formatDate(dateString: any) {
 export default async function BoardPage(props: any) {
   const searchParams = await props.searchParams;
   const bestCount = searchParams.best ? Number(searchParams.best) : 0;
-  
-  // 💡 미나의 마법 1: 주소창에 '검색어(q)'가 날아왔는지 확인합니다!
   const keyword = searchParams.q || ''; 
+  
+  // 💡 미나의 마법 1: 지금 몇 페이지에 있는지 확인하고, 한 페이지에 5개씩만 보여주라고 지시합니다!
+  const page = searchParams.page ? Number(searchParams.page) : 1;
+  const limit = 5; // 한 페이지에 보여줄 글 개수 (테스트용 5개!)
+  const offset = (page - 1) * limit; // 창고에서 몇 번째 글부터 꺼낼지 계산하는 마법
 
   let posts;
+  let totalCount = 0; // 전체 글이 몇 개인지 세어둘 변수
   
-  // 💡 미나의 마법 2: 검색어가 있으면 제목이나 글쓴이에 그 단어가 들어간 글만 찾아옵니다! 
-  // (ILIKE 는 대소문자 구별 없이 귀신같이 찾아내는 주문입니다!)
+  // 💡 미나의 마법 2: 글을 가져올 때 '몇 개만(LIMIT)' 가져오라고 똑똑하게 명령합니다!
   if (keyword && bestCount > 0) {
-    // 명예의 전당 안에서 검색할 때
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= ${bestCount} AND (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'}) ORDER BY date DESC`;
+    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= ${bestCount} AND (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'})`;
+    totalCount = Number(countResult.rows[0].count);
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= ${bestCount} AND (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'}) ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } else if (keyword) {
-    // 전체 게시판에서 검색할 때
-    const { rows } = await sql`SELECT * FROM posts WHERE title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'} ORDER BY date DESC`;
+    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'}`;
+    totalCount = Number(countResult.rows[0].count);
+    const { rows } = await sql`SELECT * FROM posts WHERE title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'} ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } else if (bestCount > 0) {
-    // 검색어 없이 명예의 전당만 볼 때
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= ${bestCount} ORDER BY date DESC`;
+    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= ${bestCount}`;
+    totalCount = Number(countResult.rows[0].count);
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= ${bestCount} ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } else {
-    // 평소 전체글 볼 때
-    const { rows } = await sql`SELECT * FROM posts ORDER BY date DESC`;
+    const countResult = await sql`SELECT COUNT(*) FROM posts`;
+    totalCount = Number(countResult.rows[0].count);
+    const { rows } = await sql`SELECT * FROM posts ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
+
+  // 전체 페이지 개수 계산 (예: 글이 12개면 3페이지가 필요함)
+  const totalPages = Math.ceil(totalCount / limit) || 1;
 
   const menus = [
     { name: '💯 백베스트', link: '/board?best=3' }, 
@@ -62,9 +72,7 @@ export default async function BoardPage(props: any) {
         <div className="max-w-5xl mx-auto flex flex-wrap relative">
           {menus.map((menu) => (
             <Link href={menu.link} key={menu.name} className="relative group px-4 py-3 cursor-pointer block">
-              <span className="font-bold text-sm group-hover:text-white transition-colors">
-                {menu.name}
-              </span>
+              <span className="font-bold text-sm group-hover:text-white transition-colors">{menu.name}</span>
               <div className="absolute left-1/2 -translate-x-1/2 top-full mt-0 hidden group-hover:block z-50">
                 <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-b-[6px] border-transparent border-b-white mx-auto"></div>
                 <div className="bg-white text-gray-800 text-xs font-bold px-3 py-1.5 border border-gray-300 shadow-lg whitespace-nowrap rounded-sm">
@@ -79,9 +87,8 @@ export default async function BoardPage(props: any) {
       <main className="max-w-5xl mx-auto p-4 mt-4 mb-20">
         <div className="bg-white rounded-lg shadow-sm border p-6">
           <div className="flex justify-between items-center mb-4">
-            {/* 💡 검색을 하면 제목이 'O 검색 결과'로 센스 있게 바뀝니다! */}
             <h2 className="text-xl font-bold text-gray-800">
-              {keyword ? `🔍 '${keyword}' 검색 결과 (${posts.length}건)` : (bestCount > 0 ? `🏆 명예의 전당 (추천 ${bestCount}개 이상)` : '전체글 보기')}
+              {keyword ? `🔍 '${keyword}' 검색 결과 (${totalCount}건)` : (bestCount > 0 ? `🏆 명예의 전당 (추천 ${bestCount}개 이상)` : '전체글 보기')}
             </h2>
             <Link href="/board/write" className="px-6 py-2 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] shadow-md transition-colors">
               ✍️ 폼나게 글쓰기
@@ -99,7 +106,7 @@ export default async function BoardPage(props: any) {
 
           {posts.length === 0 ? (
             <div className="text-center py-10 text-gray-500">
-              {keyword ? '검색된 명품 글이 없습니다. 다른 단어로 찾아보세요!' : '아직 조건을 만족하는 명품 글이 없습니다.'}
+              {keyword ? '검색된 명품 글이 없습니다.' : '아직 등록된 명품 글이 없습니다.'}
             </div>
           ) : (
             posts.map((post) => (
@@ -116,23 +123,38 @@ export default async function BoardPage(props: any) {
             ))
           )}
 
-          {/* 💡 디씨인사이드처럼 게시판 맨 아래에 달린 깔끔한 검색창! */}
+          {/* 💡 대망의 페이징(페이지 번호) 구역! 디씨인사이드처럼 예쁘게 달아줍니다. */}
+          <div className="flex justify-center items-center gap-2 mt-8">
+            {page > 1 && (
+              <Link href={`/board?page=${page - 1}${keyword ? `&q=${keyword}` : ''}${bestCount > 0 ? `&best=${bestCount}` : ''}`} className="px-3 py-1 border border-gray-300 rounded bg-white text-gray-600 hover:bg-gray-50 font-bold text-sm">
+                &lt; 이전
+              </Link>
+            )}
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <Link 
+                key={p} 
+                href={`/board?page=${p}${keyword ? `&q=${keyword}` : ''}${bestCount > 0 ? `&best=${bestCount}` : ''}`}
+                className={`px-3 py-1 border rounded font-bold text-sm transition-colors ${page === p ? 'bg-[#3b4890] text-white border-[#3b4890]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+              >
+                {p}
+              </Link>
+            ))}
+
+            {page < totalPages && (
+              <Link href={`/board?page=${page + 1}${keyword ? `&q=${keyword}` : ''}${bestCount > 0 ? `&best=${bestCount}` : ''}`} className="px-3 py-1 border border-gray-300 rounded bg-white text-gray-600 hover:bg-gray-50 font-bold text-sm">
+                다음 &gt;
+              </Link>
+            )}
+          </div>
+
           <div className="mt-8 flex justify-center">
             <form action="/board" method="GET" className="flex gap-2">
               {bestCount > 0 && <input type="hidden" name="best" value={bestCount} />}
-              
               <select className="p-2 border border-gray-300 rounded focus:outline-[#3b4890] text-sm text-gray-600 font-bold bg-white outline-none cursor-pointer">
                 <option value="all">제목 + 글쓴이</option>
               </select>
-              
-              <input 
-                name="q" 
-                defaultValue={keyword}
-                placeholder="검색어를 입력하세요" 
-                className="p-2 border border-gray-300 rounded w-64 focus:outline-[#3b4890] text-sm outline-none"
-                required
-              />
-              
+              <input name="q" defaultValue={keyword} placeholder="검색어를 입력하세요" className="p-2 border border-gray-300 rounded w-64 focus:outline-[#3b4890] text-sm outline-none" required />
               <button type="submit" className="px-6 py-2 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] transition-colors text-sm shadow-sm">
                 🔍 검색
               </button>
