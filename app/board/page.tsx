@@ -1,5 +1,6 @@
 import { sql } from '@vercel/postgres';
 import Link from 'next/link';
+import { cookies } from 'next/headers'; // 💡 미나의 추가 부품: 유저 로그인 상태를 확인하기 위한 쿠키!
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,18 @@ export default async function BoardPage(props: any) {
   const category = searchParams.category || 'all';
   const keyword = searchParams.q || ''; 
   const page = searchParams.page ? Number(searchParams.page) : 1;
+  
+  // 💡 유저 로그인 상태 확인
+  const cookieStore = await cookies();
+  const userCookie = cookieStore.get('ojemi_user');
+  const currentUser = userCookie ? userCookie.value : null;
+
+  // 💡 로그아웃을 처리하는 서버 액션 마법!
+  const handleLogout = async () => {
+    'use server';
+    const store = await cookies();
+    store.delete('ojemi_user');
+  };
   
   const limit = 20; 
   const offset = (page - 1) * limit; 
@@ -113,15 +126,17 @@ export default async function BoardPage(props: any) {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
-      <header className="bg-white p-4 border-b border-gray-200">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
+    <div className="min-h-screen bg-gray-100 font-sans text-gray-800">
+      {/* 최상단 헤더 */}
+      <header className="bg-white p-4 border-b border-gray-200 shadow-sm relative z-10">
+        <div className="max-w-[1200px] mx-auto flex justify-between items-center">
           <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
         </div>
       </header>
 
+      {/* 가로형 대메뉴 (네비게이션 바) */}
       <nav className="bg-[#414a66] text-gray-200 shadow-md">
-        <div className="max-w-6xl mx-auto flex flex-wrap">
+        <div className="max-w-[1200px] mx-auto flex flex-wrap">
           {menus.map((menu) => {
             const isActive = (category !== 'all' && menu.name.includes(category)) || 
                              (bestType === 'today' && menu.name.includes('투데이')) ||
@@ -136,117 +151,185 @@ export default async function BoardPage(props: any) {
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
+      {/* 💡 미나의 야심작: 사이드바 + 메인 게시판 2단 레이아웃 컨테이너 */}
+      <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row gap-5 p-4 md:py-6 mt-2 mb-20">
         
-        <div className="flex justify-between items-end mb-4">
-          <h2 className="text-xl font-bold text-gray-800">
-            {bestType === 'today' ? '🔥 투데이 베스트 (추천 10 이상)' : 
-             keyword ? `🔍 '${keyword}' 검색 결과 (${totalCount}건)` : 
-             category !== 'all' ? `${category}` : '전체글 보기'}
-          </h2>
-        </div>
+        {/* 🟡 왼쪽 사이드바 영역 (이토랜드/클리앙 스타일) */}
+        <aside className="w-full md:w-[240px] shrink-0 flex flex-col gap-4">
+          
+          {/* 로그인 / 내 정보 박스 */}
+          <div className="bg-white border border-gray-200 shadow-sm rounded-sm p-4">
+            {currentUser ? (
+              // 로그인 된 상태 (이토랜드 스타일)
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-gray-100 border border-gray-200 rounded-full flex items-center justify-center text-xl shadow-inner">
+                    👤
+                  </div>
+                  <div>
+                    <div className="font-black text-gray-800 text-sm">
+                      <span className="text-[#3b4890]">{currentUser}</span>님
+                    </div>
+                    <div className="text-[11px] text-gray-400 font-bold mt-0.5">최고의 커뮤니티 오재미!</div>
+                  </div>
+                </div>
+                
+                {/* 실속 있는 퀵 버튼들 */}
+                <div className="grid grid-cols-3 gap-1 mb-3">
+                  <Link href="#" className="py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-center text-xs font-bold text-gray-600 rounded-sm">내정보</Link>
+                  <Link href="#" className="py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-center text-xs font-bold text-gray-600 rounded-sm">쪽지<span className="text-red-500 ml-0.5">0</span></Link>
+                  <Link href="#" className="py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-center text-xs font-bold text-gray-600 rounded-sm">스크랩</Link>
+                </div>
 
-        <div className="border-t-2 border-gray-700 text-sm">
-          <div className="hidden md:flex border-b border-gray-300 bg-gray-50 py-3 font-bold text-gray-600 text-center">
-            <div className="w-16">번호</div>
-            <div className="flex-1">제목</div>
-            <div className="w-32">글쓴이</div>
-            <div className="w-24">등록일</div>
-            <div className="w-16 text-blue-600">추천</div>
-            <div className="w-16">조회</div>
+                <form action={handleLogout}>
+                  <button type="submit" className="w-full py-2 bg-gray-800 text-white text-xs font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm">
+                    로그아웃
+                  </button>
+                </form>
+              </div>
+            ) : (
+              // 로그아웃 상태
+              <div>
+                <div className="text-xs font-bold text-gray-500 mb-3 text-center">
+                  오재미를 더 편리하게 이용하세요!
+                </div>
+                <Link href="/login" className="block w-full text-center py-2 bg-[#414a66] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors shadow-sm mb-2">
+                  로그인
+                </Link>
+                <div className="flex justify-between text-xs font-bold text-gray-500 px-1">
+                  <Link href="/signup" className="hover:text-gray-900">회원가입</Link>
+                  <Link href="#" className="hover:text-gray-900">아이디/비밀번호 찾기</Link>
+                </div>
+              </div>
+            )}
           </div>
 
-          {topPost && (() => {
-            const topData = extractData(topPost.title);
-            return (
-              <Link href={`/board/${topPost.id}`} className="flex flex-col md:flex-row border-b border-gray-200 py-3 bg-blue-50/50 hover:bg-gray-50 transition-colors cursor-pointer items-center">
-                <div className="hidden md:block w-16 text-center text-xs text-gray-500 font-bold">장원</div>
-                <div className="flex-1 px-3 w-full font-bold text-gray-900 truncate text-left">
-                  <span className="text-[#3b4890] mr-1">[{topData.cat}]</span>
-                  {topData.cleanTitle}
-                  {hasImage(topPost.content) && <span className="ml-1 text-xs opacity-70">🖼️</span>}
-                </div>
-                <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-xs text-gray-500 justify-between items-center">
-                  <div className="md:w-32 md:text-center font-semibold text-gray-700 truncate">{topPost.author}</div>
-                  <div className="md:w-24 md:text-center text-gray-400">{formatDate(topPost.date)}</div>
-                  <div className="md:w-16 md:text-center font-bold text-blue-600">{topPost.likes || 0}</div>
-                  <div className="md:w-16 md:text-center text-gray-400">{topPost.views || 0}</div>
-                </div>
-              </Link>
-            );
-          })()}
+          {/* 사이드바 보조 메뉴 (클리앙 스타일) */}
+          <div className="hidden md:block bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden">
+            <div className="bg-[#414a66] text-white text-[13px] font-bold py-2.5 px-3 border-b border-[#2a3042]">
+              즐겨찾는 게시판
+            </div>
+            <ul className="text-[13px] font-bold text-gray-600">
+              <li><Link href="/board" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100">전체글 보기</Link></li>
+              <li><Link href="/board?best=today" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100">🔥 투데이 베스트</Link></li>
+              <li><Link href="/board?category=유머" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100">유머 게시판</Link></li>
+              <li><Link href="/board?category=일상" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890]">일상 게시판</Link></li>
+            </ul>
+          </div>
+        </aside>
 
-          {renderPosts.length === 0 && !topPost ? (
-            <div className="text-center py-20 text-gray-400 font-medium">등록된 게시물이 없습니다.</div>
-          ) : (
-            renderPosts.map((post: any) => {
-              const postData = extractData(post.title);
+        {/* 🔵 오른쪽 메인 게시판 영역 */}
+        <main className="flex-1 min-w-0 bg-white border border-gray-200 shadow-sm rounded-sm p-4 md:p-6">
+          
+          <div className="flex justify-between items-end mb-4">
+            <h2 className="text-xl font-bold text-gray-800">
+              {bestType === 'today' ? '🔥 투데이 베스트 (추천 10 이상)' : 
+               keyword ? `🔍 '${keyword}' 검색 결과 (${totalCount}건)` : 
+               category !== 'all' ? `${category}` : '전체글 보기'}
+            </h2>
+          </div>
+
+          <div className="border-t-2 border-gray-700 text-sm">
+            <div className="hidden md:flex border-b border-gray-300 bg-gray-50 py-3 font-bold text-gray-600 text-center">
+              <div className="w-16">번호</div>
+              <div className="flex-1">제목</div>
+              <div className="w-32">글쓴이</div>
+              <div className="w-24">등록일</div>
+              <div className="w-16 text-blue-600">추천</div>
+              <div className="w-16">조회</div>
+            </div>
+
+            {topPost && (() => {
+              const topData = extractData(topPost.title);
               return (
-                <Link href={`/board/${post.id}`} key={post.id} className="flex flex-col md:flex-row border-b border-gray-200 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer items-center group">
-                  <div className="hidden md:block w-16 text-center text-xs text-gray-400">{post.id}</div>
-                  <div className="flex-1 px-3 w-full text-gray-800 group-hover:underline truncate text-left text-[15px]">
-                    <span className="text-gray-500 mr-1.5 text-sm font-semibold">[{postData.cat}]</span>
-                    {postData.cleanTitle}
-                    {hasImage(post.content) && <span className="ml-1 text-xs opacity-60">🖼️</span>}
+                <Link href={`/board/${topPost.id}`} className="flex flex-col md:flex-row border-b border-gray-200 py-3 bg-blue-50/50 hover:bg-gray-50 transition-colors cursor-pointer items-center">
+                  <div className="hidden md:block w-16 text-center text-xs text-gray-500 font-bold">장원</div>
+                  <div className="flex-1 px-3 w-full font-bold text-gray-900 truncate text-left">
+                    <span className="text-[#3b4890] mr-1">[{topData.cat}]</span>
+                    {topData.cleanTitle}
+                    {hasImage(topPost.content) && <span className="ml-1 text-xs opacity-70">🖼️</span>}
                   </div>
                   <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-xs text-gray-500 justify-between items-center">
-                    <div className="md:w-32 md:text-center font-medium text-gray-600 truncate">{post.author}</div>
-                    <div className="md:w-24 md:text-center">{formatDate(post.date)}</div>
-                    <div className={`md:w-16 md:text-center font-bold ${post.likes > 0 ? 'text-blue-600' : 'text-gray-400'}`}>{post.likes || 0}</div>
-                    <div className="md:w-16 md:text-center">{post.views || 0}</div>
+                    <div className="md:w-32 md:text-center font-semibold text-gray-700 truncate">{topPost.author}</div>
+                    <div className="md:w-24 md:text-center text-gray-400">{formatDate(topPost.date)}</div>
+                    <div className="md:w-16 md:text-center font-bold text-blue-600">{topPost.likes || 0}</div>
+                    <div className="md:w-16 md:text-center text-gray-400">{topPost.views || 0}</div>
                   </div>
                 </Link>
               );
-            })
-          )}
-        </div>
+            })()}
 
-        <div className="flex flex-col md:flex-row justify-between items-center mt-6 gap-4">
-          <div className="hidden md:block w-24"></div> 
-          
-          <div className="flex justify-center items-center gap-1">
-            {page > 1 && (
-              <Link href={`/board?page=${page - 1}${keyword ? `&q=${keyword}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className="px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-xs">
-                이전
-              </Link>
-            )}
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <Link key={p} href={`/board?page=${p}${keyword ? `&q=${keyword}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className={`px-3 py-1.5 border rounded-sm font-bold text-xs transition-colors ${page === p ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
-                {p}
-              </Link>
-            ))}
-            {page < totalPages && (
-              <Link href={`/board?page=${page + 1}${keyword ? `&q=${keyword}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className="px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-xs">
-                다음
-              </Link>
-            )}
-          </div>
-
-          <div className="w-full md:w-24 flex justify-end">
-            {canWrite && (
-              {/* 💡 연필 이모티콘 삭제! 깔끔하게 '글쓰기'만 남겼습니다! */}
-              <Link href={`/board/write?category=${category}`} className="w-full md:w-auto px-5 py-2 bg-[#414a66] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors flex items-center justify-center">
-                글쓰기
-              </Link>
+            {renderPosts.length === 0 && !topPost ? (
+              <div className="text-center py-20 text-gray-400 font-medium">등록된 게시물이 없습니다.</div>
+            ) : (
+              renderPosts.map((post: any) => {
+                const postData = extractData(post.title);
+                return (
+                  <Link href={`/board/${post.id}`} key={post.id} className="flex flex-col md:flex-row border-b border-gray-200 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer items-center group">
+                    <div className="hidden md:block w-16 text-center text-xs text-gray-400">{post.id}</div>
+                    <div className="flex-1 px-3 w-full text-gray-800 group-hover:underline truncate text-left text-[15px]">
+                      <span className="text-gray-500 mr-1.5 text-sm font-semibold">[{postData.cat}]</span>
+                      {postData.cleanTitle}
+                      {hasImage(post.content) && <span className="ml-1 text-xs opacity-60">🖼️</span>}
+                    </div>
+                    <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-xs text-gray-500 justify-between items-center">
+                      <div className="md:w-32 md:text-center font-medium text-gray-600 truncate">{post.author}</div>
+                      <div className="md:w-24 md:text-center">{formatDate(post.date)}</div>
+                      <div className={`md:w-16 md:text-center font-bold ${post.likes > 0 ? 'text-blue-600' : 'text-gray-400'}`}>{post.likes || 0}</div>
+                      <div className="md:w-16 md:text-center">{post.views || 0}</div>
+                    </div>
+                  </Link>
+                );
+              })
             )}
           </div>
-        </div>
 
-        <div className="mt-8 flex justify-center pt-6 border-t border-gray-100">
-          <form action="/board" method="GET" className="flex gap-1 w-full md:w-auto">
-            {bestType && <input type="hidden" name="best" value={bestType} />}
-            {category !== 'all' && <input type="hidden" name="category" value={category} />}
-            <select className="p-2 border border-gray-300 rounded-sm focus:border-gray-500 text-sm text-gray-600 font-bold bg-white outline-none cursor-pointer">
-              <option value="all">제목 + 내용</option>
-            </select>
-            <input name="q" defaultValue={keyword} placeholder="검색어를 입력하세요" className="p-2 border border-gray-300 rounded-sm w-full md:w-64 focus:border-gray-500 text-sm outline-none" required />
-            <button type="submit" className="px-5 py-2 bg-gray-600 text-white rounded-sm font-bold hover:bg-gray-700 transition-colors text-sm">
-              검색
-            </button>
-          </form>
-        </div>
+          <div className="flex flex-col md:flex-row justify-between items-center mt-6 gap-4">
+            <div className="hidden md:block w-24"></div> 
+            
+            <div className="flex justify-center items-center gap-1">
+              {page > 1 && (
+                <Link href={`/board?page=${page - 1}${keyword ? `&q=${keyword}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className="px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-xs">
+                  이전
+                </Link>
+              )}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <Link key={p} href={`/board?page=${p}${keyword ? `&q=${keyword}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className={`px-3 py-1.5 border rounded-sm font-bold text-xs transition-colors ${page === p ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
+                  {p}
+                </Link>
+              ))}
+              {page < totalPages && (
+                <Link href={`/board?page=${page + 1}${keyword ? `&q=${keyword}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className="px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-xs">
+                  다음
+                </Link>
+              )}
+            </div>
 
-      </main>
+            <div className="w-full md:w-24 flex justify-end">
+              {canWrite && (
+                <Link href={`/board/write?category=${category}`} className="w-full md:w-auto px-5 py-2 bg-[#414a66] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors flex items-center justify-center">
+                  글쓰기
+                </Link>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-8 flex justify-center pt-6 border-t border-gray-100">
+            <form action="/board" method="GET" className="flex gap-1 w-full md:w-auto">
+              {bestType && <input type="hidden" name="best" value={bestType} />}
+              {category !== 'all' && <input type="hidden" name="category" value={category} />}
+              <select className="p-2 border border-gray-300 rounded-sm focus:border-gray-500 text-sm text-gray-600 font-bold bg-white outline-none cursor-pointer">
+                <option value="all">제목 + 내용</option>
+              </select>
+              <input name="q" defaultValue={keyword} placeholder="검색어를 입력하세요" className="p-2 border border-gray-300 rounded-sm w-full md:w-64 focus:border-gray-500 text-sm outline-none" required />
+              <button type="submit" className="px-5 py-2 bg-gray-600 text-white rounded-sm font-bold hover:bg-gray-700 transition-colors text-sm">
+                검색
+              </button>
+            </form>
+          </div>
+
+        </main>
+      </div>
     </div>
   );
 }
