@@ -23,6 +23,13 @@ export default function WritePage() {
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+        
+        // 🚨 미나의 철통 방어 (경비원): 20MB(20 * 1024 * 1024)가 넘는 파일은 입구 컷!
+        if (file.size > 20 * 1024 * 1024) {
+          alert(`[${file.name}] 용량이 너무 큽니다! (최대 20MB까지만 가능)\n서버 안정을 위해 조금만 줄여주세요!`);
+          continue; // 이 파일은 무시하고 다음 파일로 넘어감
+        }
+
         let fileToUpload = file;
 
         if (file.type !== 'image/gif') {
@@ -33,16 +40,24 @@ export default function WritePage() {
           const isLongImage = img.height > img.width * 1.5; 
           URL.revokeObjectURL(img.src);
 
-          const options = {
-            maxSizeMB: 1.5,
-            useWebWorker: true,
-            ...(isLongImage ? {} : { maxWidthOrHeight: 1920 }) 
-          };
-
-          fileToUpload = await imageCompression(file, options);
+          if (isLongImage) {
+            // 💡 특급 처방 1 (만화 화질 보존): 세로로 긴 웹툰은 글씨가 안 깨지게 용량을 5MB로 넉넉히 줍니다!
+            const options = {
+              maxSizeMB: 5,
+              useWebWorker: true,
+            };
+            fileToUpload = await imageCompression(file, options);
+          } else {
+            // 일반 사진은 기존처럼 1.5MB로 쾌적하게 압축!
+            const options = {
+              maxSizeMB: 1.5,
+              maxWidthOrHeight: 1920,
+              useWebWorker: true,
+            };
+            fileToUpload = await imageCompression(file, options);
+          }
         }
         
-        // 💡 1. 사진을 보내기 전에, 우체국에 '황금 티켓(업로드 주소)'을 먼저 요청합니다!
         const ticketRes = await fetch('/api/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -55,14 +70,12 @@ export default function WritePage() {
         const { uploadUrl, publicUrl } = await ticketRes.json();
 
         if (uploadUrl) {
-          // 🚀 2. 티켓(uploadUrl)을 받았으니, Vercel 우체부를 무시하고 R2 창고로 '직접' 쏴버립니다!! (4.5MB 무시 마법!)
           await fetch(uploadUrl, {
             method: 'PUT',
             body: fileToUpload,
             headers: { 'Content-Type': fileToUpload.type },
           });
           
-          // 3. 쏘기 성공하면 미리보기에 추가!
           setImages((prev) => [...prev, publicUrl]);
         }
       }
@@ -113,7 +126,7 @@ export default function WritePage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg border p-6">
-        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V2.5 (5MB+ 무제한 용량 돌파!)</h1>
+        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V2.6 (만화 고화질 & 20MB 제한)</h1>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <input 
@@ -135,13 +148,13 @@ export default function WritePage() {
             <div className="flex items-center gap-4">
               <label className={`flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg cursor-pointer font-bold ${isUploading || isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200 transition-colors'}`}>
                 <ImagePlus size={20} />
-                <span>무제한 사진/움짤 추가</span>
+                <span>사진/움짤 추가 (최대 20MB)</span>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} disabled={isUploading || isSubmitting} />
               </label>
               {isUploading && (
                 <div className="flex items-center gap-2 text-[#3b4890] font-bold text-sm animate-pulse">
                   <Loader2 className="animate-spin" size={16} />
-                  창고로 직접 쏘는 중...🚀
+                  스마트 압축 및 직접 쏘는 중...🚀
                 </div>
               )}
             </div>
