@@ -30,9 +30,38 @@ export default function WritePage() {
     if (currentCat && currentCat !== 'all') {
       setCategory(currentCat);
     }
+
+    // 💡 미나의 철통 보안 1: 쿠키에서 로그인한 아이디를 읽어와 작성자 칸에 쾅! 박아버립니다. (오타 방지)
+    const match = document.cookie.match(/(^|;) ?ojemi_user=([^;]*)(;|$)/);
+    if (match && match[2]) {
+      setAuthor(decodeURIComponent(match[2]));
+    }
+
+    // 💡 미나의 철통 보안 2: 에디터의 깐깐한 필터를 부수고, 진짜 <video> 태그를 출력하게 만드는 커스텀 부품!
+    import('react-quill-new').then((RQ) => {
+      const Quill = RQ.Quill;
+      if (Quill) {
+        const BlockEmbed = Quill.import('blots/block/embed');
+        class CustomVideo extends BlockEmbed {
+          static create(value) {
+            let node = super.create();
+            node.setAttribute('controls', 'true');
+            node.setAttribute('src', value);
+            // 모바일에서도 예쁘게 꽉 차도록 세련된 CSS 적용!
+            node.setAttribute('style', 'width: 100%; max-width: 800px; display: block; margin: 15px auto; border-radius: 8px; background: #000;');
+            return node;
+          }
+          static value(node) {
+            return node.getAttribute('src');
+          }
+        }
+        CustomVideo.blotName = 'video';
+        CustomVideo.tagName = 'VIDEO';
+        Quill.register(CustomVideo, true);
+      }
+    });
   }, []);
 
-  // 📸 1. 사진 전용 배달부
   const imageHandler = () => {
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
@@ -87,18 +116,16 @@ export default function WritePage() {
     };
   };
 
-  // 🎬 2. 미나의 야심작! 동영상 전용 배달부 (URL 대신 내 PC 파일 업로드!)
   const videoHandler = () => {
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'video/mp4,video/webm'); // MP4, WebM 허용
+    input.setAttribute('accept', 'video/mp4,video/webm'); 
     input.click();
 
     input.onchange = async () => {
       const file = input.files ? input.files[0] : null;
       if (!file) return;
 
-      // 동영상은 용량이 크므로 50MB까지 허용!
       if (file.size > 50 * 1024 * 1024) {
         alert(`[${file.name}] 용량이 너무 큽니다! (최대 50MB까지만 가능)`);
         return; 
@@ -119,7 +146,7 @@ export default function WritePage() {
           const editor = quillRef.current.getEditor();
           const range = editor.getSelection();
           
-          // 동영상 URL을 에디터에 찰칵!
+          // 💡 미나의 배달부가 <video> 태그를 에디터에 정확하게 꽂아 넣습니다!
           editor.insertEmbed(range.index, 'video', publicUrl);
           editor.setSelection(range.index + 1); 
         }
@@ -138,12 +165,12 @@ export default function WritePage() {
         ['bold', 'italic', 'underline', 'strike'], 
         [{ 'color': [] }, { 'background': [] }],   
         [{ 'align': [] }],                         
-        ['image', 'video'], // 🖼️ 사진 & 🎬 동영상 버튼                        
+        ['image', 'video'],                        
         ['clean']
       ],
       handlers: { 
         image: imageHandler,
-        video: videoHandler // 💡 URL 입력창 대신 미나의 배달부가 출동하게 연결!
+        video: videoHandler 
       }
     }
   }), []);
@@ -185,15 +212,12 @@ export default function WritePage() {
       <style dangerouslySetInnerHTML={{__html: `
         .ql-editor { min-height: 500px; font-size: 1.05rem; line-height: 1.8; }
         .ql-editor img { max-width: 100%; height: auto; display: block; margin: 15px auto; border-radius: 8px; }
-        /* 💡 동영상(iframe)을 모바일과 PC에서 모두 꽉 차고 예쁘게 보이게 하는 마법 CSS! */
-        .ql-editor .ql-video { width: 100%; max-width: 800px; height: 450px; display: block; margin: 15px auto; border-radius: 8px; border: none; background: #000; }
-        @media (max-width: 768px) { .ql-editor .ql-video { height: 250px; } }
       `}} />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
         
         <h1 className="text-xl font-bold text-gray-800 mb-6 border-b border-gray-300 pb-3 flex items-center gap-2">
-          ✏️ 글쓰기
+          글쓰기
           {isUploading && <span className="text-sm font-bold text-red-500 animate-pulse ml-4">(미디어 파일 업로드 중...)</span>}
         </h1>
         
@@ -220,12 +244,13 @@ export default function WritePage() {
               required 
             />
             
+            {/* 💡 작성자 오타 방지 마법: 자동으로 내 이름이 박히고 수정이 불가능(readOnly)하게 잠깁니다! */}
             <input 
-              placeholder="글쓴이 닉네임" 
-              className="w-full md:w-48 p-3 border border-gray-300 rounded-sm focus:border-gray-500 outline-none font-bold text-gray-800"
+              placeholder="글쓴이" 
+              className="w-full md:w-48 p-3 border border-gray-300 bg-gray-100 rounded-sm focus:outline-none font-bold text-gray-500 cursor-not-allowed"
               value={author}
-              onChange={(e) => setAuthor(e.target.value)}
-              required 
+              readOnly
+              title="작성자는 로그인된 아이디로 자동 설정됩니다."
             />
           </div>
 
@@ -240,7 +265,6 @@ export default function WritePage() {
             />
           </div>
 
-          {/* 💡 대표님 특별 지시: 하단 법적 경고 안내문 부착 완료! */}
           <div className="mt-3 text-center bg-gray-50 border border-gray-200 p-3 rounded-sm">
             <p className="text-[13px] font-bold text-gray-500 leading-relaxed">
               🚨 <span className="text-red-500">불법촬영물 및 아동·청소년 성착취 영상, 저작권 또는 사생활 침해 등의 영상은</span><br className="hidden md:block" />

@@ -22,7 +22,6 @@ function hasImage(content: string) {
   return /<img[^>]+src="([^">]+)"/.test(content);
 }
 
-// 💡 초경량 꼬리표 정리기: 화면에 띄울 때만 [유머] [유머]를 0.0001초 만에 하나로 합쳐줍니다. (성능 저하 0%)
 function extractData(fullTitle: string) {
   if (!fullTitle) return { cat: '일반', cleanTitle: '' };
   const match = fullTitle.match(/^\[(.*?)\]\s*(.*)$/);
@@ -62,7 +61,6 @@ export default async function BoardPage(props: any) {
     if (topRows.length > 0) topPost = topRows[0];
   }
 
-  // 게시글 불러오기 로직 (이전과 동일)
   if (bestType === 'today') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE date >= NOW() - INTERVAL '1 day' AND likes >= 10`;
     totalCount = Number(countResult.rows[0].count);
@@ -99,7 +97,6 @@ export default async function BoardPage(props: any) {
   const totalPages = Math.ceil(totalCount / limit) || 1;
   const renderPosts = topPost ? posts.filter((p: any) => p.id !== topPost.id) : posts;
 
-  // 베스트 게시판이 아니면(일반 게시판이거나 전체글 보기면) 글쓰기 허용!
   const canWrite = bestType === ''; 
 
   const menus = [
@@ -149,7 +146,6 @@ export default async function BoardPage(props: any) {
           </h2>
         </div>
 
-        {/* 클리앙 스타일: 위아래가 굵은 선으로 마감된 깔끔한 테이블 디자인 */}
         <div className="border-t-2 border-gray-700 text-sm">
           <div className="hidden md:flex border-b border-gray-300 bg-gray-50 py-3 font-bold text-gray-600 text-center">
             <div className="w-16">번호</div>
@@ -205,9 +201,8 @@ export default async function BoardPage(props: any) {
           )}
         </div>
 
-        {/* 💡 클리앙 스타일: 하단 페이지 번호(가운데)와 글쓰기 버튼(오른쪽)의 완벽한 배치 */}
         <div className="flex flex-col md:flex-row justify-between items-center mt-6 gap-4">
-          <div className="hidden md:block w-24"></div> {/* 균형을 맞추기 위한 빈 공간 */}
+          <div className="hidden md:block w-24"></div> 
           
           <div className="flex justify-center items-center gap-1">
             {page > 1 && (
@@ -229,14 +224,14 @@ export default async function BoardPage(props: any) {
 
           <div className="w-full md:w-24 flex justify-end">
             {canWrite && (
-              <Link href={`/board/write?category=${category}`} className="w-full md:w-auto px-5 py-2 bg-[#414a66] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors flex items-center justify-center gap-1">
-                ✏️ 글쓰기
+              {/* 💡 연필 이모티콘 삭제! 깔끔하게 '글쓰기'만 남겼습니다! */}
+              <Link href={`/board/write?category=${category}`} className="w-full md:w-auto px-5 py-2 bg-[#414a66] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors flex items-center justify-center">
+                글쓰기
               </Link>
             )}
           </div>
         </div>
 
-        {/* 하단 검색창 (클리앙 스타일로 조금 더 단정하게) */}
         <div className="mt-8 flex justify-center pt-6 border-t border-gray-100">
           <form action="/board" method="GET" className="flex gap-1 w-full md:w-auto">
             {bestType && <input type="hidden" name="best" value={bestType} />}
