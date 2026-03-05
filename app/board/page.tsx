@@ -9,23 +9,34 @@ function formatDate(dateString: any) {
 }
 
 export default async function BoardPage(props: any) {
-  // 💡 미나의 마법 1: 주소창에 '베스트 조건'이 있는지 확인합니다!
   const searchParams = await props.searchParams;
   const bestCount = searchParams.best ? Number(searchParams.best) : 0;
+  
+  // 💡 미나의 마법 1: 주소창에 '검색어(q)'가 날아왔는지 확인합니다!
+  const keyword = searchParams.q || ''; 
 
   let posts;
   
-  // 💡 미나의 마법 2: 베스트 조건이 있으면 '그 숫자 이상 추천받은 글'만 창고에서 꺼내옵니다!
-  if (bestCount > 0) {
+  // 💡 미나의 마법 2: 검색어가 있으면 제목이나 글쓴이에 그 단어가 들어간 글만 찾아옵니다! 
+  // (ILIKE 는 대소문자 구별 없이 귀신같이 찾아내는 주문입니다!)
+  if (keyword && bestCount > 0) {
+    // 명예의 전당 안에서 검색할 때
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= ${bestCount} AND (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'}) ORDER BY date DESC`;
+    posts = rows;
+  } else if (keyword) {
+    // 전체 게시판에서 검색할 때
+    const { rows } = await sql`SELECT * FROM posts WHERE title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'} ORDER BY date DESC`;
+    posts = rows;
+  } else if (bestCount > 0) {
+    // 검색어 없이 명예의 전당만 볼 때
     const { rows } = await sql`SELECT * FROM posts WHERE likes >= ${bestCount} ORDER BY date DESC`;
     posts = rows;
   } else {
-    // 조건이 없으면 평소처럼 다 꺼내옵니다.
+    // 평소 전체글 볼 때
     const { rows } = await sql`SELECT * FROM posts ORDER BY date DESC`;
     posts = rows;
   }
 
-  // 💡 장식이었던 메뉴에 진짜 링크(길)를 뚫어줍니다! (백베스트는 3개, 천베스트는 5개로 테스트 셋팅!)
   const menus = [
     { name: '💯 백베스트', link: '/board?best=3' }, 
     { name: '👑 천베스트', link: '/board?best=5' },
@@ -50,7 +61,6 @@ export default async function BoardPage(props: any) {
       <nav className="bg-[#3b4890] text-gray-300 relative z-40">
         <div className="max-w-5xl mx-auto flex flex-wrap relative">
           {menus.map((menu) => (
-            // 💡 이제 메뉴를 클릭하면 설정해둔 링크로 슝~ 이동합니다!
             <Link href={menu.link} key={menu.name} className="relative group px-4 py-3 cursor-pointer block">
               <span className="font-bold text-sm group-hover:text-white transition-colors">
                 {menu.name}
@@ -66,12 +76,12 @@ export default async function BoardPage(props: any) {
         </div>
       </nav>
 
-      <main className="max-w-5xl mx-auto p-4 mt-4">
+      <main className="max-w-5xl mx-auto p-4 mt-4 mb-20">
         <div className="bg-white rounded-lg shadow-sm border p-6">
           <div className="flex justify-between items-center mb-4">
-            {/* 💡 베스트 게시판에 들어오면 제목이 멋지게 바뀝니다! */}
+            {/* 💡 검색을 하면 제목이 'O 검색 결과'로 센스 있게 바뀝니다! */}
             <h2 className="text-xl font-bold text-gray-800">
-              {bestCount > 0 ? `🏆 명예의 전당 (추천 ${bestCount}개 이상 명품글)` : '전체글 보기'}
+              {keyword ? `🔍 '${keyword}' 검색 결과 (${posts.length}건)` : (bestCount > 0 ? `🏆 명예의 전당 (추천 ${bestCount}개 이상)` : '전체글 보기')}
             </h2>
             <Link href="/board/write" className="px-6 py-2 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] shadow-md transition-colors">
               ✍️ 폼나게 글쓰기
@@ -88,7 +98,9 @@ export default async function BoardPage(props: any) {
           </div>
 
           {posts.length === 0 ? (
-            <div className="text-center py-10 text-gray-500">아직 조건을 만족하는 명품 글이 없습니다. 분발하세요!</div>
+            <div className="text-center py-10 text-gray-500">
+              {keyword ? '검색된 명품 글이 없습니다. 다른 단어로 찾아보세요!' : '아직 조건을 만족하는 명품 글이 없습니다.'}
+            </div>
           ) : (
             posts.map((post) => (
               <Link href={`/board/${post.id}`} key={post.id} className="flex border-b border-gray-100 py-3 text-sm hover:bg-gray-50 items-center text-center cursor-pointer transition-colors group">
@@ -103,6 +115,30 @@ export default async function BoardPage(props: any) {
               </Link>
             ))
           )}
+
+          {/* 💡 디씨인사이드처럼 게시판 맨 아래에 달린 깔끔한 검색창! */}
+          <div className="mt-8 flex justify-center">
+            <form action="/board" method="GET" className="flex gap-2">
+              {bestCount > 0 && <input type="hidden" name="best" value={bestCount} />}
+              
+              <select className="p-2 border border-gray-300 rounded focus:outline-[#3b4890] text-sm text-gray-600 font-bold bg-white outline-none cursor-pointer">
+                <option value="all">제목 + 글쓴이</option>
+              </select>
+              
+              <input 
+                name="q" 
+                defaultValue={keyword}
+                placeholder="검색어를 입력하세요" 
+                className="p-2 border border-gray-300 rounded w-64 focus:outline-[#3b4890] text-sm outline-none"
+                required
+              />
+              
+              <button type="submit" className="px-6 py-2 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] transition-colors text-sm shadow-sm">
+                🔍 검색
+              </button>
+            </form>
+          </div>
+
         </div>
       </main>
     </div>
