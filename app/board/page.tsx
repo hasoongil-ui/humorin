@@ -23,7 +23,6 @@ function hasImage(content: string) {
   return /<img[^>]+src="([^">]+)"/.test(content);
 }
 
-// 💡 미나의 초고속 판독기 복구! (무거운 반복문 삭제)
 function extractData(fullTitle: string) {
   if (!fullTitle) return { cat: '일반', cleanTitle: '' };
   const match = fullTitle.match(/^\[(.*?)\]\s*(.*)$/);
@@ -101,6 +100,7 @@ export default async function BoardPage(props: any) {
   const totalPages = Math.ceil(totalCount / limit) || 1;
   const renderPosts = topPost ? posts.filter((p: any) => p.id !== topPost.id) : posts;
 
+  // 💡 미나의 복구 마법: 메뉴 리스트에 '그냥 혼잣말'을 다시 예쁘게 끼워 넣었습니다!
   const menus = [
     { name: '🔥 투데이 베스트', link: '/board?best=today' },
     { name: '전체글 보기', link: '/board' },
@@ -108,6 +108,7 @@ export default async function BoardPage(props: any) {
     { name: '감동', link: '/board?category=감동' },
     { name: '공포', link: '/board?category=공포' },
     { name: '일상', link: '/board?category=일상' },
+    { name: '그냥 혼잣말', link: '/board?category=그냥 혼잣말' }, 
     { name: '핫뉴스', link: '/board?category=핫뉴스' },
     { name: '💯 백베스트', link: '/board?best=3' }, 
     { name: '👑 천베스트', link: '/board?best=5' },
