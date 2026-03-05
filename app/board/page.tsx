@@ -140,10 +140,12 @@ export default async function BoardPage(props: any) {
              keyword ? `🔍 '${keyword}' 검색 결과 (${totalCount}건)` : 
              category !== 'all' ? `[${category}] 게시판` : '전체글 보기'}
           </h2>
-          {/* 💡 미나의 센스: 글쓰기 버튼을 누를 때, 지금 보고 있는 카테고리를 주소창 뒤에 몰래 달아서 보냅니다! */}
-          <Link href={`/board/write${category !== 'all' ? `?category=${category}` : ''}`} className="px-5 py-2 bg-[#3b4890] text-white rounded text-sm font-bold hover:bg-[#222b5c] transition-colors">
-            ✍️ 글쓰기
-          </Link>
+          {/* 💡 미나의 철저한 반영: '전체글'이나 '베스트' 게시판에서는 글쓰기 버튼을 아예 숨깁니다! */}
+          {category !== 'all' && bestType === '' && (
+            <Link href={`/board/write?category=${category}`} className="px-5 py-2 bg-[#3b4890] text-white rounded text-sm font-bold hover:bg-[#222b5c] transition-colors">
+              ✍️ 글쓰기
+            </Link>
+          )}
         </div>
 
         <div className="bg-white border-b border-gray-200 text-sm">
@@ -223,20 +225,6 @@ export default async function BoardPage(props: any) {
               다음
             </Link>
           )}
-        </div>
-
-        <div className="mt-8 flex justify-center">
-          <form action="/board" method="GET" className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-            {bestType && <input type="hidden" name="best" value={bestType} />}
-            {category !== 'all' && <input type="hidden" name="category" value={category} />}
-            <select className="p-2 border border-gray-300 rounded focus:outline-[#3b4890] text-sm text-gray-600 font-bold bg-white outline-none cursor-pointer">
-              <option value="all">제목 + 글쓴이</option>
-            </select>
-            <input name="q" defaultValue={keyword} placeholder="검색어를 입력하세요" className="p-2 border border-gray-300 rounded w-full md:w-64 focus:outline-[#3b4890] text-sm outline-none" required />
-            <button type="submit" className="px-6 py-2 bg-gray-800 text-white rounded font-bold hover:bg-gray-900 transition-colors text-sm w-full md:w-auto">
-              검색
-            </button>
-          </form>
         </div>
 
       </main>

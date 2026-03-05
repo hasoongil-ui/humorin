@@ -9,18 +9,21 @@ export default function WritePage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [author, setAuthor] = useState('');
+  
+  // 💡 드롭다운 삭제! URL에서 받아온 카테고리를 그대로 보관만 합니다.
   const [category, setCategory] = useState('일상'); 
+  
   const [images, setImages] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const router = useRouter();
 
-  // 💡 미나의 센스: URL에서 넘어온 카테고리(귀띔)를 몰래 읽어서 드롭다운을 자동으로 세팅합니다!
   useEffect(() => {
+    // 사용자가 '어떤 게시판'의 글쓰기 버튼을 눌렀는지 찰떡같이 알아냅니다!
     const params = new URLSearchParams(window.location.search);
     const currentCat = params.get('category');
     if (currentCat) {
-      setCategory(currentCat); // 감동 게시판에서 왔으면, 알아서 '감동'으로 변경!
+      setCategory(currentCat);
     }
   }, []);
 
@@ -106,6 +109,7 @@ export default function WritePage() {
       finalContent = finalContent + '\n\n' + imageTags;
     }
 
+    // 💡 화면엔 드롭다운이 없지만, 서버로 보낼 때는 원래 있던 게시판 이름([공포])을 자동으로 달아줍니다!
     const finalTitle = `[${category}] ${title}`;
 
     try {
@@ -116,8 +120,8 @@ export default function WritePage() {
       });
 
       if (res.ok) {
-        // 💡 글을 다 쓰면 무조건 전체글이 아니라, 방금 글을 쓴 그 게시판으로 다시 돌아가게 센스 장착!
-        router.push(`/board${category !== '일상' ? `?category=${category}` : ''}`);
+        // 등록 성공하면 방금 글을 쓴 그 게시판으로 부드럽게 복귀!
+        router.push(`/board?category=${category}`);
         router.refresh();
       } else {
         alert('글 등록에 실패했습니다.');
@@ -132,7 +136,11 @@ export default function WritePage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg border p-6">
-        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V4.3 (게시판 자동 연동!)</h1>
+        
+        {/* 💡 사용자가 헷갈리지 않게, 지금 어느 게시판에 글을 쓰고 있는지 상단에 확 띄워줍니다! */}
+        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">
+          ✍️ [{category}] 게시판에 명품 글쓰기
+        </h1>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <input 
@@ -143,26 +151,14 @@ export default function WritePage() {
             required 
           />
           
-          <div className="flex gap-2">
-            <select 
-              value={category} 
-              onChange={(e) => setCategory(e.target.value)}
-              className="p-3 border-2 border-gray-100 rounded-lg focus:border-[#3b4890] outline-none font-bold bg-white cursor-pointer text-[#3b4890]"
-            >
-              <option value="일상">일상</option>
-              <option value="유머">유머</option>
-              <option value="감동">감동</option>
-              <option value="공포">공포</option>
-              <option value="핫뉴스">핫뉴스</option>
-            </select>
-            <input 
-              placeholder="제목을 입력하세요" 
-              className="flex-1 p-3 border-2 border-gray-100 rounded-lg text-xl focus:border-[#3b4890] outline-none font-black"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required 
-            />
-          </div>
+          {/* 💡 멍청한 드롭다운 박살! 제목 입력칸이 다시 시원하게 100% 꽉 찹니다! */}
+          <input 
+            placeholder="시원하게 제목을 입력하세요!" 
+            className="w-full p-3 border-2 border-gray-100 rounded-lg text-xl focus:border-[#3b4890] outline-none font-black"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required 
+          />
 
           <div className="space-y-4">
             <div className="flex items-center gap-4">
