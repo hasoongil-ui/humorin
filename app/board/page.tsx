@@ -4,11 +4,9 @@ import Link from 'next/link';
 export const dynamic = 'force-dynamic';
 
 function formatDate(dateString: any) {
-  // 💡 미나의 KST(한국 시간) 패치! 영국 시간(UTC)에 9시간을 더해줍니다.
   const dbDate = new Date(dateString);
   const kstDate = new Date(dbDate.getTime() + 9 * 60 * 60 * 1000);
   
-  // '오늘'인지 비교하기 위한 '현재 시간'도 한국 시간으로 계산합니다!
   const nowUtc = new Date();
   const nowKst = new Date(nowUtc.getTime() + 9 * 60 * 60 * 1000);
   
@@ -25,6 +23,7 @@ function hasImage(content: string) {
   return /<img[^>]+src="([^">]+)"/.test(content);
 }
 
+// 💡 미나의 초고속 판독기 복구! (무거운 반복문 삭제)
 function extractData(fullTitle: string) {
   if (!fullTitle) return { cat: '일반', cleanTitle: '' };
   const match = fullTitle.match(/^\[(.*?)\]\s*(.*)$/);
@@ -230,20 +229,6 @@ export default async function BoardPage(props: any) {
               다음
             </Link>
           )}
-        </div>
-
-        <div className="mt-8 flex justify-center">
-          <form action="/board" method="GET" className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-            {bestType && <input type="hidden" name="best" value={bestType} />}
-            {category !== 'all' && <input type="hidden" name="category" value={category} />}
-            <select className="p-2 border border-gray-300 rounded focus:outline-[#3b4890] text-sm text-gray-600 font-bold bg-white outline-none cursor-pointer">
-              <option value="all">제목 + 글쓴이</option>
-            </select>
-            <input name="q" defaultValue={keyword} placeholder="검색어를 입력하세요" className="p-2 border border-gray-300 rounded w-full md:w-64 focus:outline-[#3b4890] text-sm outline-none" required />
-            <button type="submit" className="px-6 py-2 bg-gray-800 text-white rounded font-bold hover:bg-gray-900 transition-colors text-sm w-full md:w-auto">
-              검색
-            </button>
-          </form>
         </div>
 
       </main>

@@ -105,7 +105,11 @@ export default function WritePage() {
       finalContent = finalContent + '\n\n' + imageTags;
     }
 
-    const finalTitle = `[${category}] ${title}`;
+    // 💡 미나의 원천 차단 마법: 유저가 제목에 "[공포] 어쩌구" 라고 썼다면, 앞의 "[공포]" 부분을 싹 지워버립니다!
+    const cleanTitle = title.replace(/^\[.*?\]\s*/, '');
+    
+    // 그리고 나서 시스템이 딱 한 번만 정갈하게 꼬리표를 붙여줍니다.
+    const finalTitle = `[${category}] ${cleanTitle}`;
 
     try {
       const res = await fetch('/api/post', {
@@ -128,7 +132,6 @@ export default function WritePage() {
   };
 
   return (
-    /* 💡 미나의 반성: 둥근 모서리, 그림자, 회색 배경을 싹 다 없애고 하얀 바탕에 100% 쫙 펴지게 만들었습니다! */
     <div className="min-h-screen bg-white font-sans text-gray-800">
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-4 mb-20">
         

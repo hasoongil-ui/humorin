@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 
-// 💡 미나의 깔끔 마법: 본문에서도 [카테고리]와 제목을 예쁘게 분리해서 보여줍니다!
+// 💡 미나의 초고속 판독기 복구!
 function extractData(fullTitle: string) {
   if (!fullTitle) return { cat: '일반', cleanTitle: '' };
   const match = fullTitle.match(/^\[(.*?)\]\s*(.*)$/);
@@ -39,7 +39,6 @@ export default async function PostDetailPage(props: any) {
     }
   }
 
-  // 💡 미나의 KST 패치! 상세 화면의 시간도 한국 시간으로 9시간 당겨줍니다!
   const dbDate = new Date(post.date);
   const kstDate = new Date(dbDate.getTime() + 9 * 60 * 60 * 1000);
   const formattedDate = `${kstDate.getFullYear()}-${String(kstDate.getMonth() + 1).padStart(2, '0')}-${String(kstDate.getDate()).padStart(2, '0')} ${String(kstDate.getHours()).padStart(2, '0')}:${String(kstDate.getMinutes()).padStart(2, '0')}`;
