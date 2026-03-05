@@ -24,7 +24,7 @@ export default function WritePage() {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         
-        // 🚨 미나의 철통 방어 수정: 창고 용량 보호를 위해 '최대 10MB'로 제한 변경! (10 * 1024 * 1024)
+        // 🚨 10MB 경비원 (창고 용량 보호)
         if (file.size > 10 * 1024 * 1024) {
           alert(`[${file.name}] 용량이 너무 큽니다! (최대 10MB까지만 가능)\n쾌적한 사이트 환경을 위해 용량을 줄여주세요!`);
           continue; 
@@ -32,22 +32,21 @@ export default function WritePage() {
 
         let fileToUpload = file;
 
-        // 💡 미나의 특급 처방 (WEBP 부활): GIF와 WEBP는 움짤일 확률이 높으므로 압축하지 않고 원본 그대로 VIP 통과!
+        // 💡 움짤(GIF, WEBP)은 압축 패스!
         if (file.type !== 'image/gif' && file.type !== 'image/webp') {
           const img = new Image();
           img.src = URL.createObjectURL(file);
           await new Promise((resolve) => { img.onload = resolve; });
           
-          const isLongImage = img.height > img.width * 1.5; 
+          // 세로가 가로보다 2배 이상 길면 '웹툰'으로 확실하게 판정!
+          const isLongImage = img.height > img.width * 2; 
           URL.revokeObjectURL(img.src);
 
           if (isLongImage) {
-            const options = {
-              maxSizeMB: 5,
-              useWebWorker: true,
-            };
-            fileToUpload = await imageCompression(file, options);
+            // 💡 미나의 특급 마법 (웹툰 VIP 패스): 만화는 글씨가 생명이므로 압축하지 않고 원본 화질 100% 그대로 쏩니다!
+            fileToUpload = file;
           } else {
+            // 일반 사진은 기존처럼 1.5MB로 쾌적하게 압축!
             const options = {
               maxSizeMB: 1.5,
               maxWidthOrHeight: 1920,
@@ -125,7 +124,7 @@ export default function WritePage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg border p-6">
-        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V2.7 (10MB 제한 & WEBP 부활)</h1>
+        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V3.1 (웹툰 원본 100% 화질 보존!)</h1>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <input 
@@ -153,7 +152,7 @@ export default function WritePage() {
               {isUploading && (
                 <div className="flex items-center gap-2 text-[#3b4890] font-bold text-sm animate-pulse">
                   <Loader2 className="animate-spin" size={16} />
-                  스마트 압축 및 직접 쏘는 중...🚀
+                  스마트 판독 및 업로드 중...🚀
                 </div>
               )}
             </div>
