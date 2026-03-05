@@ -8,17 +8,22 @@ function formatDate(dateString: any) {
   const now = new Date();
   const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
   
-  // 오늘 올라온 글은 '14:30' 처럼 시간만, 예전 글은 '2026-03-05' 처럼 날짜만 보여주는 클리앙 디테일!
   if (isToday) {
     return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   }
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-// 본문에 사진이 있는지 확인하는 판독기 (아이콘 표시용)
 function hasImage(content: string) {
   if (!content) return false;
   return /<img[^>]+src="([^">]+)"/.test(content);
+}
+
+// 💡 미나의 깔끔 마법: DB에 '[유머] 노량해전'으로 저장되어 있어도, [분류]와 [제목]을 예쁘게 쪼개서 보여줍니다!
+function extractData(fullTitle: string) {
+  if (!fullTitle) return { cat: '일반', cleanTitle: '' };
+  const match = fullTitle.match(/^\[(.*?)\]\s*(.*)$/);
+  return match ? { cat: match[1], cleanTitle: match[2] } : { cat: '일반', cleanTitle: fullTitle };
 }
 
 export default async function BoardPage(props: any) {
@@ -28,7 +33,6 @@ export default async function BoardPage(props: any) {
   const keyword = searchParams.q || ''; 
   const page = searchParams.page ? Number(searchParams.page) : 1;
   
-  // 리스트형이므로 한 페이지에 20개씩 넉넉하게 보여줍니다!
   const limit = 20; 
   const offset = (page - 1) * limit; 
 
@@ -36,11 +40,13 @@ export default async function BoardPage(props: any) {
   let totalCount = 0; 
   let topPost = null;
 
-  // 💡 마법 1: 특정 게시판에 들어왔을 때, 1페이지면 '오늘의 장원(가장 추천 많은 글)'을 1개 뽑아옵니다!
+  // 🚨 에러 해결: DB에 없는 category 칸 대신, 제목 안에 '[카테고리]' 가 포함된 글을 찾도록 변경!
+  const categoryPattern = `%[${category}]%`;
+
   if (category !== 'all' && !keyword && bestType === '' && page === 1) {
     const { rows: topRows } = await sql`
       SELECT * FROM posts 
-      WHERE category = ${category} 
+      WHERE title LIKE ${categoryPattern} 
       AND date >= NOW() - INTERVAL '1 day' 
       AND likes > 0 
       ORDER BY likes DESC, views DESC 
@@ -51,14 +57,12 @@ export default async function BoardPage(props: any) {
     }
   }
 
-  // 💡 마법 2: 투데이 베스트 (최근 24시간, 추천 10개 이상, 추천순 정렬)
   if (bestType === 'today') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE date >= NOW() - INTERVAL '1 day' AND likes >= 10`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT * FROM posts WHERE date >= NOW() - INTERVAL '1 day' AND likes >= 10 ORDER BY likes DESC, views DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } 
-  // 기존 백베스트, 천베스트 유지
   else if (bestType === '3' || bestType === '5') {
     const bestNum = Number(bestType);
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= ${bestNum}`;
@@ -66,28 +70,24 @@ export default async function BoardPage(props: any) {
     const { rows } = await sql`SELECT * FROM posts WHERE likes >= ${bestNum} ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } 
-  // 검색 + 카테고리
   else if (keyword && category !== 'all') {
-    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE category = ${category} AND (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'})`;
+    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'})`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE category = ${category} AND (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'}) ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE title LIKE ${categoryPattern} AND (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'}) ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } 
-  // 검색 (전체)
   else if (keyword) {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'}`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT * FROM posts WHERE title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'} ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } 
-  // 카테고리 (게시판별)
   else if (category !== 'all') {
-    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE category = ${category}`;
+    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern}`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE category = ${category} ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE title LIKE ${categoryPattern} ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } 
-  // 전체글 보기
   else {
     const countResult = await sql`SELECT COUNT(*) FROM posts`;
     totalCount = Number(countResult.rows[0].count);
@@ -96,8 +96,6 @@ export default async function BoardPage(props: any) {
   }
 
   const totalPages = Math.ceil(totalCount / limit) || 1;
-
-  // topPost가 일반 리스트에도 중복으로 나오지 않게 필터링!
   const renderPosts = topPost ? posts.filter((p: any) => p.id !== topPost.id) : posts;
 
   const menus = [
@@ -120,7 +118,6 @@ export default async function BoardPage(props: any) {
         </div>
       </header>
 
-      {/* 상단 네비게이션 (클리앙 스타일로 깔끔하게) */}
       <nav className="bg-[#3b4890] text-gray-200 shadow-md">
         <div className="max-w-6xl mx-auto flex flex-wrap">
           {menus.map((menu) => {
@@ -150,9 +147,7 @@ export default async function BoardPage(props: any) {
           </Link>
         </div>
 
-        {/* 게시판 리스트 영역 */}
         <div className="bg-white border-b border-gray-200 text-sm">
-          {/* 리스트 헤더 */}
           <div className="hidden md:flex border-b border-gray-200 bg-gray-50 py-2.5 font-bold text-gray-600 text-center">
             <div className="w-16">번호</div>
             <div className="w-24">분류</div>
@@ -163,52 +158,56 @@ export default async function BoardPage(props: any) {
             <div className="w-16">조회</div>
           </div>
 
-          {/* 💡 오늘의 장원 (상단 고정글) */}
-          {topPost && (
-            <Link href={`/board/${topPost.id}`} className="flex flex-col md:flex-row border-b border-gray-200 py-3 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer items-center">
-              <div className="hidden md:block w-16 text-center text-xs text-gray-500">{topPost.id}</div>
-              <div className="hidden md:block w-24 text-center font-bold text-[#3b4890]">[오늘의 장원]</div>
-              <div className="flex-1 px-3 w-full font-bold text-gray-900 truncate">
-                <span className="md:hidden text-[#3b4890] mr-1">[장원]</span>
-                {topPost.title}
-                {hasImage(topPost.content) && <span className="ml-1 text-xs" title="사진 포함">🖼️</span>}
-              </div>
-              <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-xs text-gray-500 justify-between items-center">
-                <div className="md:w-32 md:text-center font-semibold text-gray-700 truncate">{topPost.author}</div>
-                <div className="md:w-24 md:text-center text-gray-400">{formatDate(topPost.date)}</div>
-                <div className="md:w-16 md:text-center font-bold text-blue-600">{topPost.likes || 0}</div>
-                <div className="md:w-16 md:text-center text-gray-400">{topPost.views || 0}</div>
-              </div>
-            </Link>
-          )}
+          {topPost && (() => {
+            const topData = extractData(topPost.title);
+            return (
+              <Link href={`/board/${topPost.id}`} className="flex flex-col md:flex-row border-b border-gray-200 py-3 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer items-center">
+                <div className="hidden md:block w-16 text-center text-xs text-gray-500">{topPost.id}</div>
+                <div className="hidden md:block w-24 text-center font-bold text-[#3b4890]">[오늘의 장원]</div>
+                <div className="flex-1 px-3 w-full font-bold text-gray-900 truncate">
+                  <span className="md:hidden text-[#3b4890] mr-1">[장원]</span>
+                  <span className="text-[#3b4890] mr-1">[{topData.cat}]</span>
+                  {topData.cleanTitle}
+                  {hasImage(topPost.content) && <span className="ml-1 text-xs" title="사진 포함">🖼️</span>}
+                </div>
+                <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-xs text-gray-500 justify-between items-center">
+                  <div className="md:w-32 md:text-center font-semibold text-gray-700 truncate">{topPost.author}</div>
+                  <div className="md:w-24 md:text-center text-gray-400">{formatDate(topPost.date)}</div>
+                  <div className="md:w-16 md:text-center font-bold text-blue-600">{topPost.likes || 0}</div>
+                  <div className="md:w-16 md:text-center text-gray-400">{topPost.views || 0}</div>
+                </div>
+              </Link>
+            );
+          })()}
 
-          {/* 일반 게시글 리스트 */}
           {renderPosts.length === 0 && !topPost ? (
             <div className="text-center py-20 text-gray-400 font-medium">
               등록된 글이 없습니다.
             </div>
           ) : (
-            renderPosts.map((post: any) => (
-              <Link href={`/board/${post.id}`} key={post.id} className="flex flex-col md:flex-row border-b border-gray-100 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer items-center group">
-                <div className="hidden md:block w-16 text-center text-xs text-gray-400">{post.id}</div>
-                <div className="hidden md:block w-24 text-center text-xs font-semibold text-gray-500">[{post.category || '일상'}]</div>
-                <div className="flex-1 px-3 w-full font-medium text-gray-800 group-hover:text-[#3b4890] truncate">
-                  <span className="md:hidden text-gray-400 mr-1 text-xs">[{post.category || '일상'}]</span>
-                  {post.title}
-                  {hasImage(post.content) && <span className="ml-1 text-xs opacity-70" title="사진 포함">🖼️</span>}
-                </div>
-                <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-xs text-gray-400 justify-between items-center">
-                  <div className="md:w-32 md:text-center font-medium text-gray-600 truncate">{post.author}</div>
-                  <div className="md:w-24 md:text-center">{formatDate(post.date)}</div>
-                  <div className={`md:w-16 md:text-center font-bold ${post.likes > 0 ? 'text-blue-600' : 'text-gray-400'}`}>{post.likes || 0}</div>
-                  <div className="md:w-16 md:text-center">{post.views || 0}</div>
-                </div>
-              </Link>
-            ))
+            renderPosts.map((post: any) => {
+              const postData = extractData(post.title);
+              return (
+                <Link href={`/board/${post.id}`} key={post.id} className="flex flex-col md:flex-row border-b border-gray-100 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer items-center group">
+                  <div className="hidden md:block w-16 text-center text-xs text-gray-400">{post.id}</div>
+                  <div className="hidden md:block w-24 text-center text-xs font-semibold text-gray-500">[{postData.cat}]</div>
+                  <div className="flex-1 px-3 w-full font-medium text-gray-800 group-hover:text-[#3b4890] truncate">
+                    <span className="md:hidden text-gray-400 mr-1 text-xs">[{postData.cat}]</span>
+                    {postData.cleanTitle}
+                    {hasImage(post.content) && <span className="ml-1 text-xs opacity-70" title="사진 포함">🖼️</span>}
+                  </div>
+                  <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-xs text-gray-400 justify-between items-center">
+                    <div className="md:w-32 md:text-center font-medium text-gray-600 truncate">{post.author}</div>
+                    <div className="md:w-24 md:text-center">{formatDate(post.date)}</div>
+                    <div className={`md:w-16 md:text-center font-bold ${post.likes > 0 ? 'text-blue-600' : 'text-gray-400'}`}>{post.likes || 0}</div>
+                    <div className="md:w-16 md:text-center">{post.views || 0}</div>
+                  </div>
+                </Link>
+              );
+            })
           )}
         </div>
 
-        {/* 페이지 나누기 */}
         <div className="flex justify-center items-center gap-1 mt-6">
           {page > 1 && (
             <Link href={`/board?page=${page - 1}${keyword ? `&q=${keyword}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className="px-3 py-1.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-100 font-bold text-xs">
@@ -227,7 +226,6 @@ export default async function BoardPage(props: any) {
           )}
         </div>
 
-        {/* 하단 검색창 */}
         <div className="mt-8 flex justify-center">
           <form action="/board" method="GET" className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
             {bestType && <input type="hidden" name="best" value={bestType} />}
