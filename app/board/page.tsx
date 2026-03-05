@@ -19,7 +19,6 @@ function hasImage(content: string) {
   return /<img[^>]+src="([^">]+)"/.test(content);
 }
 
-// 💡 미나의 깔끔 마법: DB에 '[유머] 노량해전'으로 저장되어 있어도, [분류]와 [제목]을 예쁘게 쪼개서 보여줍니다!
 function extractData(fullTitle: string) {
   if (!fullTitle) return { cat: '일반', cleanTitle: '' };
   const match = fullTitle.match(/^\[(.*?)\]\s*(.*)$/);
@@ -40,7 +39,6 @@ export default async function BoardPage(props: any) {
   let totalCount = 0; 
   let topPost = null;
 
-  // 🚨 에러 해결: DB에 없는 category 칸 대신, 제목 안에 '[카테고리]' 가 포함된 글을 찾도록 변경!
   const categoryPattern = `%[${category}]%`;
 
   if (category !== 'all' && !keyword && bestType === '' && page === 1) {
@@ -142,7 +140,8 @@ export default async function BoardPage(props: any) {
              keyword ? `🔍 '${keyword}' 검색 결과 (${totalCount}건)` : 
              category !== 'all' ? `[${category}] 게시판` : '전체글 보기'}
           </h2>
-          <Link href="/board/write" className="px-5 py-2 bg-[#3b4890] text-white rounded text-sm font-bold hover:bg-[#222b5c] transition-colors">
+          {/* 💡 미나의 센스: 글쓰기 버튼을 누를 때, 지금 보고 있는 카테고리를 주소창 뒤에 몰래 달아서 보냅니다! */}
+          <Link href={`/board/write${category !== 'all' ? `?category=${category}` : ''}`} className="px-5 py-2 bg-[#3b4890] text-white rounded text-sm font-bold hover:bg-[#222b5c] transition-colors">
             ✍️ 글쓰기
           </Link>
         </div>

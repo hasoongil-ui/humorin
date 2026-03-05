@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import imageCompression from 'browser-image-compression';
 import { ImagePlus, Loader2, X } from 'lucide-react';
@@ -9,14 +9,20 @@ export default function WritePage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [author, setAuthor] = useState('');
-  
-  // 💡 미나의 추가 부품: 유저가 게시판을 고를 수 있는 '카테고리' 상태 추가! (기본값: 일상)
   const [category, setCategory] = useState('일상'); 
-  
   const [images, setImages] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const router = useRouter();
+
+  // 💡 미나의 센스: URL에서 넘어온 카테고리(귀띔)를 몰래 읽어서 드롭다운을 자동으로 세팅합니다!
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const currentCat = params.get('category');
+    if (currentCat) {
+      setCategory(currentCat); // 감동 게시판에서 왔으면, 알아서 '감동'으로 변경!
+    }
+  }, []);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -44,7 +50,7 @@ export default function WritePage() {
           URL.revokeObjectURL(img.src);
 
           if (isLongImage) {
-            fileToUpload = file; // 만화 원본 보존
+            fileToUpload = file; 
           } else {
             const options = {
               maxSizeMB: 1.5,
@@ -100,7 +106,6 @@ export default function WritePage() {
       finalContent = finalContent + '\n\n' + imageTags;
     }
 
-    // 💡 미나의 마법 도장: 서버로 보내기 전에, 선택한 카테고리를 제목 앞에 찰싹! 붙여줍니다. (예: "[공포] 무서운 이야기")
     const finalTitle = `[${category}] ${title}`;
 
     try {
@@ -111,8 +116,8 @@ export default function WritePage() {
       });
 
       if (res.ok) {
-        // 글 다 쓰면 전체글 보기로 돌아가기
-        router.push('/board');
+        // 💡 글을 다 쓰면 무조건 전체글이 아니라, 방금 글을 쓴 그 게시판으로 다시 돌아가게 센스 장착!
+        router.push(`/board${category !== '일상' ? `?category=${category}` : ''}`);
         router.refresh();
       } else {
         alert('글 등록에 실패했습니다.');
@@ -127,7 +132,7 @@ export default function WritePage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg border p-6">
-        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V4.2 (게시판 분류 기능 탑재!)</h1>
+        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V4.3 (게시판 자동 연동!)</h1>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <input 
@@ -138,7 +143,6 @@ export default function WritePage() {
             required 
           />
           
-          {/* 💡 카테고리 선택기와 제목 입력칸을 한 줄에 나란히 배치했습니다! */}
           <div className="flex gap-2">
             <select 
               value={category} 
