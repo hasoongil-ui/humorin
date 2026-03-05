@@ -9,17 +9,13 @@ export default function WritePage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [author, setAuthor] = useState('');
-  
-  // 💡 드롭다운 삭제! URL에서 받아온 카테고리를 그대로 보관만 합니다.
   const [category, setCategory] = useState('일상'); 
-  
   const [images, setImages] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const router = useRouter();
 
   useEffect(() => {
-    // 사용자가 '어떤 게시판'의 글쓰기 버튼을 눌렀는지 찰떡같이 알아냅니다!
     const params = new URLSearchParams(window.location.search);
     const currentCat = params.get('category');
     if (currentCat) {
@@ -109,7 +105,6 @@ export default function WritePage() {
       finalContent = finalContent + '\n\n' + imageTags;
     }
 
-    // 💡 화면엔 드롭다운이 없지만, 서버로 보낼 때는 원래 있던 게시판 이름([공포])을 자동으로 달아줍니다!
     const finalTitle = `[${category}] ${title}`;
 
     try {
@@ -120,7 +115,6 @@ export default function WritePage() {
       });
 
       if (res.ok) {
-        // 등록 성공하면 방금 글을 쓴 그 게시판으로 부드럽게 복귀!
         router.push(`/board?category=${category}`);
         router.refresh();
       } else {
@@ -134,27 +128,26 @@ export default function WritePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
-      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg border p-6">
+    /* 💡 미나의 반성: 둥근 모서리, 그림자, 회색 배경을 싹 다 없애고 하얀 바탕에 100% 쫙 펴지게 만들었습니다! */
+    <div className="min-h-screen bg-white font-sans text-gray-800">
+      <div className="max-w-6xl mx-auto p-4 md:p-6 mt-4 mb-20">
         
-        {/* 💡 사용자가 헷갈리지 않게, 지금 어느 게시판에 글을 쓰고 있는지 상단에 확 띄워줍니다! */}
-        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">
-          ✍️ [{category}] 게시판에 명품 글쓰기
+        <h1 className="text-2xl font-black text-[#3b4890] mb-6 border-b-2 border-gray-800 pb-2">
+          ✍️ [{category}] 게시판에 시원하게 글쓰기
         </h1>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <input 
             placeholder="글쓴이 성함" 
-            className="w-full p-3 border-2 border-gray-100 rounded-lg focus:border-[#3b4890] outline-none font-bold"
+            className="w-full md:w-64 p-3 border border-gray-300 rounded focus:border-[#3b4890] outline-none font-bold text-gray-800"
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
             required 
           />
           
-          {/* 💡 멍청한 드롭다운 박살! 제목 입력칸이 다시 시원하게 100% 꽉 찹니다! */}
           <input 
             placeholder="시원하게 제목을 입력하세요!" 
-            className="w-full p-3 border-2 border-gray-100 rounded-lg text-xl focus:border-[#3b4890] outline-none font-black"
+            className="w-full p-4 border border-gray-300 rounded text-xl focus:border-[#3b4890] outline-none font-black text-gray-900"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required 
@@ -162,7 +155,7 @@ export default function WritePage() {
 
           <div className="space-y-4">
             <div className="flex items-center gap-4">
-              <label className={`flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg cursor-pointer font-bold ${isUploading || isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200 transition-colors'}`}>
+              <label className={`flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-800 border border-gray-300 rounded cursor-pointer font-bold ${isUploading || isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200 transition-colors'}`}>
                 <ImagePlus size={20} />
                 <span>사진/움짤 추가 (최대 10MB)</span>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} disabled={isUploading || isSubmitting} />
@@ -176,9 +169,9 @@ export default function WritePage() {
             </div>
 
             {images.length > 0 && (
-              <div className="grid grid-cols-3 md:grid-cols-4 gap-2 border p-3 rounded-lg bg-gray-50">
+              <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 border border-gray-200 p-4 rounded bg-gray-50">
                 {images.map((url, index) => (
-                  <div key={index} className="relative aspect-square rounded-md overflow-hidden border shadow-sm group">
+                  <div key={index} className="relative aspect-square rounded overflow-hidden border shadow-sm group">
                     <img src={url} alt="업로드 이미지" className="w-full h-full object-cover" />
                     <button type="button" onClick={() => removeImage(index)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                       <X size={12} />
@@ -191,18 +184,20 @@ export default function WritePage() {
 
           <textarea 
             placeholder="내용을 입력하세요 (사진은 위에 버튼으로 추가하세요!)" 
-            className="w-full p-3 border-2 border-gray-100 rounded-lg h-80 focus:border-[#3b4890] outline-none leading-relaxed"
+            className="w-full p-4 border border-gray-300 rounded h-[600px] focus:border-[#3b4890] outline-none leading-relaxed text-lg text-gray-900"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             required 
           />
 
-          <div className="flex gap-2 pt-4">
-            <button type="submit" disabled={isUploading || isSubmitting} className="flex-1 py-4 bg-[#3b4890] text-white rounded-xl font-black text-lg hover:bg-[#222b5c] shadow-lg transition-all disabled:bg-gray-400 flex items-center justify-center gap-2">
+          <div className="flex gap-2 pt-4 border-t border-gray-200 mt-8">
+            <button type="button" onClick={() => router.back()} disabled={isSubmitting} className="px-8 py-4 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 disabled:opacity-50 transition-colors">
+              취소
+            </button>
+            <button type="submit" disabled={isUploading || isSubmitting} className="flex-1 py-4 bg-[#3b4890] text-white rounded font-black text-lg hover:bg-[#222b5c] transition-all disabled:bg-gray-400 flex items-center justify-center gap-2">
               {isSubmitting && <Loader2 className="animate-spin" size={20} />}
               {isSubmitting ? '글을 서버로 보내는 중...' : isUploading ? '사진 업로드 대기 중...' : '명품 글 등록하기 🚀'}
             </button>
-            <button type="button" onClick={() => router.back()} disabled={isSubmitting} className="px-8 py-4 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 disabled:opacity-50">취소</button>
           </div>
         </form>
       </div>
