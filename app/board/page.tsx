@@ -12,16 +12,13 @@ export default async function BoardPage(props: any) {
   const searchParams = await props.searchParams;
   const bestCount = searchParams.best ? Number(searchParams.best) : 0;
   const keyword = searchParams.q || ''; 
-  
-  // 💡 미나의 마법 1: 지금 몇 페이지에 있는지 확인하고, 한 페이지에 5개씩만 보여주라고 지시합니다!
   const page = searchParams.page ? Number(searchParams.page) : 1;
-  const limit = 5; // 한 페이지에 보여줄 글 개수 (테스트용 5개!)
-  const offset = (page - 1) * limit; // 창고에서 몇 번째 글부터 꺼낼지 계산하는 마법
+  const limit = 5; 
+  const offset = (page - 1) * limit; 
 
   let posts;
-  let totalCount = 0; // 전체 글이 몇 개인지 세어둘 변수
+  let totalCount = 0; 
   
-  // 💡 미나의 마법 2: 글을 가져올 때 '몇 개만(LIMIT)' 가져오라고 똑똑하게 명령합니다!
   if (keyword && bestCount > 0) {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= ${bestCount} AND (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'})`;
     totalCount = Number(countResult.rows[0].count);
@@ -44,7 +41,6 @@ export default async function BoardPage(props: any) {
     posts = rows;
   }
 
-  // 전체 페이지 개수 계산 (예: 글이 12개면 3페이지가 필요함)
   const totalPages = Math.ceil(totalCount / limit) || 1;
 
   const menus = [
@@ -84,22 +80,23 @@ export default async function BoardPage(props: any) {
         </div>
       </nav>
 
-      <main className="max-w-5xl mx-auto p-4 mt-4 mb-20">
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <div className="flex justify-between items-center mb-4">
+      <main className="max-w-5xl mx-auto p-2 md:p-4 mt-4 mb-20">
+        <div className="bg-white rounded-lg shadow-sm border p-4 md:p-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <h2 className="text-xl font-bold text-gray-800">
               {keyword ? `🔍 '${keyword}' 검색 결과 (${totalCount}건)` : (bestCount > 0 ? `🏆 명예의 전당 (추천 ${bestCount}개 이상)` : '전체글 보기')}
             </h2>
-            <Link href="/board/write" className="px-6 py-2 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] shadow-md transition-colors">
+            <Link href="/board/write" className="w-full md:w-auto text-center px-6 py-2 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] shadow-md transition-colors">
               ✍️ 폼나게 글쓰기
             </Link>
           </div>
 
-          <div className="flex bg-gray-50 border-t border-b border-gray-200 py-3 text-sm font-bold text-gray-600 text-center">
+          {/* 💡 컴퓨터(md)에서만 보이는 넓은 표의 제목 줄! 스마트폰에선 깔끔하게 숨깁니다 (hidden md:flex) */}
+          <div className="hidden md:flex bg-gray-50 border-t border-b border-gray-200 py-3 text-sm font-bold text-gray-600 text-center">
             <div className="w-16">번호</div>
             <div className="flex-1">제목</div>
             <div className="w-24">글쓴이</div>
-            <div className="w-16 text-blue-600">추천</div>
+            <div className="w-16 text-[#3b4890]">추천</div>
             <div className="w-20">조회수</div>
             <div className="w-32">날짜</div>
           </div>
@@ -110,37 +107,45 @@ export default async function BoardPage(props: any) {
             </div>
           ) : (
             posts.map((post) => (
-              <Link href={`/board/${post.id}`} key={post.id} className="flex border-b border-gray-100 py-3 text-sm hover:bg-gray-50 items-center text-center cursor-pointer transition-colors group">
-                <div className="w-16 text-gray-400">{post.id}</div>
-                <div className="flex-1 text-left px-4 font-semibold text-gray-800 group-hover:text-[#3b4890] group-hover:underline">
+              // 💡 핵심 마법! 폰에서는 위아래(flex-col), 컴퓨터에선 가로(md:flex-row)로 자동 변신!
+              <Link href={`/board/${post.id}`} key={post.id} className="flex flex-col md:flex-row border-b border-gray-100 py-3 md:py-4 hover:bg-gray-50 cursor-pointer transition-colors group">
+                
+                {/* 1. 번호: 컴퓨터에서만 보임 */}
+                <div className="hidden md:block w-16 text-center text-sm text-gray-400 my-auto">{post.id}</div>
+                
+                {/* 2. 제목: 폰에서는 크고 굵게, 위로 올라갑니다 */}
+                <div className="flex-1 px-2 md:px-4 mb-2 md:mb-0 font-bold md:font-semibold text-base md:text-sm text-gray-900 group-hover:text-[#3b4890] group-hover:underline truncate my-auto">
                   {post.title}
                 </div>
-                <div className="w-24 text-gray-600 font-bold">{post.author}</div>
-                <div className="w-16 text-blue-600 font-extrabold">{post.likes || 0}</div>
-                <div className="w-20 text-red-500 font-bold">{post.views || 0}</div>
-                <div className="w-32 text-gray-400">{formatDate(post.date)}</div>
+                
+                {/* 3. 부가 정보 (글쓴이, 추천, 조회수, 날짜): 폰에서는 제목 아래로 아기자기하게 모입니다 */}
+                <div className="flex items-center px-2 md:px-0 text-xs md:text-sm text-gray-500 gap-3 md:gap-0 my-auto">
+                  <div className="md:w-24 md:text-center font-bold text-gray-600">{post.author}</div>
+                  <div className="md:w-16 md:text-center text-[#3b4890] font-extrabold flex items-center gap-1">
+                    <span className="md:hidden">👍</span>{post.likes || 0}
+                  </div>
+                  <div className="md:w-20 md:text-center text-red-500 font-bold flex items-center gap-1">
+                    <span className="md:hidden">👀</span>{post.views || 0}
+                  </div>
+                  <div className="md:w-32 md:text-center text-gray-400">{formatDate(post.date)}</div>
+                </div>
+
               </Link>
             ))
           )}
 
-          {/* 💡 대망의 페이징(페이지 번호) 구역! 디씨인사이드처럼 예쁘게 달아줍니다. */}
+          {/* 페이징과 검색창은 스마트폰에서도 중앙에 예쁘게 나오도록 유지! */}
           <div className="flex justify-center items-center gap-2 mt-8">
             {page > 1 && (
               <Link href={`/board?page=${page - 1}${keyword ? `&q=${keyword}` : ''}${bestCount > 0 ? `&best=${bestCount}` : ''}`} className="px-3 py-1 border border-gray-300 rounded bg-white text-gray-600 hover:bg-gray-50 font-bold text-sm">
                 &lt; 이전
               </Link>
             )}
-
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <Link 
-                key={p} 
-                href={`/board?page=${p}${keyword ? `&q=${keyword}` : ''}${bestCount > 0 ? `&best=${bestCount}` : ''}`}
-                className={`px-3 py-1 border rounded font-bold text-sm transition-colors ${page === p ? 'bg-[#3b4890] text-white border-[#3b4890]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
-              >
+              <Link key={p} href={`/board?page=${p}${keyword ? `&q=${keyword}` : ''}${bestCount > 0 ? `&best=${bestCount}` : ''}`} className={`px-3 py-1 border rounded font-bold text-sm transition-colors ${page === p ? 'bg-[#3b4890] text-white border-[#3b4890]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
                 {p}
               </Link>
             ))}
-
             {page < totalPages && (
               <Link href={`/board?page=${page + 1}${keyword ? `&q=${keyword}` : ''}${bestCount > 0 ? `&best=${bestCount}` : ''}`} className="px-3 py-1 border border-gray-300 rounded bg-white text-gray-600 hover:bg-gray-50 font-bold text-sm">
                 다음 &gt;
@@ -149,13 +154,13 @@ export default async function BoardPage(props: any) {
           </div>
 
           <div className="mt-8 flex justify-center">
-            <form action="/board" method="GET" className="flex gap-2">
+            <form action="/board" method="GET" className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
               {bestCount > 0 && <input type="hidden" name="best" value={bestCount} />}
               <select className="p-2 border border-gray-300 rounded focus:outline-[#3b4890] text-sm text-gray-600 font-bold bg-white outline-none cursor-pointer">
                 <option value="all">제목 + 글쓴이</option>
               </select>
-              <input name="q" defaultValue={keyword} placeholder="검색어를 입력하세요" className="p-2 border border-gray-300 rounded w-64 focus:outline-[#3b4890] text-sm outline-none" required />
-              <button type="submit" className="px-6 py-2 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] transition-colors text-sm shadow-sm">
+              <input name="q" defaultValue={keyword} placeholder="검색어를 입력하세요" className="p-2 border border-gray-300 rounded w-full md:w-64 focus:outline-[#3b4890] text-sm outline-none" required />
+              <button type="submit" className="px-6 py-2 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] transition-colors text-sm shadow-sm w-full md:w-auto">
                 🔍 검색
               </button>
             </form>
