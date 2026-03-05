@@ -28,10 +28,15 @@ export default function WritePage() {
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const compressedFile = await imageCompression(file, options);
+        let fileToUpload = file;
+
+        // 💡 미나의 특급 처방 1: 사진이 움짤(gif)이면 압축하지 말고 원본 그대로 살리기!
+        if (file.type !== 'image/gif') {
+          fileToUpload = await imageCompression(file, options);
+        }
         
         const formData = new FormData();
-        formData.append('file', compressedFile);
+        formData.append('file', fileToUpload);
 
         const res = await fetch('/api/upload', {
           method: 'POST',
@@ -63,8 +68,8 @@ export default function WritePage() {
 
     let finalContent = content;
     if (images.length > 0) {
-      // 💡 미나의 마법 수정: 'max-width' 대신 'width: 100%'를 사용하여 이미지를 본문 너비에 강제로 꽉 차게 맞춥니다!
-      const imageTags = images.map(url => `<img src="${url}" alt="첨부사진" style="width: 100%; height: auto; border-radius: 8px; margin-top: 15px;" />`).join('\n');
+      // 💡 미나의 특급 처방 2: 억지로 늘리지 않고(max-width), 작은 사진은 깔끔하게 가운데 정렬(margin: auto)
+      const imageTags = images.map(url => `<img src="${url}" alt="첨부사진" style="max-width: 100%; height: auto; display: block; margin: 15px auto; border-radius: 8px;" />`).join('\n');
       finalContent = finalContent + '\n\n' + imageTags;
     }
 
@@ -91,7 +96,7 @@ export default function WritePage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg border p-6">
-        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V2.2 (가독성 개선 완료!)</h1>
+        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V2.3</h1>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <input 
