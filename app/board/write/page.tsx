@@ -9,6 +9,10 @@ export default function WritePage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [author, setAuthor] = useState('');
+  
+  // 💡 미나의 추가 부품: 유저가 게시판을 고를 수 있는 '카테고리' 상태 추가! (기본값: 일상)
+  const [category, setCategory] = useState('일상'); 
+  
   const [images, setImages] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); 
@@ -24,7 +28,6 @@ export default function WritePage() {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         
-        // 🚨 10MB 경비원 (창고 용량 보호)
         if (file.size > 10 * 1024 * 1024) {
           alert(`[${file.name}] 용량이 너무 큽니다! (최대 10MB까지만 가능)\n쾌적한 사이트 환경을 위해 용량을 줄여주세요!`);
           continue; 
@@ -32,21 +35,17 @@ export default function WritePage() {
 
         let fileToUpload = file;
 
-        // 💡 움짤(GIF, WEBP)은 압축 패스!
         if (file.type !== 'image/gif' && file.type !== 'image/webp') {
           const img = new Image();
           img.src = URL.createObjectURL(file);
           await new Promise((resolve) => { img.onload = resolve; });
           
-          // 세로가 가로보다 2배 이상 길면 '웹툰'으로 확실하게 판정!
           const isLongImage = img.height > img.width * 2; 
           URL.revokeObjectURL(img.src);
 
           if (isLongImage) {
-            // 💡 미나의 특급 마법 (웹툰 VIP 패스): 만화는 글씨가 생명이므로 압축하지 않고 원본 화질 100% 그대로 쏩니다!
-            fileToUpload = file;
+            fileToUpload = file; // 만화 원본 보존
           } else {
-            // 일반 사진은 기존처럼 1.5MB로 쾌적하게 압축!
             const options = {
               maxSizeMB: 1.5,
               maxWidthOrHeight: 1920,
@@ -101,14 +100,18 @@ export default function WritePage() {
       finalContent = finalContent + '\n\n' + imageTags;
     }
 
+    // 💡 미나의 마법 도장: 서버로 보내기 전에, 선택한 카테고리를 제목 앞에 찰싹! 붙여줍니다. (예: "[공포] 무서운 이야기")
+    const finalTitle = `[${category}] ${title}`;
+
     try {
       const res = await fetch('/api/post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, content: finalContent, author, category: '일상' }), 
+        body: JSON.stringify({ title: finalTitle, content: finalContent, author, category }), 
       });
 
       if (res.ok) {
+        // 글 다 쓰면 전체글 보기로 돌아가기
         router.push('/board');
         router.refresh();
       } else {
@@ -124,7 +127,7 @@ export default function WritePage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg border p-6">
-        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V3.1 (웹툰 원본 100% 화질 보존!)</h1>
+        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V4.2 (게시판 분류 기능 탑재!)</h1>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <input 
@@ -134,13 +137,28 @@ export default function WritePage() {
             onChange={(e) => setAuthor(e.target.value)}
             required 
           />
-          <input 
-            placeholder="제목을 입력하세요" 
-            className="w-full p-3 border-2 border-gray-100 rounded-lg text-xl focus:border-[#3b4890] outline-none font-black"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required 
-          />
+          
+          {/* 💡 카테고리 선택기와 제목 입력칸을 한 줄에 나란히 배치했습니다! */}
+          <div className="flex gap-2">
+            <select 
+              value={category} 
+              onChange={(e) => setCategory(e.target.value)}
+              className="p-3 border-2 border-gray-100 rounded-lg focus:border-[#3b4890] outline-none font-bold bg-white cursor-pointer text-[#3b4890]"
+            >
+              <option value="일상">일상</option>
+              <option value="유머">유머</option>
+              <option value="감동">감동</option>
+              <option value="공포">공포</option>
+              <option value="핫뉴스">핫뉴스</option>
+            </select>
+            <input 
+              placeholder="제목을 입력하세요" 
+              className="flex-1 p-3 border-2 border-gray-100 rounded-lg text-xl focus:border-[#3b4890] outline-none font-black"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required 
+            />
+          </div>
 
           <div className="space-y-4">
             <div className="flex items-center gap-4">
