@@ -11,16 +11,17 @@ export default function WritePage() {
   const [author, setAuthor] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  // 💡 미나의 광클 방지용 자물쇠 추가!
+  const [isSubmitting, setIsSubmitting] = useState(false); 
   const router = useRouter();
 
-  // 💡 미나의 마법: 사진을 선택하자마자 0.1초 만에 압축해서 창고로 보냅니다!
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
     const options = {
-      maxSizeMB: 0.5, // 0.5MB 이하로 압축!
+      maxSizeMB: 0.5,
       maxWidthOrHeight: 1200,
       useWebWorker: true,
     };
@@ -55,30 +56,38 @@ export default function WritePage() {
     setImages(images.filter((_, i) => i !== index));
   };
 
-  // 💡 [수정 완료]: 주소 에러 고치고, 사진을 본문 밑에 찰싹 붙이는 마법 적용!
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isUploading) return;
+    // 💡 업로드 중이거나, 이미 등록 버튼을 눌렀다면(자물쇠 잠김) 여기서 멈춤!
+    if (isUploading || isSubmitting) return;
 
-    // 1. 사진 주소들을 본문(content) 밑에 그림 태그(<img...>)로 예쁘게 붙여버립니다!
+    // 등록 시작! 자물쇠 찰칵 잠그기! (버튼 비활성화)
+    setIsSubmitting(true); 
+
     let finalContent = content;
     if (images.length > 0) {
       const imageTags = images.map(url => `<img src="${url}" alt="첨부사진" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 15px;" />`).join('\n');
       finalContent = finalContent + '\n\n' + imageTags;
     }
 
-    // 2. 주소를 대표님의 진짜 우체통인 '/api/post' 로 정확히 보냅니다!
-    const res = await fetch('/api/post', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, content: finalContent, author }), // 합친 finalContent를 보냅니다!
-    });
+    try {
+      // 💡 [undefined] 에러를 없애기 위해 category: '일상' 을 몰래 넣어서 보냅니다!
+      const res = await fetch('/api/post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content: finalContent, author, category: '일상' }), 
+      });
 
-    if (res.ok) {
-      router.push('/board'); // 성공하면 글 목록 화면으로 슝~ 이동!
-      router.refresh();
-    } else {
-      alert('글 등록에 실패했습니다. (서버 우체통 에러)');
+      if (res.ok) {
+        router.push('/board');
+        router.refresh();
+      } else {
+        alert('글 등록에 실패했습니다.');
+        setIsSubmitting(false); // 실패하면 다시 누를 수 있게 자물쇠 풀기
+      }
+    } catch (error) {
+      console.error(error);
+      setIsSubmitting(false);
     }
   };
 
@@ -103,13 +112,13 @@ export default function WritePage() {
             required 
           />
 
-          {/* 📷 사진 첨부 구역 */}
           <div className="space-y-4">
             <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors font-bold">
+              {/* 버튼 잠금 기능 추가 */}
+              <label className={`flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg cursor-pointer font-bold ${isUploading || isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200 transition-colors'}`}>
                 <ImagePlus size={20} />
                 <span>사진/움짤 추가</span>
-                <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} disabled={isUploading} />
+                <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} disabled={isUploading || isSubmitting} />
               </label>
               {isUploading && (
                 <div className="flex items-center gap-2 text-[#3b4890] font-bold text-sm animate-pulse">
@@ -142,10 +151,12 @@ export default function WritePage() {
           />
 
           <div className="flex gap-2 pt-4">
-            <button type="submit" disabled={isUploading} className="flex-1 py-4 bg-[#3b4890] text-white rounded-xl font-black text-lg hover:bg-[#222b5c] shadow-lg transition-all disabled:bg-gray-400">
-              {isUploading ? '사진 업로드 대기 중...' : '명품 글 등록하기 🚀'}
+            {/* 💡 전송 중일 때 빙글빙글 도는 아이콘과 함께 버튼이 회색으로 변하며 잠깁니다! */}
+            <button type="submit" disabled={isUploading || isSubmitting} className="flex-1 py-4 bg-[#3b4890] text-white rounded-xl font-black text-lg hover:bg-[#222b5c] shadow-lg transition-all disabled:bg-gray-400 flex items-center justify-center gap-2">
+              {isSubmitting && <Loader2 className="animate-spin" size={20} />}
+              {isSubmitting ? '글을 서버로 보내는 중...' : isUploading ? '사진 업로드 대기 중...' : '명품 글 등록하기 🚀'}
             </button>
-            <button type="button" onClick={() => router.back()} className="px-8 py-4 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300">취소</button>
+            <button type="button" onClick={() => router.back()} disabled={isSubmitting} className="px-8 py-4 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 disabled:opacity-50">취소</button>
           </div>
         </form>
       </div>
