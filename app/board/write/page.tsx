@@ -19,19 +19,31 @@ export default function WritePage() {
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
-    const options = {
-      maxSizeMB: 0.5,
-      maxWidthOrHeight: 1200,
-      useWebWorker: true,
-    };
 
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         let fileToUpload = file;
 
-        // 💡 미나의 특급 처방 1: 사진이 움짤(gif)이면 압축하지 말고 원본 그대로 살리기!
+        // 1. 사진이 움짤(gif)이면 압축기를 아예 거치지 않습니다! (움짤 멈춤 방지)
         if (file.type !== 'image/gif') {
+          
+          // 💡 2. 미나의 스마트 판독기: 사진의 가로/세로 길이를 몰래 재봅니다.
+          const img = new Image();
+          img.src = URL.createObjectURL(file);
+          await new Promise((resolve) => { img.onload = resolve; });
+          
+          // 세로가 가로보다 1.5배 이상 길면 '웹툰/세로짤'로 판정!
+          const isLongImage = img.height > img.width * 1.5; 
+          URL.revokeObjectURL(img.src); // 다 쟀으면 메모리 청소!
+
+          // 💡 3. 웹툰이면 길이를 자르지 않고(maxWidthOrHeight 삭제), 일반 사진만 자릅니다!
+          const options = {
+            maxSizeMB: 1.5, // 고화질을 위해 용량 제한을 1.5MB로 넉넉하게!
+            useWebWorker: true,
+            ...(isLongImage ? {} : { maxWidthOrHeight: 1920 }) 
+          };
+
           fileToUpload = await imageCompression(file, options);
         }
         
@@ -68,7 +80,7 @@ export default function WritePage() {
 
     let finalContent = content;
     if (images.length > 0) {
-      // 💡 미나의 특급 처방 2: 억지로 늘리지 않고(max-width), 작은 사진은 깔끔하게 가운데 정렬(margin: auto)
+      // 💡 미나의 CSS 마법: max-width: 100% 로 설정하여 화면 밖으로 삐져나가는 것만 막고, 작은 사진은 억지로 늘리지 않습니다!
       const imageTags = images.map(url => `<img src="${url}" alt="첨부사진" style="max-width: 100%; height: auto; display: block; margin: 15px auto; border-radius: 8px;" />`).join('\n');
       finalContent = finalContent + '\n\n' + imageTags;
     }
@@ -96,7 +108,7 @@ export default function WritePage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg border p-6">
-        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V2.3</h1>
+        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V2.4 (웹툰 화질 완벽 개선!)</h1>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <input 
@@ -124,7 +136,7 @@ export default function WritePage() {
               {isUploading && (
                 <div className="flex items-center gap-2 text-[#3b4890] font-bold text-sm animate-pulse">
                   <Loader2 className="animate-spin" size={16} />
-                  압축하며 올리는 중...
+                  스마트 압축 및 업로드 중...
                 </div>
               )}
             </div>
