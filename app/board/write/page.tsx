@@ -11,7 +11,6 @@ export default function WritePage() {
   const [author, setAuthor] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  // 💡 미나의 광클 방지용 자물쇠 추가!
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const router = useRouter();
 
@@ -58,20 +57,18 @@ export default function WritePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // 💡 업로드 중이거나, 이미 등록 버튼을 눌렀다면(자물쇠 잠김) 여기서 멈춤!
     if (isUploading || isSubmitting) return;
 
-    // 등록 시작! 자물쇠 찰칵 잠그기! (버튼 비활성화)
     setIsSubmitting(true); 
 
     let finalContent = content;
     if (images.length > 0) {
-      const imageTags = images.map(url => `<img src="${url}" alt="첨부사진" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 15px;" />`).join('\n');
+      // 💡 미나의 마법 수정: 'max-width' 대신 'width: 100%'를 사용하여 이미지를 본문 너비에 강제로 꽉 차게 맞춥니다!
+      const imageTags = images.map(url => `<img src="${url}" alt="첨부사진" style="width: 100%; height: auto; border-radius: 8px; margin-top: 15px;" />`).join('\n');
       finalContent = finalContent + '\n\n' + imageTags;
     }
 
     try {
-      // 💡 [undefined] 에러를 없애기 위해 category: '일상' 을 몰래 넣어서 보냅니다!
       const res = await fetch('/api/post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -83,7 +80,7 @@ export default function WritePage() {
         router.refresh();
       } else {
         alert('글 등록에 실패했습니다.');
-        setIsSubmitting(false); // 실패하면 다시 누를 수 있게 자물쇠 풀기
+        setIsSubmitting(false);
       }
     } catch (error) {
       console.error(error);
@@ -94,7 +91,7 @@ export default function WritePage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg border p-6">
-        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기</h1>
+        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V2.2 (가독성 개선 완료!)</h1>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <input 
@@ -114,7 +111,6 @@ export default function WritePage() {
 
           <div className="space-y-4">
             <div className="flex items-center gap-4">
-              {/* 버튼 잠금 기능 추가 */}
               <label className={`flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg cursor-pointer font-bold ${isUploading || isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200 transition-colors'}`}>
                 <ImagePlus size={20} />
                 <span>사진/움짤 추가</span>
@@ -151,7 +147,6 @@ export default function WritePage() {
           />
 
           <div className="flex gap-2 pt-4">
-            {/* 💡 전송 중일 때 빙글빙글 도는 아이콘과 함께 버튼이 회색으로 변하며 잠깁니다! */}
             <button type="submit" disabled={isUploading || isSubmitting} className="flex-1 py-4 bg-[#3b4890] text-white rounded-xl font-black text-lg hover:bg-[#222b5c] shadow-lg transition-all disabled:bg-gray-400 flex items-center justify-center gap-2">
               {isSubmitting && <Loader2 className="animate-spin" size={20} />}
               {isSubmitting ? '글을 서버로 보내는 중...' : isUploading ? '사진 업로드 대기 중...' : '명품 글 등록하기 🚀'}
