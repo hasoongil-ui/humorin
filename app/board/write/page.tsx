@@ -25,21 +25,16 @@ export default function WritePage() {
         const file = files[i];
         let fileToUpload = file;
 
-        // 1. 사진이 움짤(gif)이면 압축기를 아예 거치지 않습니다! (움짤 멈춤 방지)
         if (file.type !== 'image/gif') {
-          
-          // 💡 2. 미나의 스마트 판독기: 사진의 가로/세로 길이를 몰래 재봅니다.
           const img = new Image();
           img.src = URL.createObjectURL(file);
           await new Promise((resolve) => { img.onload = resolve; });
           
-          // 세로가 가로보다 1.5배 이상 길면 '웹툰/세로짤'로 판정!
           const isLongImage = img.height > img.width * 1.5; 
-          URL.revokeObjectURL(img.src); // 다 쟀으면 메모리 청소!
+          URL.revokeObjectURL(img.src);
 
-          // 💡 3. 웹툰이면 길이를 자르지 않고(maxWidthOrHeight 삭제), 일반 사진만 자릅니다!
           const options = {
-            maxSizeMB: 1.5, // 고화질을 위해 용량 제한을 1.5MB로 넉넉하게!
+            maxSizeMB: 1.5,
             useWebWorker: true,
             ...(isLongImage ? {} : { maxWidthOrHeight: 1920 }) 
           };
@@ -47,17 +42,28 @@ export default function WritePage() {
           fileToUpload = await imageCompression(file, options);
         }
         
-        const formData = new FormData();
-        formData.append('file', fileToUpload);
-
-        const res = await fetch('/api/upload', {
+        // 💡 1. 사진을 보내기 전에, 우체국에 '황금 티켓(업로드 주소)'을 먼저 요청합니다!
+        const ticketRes = await fetch('/api/upload', {
           method: 'POST',
-          body: formData,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            filename: fileToUpload.name, 
+            contentType: fileToUpload.type 
+          }),
         });
+        
+        const { uploadUrl, publicUrl } = await ticketRes.json();
 
-        const data = await res.json();
-        if (data.url) {
-          setImages((prev) => [...prev, data.url]);
+        if (uploadUrl) {
+          // 🚀 2. 티켓(uploadUrl)을 받았으니, Vercel 우체부를 무시하고 R2 창고로 '직접' 쏴버립니다!! (4.5MB 무시 마법!)
+          await fetch(uploadUrl, {
+            method: 'PUT',
+            body: fileToUpload,
+            headers: { 'Content-Type': fileToUpload.type },
+          });
+          
+          // 3. 쏘기 성공하면 미리보기에 추가!
+          setImages((prev) => [...prev, publicUrl]);
         }
       }
     } catch (error) {
@@ -80,7 +86,6 @@ export default function WritePage() {
 
     let finalContent = content;
     if (images.length > 0) {
-      // 💡 미나의 CSS 마법: max-width: 100% 로 설정하여 화면 밖으로 삐져나가는 것만 막고, 작은 사진은 억지로 늘리지 않습니다!
       const imageTags = images.map(url => `<img src="${url}" alt="첨부사진" style="max-width: 100%; height: auto; display: block; margin: 15px auto; border-radius: 8px;" />`).join('\n');
       finalContent = finalContent + '\n\n' + imageTags;
     }
@@ -108,7 +113,7 @@ export default function WritePage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg border p-6">
-        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V2.4 (웹툰 화질 완벽 개선!)</h1>
+        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V2.5 (5MB+ 무제한 용량 돌파!)</h1>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <input 
@@ -130,13 +135,13 @@ export default function WritePage() {
             <div className="flex items-center gap-4">
               <label className={`flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg cursor-pointer font-bold ${isUploading || isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200 transition-colors'}`}>
                 <ImagePlus size={20} />
-                <span>사진/움짤 추가</span>
+                <span>무제한 사진/움짤 추가</span>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} disabled={isUploading || isSubmitting} />
               </label>
               {isUploading && (
                 <div className="flex items-center gap-2 text-[#3b4890] font-bold text-sm animate-pulse">
                   <Loader2 className="animate-spin" size={16} />
-                  스마트 압축 및 업로드 중...
+                  창고로 직접 쏘는 중...🚀
                 </div>
               )}
             </div>

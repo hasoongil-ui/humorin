@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'; // 💡 새로 설치한 티켓 발급기!
 
-// 🔑 1. Vercel 금고에서 우리가 저장한 열쇠 5개를 꺼냅니다.
 const s3 = new S3Client({
   region: 'auto',
   endpoint: process.env.R2_ENDPOINT!,
@@ -13,36 +13,31 @@ const s3 = new S3Client({
 
 export async function POST(request: NextRequest) {
   try {
-    // 2. 유저가 보낸 사진 꾸러미를 엽니다.
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
+    // 💡 무거운 사진 대신, 사진의 '이름'과 '종류'만 가볍게 물어봅니다!
+    const { filename, contentType } = await request.json();
 
-    if (!file) {
-      return NextResponse.json({ error: '사진이 없어요!' }, { status: 400 });
+    if (!filename || !contentType) {
+      return NextResponse.json({ error: '파일 정보가 없습니다.' }, { status: 400 });
     }
 
-    // 3. 사진을 배달하기 좋게 봉투에 담습니다.
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const uniqueFileName = `${Date.now()}-${filename}`;
+
+    const command = new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: uniqueFileName,
+      ContentType: contentType,
+    });
+
+    // 🎟️ 마법의 황금 티켓(Presigned URL) 발급! (유효기간 60초)
+    const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 60 });
     
-    // 4. 사진 이름이 겹치지 않게 '현재 시간'을 이름 앞에 붙여줍니다.
-    const fileName = `${Date.now()}-${file.name}`;
+    // 유저가 볼 수 있는 전시관 주소
+    const publicUrl = `${process.env.NEXT_PUBLIC_R2_URL}/${uniqueFileName}`;
 
-    // 5. 클라우드플레어 R2 창고로 사진을 슝~! 발사합니다.
-    await s3.send(
-      new PutObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME,
-        Key: fileName,
-        Body: buffer,
-        ContentType: file.type,
-      })
-    );
-
-    // 6. "배달 성공! 사진은 이 주소에서 볼 수 있어요"라고 알려줍니다.
-    const publicUrl = `${process.env.NEXT_PUBLIC_R2_URL}/${fileName}`;
-    return NextResponse.json({ url: publicUrl });
-
+    // 티켓과 전시관 주소를 유저에게 던져줍니다!
+    return NextResponse.json({ uploadUrl, publicUrl });
   } catch (error) {
-    console.error('배달 사고 발생!:', error);
-    return NextResponse.json({ error: '배달 실패ㅠㅠ' }, { status: 500 });
+    console.error('티켓 발급 에러:', error);
+    return NextResponse.json({ error: '티켓 발급 실패' }, { status: 500 });
   }
 }
