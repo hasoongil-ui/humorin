@@ -69,6 +69,7 @@ export default async function BoardPage(props: any) {
           {menus.map((menu) => (
             <Link href={menu.link} key={menu.name} className="relative group px-4 py-3 cursor-pointer block">
               <span className="font-bold text-sm group-hover:text-white transition-colors">{menu.name}</span>
+              {/* 💡 사라졌던 마법의 말풍선 복구! */}
               <div className="absolute left-1/2 -translate-x-1/2 top-full mt-0 hidden group-hover:block z-50">
                 <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-b-[6px] border-transparent border-b-white mx-auto"></div>
                 <div className="bg-white text-gray-800 text-xs font-bold px-3 py-1.5 border border-gray-300 shadow-lg whitespace-nowrap rounded-sm">
@@ -91,7 +92,6 @@ export default async function BoardPage(props: any) {
             </Link>
           </div>
 
-          {/* 💡 컴퓨터(md)에서만 보이는 넓은 표의 제목 줄! 스마트폰에선 깔끔하게 숨깁니다 (hidden md:flex) */}
           <div className="hidden md:flex bg-gray-50 border-t border-b border-gray-200 py-3 text-sm font-bold text-gray-600 text-center">
             <div className="w-16">번호</div>
             <div className="flex-1">제목</div>
@@ -107,18 +107,12 @@ export default async function BoardPage(props: any) {
             </div>
           ) : (
             posts.map((post) => (
-              // 💡 핵심 마법! 폰에서는 위아래(flex-col), 컴퓨터에선 가로(md:flex-row)로 자동 변신!
+              /* 💡 스마트폰에서 예쁘게 접히는 트랜스포머 마법 복구! */
               <Link href={`/board/${post.id}`} key={post.id} className="flex flex-col md:flex-row border-b border-gray-100 py-3 md:py-4 hover:bg-gray-50 cursor-pointer transition-colors group">
-                
-                {/* 1. 번호: 컴퓨터에서만 보임 */}
                 <div className="hidden md:block w-16 text-center text-sm text-gray-400 my-auto">{post.id}</div>
-                
-                {/* 2. 제목: 폰에서는 크고 굵게, 위로 올라갑니다 */}
                 <div className="flex-1 px-2 md:px-4 mb-2 md:mb-0 font-bold md:font-semibold text-base md:text-sm text-gray-900 group-hover:text-[#3b4890] group-hover:underline truncate my-auto">
                   {post.title}
                 </div>
-                
-                {/* 3. 부가 정보 (글쓴이, 추천, 조회수, 날짜): 폰에서는 제목 아래로 아기자기하게 모입니다 */}
                 <div className="flex items-center px-2 md:px-0 text-xs md:text-sm text-gray-500 gap-3 md:gap-0 my-auto">
                   <div className="md:w-24 md:text-center font-bold text-gray-600">{post.author}</div>
                   <div className="md:w-16 md:text-center text-[#3b4890] font-extrabold flex items-center gap-1">
@@ -129,12 +123,10 @@ export default async function BoardPage(props: any) {
                   </div>
                   <div className="md:w-32 md:text-center text-gray-400">{formatDate(post.date)}</div>
                 </div>
-
               </Link>
             ))
           )}
 
-          {/* 페이징과 검색창은 스마트폰에서도 중앙에 예쁘게 나오도록 유지! */}
           <div className="flex justify-center items-center gap-2 mt-8">
             {page > 1 && (
               <Link href={`/board?page=${page - 1}${keyword ? `&q=${keyword}` : ''}${bestCount > 0 ? `&best=${bestCount}` : ''}`} className="px-3 py-1 border border-gray-300 rounded bg-white text-gray-600 hover:bg-gray-50 font-bold text-sm">
