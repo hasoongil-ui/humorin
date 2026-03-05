@@ -73,12 +73,10 @@ export default async function PostDetailPage(props: any) {
         </div>
       </header>
 
-      {/* 💡 p-8로 너무 넓었던 여백을 모바일용(p-4)으로 줄여서 공간을 확보했습니다! */}
       <main className="max-w-5xl mx-auto p-2 md:p-4 mt-4 mb-20 overflow-hidden">
         <div className="bg-white rounded-lg shadow-sm border p-4 md:p-8">
           
           <div className="border-b-2 border-gray-800 pb-4 mb-6">
-            {/* 💡 긴 제목이 화면을 뚫지 않게 break-words 장착! */}
             <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-4 break-words">{post.title}</h1>
             <div className="flex flex-col md:flex-row justify-between text-gray-500 text-sm gap-2 md:gap-0">
               <div className="font-bold text-[#3b4890] text-base">{post.author}</div>
@@ -90,10 +88,11 @@ export default async function PostDetailPage(props: any) {
             </div>
           </div>
 
-          {/* 💡 글 내용도 모바일 화면을 뚫지 않게 안전장치 장착! */}
-          <div className="min-h-[200px] md:min-h-[300px] text-gray-800 text-base md:text-lg whitespace-pre-wrap leading-relaxed break-words">
-            {post.content}
-          </div>
+          {/* 💡 미나의 마법: 영어를 진짜 사진으로 보여주는 주문(dangerouslySetInnerHTML) 장착 완료! */}
+          <div 
+            className="min-h-[200px] md:min-h-[300px] text-gray-800 text-base md:text-lg whitespace-pre-wrap leading-relaxed break-words"
+            dangerouslySetInnerHTML={{ __html: post.content }}
+          />
 
           <div className="mt-8 flex justify-center">
             {hasLiked ? (
@@ -111,7 +110,6 @@ export default async function PostDetailPage(props: any) {
             )}
           </div>
 
-          {/* 💡 글 하단 버튼들도 폰에서는 깔끔하게 세로로 쌓이도록 수정! */}
           <div className="mt-10 border-t pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
               {isAuthor && (
@@ -136,7 +134,6 @@ export default async function PostDetailPage(props: any) {
             <h3 className="text-lg md:text-xl font-black text-gray-800 mb-4">💬 왁자지껄 수다방 <span className="text-[#3b4890]">({comments.length})</span></h3>
             
             {currentUser ? (
-              /* 💡 핵심: 폰에서는 댓글칸과 버튼이 위아래로 쌓이고(flex-col), 컴퓨터에선 나란히(md:flex-row) 됩니다! */
               <form action={addComment} className="flex flex-col md:flex-row gap-2 mb-8 w-full">
                 <input name="content" placeholder="명품 댓글을 남겨보세요!" className="w-full md:flex-1 p-3 border rounded focus:outline-[#3b4890] font-medium" required />
                 <button type="submit" className="w-full md:w-auto px-6 py-3 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] transition-colors">등록</button>
