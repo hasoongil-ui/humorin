@@ -2,6 +2,7 @@ import { sql } from '@vercel/postgres';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0; // 💡 Vercel의 옛날 캐시(기억)를 영구적으로 박살 내는 미나의 특수 마법입니다!
 
 function formatDate(dateString: any) {
   const date = new Date(dateString);
@@ -43,7 +44,7 @@ export default async function HomePage(props: any) {
 
   const totalPages = Math.ceil(totalCount / limit) || 1;
 
-  // 💡 미나의 마법: 모든 메뉴가 대문(/) 안에서 놀도록 길을 수정했습니다!
+  // 💡 메뉴들도 억지로 /board로 안 가고, 대문(/) 안에서 편안하게 움직이도록 길을 다듬었습니다!
   const menus = [
     { name: '💯 백베스트', link: '/?best=3' }, 
     { name: '👑 천베스트', link: '/?best=5' },
@@ -70,6 +71,7 @@ export default async function HomePage(props: any) {
           {menus.map((menu) => (
             <Link href={menu.link} key={menu.name} className="relative group px-4 py-3 cursor-pointer block">
               <span className="font-bold text-sm group-hover:text-white transition-colors">{menu.name}</span>
+              {/* 💡 사라졌던 마법의 말풍선 완벽 복구! */}
               <div className="absolute left-1/2 -translate-x-1/2 top-full mt-0 hidden group-hover:block z-50">
                 <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-b-[6px] border-transparent border-b-white mx-auto"></div>
                 <div className="bg-white text-gray-800 text-xs font-bold px-3 py-1.5 border border-gray-300 shadow-lg whitespace-nowrap rounded-sm">
@@ -87,7 +89,6 @@ export default async function HomePage(props: any) {
             <h2 className="text-xl font-bold text-gray-800">
               {keyword ? `🔍 '${keyword}' 검색 결과 (${totalCount}건)` : (bestCount > 0 ? `🏆 명예의 전당 (추천 ${bestCount}개 이상)` : '전체글 보기')}
             </h2>
-            {/* 글쓰기 버튼은 글쓰기 전용방(/board/write)으로 보냅니다! */}
             <Link href="/board/write" className="w-full md:w-auto text-center px-6 py-2 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] shadow-md transition-colors">
               ✍️ 폼나게 글쓰기
             </Link>
@@ -108,7 +109,6 @@ export default async function HomePage(props: any) {
             </div>
           ) : (
             posts.map((post) => (
-              {/* 글 제목을 누르면 글 읽는 전용방(/board/1)으로 보냅니다! */}
               <Link href={`/board/${post.id}`} key={post.id} className="flex flex-col md:flex-row border-b border-gray-100 py-3 md:py-4 hover:bg-gray-50 cursor-pointer transition-colors group">
                 <div className="hidden md:block w-16 text-center text-sm text-gray-400 my-auto">{post.id}</div>
                 <div className="flex-1 px-2 md:px-4 mb-2 md:mb-0 font-bold md:font-semibold text-base md:text-sm text-gray-900 group-hover:text-[#3b4890] group-hover:underline truncate my-auto">
@@ -128,7 +128,6 @@ export default async function HomePage(props: any) {
             ))
           )}
 
-          {/* 💡 페이지 번호도 대문(/) 안에서 돌아가도록 수정했습니다! */}
           <div className="flex justify-center items-center gap-2 mt-8">
             {page > 1 && (
               <Link href={`/?page=${page - 1}${keyword ? `&q=${keyword}` : ''}${bestCount > 0 ? `&best=${bestCount}` : ''}`} className="px-3 py-1 border border-gray-300 rounded bg-white text-gray-600 hover:bg-gray-50 font-bold text-sm">
@@ -147,7 +146,6 @@ export default async function HomePage(props: any) {
             )}
           </div>
 
-          {/* 💡 검색창도 대문(/)에서 검색되도록 수정했습니다! */}
           <div className="mt-8 flex justify-center">
             <form action="/" method="GET" className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
               {bestCount > 0 && <input type="hidden" name="best" value={bestCount} />}
