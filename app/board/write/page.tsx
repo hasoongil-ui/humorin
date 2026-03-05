@@ -24,15 +24,16 @@ export default function WritePage() {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         
-        // 🚨 미나의 철통 방어 (경비원): 20MB(20 * 1024 * 1024)가 넘는 파일은 입구 컷!
-        if (file.size > 20 * 1024 * 1024) {
-          alert(`[${file.name}] 용량이 너무 큽니다! (최대 20MB까지만 가능)\n서버 안정을 위해 조금만 줄여주세요!`);
-          continue; // 이 파일은 무시하고 다음 파일로 넘어감
+        // 🚨 미나의 철통 방어 수정: 창고 용량 보호를 위해 '최대 10MB'로 제한 변경! (10 * 1024 * 1024)
+        if (file.size > 10 * 1024 * 1024) {
+          alert(`[${file.name}] 용량이 너무 큽니다! (최대 10MB까지만 가능)\n쾌적한 사이트 환경을 위해 용량을 줄여주세요!`);
+          continue; 
         }
 
         let fileToUpload = file;
 
-        if (file.type !== 'image/gif') {
+        // 💡 미나의 특급 처방 (WEBP 부활): GIF와 WEBP는 움짤일 확률이 높으므로 압축하지 않고 원본 그대로 VIP 통과!
+        if (file.type !== 'image/gif' && file.type !== 'image/webp') {
           const img = new Image();
           img.src = URL.createObjectURL(file);
           await new Promise((resolve) => { img.onload = resolve; });
@@ -41,14 +42,12 @@ export default function WritePage() {
           URL.revokeObjectURL(img.src);
 
           if (isLongImage) {
-            // 💡 특급 처방 1 (만화 화질 보존): 세로로 긴 웹툰은 글씨가 안 깨지게 용량을 5MB로 넉넉히 줍니다!
             const options = {
               maxSizeMB: 5,
               useWebWorker: true,
             };
             fileToUpload = await imageCompression(file, options);
           } else {
-            // 일반 사진은 기존처럼 1.5MB로 쾌적하게 압축!
             const options = {
               maxSizeMB: 1.5,
               maxWidthOrHeight: 1920,
@@ -126,7 +125,7 @@ export default function WritePage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg border p-6">
-        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V2.6 (만화 고화질 & 20MB 제한)</h1>
+        <h1 className="text-2xl font-black text-[#3b4890] mb-8 border-b pb-4">✍️ 오재미 명품 글쓰기 V2.7 (10MB 제한 & WEBP 부활)</h1>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <input 
@@ -148,7 +147,7 @@ export default function WritePage() {
             <div className="flex items-center gap-4">
               <label className={`flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg cursor-pointer font-bold ${isUploading || isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200 transition-colors'}`}>
                 <ImagePlus size={20} />
-                <span>사진/움짤 추가 (최대 20MB)</span>
+                <span>사진/움짤 추가 (최대 10MB)</span>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} disabled={isUploading || isSubmitting} />
               </label>
               {isUploading && (
