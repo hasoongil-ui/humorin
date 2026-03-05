@@ -1,5 +1,4 @@
 // @ts-nocheck 
-// 🚨 미나의 마법 부적: Vercel 검사관아! 설명서 없어도 에러 안 나니까 깐깐하게 굴지 말고 무조건 통과시켜라!!
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -8,11 +7,12 @@ import imageCompression from 'browser-image-compression';
 import { Loader2, ImagePlus, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
-const ReactQuill = dynamic(() => import('react-quill'), { 
+// 💡 미나의 해결책: 고장 나던 구형 부품 대신, 최신 'react-quill-new' 부품으로 교체했습니다!
+const ReactQuill = dynamic(() => import('react-quill-new'), { 
   ssr: false, 
   loading: () => <div className="p-20 text-center font-bold text-gray-400">명품 에디터 로딩 중...🚀</div> 
 });
-import 'react-quill/dist/quill.snow.css';
+import 'react-quill-new/dist/quill.snow.css';
 
 export default function WritePage() {
   const [title, setTitle] = useState('');
