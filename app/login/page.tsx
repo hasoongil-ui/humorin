@@ -1,67 +1,95 @@
-import { sql } from '@vercel/postgres';
-import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export default async function LoginPage(props: any) {
-  const searchParams = await props.searchParams;
-  const showError = searchParams?.error === '1';
+export default function LoginPage() {
+  const [id, setId] = useState('');
+  const [password, setPassword] = useState('');
+  const router = useRouter();
 
-  const loginUser = async (formData: FormData) => {
-    'use server';
-    const userId = formData.get('user_id') as string;
-    const password = formData.get('password') as string;
-
-    let user = null;
-    try {
-      const { rows } = await sql`
-        SELECT * FROM users 
-        WHERE user_id = ${userId} AND password = ${password}
-      `;
-      user = rows[0];
-    } catch (error) {
-      console.error("DB 에러:", error);
-    }
-
-    if (!user) {
-      redirect('/login?error=1');
-    }
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    // 💡 미나의 최신 패치: Next.js 15에서는 출입증(쿠키)을 발급할 때 무조건 기다려야(await) 합니다!
-    const cookieStore = await cookies();
-    cookieStore.set('ojemi_user', user.nickname, { httpOnly: true, secure: true });
+    // 💡 대표님이 기존에 쓰시던 서버 로그인 API 연동 로직입니다.
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, password }),
+      });
 
-    redirect('/board');
+      if (res.ok) {
+        // 로그인 성공 시 메인 게시판으로 이동!
+        router.push('/board');
+        router.refresh();
+      } else {
+        alert('아이디 또는 비밀번호를 확인해주세요.');
+      }
+    } catch (error) {
+      console.error("Login Error:", error);
+      alert('로그인 처리 중 오류가 발생했습니다.');
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center font-sans">
-      <div className="bg-white p-8 rounded-lg shadow-md w-96 border border-gray-200">
+    <div className="min-h-[80vh] flex items-center justify-center bg-gray-50 px-4">
+      <div className="bg-white p-8 md:p-10 rounded-sm shadow-sm border border-gray-200 w-full max-w-[400px]">
+        
+        {/* 상단 로고 및 타이틀 */}
         <div className="text-center mb-8">
-          <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
-          <h2 className="text-xl font-bold text-gray-800 mt-2">VIP 로그인</h2>
+          <Link href="/board" className="text-4xl font-black text-[#3b4890] tracking-tighter inline-block mb-3">
+            OJEMI
+          </Link>
+          <h2 className="text-xl font-bold text-gray-800">VIP 로그인</h2>
         </div>
 
-        {/* 🚨 먹통 방지: 실패하면 빨간 경고창이 뜹니다! */}
-        {showError && (
-          <div className="mb-6 p-3 bg-red-100 text-red-600 text-sm font-bold text-center rounded border border-red-200">
-            로그인 실패! 아이디/비번을 확인하시거나 <br/> 창고(DB) 상태를 점검해 주세요.
+        {/* 로그인 폼 */}
+        <form onSubmit={handleLogin} className="space-y-5">
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">아이디</label>
+            <input
+              type="text"
+              placeholder="아이디 입력"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium"
+              value={id}
+              onChange={(e) => setId(e.target.value)}
+              required
+            />
           </div>
-        )}
 
-        <form action={loginUser} className="space-y-5">
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">아이디</label>
-            <input name="user_id" required placeholder="아이디 입력" className="w-full p-3 border rounded bg-gray-50 focus:bg-white focus:outline-blue-500" />
+            <label className="block text-sm font-bold text-gray-700 mb-2">비밀번호</label>
+            <input
+              type="password"
+              placeholder="비밀번호 입력"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
           </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">비밀번호</label>
-            <input type="password" name="password" required placeholder="비밀번호 입력" className="w-full p-3 border rounded bg-gray-50 focus:bg-white focus:outline-blue-500" />
-          </div>
-          <button type="submit" className="w-full py-4 bg-gray-800 text-white rounded font-black text-lg hover:bg-black shadow-md mt-6 transition-colors">
-            🔐 로그인하기
+
+          <button
+            type="submit"
+            className="w-full py-3.5 mt-2 bg-[#2a3042] hover:bg-[#1e2335] text-white font-bold rounded-sm text-lg transition-colors flex justify-center items-center gap-2"
+          >
+            <span>🔒</span> 로그인하기
           </button>
         </form>
+
+        {/* 💡 미나의 핵심 추가 로직: 다정한 회원가입 유도 영역! */}
+        <div className="mt-8 pt-6 border-t border-gray-100 text-center text-[13px] text-gray-600 font-medium">
+          <p className="mb-2 text-gray-500">아직 오재미의 이웃이 아니신가요?</p>
+          <Link 
+            href="/signup" 
+            className="text-[#3b4890] font-bold hover:underline inline-block text-[14px]"
+          >
+            회원가입 하고 함께하기 👉
+          </Link>
+        </div>
+
       </div>
     </div>
   );

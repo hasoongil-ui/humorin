@@ -1,12 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
 function NavbarContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const currentCategory = searchParams.get('category') || 'all';
   const bestType = searchParams.get('best') || '';
 
@@ -47,17 +46,11 @@ function NavbarContent() {
       sub: [
         { name: '📚 유용한 상식', link: '/board?category=유용한 상식' },
         { name: '🏘️ 부동산 사랑방', link: '/board?category=부동산 사랑방' },
-        { name: '🏠 부동산 실거래 조회', isButton: true }, 
+        // 💡 미나의 수정: 무조건 로그인 창으로 보내는 기능 빼고, 정상적인 주소(/realestate)를 달아줬습니다!
+        { name: '🏠 부동산 실거래 조회', link: '/realestate', isButton: true }, 
       ]
     }
   ];
-
-  const handleRealEstateClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (confirm('오재미의 따뜻한 이웃이 되어주세요! 💖\n로그인하시면 유용한 부동산 실거래 조회를 무료로 이용하실 수 있습니다.\n\n로그인 화면으로 이동할까요?')) {
-      router.push('/login');
-    }
-  };
 
   return (
     <>
@@ -89,23 +82,22 @@ function NavbarContent() {
                 
                 <div className="absolute left-0 top-full hidden w-48 bg-white border border-gray-200 shadow-xl group-hover:block rounded-b-sm overflow-hidden z-50">
                   {group.sub?.map((subItem) => {
+                    // 💡 미나의 수정: 클릭하면 알림창 없이 얌전하게 해당 주소로 이동합니다!
                     if (subItem.isButton) {
                       return (
-                        <button 
+                        <Link 
                           key={subItem.name} 
-                          onClick={handleRealEstateClick}
+                          href={subItem.link || '/realestate'}
                           className="w-full text-left block px-4 py-3 text-[13px] font-bold border-b border-gray-100 transition-colors last:border-0 text-rose-500 hover:bg-rose-50"
                         >
                           {subItem.name}
-                        </button>
+                        </Link>
                       );
                     }
 
-                    // 💡 미나의 에러 해결 마법: subItem.link가 없을 수도 있다는 경고를 '?.' 하나로 우회합니다!
                     const isActive = currentCategory === subItem.name.replace(/.*?\s(.*)/, '$1').replace(/\(.*?\)/g, '').trim() || 
                                      (bestType && subItem.link?.includes(bestType));
                     return (
-                      // 💡 미나의 에러 해결 마법 2: link가 없으면 빈 문자열('')을 넣어주겠다고 각서를 씁니다!
                       <Link 
                         key={subItem.name} 
                         href={subItem.link || ''} 
