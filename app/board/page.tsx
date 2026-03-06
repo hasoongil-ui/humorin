@@ -116,7 +116,6 @@ export default async function BoardPage(props: any) {
 
   return (
     <>
-      {/* 💡 상단 헤더와 메뉴바는 layout.tsx로 이사갔습니다! 여기는 본문만 렌더링합니다. */}
       <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row gap-5 p-4 md:py-6 mt-2 mb-20">
         
         <aside className="w-full md:w-[240px] shrink-0 flex flex-col gap-4">
@@ -189,13 +188,14 @@ export default async function BoardPage(props: any) {
           </div>
 
           <div className="border-t-2 border-gray-700 text-sm">
+            {/* 💡 미나의 핵심 변경 1: 조회수와 공감(추천)의 순서를 바꾸고 글씨를 예쁘게 다듬었습니다! */}
             <div className="hidden md:flex border-b border-gray-300 bg-gray-50 py-3 font-bold text-gray-600 text-center">
               <div className="w-16">번호</div>
               <div className="flex-1">제목</div>
               <div className="w-32">글쓴이</div>
               <div className="w-24">등록일</div>
-              <div className="w-16 text-blue-600">추천</div>
               <div className="w-16">조회</div>
+              <div className="w-16 text-rose-500">공감</div>
             </div>
 
             {topPost && (() => {
@@ -207,12 +207,16 @@ export default async function BoardPage(props: any) {
                     <span className="text-[#3b4890] mr-1">[{topData.cat}]</span>
                     {topData.cleanTitle}
                     {hasImage(topPost.content) && <span className="ml-1 text-xs opacity-70">🖼️</span>}
+                    {/* 💡 미나의 핵심 변경 2: 클리앙 스타일 붉은색 댓글 수 UI 적용! (추후 서버 연동 시 숫자가 나타납니다) */}
+                    {topPost.comment_count > 0 && (
+                      <span className="ml-1.5 text-[13px] font-bold text-[#e74c3c]">{topPost.comment_count}</span>
+                    )}
                   </div>
                   <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-xs text-gray-500 justify-between items-center">
                     <div className="md:w-32 md:text-center font-semibold text-gray-700 truncate">{topPost.author}</div>
                     <div className="md:w-24 md:text-center text-gray-400">{formatDate(topPost.date)}</div>
-                    <div className="md:w-16 md:text-center font-bold text-blue-600">{topPost.likes || 0}</div>
                     <div className="md:w-16 md:text-center text-gray-400">{topPost.views || 0}</div>
+                    <div className="md:w-16 md:text-center font-bold text-rose-500">{topPost.likes > 0 ? '❤️ ' : ''}{topPost.likes || 0}</div>
                   </div>
                 </Link>
               );
@@ -230,12 +234,17 @@ export default async function BoardPage(props: any) {
                       <span className="text-gray-500 mr-1.5 text-sm font-semibold">[{postData.cat}]</span>
                       {postData.cleanTitle}
                       {hasImage(post.content) && <span className="ml-1 text-xs opacity-60">🖼️</span>}
+                      {post.comment_count > 0 && (
+                        <span className="ml-1.5 text-[13px] font-bold text-[#e74c3c]">{post.comment_count}</span>
+                      )}
                     </div>
                     <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-xs text-gray-500 justify-between items-center">
                       <div className="md:w-32 md:text-center font-medium text-gray-600 truncate">{post.author}</div>
                       <div className="md:w-24 md:text-center">{formatDate(post.date)}</div>
-                      <div className={`md:w-16 md:text-center font-bold ${post.likes > 0 ? 'text-blue-600' : 'text-gray-400'}`}>{post.likes || 0}</div>
                       <div className="md:w-16 md:text-center">{post.views || 0}</div>
+                      <div className={`md:w-16 md:text-center font-bold ${post.likes > 0 ? 'text-rose-500' : 'text-gray-300'}`}>
+                        {post.likes > 0 ? '❤️ ' : ''}{post.likes || 0}
+                      </div>
                     </div>
                   </Link>
                 );
@@ -271,20 +280,6 @@ export default async function BoardPage(props: any) {
                 </Link>
               )}
             </div>
-          </div>
-
-          <div className="mt-8 flex justify-center pt-6 border-t border-gray-100">
-            <form action="/board" method="GET" className="flex gap-1 w-full md:w-auto">
-              {bestType && <input type="hidden" name="best" value={bestType} />}
-              {category !== 'all' && <input type="hidden" name="category" value={category} />}
-              <select className="p-2 border border-gray-300 rounded-sm focus:border-gray-500 text-sm text-gray-600 font-bold bg-white outline-none cursor-pointer">
-                <option value="all">제목 + 내용</option>
-              </select>
-              <input name="q" defaultValue={keyword} placeholder="검색어를 입력하세요" className="p-2 border border-gray-300 rounded-sm w-full md:w-64 focus:border-gray-500 text-sm outline-none" required />
-              <button type="submit" className="px-5 py-2 bg-gray-600 text-white rounded-sm font-bold hover:bg-gray-700 transition-colors text-sm">
-                검색
-              </button>
-            </form>
           </div>
 
         </main>
