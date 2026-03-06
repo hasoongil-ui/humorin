@@ -34,7 +34,6 @@ export default function WritePage() {
     import('react-quill-new').then((RQ) => {
       const Quill = RQ.Quill;
       if (Quill) {
-        // 1. 비디오 정렬 자유도 마법
         const BlockEmbed = Quill.import('blots/block/embed');
         class CustomVideo extends BlockEmbed {
           static create(value) {
@@ -51,7 +50,6 @@ export default function WritePage() {
         CustomVideo.tagName = 'VIDEO';
         Quill.register(CustomVideo, true);
 
-        // 💡 2. 미나의 핵심 부품: 숨겨져 있던 '되돌리기', '다시실행' 아이콘을 직접 예쁘게 그려서 에디터에 등록합니다!
         const icons = Quill.import('ui/icons');
         icons['undo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="6 10 4 12 2 10 6 10"></polygon><path class="ql-stroke" d="M8.09,13.91A4.6,4.6,0,0,0,9,14,5,5,0,1,0,4,9"></path></svg>`;
         icons['redo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="12 10 14 12 16 10 12 10"></polygon><path class="ql-stroke" d="M9.91,13.91A4.6,4.6,0,0,1,9,14a5,5,0,1,1,5-5"></path></svg>`;
@@ -153,18 +151,18 @@ export default function WritePage() {
     };
   };
 
+  // 💡 미나의 핵심 마법: 메뉴 순서를 대표님 지시대로 최적화했습니다!
   const modules = useMemo(() => ({
-    // 💡 기억 상자 엔진(History)을 켭니다! (마지막 100번의 행동까지 다 기억합니다)
     history: {
-      delay: 500, // 0.5초 단위로 타이핑을 기억함
+      delay: 500, 
       maxStack: 100,
       userOnly: true
     },
     toolbar: {
       container: [
-        ['undo', 'redo'],                                             // ⭐️ VIP석 0열: 되돌리기 & 다시실행 추가!
-        ['image', 'video', 'link'],                                   // 1열: 미디어
-        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],                    // 2열: 크기
+        ['image', 'video', 'link'],                                   // ⭐️ 1열: 가장 중요한 사진, 영상, 링크
+        ['undo', 'redo'],                                             // ⭐️ 2열: 잘못 눌렀을 때 대비하는 되돌리기 & 다시실행!
+        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],                    // 3열: 문단 제목 크기
         [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }], 
         ['bold', 'italic', 'underline', 'strike'],                    
         [{ 'color': [] }, { 'background': [] }],                      
@@ -176,7 +174,6 @@ export default function WritePage() {
       handlers: { 
         image: imageHandler,
         video: videoHandler,
-        // 💡 버튼을 눌렀을 때 기억 상자 엔진을 조종하는 스위치!
         undo: function() { this.quill.history.undo(); },
         redo: function() { this.quill.history.redo(); }
       }
@@ -215,11 +212,22 @@ export default function WritePage() {
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
       <style dangerouslySetInnerHTML={{__html: `
-        .ql-editor { min-height: 500px; font-size: 1.05rem; line-height: 1.8; }
+        /* 💡 미나의 핵심 CSS: 에디터 전체 높이를 고정하여 내부에 스크롤바가 생기게 합니다! */
+        .ql-container.ql-snow { 
+          height: 600px; /* 에디터 박스 높이를 600px로 고정! */
+          border-radius: 0 0 6px 6px; 
+          border-color: #d1d5db; 
+        }
+        @media (max-width: 768px) {
+          .ql-container.ql-snow { height: 450px; } /* 모바일에서는 살짝 줄여줍니다 */
+        }
+        
+        .ql-editor { font-size: 1.05rem; line-height: 1.8; }
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
         .ql-editor video { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: inline-block; vertical-align: top; }
         @media (max-width: 768px) { .ql-editor video { aspect-ratio: 16/9; height: auto; } }
         
+        /* 툴바(메뉴바) 디자인 */
         .ql-toolbar.ql-snow { 
           background-color: #f8f9fa; 
           padding: 12px 15px; 
@@ -228,10 +236,7 @@ export default function WritePage() {
           border-bottom: 2px solid #414a66; 
           box-shadow: inset 0 -1px 0 rgba(0,0,0,0.05);
         }
-        .ql-container.ql-snow { border-radius: 0 0 6px 6px; border-color: #d1d5db; }
         .ql-toolbar.ql-snow .ql-formats { margin-right: 15px; margin-bottom: 5px; }
-        
-        /* 💡 추가된 되돌리기 버튼이 다른 버튼들과 어울리도록 살짝 공간을 줍니다 */
         button.ql-undo, button.ql-redo { cursor: pointer; }
         button.ql-undo:hover, button.ql-redo:hover { color: #3b4890; }
       `}} />
