@@ -10,7 +10,6 @@ function NavbarContent() {
   const currentCategory = searchParams.get('category') || 'all';
   const bestType = searchParams.get('best') || '';
 
-  // 💡 미나의 수정: 대표님 지시대로 메뉴들의 소속(폴더)을 완벽하게 재배치했습니다!
   const menuGroups = [
     { 
       name: '전체글 보기', 
@@ -31,7 +30,7 @@ function NavbarContent() {
         { name: '👋 인사 한마디', link: '/board?category=인사 한마디' },
         { name: '☕ 세상사는 이야기', link: '/board?category=세상사는 이야기' },
         { name: '👏 묻지마 격려', link: '/board?category=묻지마 격려' },
-        { name: '🙋 이거 알려주세요', link: '/board?category=이거 알려주세요' }, // 👈 여기로 이사왔습니다!
+        { name: '🙋 이거 알려주세요', link: '/board?category=이거 알려주세요' }, 
         { name: '💬 그냥 혼잣말', link: '/board?category=그냥 혼잣말' },
       ]
     },
@@ -48,7 +47,7 @@ function NavbarContent() {
       sub: [
         { name: '📚 유용한 상식', link: '/board?category=유용한 상식' },
         { name: '🏘️ 부동산 사랑방', link: '/board?category=부동산 사랑방' },
-        { name: '🏠 부동산 실거래 조회', isButton: true }, // 👈 밖에서 너무 튀던 버튼을 이 안으로 예쁘게 숨겼습니다!
+        { name: '🏠 부동산 실거래 조회', isButton: true }, 
       ]
     }
   ];
@@ -65,7 +64,6 @@ function NavbarContent() {
       <header className="bg-white p-4 border-b border-gray-200 shadow-sm relative z-20">
         <div className="max-w-[1200px] mx-auto flex justify-between items-center">
           <Link href="/board" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
-          {/* 💡 헤더에 있던 빨간 버튼은 철거했습니다! */}
         </div>
       </header>
 
@@ -91,7 +89,6 @@ function NavbarContent() {
                 
                 <div className="absolute left-0 top-full hidden w-48 bg-white border border-gray-200 shadow-xl group-hover:block rounded-b-sm overflow-hidden z-50">
                   {group.sub?.map((subItem) => {
-                    // 💡 서브 메뉴 중에 '버튼' 역할을 하는 녀석(실거래 조회)만 특별하게 렌더링합니다!
                     if (subItem.isButton) {
                       return (
                         <button 
@@ -104,12 +101,14 @@ function NavbarContent() {
                       );
                     }
 
+                    // 💡 미나의 에러 해결 마법: subItem.link가 없을 수도 있다는 경고를 '?.' 하나로 우회합니다!
                     const isActive = currentCategory === subItem.name.replace(/.*?\s(.*)/, '$1').replace(/\(.*?\)/g, '').trim() || 
-                                     (bestType && subItem.link.includes(bestType));
+                                     (bestType && subItem.link?.includes(bestType));
                     return (
+                      // 💡 미나의 에러 해결 마법 2: link가 없으면 빈 문자열('')을 넣어주겠다고 각서를 씁니다!
                       <Link 
                         key={subItem.name} 
-                        href={subItem.link} 
+                        href={subItem.link || ''} 
                         className={`block px-4 py-3 text-[13px] font-bold border-b border-gray-100 transition-colors last:border-0 ${isActive ? 'bg-indigo-50 text-[#3b4890]' : 'text-gray-700 hover:bg-gray-50 hover:text-[#3b4890]'}`}
                       >
                         {subItem.name}
