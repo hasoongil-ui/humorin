@@ -1,6 +1,6 @@
 import { sql } from '@vercel/postgres';
 import Link from 'next/link';
-import { cookies } from 'next/headers'; // 💡 미나의 추가 부품: 유저 로그인 상태를 확인하기 위한 쿠키!
+import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,12 +44,10 @@ export default async function BoardPage(props: any) {
   const keyword = searchParams.q || ''; 
   const page = searchParams.page ? Number(searchParams.page) : 1;
   
-  // 💡 유저 로그인 상태 확인
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('ojemi_user');
   const currentUser = userCookie ? userCookie.value : null;
 
-  // 💡 로그아웃을 처리하는 서버 액션 마법!
   const handleLogout = async () => {
     'use server';
     const store = await cookies();
@@ -74,16 +72,24 @@ export default async function BoardPage(props: any) {
     if (topRows.length > 0) topPost = topRows[0];
   }
 
+  // 💡 미나의 특급 승급 마법: 추천 수에 따라 게시판을 칼같이 나누고, 시간순(최신순)으로 계속 쌓이게 합니다!
   if (bestType === 'today') {
-    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE date >= NOW() - INTERVAL '1 day' AND likes >= 10`;
+    // 🥉 투데이 베스트: 10개 ~ 99개 (100개가 되면 여기서 방을 빼야 합니다!)
+    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 10 AND likes < 100`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE date >= NOW() - INTERVAL '1 day' AND likes >= 10 ORDER BY likes DESC, views DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND likes < 100 ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
-  } else if (bestType === '3' || bestType === '5') {
-    const bestNum = Number(bestType);
-    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= ${bestNum}`;
+  } else if (bestType === '100') {
+    // 🥈 백베스트: 100개 ~ 999개
+    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 100 AND likes < 1000`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= ${bestNum} ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND likes < 1000 ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    posts = rows;
+  } else if (bestType === '1000') {
+    // 🥇 천베스트: 1000개 이상
+    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 1000`;
+    totalCount = Number(countResult.rows[0].count);
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } else if (keyword && category !== 'all') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'})`;
@@ -112,6 +118,7 @@ export default async function BoardPage(props: any) {
 
   const canWrite = bestType === ''; 
 
+  // 💡 메뉴판 링크도 승급 시스템에 맞춰 업데이트!
   const menus = [
     { name: '🔥 투데이 베스트', link: '/board?best=today' },
     { name: '전체글 보기', link: '/board' },
@@ -121,25 +128,26 @@ export default async function BoardPage(props: any) {
     { name: '일상', link: '/board?category=일상' },
     { name: '그냥 혼잣말', link: '/board?category=그냥 혼잣말' },
     { name: '핫뉴스', link: '/board?category=핫뉴스' },
-    { name: '💯 백베스트', link: '/board?best=3' }, 
-    { name: '👑 천베스트', link: '/board?best=5' },
+    { name: '💯 백베스트', link: '/board?best=100' }, 
+    { name: '👑 천베스트', link: '/board?best=1000' },
   ];
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans text-gray-800">
-      {/* 최상단 헤더 */}
       <header className="bg-white p-4 border-b border-gray-200 shadow-sm relative z-10">
         <div className="max-w-[1200px] mx-auto flex justify-between items-center">
           <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
         </div>
       </header>
 
-      {/* 가로형 대메뉴 (네비게이션 바) */}
       <nav className="bg-[#414a66] text-gray-200 shadow-md">
         <div className="max-w-[1200px] mx-auto flex flex-wrap">
           {menus.map((menu) => {
+            // 💡 메뉴 하이라이트 불 켜기 로직 수정
             const isActive = (category !== 'all' && menu.name.includes(category)) || 
                              (bestType === 'today' && menu.name.includes('투데이')) ||
+                             (bestType === '100' && menu.name.includes('백베스트')) ||
+                             (bestType === '1000' && menu.name.includes('천베스트')) ||
                              (category === 'all' && bestType === '' && menu.name === '전체글 보기');
             return (
               <Link href={menu.link} key={menu.name} 
@@ -151,16 +159,11 @@ export default async function BoardPage(props: any) {
         </div>
       </nav>
 
-      {/* 💡 미나의 야심작: 사이드바 + 메인 게시판 2단 레이아웃 컨테이너 */}
       <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row gap-5 p-4 md:py-6 mt-2 mb-20">
         
-        {/* 🟡 왼쪽 사이드바 영역 (이토랜드/클리앙 스타일) */}
         <aside className="w-full md:w-[240px] shrink-0 flex flex-col gap-4">
-          
-          {/* 로그인 / 내 정보 박스 */}
           <div className="bg-white border border-gray-200 shadow-sm rounded-sm p-4">
             {currentUser ? (
-              // 로그인 된 상태 (이토랜드 스타일)
               <div>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 bg-gray-100 border border-gray-200 rounded-full flex items-center justify-center text-xl shadow-inner">
@@ -174,7 +177,6 @@ export default async function BoardPage(props: any) {
                   </div>
                 </div>
                 
-                {/* 실속 있는 퀵 버튼들 */}
                 <div className="grid grid-cols-3 gap-1 mb-3">
                   <Link href="#" className="py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-center text-xs font-bold text-gray-600 rounded-sm">내정보</Link>
                   <Link href="#" className="py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-center text-xs font-bold text-gray-600 rounded-sm">쪽지<span className="text-red-500 ml-0.5">0</span></Link>
@@ -188,7 +190,6 @@ export default async function BoardPage(props: any) {
                 </form>
               </div>
             ) : (
-              // 로그아웃 상태
               <div>
                 <div className="text-xs font-bold text-gray-500 mb-3 text-center">
                   오재미를 더 편리하게 이용하세요!
@@ -198,13 +199,12 @@ export default async function BoardPage(props: any) {
                 </Link>
                 <div className="flex justify-between text-xs font-bold text-gray-500 px-1">
                   <Link href="/signup" className="hover:text-gray-900">회원가입</Link>
-                  <Link href="#" className="hover:text-gray-900">아이디/비밀번호 찾기</Link>
+                  <Link href="#" className="hover:text-gray-900">아이디/비번 찾기</Link>
                 </div>
               </div>
             )}
           </div>
 
-          {/* 사이드바 보조 메뉴 (클리앙 스타일) */}
           <div className="hidden md:block bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden">
             <div className="bg-[#414a66] text-white text-[13px] font-bold py-2.5 px-3 border-b border-[#2a3042]">
               즐겨찾는 게시판
@@ -218,12 +218,13 @@ export default async function BoardPage(props: any) {
           </div>
         </aside>
 
-        {/* 🔵 오른쪽 메인 게시판 영역 */}
         <main className="flex-1 min-w-0 bg-white border border-gray-200 shadow-sm rounded-sm p-4 md:p-6">
           
           <div className="flex justify-between items-end mb-4">
             <h2 className="text-xl font-bold text-gray-800">
-              {bestType === 'today' ? '🔥 투데이 베스트 (추천 10 이상)' : 
+              {bestType === 'today' ? '🔥 투데이 베스트 (추천 10~99)' : 
+               bestType === '100' ? '💯 백베스트 (추천 100~999)' : 
+               bestType === '1000' ? '👑 천베스트 (추천 1000+)' : 
                keyword ? `🔍 '${keyword}' 검색 결과 (${totalCount}건)` : 
                category !== 'all' ? `${category}` : '전체글 보기'}
             </h2>
