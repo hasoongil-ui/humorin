@@ -9,7 +9,7 @@ import dynamic from 'next/dynamic';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { 
   ssr: false, 
-  loading: () => <div className="p-20 text-center font-bold text-gray-400">명품 에디터 로딩 중...🚀</div> 
+  loading: () => <div className="p-20 text-center font-bold text-gray-400">프리미엄 에디터 로딩 중...🚀</div> 
 });
 import 'react-quill-new/dist/quill.snow.css';
 
@@ -40,7 +40,8 @@ export default function WritePage() {
             let node = super.create();
             node.setAttribute('controls', 'true');
             node.setAttribute('src', value);
-            node.setAttribute('style', 'width: 100%; max-width: 800px; display: block; margin: 15px auto; border-radius: 8px; background: #000;');
+            // 💡 미나의 핵심 수정: 에디터에서 강제로 가운데 정렬하던 스타일을 완전히 지웠습니다!
+            // 이제 툴바의 '정렬' 버튼을 누르는 대로 아주 얌전하게 말을 듣습니다.
             return node;
           }
           static value(node) {
@@ -119,7 +120,7 @@ export default function WritePage() {
       if (!file) return;
 
       if (file.size > 50 * 1024 * 1024) {
-        alert(`[${file.name}] 용량이 너무 큽니다! (최대 50MB까지만 가능)`);
+        alert(`[${file.name}] 용량이 너무 큽니다! (최대 50MB)`);
         return; 
       }
 
@@ -148,16 +149,19 @@ export default function WritePage() {
     };
   };
 
-  // 💡 미나의 핵심 마법: 메뉴 순서 전면 재배치! (사진/영상을 맨 앞으로 뺐습니다!)
+  // 💡 미나의 야심작: 네이버 블로그/워드프로세서 급으로 확장된 풀옵션 메뉴바!
   const modules = useMemo(() => ({
     toolbar: {
       container: [
-        ['image', 'video'],                        // 🖼️ 사진 & 🎬 동영상 (VIP석 1열 배치!)
-        [{ 'header': [1, 2, 3, false] }],          // 글자 크기
-        ['bold', 'italic', 'underline', 'strike'], // 글자 굵기, 기울임 등
-        [{ 'color': [] }, { 'background': [] }],   // 글자 색상, 형광펜
-        [{ 'align': [] }],                         // 정렬
-        ['clean']                                  // 서식 지우기
+        ['image', 'video', 'link'],                                   // 1열: 가장 중요한 사진, 영상, 링크 추가
+        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],                    // 2열: 문단 제목 크기
+        [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }], // 3열: 폰트 종류 및 글자 크기
+        ['bold', 'italic', 'underline', 'strike'],                    // 4열: 굵게, 기울임, 밑줄, 취소선
+        [{ 'color': [] }, { 'background': [] }],                      // 5열: 글자색, 형광펜(배경색)
+        [{ 'align': [] }],                                            // 6열: ⭐️ 좌/우/가운데 정렬 (사진, 영상 모두 적용됨!)
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],                 // 7열: 번호 매기기, 점 매기기
+        ['blockquote', 'code-block'],                                 // 8열: 인용구, 코드 박스
+        ['clean']                                                     // 9열: 서식 초기화(지우개)
       ],
       handlers: { 
         image: imageHandler,
@@ -198,17 +202,25 @@ export default function WritePage() {
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
       <style dangerouslySetInnerHTML={{__html: `
-        /* 💡 네이버 블로그 스타일의 세련된 에디터 CSS 마법! */
+        /* 💡 에디터 본문 디자인 및 정렬 해제 마법 */
         .ql-editor { min-height: 500px; font-size: 1.05rem; line-height: 1.8; }
-        .ql-editor img { max-width: 100%; height: auto; display: block; margin: 15px auto; border-radius: 8px; }
-        .ql-editor .ql-video { width: 100%; max-width: 800px; height: 450px; display: block; margin: 15px auto; border-radius: 8px; background: #000; border: none; }
-        @media (max-width: 768px) { .ql-editor .ql-video { height: 250px; } }
         
-        /* 툴바(메뉴)를 조금 더 넓고 쾌적하게, 버튼 크기도 살짝 키웠습니다! */
-        .ql-toolbar.ql-snow { background-color: #f8f9fa; padding: 12px 15px; border-radius: 4px 4px 0 0; border-color: #d1d5db; }
-        .ql-container.ql-snow { border-radius: 0 0 4px 4px; border-color: #d1d5db; }
-        .ql-toolbar.ql-snow .ql-formats { margin-right: 20px; }
-        .ql-snow.ql-toolbar button { margin-right: 5px; }
+        /* 강제 가운데 정렬(display: block)을 풀고, 부모의 정렬을 따르도록(inline-block) 변경! */
+        .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
+        .ql-editor video { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: inline-block; vertical-align: top; }
+        @media (max-width: 768px) { .ql-editor video { aspect-ratio: 16/9; height: auto; } }
+        
+        /* 💡 상단 메뉴바(툴바) 프리미엄 디자인! */
+        .ql-toolbar.ql-snow { 
+          background-color: #f8f9fa; 
+          padding: 12px 15px; 
+          border-radius: 6px 6px 0 0; 
+          border: 1px solid #d1d5db; 
+          border-bottom: 2px solid #414a66; /* 메뉴바 하단에 고급스러운 굵은 선 추가 */
+          box-shadow: inset 0 -1px 0 rgba(0,0,0,0.05);
+        }
+        .ql-container.ql-snow { border-radius: 0 0 6px 6px; border-color: #d1d5db; }
+        .ql-toolbar.ql-snow .ql-formats { margin-right: 15px; margin-bottom: 5px; }
       `}} />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
