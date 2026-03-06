@@ -72,21 +72,17 @@ export default async function BoardPage(props: any) {
     if (topRows.length > 0) topPost = topRows[0];
   }
 
-  // 💡 미나의 특급 승급 마법: 추천 수에 따라 게시판을 칼같이 나누고, 시간순(최신순)으로 계속 쌓이게 합니다!
   if (bestType === 'today') {
-    // 🥉 투데이 베스트: 10개 ~ 99개 (100개가 되면 여기서 방을 빼야 합니다!)
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 10 AND likes < 100`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND likes < 100 ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } else if (bestType === '100') {
-    // 🥈 백베스트: 100개 ~ 999개
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 100 AND likes < 1000`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND likes < 1000 ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } else if (bestType === '1000') {
-    // 🥇 천베스트: 1000개 이상
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 1000`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
@@ -118,47 +114,9 @@ export default async function BoardPage(props: any) {
 
   const canWrite = bestType === ''; 
 
-  // 💡 메뉴판 링크도 승급 시스템에 맞춰 업데이트!
-  const menus = [
-    { name: '🔥 투데이 베스트', link: '/board?best=today' },
-    { name: '전체글 보기', link: '/board' },
-    { name: '유머', link: '/board?category=유머' },
-    { name: '감동', link: '/board?category=감동' },
-    { name: '공포', link: '/board?category=공포' },
-    { name: '일상', link: '/board?category=일상' },
-    { name: '그냥 혼잣말', link: '/board?category=그냥 혼잣말' },
-    { name: '핫뉴스', link: '/board?category=핫뉴스' },
-    { name: '💯 백베스트', link: '/board?best=100' }, 
-    { name: '👑 천베스트', link: '/board?best=1000' },
-  ];
-
   return (
-    <div className="min-h-screen bg-gray-100 font-sans text-gray-800">
-      <header className="bg-white p-4 border-b border-gray-200 shadow-sm relative z-10">
-        <div className="max-w-[1200px] mx-auto flex justify-between items-center">
-          <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
-        </div>
-      </header>
-
-      <nav className="bg-[#414a66] text-gray-200 shadow-md">
-        <div className="max-w-[1200px] mx-auto flex flex-wrap">
-          {menus.map((menu) => {
-            // 💡 메뉴 하이라이트 불 켜기 로직 수정
-            const isActive = (category !== 'all' && menu.name.includes(category)) || 
-                             (bestType === 'today' && menu.name.includes('투데이')) ||
-                             (bestType === '100' && menu.name.includes('백베스트')) ||
-                             (bestType === '1000' && menu.name.includes('천베스트')) ||
-                             (category === 'all' && bestType === '' && menu.name === '전체글 보기');
-            return (
-              <Link href={menu.link} key={menu.name} 
-                className={`px-4 py-3 text-sm font-bold transition-colors ${isActive ? 'bg-[#2a3042] text-white' : 'hover:bg-[#5b6586] hover:text-white'}`}>
-                {menu.name}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-
+    <>
+      {/* 💡 상단 헤더와 메뉴바는 layout.tsx로 이사갔습니다! 여기는 본문만 렌더링합니다. */}
       <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row gap-5 p-4 md:py-6 mt-2 mb-20">
         
         <aside className="w-full md:w-[240px] shrink-0 flex flex-col gap-4">
@@ -331,6 +289,6 @@ export default async function BoardPage(props: any) {
 
         </main>
       </div>
-    </div>
+    </>
   );
 }
