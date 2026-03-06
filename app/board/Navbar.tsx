@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense } from 'react';
 
 function NavbarContent() {
   const searchParams = useSearchParams();
@@ -10,7 +10,7 @@ function NavbarContent() {
   const currentCategory = searchParams.get('category') || 'all';
   const bestType = searchParams.get('best') || '';
 
-  // 💡 미나의 핵심 기획: 4개의 큰 기둥과 서브 폴더 구조로 완벽하게 정리했습니다!
+  // 💡 미나의 수정: 대표님 지시대로 메뉴들의 소속(폴더)을 완벽하게 재배치했습니다!
   const menuGroups = [
     { 
       name: '전체글 보기', 
@@ -31,6 +31,7 @@ function NavbarContent() {
         { name: '👋 인사 한마디', link: '/board?category=인사 한마디' },
         { name: '☕ 세상사는 이야기', link: '/board?category=세상사는 이야기' },
         { name: '👏 묻지마 격려', link: '/board?category=묻지마 격려' },
+        { name: '🙋 이거 알려주세요', link: '/board?category=이거 알려주세요' }, // 👈 여기로 이사왔습니다!
         { name: '💬 그냥 혼잣말', link: '/board?category=그냥 혼잣말' },
       ]
     },
@@ -46,8 +47,8 @@ function NavbarContent() {
       name: '💡 지식 & 정보',
       sub: [
         { name: '📚 유용한 상식', link: '/board?category=유용한 상식' },
-        { name: '🙋 이거 알려주세요', link: '/board?category=이거 알려주세요' },
         { name: '🏘️ 부동산 사랑방', link: '/board?category=부동산 사랑방' },
+        { name: '🏠 부동산 실거래 조회', isButton: true }, // 👈 밖에서 너무 튀던 버튼을 이 안으로 예쁘게 숨겼습니다!
       ]
     }
   ];
@@ -64,19 +65,10 @@ function NavbarContent() {
       <header className="bg-white p-4 border-b border-gray-200 shadow-sm relative z-20">
         <div className="max-w-[1200px] mx-auto flex justify-between items-center">
           <Link href="/board" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
-          
-          <button 
-            onClick={handleRealEstateClick}
-            className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-[13px] md:text-sm font-bold rounded-sm transition-colors shadow-sm flex items-center gap-1.5"
-          >
-            <span className="text-lg">🏠</span> 
-            <span className="hidden md:inline">부동산 실거래 조회</span>
-            <span className="md:hidden">실거래 조회</span>
-          </button>
+          {/* 💡 헤더에 있던 빨간 버튼은 철거했습니다! */}
         </div>
       </header>
 
-      {/* 💡 드롭다운 메뉴가 잘려 보이지 않도록 overflow-x-auto를 끄고 flex-wrap으로 변경했습니다! */}
       <nav className="bg-[#414a66] text-gray-200 shadow-md relative z-10">
         <div className="max-w-[1200px] mx-auto flex flex-wrap items-center">
           {menuGroups.map((group) => {
@@ -91,16 +83,27 @@ function NavbarContent() {
             }
 
             return (
-              // 💡 마우스를 올리면 숨겨진 하위 메뉴가 짠! 하고 나타나는 드롭다운 마법 (group & group-hover)
               <div key={group.name} className="group relative inline-block">
                 <button className="px-5 py-3.5 text-sm font-bold transition-colors hover:bg-[#5b6586] hover:text-white flex items-center gap-1">
                   {group.name}
                   <span className="text-[10px] opacity-70">▼</span>
                 </button>
                 
-                {/* 숨겨진 서브 메뉴판 */}
                 <div className="absolute left-0 top-full hidden w-48 bg-white border border-gray-200 shadow-xl group-hover:block rounded-b-sm overflow-hidden z-50">
                   {group.sub?.map((subItem) => {
+                    // 💡 서브 메뉴 중에 '버튼' 역할을 하는 녀석(실거래 조회)만 특별하게 렌더링합니다!
+                    if (subItem.isButton) {
+                      return (
+                        <button 
+                          key={subItem.name} 
+                          onClick={handleRealEstateClick}
+                          className="w-full text-left block px-4 py-3 text-[13px] font-bold border-b border-gray-100 transition-colors last:border-0 text-rose-500 hover:bg-rose-50"
+                        >
+                          {subItem.name}
+                        </button>
+                      );
+                    }
+
                     const isActive = currentCategory === subItem.name.replace(/.*?\s(.*)/, '$1').replace(/\(.*?\)/g, '').trim() || 
                                      (bestType && subItem.link.includes(bestType));
                     return (

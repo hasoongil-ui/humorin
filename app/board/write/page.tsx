@@ -257,6 +257,7 @@ export default function WritePage() {
                 <option value="인사 한마디">👋 인사 한마디</option>
                 <option value="세상사는 이야기">☕ 세상사는 이야기</option>
                 <option value="묻지마 격려">👏 묻지마 격려</option>
+                <option value="이거 알려주세요">🙋 이거 알려주세요</option> {/* 👈 이사 왔습니다! */}
                 <option value="그냥 혼잣말">💬 그냥 혼잣말</option>
               </optgroup>
               <optgroup label="😊 꿀잼 & 감동">
@@ -266,8 +267,8 @@ export default function WritePage() {
               </optgroup>
               <optgroup label="💡 지식 & 정보">
                 <option value="유용한 상식">📚 유용한 상식</option>
-                <option value="이거 알려주세요">🙋 이거 알려주세요</option>
                 <option value="부동산 사랑방">🏘️ 부동산 사랑방</option>
+                {/* 실거래 조회는 쓰는 곳이 아니므로 메뉴에서 제외 */}
               </optgroup>
             </select>
 
