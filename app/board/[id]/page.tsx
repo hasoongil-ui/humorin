@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 
-// 💡 미나의 초고속 판독기 복구!
 function extractData(fullTitle: string) {
   if (!fullTitle) return { cat: '일반', cleanTitle: '' };
   const match = fullTitle.match(/^\[(.*?)\]\s*(.*)$/);
@@ -60,109 +59,114 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  const likePost = async () => {
+  // 💡 미나의 핵심 마법: 공감을 누르면 +1, 다시 누르면 취소(-1) 되는 완벽한 토글 스위치!
+  const toggleLike = async () => {
     'use server';
     if (!currentUser) redirect('/login');
+    
     const { rows: checkRows } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author = ${currentUser}`;
-    if (checkRows.length > 0) return; 
-    await sql`INSERT INTO likes (post_id, author) VALUES (${postId}, ${currentUser})`;
-    await sql`UPDATE posts SET likes = COALESCE(likes, 0) + 1 WHERE id = ${postId}`;
+    
+    if (checkRows.length > 0) {
+      // 이미 공감했다면? -> 공감 취소 (하트 뺏기!)
+      await sql`DELETE FROM likes WHERE post_id = ${postId} AND author = ${currentUser}`;
+      await sql`UPDATE posts SET likes = GREATEST(COALESCE(likes, 0) - 1, 0) WHERE id = ${postId}`;
+    } else {
+      // 아직 안 했다면? -> 공감 추가 (하트 뿅!)
+      await sql`INSERT INTO likes (post_id, author) VALUES (${postId}, ${currentUser})`;
+      await sql`UPDATE posts SET likes = COALESCE(likes, 0) + 1 WHERE id = ${postId}`;
+    }
     revalidatePath(`/board/${postId}`);
   };
 
   return (
-    <div className="min-h-screen bg-white font-sans">
-      <header className="bg-white p-4 border-b">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
-          {currentUser && (
-            <div className="text-sm font-bold text-gray-600">
-              반갑습니다, <span className="text-[#3b4890]">{currentUser}</span>님!
-            </div>
-          )}
-        </div>
-      </header>
+    <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200">
+      {/* 💡 중복되던 상단 로고 헤더는 철거했습니다! 이제 모든 화면에 GNB(지붕)가 덮여있습니다! */}
 
-      <main className="max-w-6xl mx-auto p-4 md:p-6 mt-4 mb-20 overflow-hidden">
+      <main className="max-w-[1000px] mx-auto p-5 md:p-8 mt-4 mb-20 overflow-hidden">
         
         <div className="border-b-2 border-gray-800 pb-4 mb-8">
           <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-4 break-words">
             <span className="text-[#3b4890] mr-2">[{postData.cat}]</span>
             {postData.cleanTitle}
           </h1>
-          <div className="flex flex-col md:flex-row justify-between text-gray-500 text-sm gap-2 md:gap-0">
+          <div className="flex flex-col md:flex-row justify-between text-gray-500 text-sm gap-3 md:gap-0">
             <div className="font-bold text-gray-700 text-base">{post.author}</div>
+            
+            {/* 💡 대표님 지시대로 [조회수] -> [공감] 순서로 변경하고 디자인을 싹 다듬었습니다! */}
             <div className="flex flex-wrap gap-4 items-center font-medium">
-              <span className="text-red-500">👀 조회 {post.views || 0}</span>
-              <span className="text-blue-600">👍 추천 {post.likes || 0}</span>
               <span className="text-gray-400">{formattedDate}</span>
+              <span className="text-gray-500">조회 {post.views || 0}</span>
+              <span className="text-rose-500 font-bold">❤️ 공감 {post.likes || 0}</span>
             </div>
           </div>
         </div>
 
         <div 
-          className="min-h-[200px] md:min-h-[400px] text-gray-900 text-base md:text-lg whitespace-pre-wrap leading-relaxed break-words"
+          className="min-h-[200px] md:min-h-[400px] text-gray-900 text-base md:text-[17px] whitespace-pre-wrap leading-relaxed break-words"
           dangerouslySetInnerHTML={{ __html: post.content }}
         />
 
-        <div className="mt-12 flex justify-center border-t border-gray-200 pt-10">
-          {hasLiked ? (
-            <button disabled className="flex flex-col items-center justify-center w-24 h-24 rounded-full border-2 border-gray-300 bg-gray-50 text-gray-400 cursor-not-allowed shadow-inner">
-              <span className="text-3xl mb-1 opacity-50">👍</span>
-              <span className="font-bold text-sm">추천완료</span>
+        {/* 💡 미나의 야심작: 네이버 블로그 감성의 동그랗고 예쁜 하트 공감 버튼! */}
+        <div className="mt-16 flex justify-center border-t border-gray-100 pt-10">
+          <form action={toggleLike}>
+            <button 
+              type="submit" 
+              className={`flex flex-col items-center justify-center w-20 h-20 md:w-24 md:h-24 rounded-full border-2 transition-all shadow-sm group ${
+                hasLiked 
+                  ? 'border-rose-500 bg-rose-50 text-rose-500 hover:bg-rose-100' 
+                  : 'border-gray-300 bg-white text-gray-500 hover:border-rose-400 hover:text-rose-400'
+              }`}
+            >
+              <span className="text-2xl md:text-3xl mb-1 group-hover:scale-110 transition-transform">
+                {hasLiked ? '❤️' : '🤍'}
+              </span>
+              <span className="font-bold text-[13px] md:text-sm">공감 {post.likes || 0}</span>
             </button>
-          ) : (
-            <form action={likePost}>
-              <button type="submit" className="flex flex-col items-center justify-center w-24 h-24 rounded-full border-2 border-[#3b4890] bg-white text-[#3b4890] hover:bg-[#3b4890] hover:text-white transition-all shadow-md group">
-                <span className="text-3xl mb-1 group-hover:scale-125 transition-transform">👍</span>
-                <span className="font-bold text-sm">추천 {post.likes || 0}</span>
-              </button>
-            </form>
-          )}
+          </form>
         </div>
 
         <div className="mt-12 border-t border-gray-200 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
             {isAuthor && (
               <>
-                <Link href={`/board/${postId}/edit`} className="w-full text-center px-6 py-2.5 bg-[#3b4890] text-white rounded font-bold hover:bg-[#222b5c] transition-colors shadow-sm">
-                  ✍️ 수정하기
+                <Link href={`/board/${postId}/edit`} className="w-full text-center px-6 py-2.5 bg-gray-600 text-white rounded-sm font-bold hover:bg-gray-700 transition-colors shadow-sm text-sm">
+                  수정
                 </Link>
                 <form action={deletePost} className="w-full">
-                  <button type="submit" className="w-full px-6 py-2.5 bg-red-500 text-white rounded font-bold hover:bg-red-600 transition-colors shadow-sm">
-                    🗑️ 완전 삭제
+                  <button type="submit" className="w-full px-6 py-2.5 bg-red-500 text-white rounded-sm font-bold hover:bg-red-600 transition-colors shadow-sm text-sm">
+                    삭제
                   </button>
                 </form>
               </>
             )}
           </div>
-          <Link href={`/board?category=${postData.cat !== '일반' ? postData.cat : 'all'}`} className="w-full md:w-auto text-center px-8 py-2.5 bg-gray-800 text-white rounded font-bold hover:bg-gray-900 transition-colors">
+          <Link href={`/board?category=${postData.cat !== '일반' ? postData.cat : 'all'}`} className="w-full md:w-auto text-center px-8 py-2.5 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-sm shadow-sm">
             목록으로
           </Link>
         </div>
 
-        <div className="mt-16 bg-gray-50 p-6 rounded-lg border border-gray-200">
-          <h3 className="text-lg font-black text-gray-800 mb-6">💬 댓글 <span className="text-[#3b4890]">({comments.length})</span></h3>
+        <div className="mt-16 bg-gray-50 p-5 md:p-6 rounded-sm border border-gray-200">
+          <h3 className="text-[17px] font-black text-gray-800 mb-6">💬 댓글 <span className="text-[#e74c3c]">({comments.length})</span></h3>
           
           {currentUser ? (
             <form action={addComment} className="flex flex-col md:flex-row gap-2 mb-10 w-full">
-              <input name="content" placeholder="댓글을 남겨보세요." className="w-full md:flex-1 p-3 border border-gray-300 rounded focus:border-[#3b4890] outline-none font-medium" required />
-              <button type="submit" className="w-full md:w-auto px-8 py-3 bg-gray-800 text-white rounded font-bold hover:bg-gray-900 transition-colors">등록</button>
+              <input name="content" placeholder="댓글을 남겨보세요." className="w-full md:flex-1 p-3 border border-gray-300 rounded-sm focus:border-gray-500 outline-none font-medium text-sm" required />
+              <button type="submit" className="w-full md:w-24 py-3 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-sm">등록</button>
             </form>
           ) : (
-            <div className="mb-10 p-4 bg-gray-200 text-center text-gray-600 rounded font-bold text-sm">
+            <div className="mb-10 p-4 bg-white border border-gray-200 text-center text-gray-500 rounded-sm font-bold text-sm shadow-sm">
               댓글을 작성하려면 <Link href="/login" className="text-[#3b4890] hover:underline">로그인</Link>이 필요합니다.
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {comments.length === 0 ? (
-              <div className="text-center text-gray-400 py-6 font-medium">아직 등록된 댓글이 없습니다.</div>
+              <div className="text-center text-gray-400 py-6 font-medium text-sm">아직 등록된 댓글이 없습니다.</div>
             ) : (
               comments.map((c) => (
-                <div key={c.id} className="bg-white p-4 rounded border border-gray-200 shadow-sm break-words">
-                  <div className="font-bold text-gray-800 text-sm mb-2">{c.author}</div>
-                  <div className="text-gray-700 text-base">{c.content}</div>
+                <div key={c.id} className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm break-words">
+                  <div className="font-bold text-gray-800 text-[13px] mb-1.5">{c.author}</div>
+                  <div className="text-gray-700 text-[15px]">{c.content}</div>
                 </div>
               ))
             )}
