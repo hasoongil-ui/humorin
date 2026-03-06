@@ -34,14 +34,13 @@ export default function WritePage() {
     import('react-quill-new').then((RQ) => {
       const Quill = RQ.Quill;
       if (Quill) {
+        // 1. 비디오 정렬 자유도 마법
         const BlockEmbed = Quill.import('blots/block/embed');
         class CustomVideo extends BlockEmbed {
           static create(value) {
             let node = super.create();
             node.setAttribute('controls', 'true');
             node.setAttribute('src', value);
-            // 💡 미나의 핵심 수정: 에디터에서 강제로 가운데 정렬하던 스타일을 완전히 지웠습니다!
-            // 이제 툴바의 '정렬' 버튼을 누르는 대로 아주 얌전하게 말을 듣습니다.
             return node;
           }
           static value(node) {
@@ -51,6 +50,11 @@ export default function WritePage() {
         CustomVideo.blotName = 'video';
         CustomVideo.tagName = 'VIDEO';
         Quill.register(CustomVideo, true);
+
+        // 💡 2. 미나의 핵심 부품: 숨겨져 있던 '되돌리기', '다시실행' 아이콘을 직접 예쁘게 그려서 에디터에 등록합니다!
+        const icons = Quill.import('ui/icons');
+        icons['undo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="6 10 4 12 2 10 6 10"></polygon><path class="ql-stroke" d="M8.09,13.91A4.6,4.6,0,0,0,9,14,5,5,0,1,0,4,9"></path></svg>`;
+        icons['redo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="12 10 14 12 16 10 12 10"></polygon><path class="ql-stroke" d="M9.91,13.91A4.6,4.6,0,0,1,9,14a5,5,0,1,1,5-5"></path></svg>`;
       }
     });
   }, []);
@@ -149,23 +153,32 @@ export default function WritePage() {
     };
   };
 
-  // 💡 미나의 야심작: 네이버 블로그/워드프로세서 급으로 확장된 풀옵션 메뉴바!
   const modules = useMemo(() => ({
+    // 💡 기억 상자 엔진(History)을 켭니다! (마지막 100번의 행동까지 다 기억합니다)
+    history: {
+      delay: 500, // 0.5초 단위로 타이핑을 기억함
+      maxStack: 100,
+      userOnly: true
+    },
     toolbar: {
       container: [
-        ['image', 'video', 'link'],                                   // 1열: 가장 중요한 사진, 영상, 링크 추가
-        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],                    // 2열: 문단 제목 크기
-        [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }], // 3열: 폰트 종류 및 글자 크기
-        ['bold', 'italic', 'underline', 'strike'],                    // 4열: 굵게, 기울임, 밑줄, 취소선
-        [{ 'color': [] }, { 'background': [] }],                      // 5열: 글자색, 형광펜(배경색)
-        [{ 'align': [] }],                                            // 6열: ⭐️ 좌/우/가운데 정렬 (사진, 영상 모두 적용됨!)
-        [{ 'list': 'ordered'}, { 'list': 'bullet' }],                 // 7열: 번호 매기기, 점 매기기
-        ['blockquote', 'code-block'],                                 // 8열: 인용구, 코드 박스
-        ['clean']                                                     // 9열: 서식 초기화(지우개)
+        ['undo', 'redo'],                                             // ⭐️ VIP석 0열: 되돌리기 & 다시실행 추가!
+        ['image', 'video', 'link'],                                   // 1열: 미디어
+        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],                    // 2열: 크기
+        [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }], 
+        ['bold', 'italic', 'underline', 'strike'],                    
+        [{ 'color': [] }, { 'background': [] }],                      
+        [{ 'align': [] }],                                            
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],                 
+        ['blockquote', 'code-block'],                                 
+        ['clean']                                                     
       ],
       handlers: { 
         image: imageHandler,
-        video: videoHandler 
+        video: videoHandler,
+        // 💡 버튼을 눌렀을 때 기억 상자 엔진을 조종하는 스위치!
+        undo: function() { this.quill.history.undo(); },
+        redo: function() { this.quill.history.redo(); }
       }
     }
   }), []);
@@ -202,25 +215,25 @@ export default function WritePage() {
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
       <style dangerouslySetInnerHTML={{__html: `
-        /* 💡 에디터 본문 디자인 및 정렬 해제 마법 */
         .ql-editor { min-height: 500px; font-size: 1.05rem; line-height: 1.8; }
-        
-        /* 강제 가운데 정렬(display: block)을 풀고, 부모의 정렬을 따르도록(inline-block) 변경! */
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
         .ql-editor video { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: inline-block; vertical-align: top; }
         @media (max-width: 768px) { .ql-editor video { aspect-ratio: 16/9; height: auto; } }
         
-        /* 💡 상단 메뉴바(툴바) 프리미엄 디자인! */
         .ql-toolbar.ql-snow { 
           background-color: #f8f9fa; 
           padding: 12px 15px; 
           border-radius: 6px 6px 0 0; 
           border: 1px solid #d1d5db; 
-          border-bottom: 2px solid #414a66; /* 메뉴바 하단에 고급스러운 굵은 선 추가 */
+          border-bottom: 2px solid #414a66; 
           box-shadow: inset 0 -1px 0 rgba(0,0,0,0.05);
         }
         .ql-container.ql-snow { border-radius: 0 0 6px 6px; border-color: #d1d5db; }
         .ql-toolbar.ql-snow .ql-formats { margin-right: 15px; margin-bottom: 5px; }
+        
+        /* 💡 추가된 되돌리기 버튼이 다른 버튼들과 어울리도록 살짝 공간을 줍니다 */
+        button.ql-undo, button.ql-redo { cursor: pointer; }
+        button.ql-undo:hover, button.ql-redo:hover { color: #3b4890; }
       `}} />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
