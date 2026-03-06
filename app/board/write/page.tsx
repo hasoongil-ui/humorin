@@ -31,8 +31,6 @@ export default function WritePage() {
       setCategory(currentCat);
     }
 
-    // 💡 미나의 수정 1: 자바스크립트로 쿠키를 강제로 뺏어오려다 막히는 코드(오류의 원인)를 과감히 삭제했습니다!
-
     import('react-quill-new').then((RQ) => {
       const Quill = RQ.Quill;
       if (Quill) {
@@ -150,15 +148,16 @@ export default function WritePage() {
     };
   };
 
+  // 💡 미나의 핵심 마법: 메뉴 순서 전면 재배치! (사진/영상을 맨 앞으로 뺐습니다!)
   const modules = useMemo(() => ({
     toolbar: {
       container: [
-        [{ 'header': [1, 2, 3, false] }],
-        ['bold', 'italic', 'underline', 'strike'], 
-        [{ 'color': [] }, { 'background': [] }],   
-        [{ 'align': [] }],                         
-        ['image', 'video'],                        
-        ['clean']
+        ['image', 'video'],                        // 🖼️ 사진 & 🎬 동영상 (VIP석 1열 배치!)
+        [{ 'header': [1, 2, 3, false] }],          // 글자 크기
+        ['bold', 'italic', 'underline', 'strike'], // 글자 굵기, 기울임 등
+        [{ 'color': [] }, { 'background': [] }],   // 글자 색상, 형광펜
+        [{ 'align': [] }],                         // 정렬
+        ['clean']                                  // 서식 지우기
       ],
       handlers: { 
         image: imageHandler,
@@ -177,8 +176,6 @@ export default function WritePage() {
     setIsSubmitting(true); 
 
     try {
-      // 💡 미나의 수정 2: 화면에서 [유머] 도장을 찍던 코드를 삭제했습니다! 이제 서버 API가 알아서 하나만 예쁘게 찍을 겁니다.
-      // (기존의 꼬리표 강제 삽입 코드 제거, raw 데이터만 전송)
       const res = await fetch('/api/post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -201,8 +198,17 @@ export default function WritePage() {
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
       <style dangerouslySetInnerHTML={{__html: `
+        /* 💡 네이버 블로그 스타일의 세련된 에디터 CSS 마법! */
         .ql-editor { min-height: 500px; font-size: 1.05rem; line-height: 1.8; }
         .ql-editor img { max-width: 100%; height: auto; display: block; margin: 15px auto; border-radius: 8px; }
+        .ql-editor .ql-video { width: 100%; max-width: 800px; height: 450px; display: block; margin: 15px auto; border-radius: 8px; background: #000; border: none; }
+        @media (max-width: 768px) { .ql-editor .ql-video { height: 250px; } }
+        
+        /* 툴바(메뉴)를 조금 더 넓고 쾌적하게, 버튼 크기도 살짝 키웠습니다! */
+        .ql-toolbar.ql-snow { background-color: #f8f9fa; padding: 12px 15px; border-radius: 4px 4px 0 0; border-color: #d1d5db; }
+        .ql-container.ql-snow { border-radius: 0 0 4px 4px; border-color: #d1d5db; }
+        .ql-toolbar.ql-snow .ql-formats { margin-right: 20px; }
+        .ql-snow.ql-toolbar button { margin-right: 5px; }
       `}} />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
@@ -235,7 +241,6 @@ export default function WritePage() {
               required 
             />
             
-            {/* 💡 미나의 수정 3: 작성자 칸의 자물쇠를 풀고, 맘대로 적을 수 있게 흰색 쌩얼로 복구했습니다! */}
             <input 
               placeholder="글쓴이" 
               className="w-full md:w-48 p-3 border border-gray-300 rounded-sm focus:border-gray-500 outline-none font-bold text-gray-800"
@@ -245,14 +250,14 @@ export default function WritePage() {
             />
           </div>
 
-          <div className="bg-white border border-gray-300 rounded-sm overflow-hidden mt-4">
+          <div className="bg-white rounded-sm mt-4">
             <ReactQuill 
               ref={quillRef}
               theme="snow" 
               modules={modules}
               value={content} 
               onChange={setContent} 
-              placeholder="여기에 내용을 작성해주세요. 상단 메뉴의 🖼️ (사진) 또는 🎬 (동영상) 아이콘으로 미디어를 추가할 수 있습니다."
+              placeholder="여기에 내용을 작성해주세요. 상단 메뉴의 🖼️ (사진) 또는 🎬 (동영상) 아이콘으로 미디어를 먼저 추가해 보세요!"
             />
           </div>
 
