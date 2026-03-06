@@ -31,13 +31,8 @@ export default function WritePage() {
       setCategory(currentCat);
     }
 
-    // 💡 미나의 철통 보안 1: 쿠키에서 로그인한 아이디를 읽어와 작성자 칸에 쾅! 박아버립니다. (오타 방지)
-    const match = document.cookie.match(/(^|;) ?ojemi_user=([^;]*)(;|$)/);
-    if (match && match[2]) {
-      setAuthor(decodeURIComponent(match[2]));
-    }
+    // 💡 미나의 수정 1: 자바스크립트로 쿠키를 강제로 뺏어오려다 막히는 코드(오류의 원인)를 과감히 삭제했습니다!
 
-    // 💡 미나의 철통 보안 2: 에디터의 깐깐한 필터를 부수고, 진짜 <video> 태그를 출력하게 만드는 커스텀 부품!
     import('react-quill-new').then((RQ) => {
       const Quill = RQ.Quill;
       if (Quill) {
@@ -47,7 +42,6 @@ export default function WritePage() {
             let node = super.create();
             node.setAttribute('controls', 'true');
             node.setAttribute('src', value);
-            // 모바일에서도 예쁘게 꽉 차도록 세련된 CSS 적용!
             node.setAttribute('style', 'width: 100%; max-width: 800px; display: block; margin: 15px auto; border-radius: 8px; background: #000;');
             return node;
           }
@@ -145,8 +139,6 @@ export default function WritePage() {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
           const editor = quillRef.current.getEditor();
           const range = editor.getSelection();
-          
-          // 💡 미나의 배달부가 <video> 태그를 에디터에 정확하게 꽂아 넣습니다!
           editor.insertEmbed(range.index, 'video', publicUrl);
           editor.setSelection(range.index + 1); 
         }
@@ -184,14 +176,13 @@ export default function WritePage() {
     if (isUploading || isSubmitting) return;
     setIsSubmitting(true); 
 
-    const cleanTitle = title.replace(/^\[.*?\]\s*/, '');
-    const finalTitle = `[${category}] ${cleanTitle}`;
-
     try {
+      // 💡 미나의 수정 2: 화면에서 [유머] 도장을 찍던 코드를 삭제했습니다! 이제 서버 API가 알아서 하나만 예쁘게 찍을 겁니다.
+      // (기존의 꼬리표 강제 삽입 코드 제거, raw 데이터만 전송)
       const res = await fetch('/api/post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: finalTitle, content: content, author, category }), 
+        body: JSON.stringify({ title: title, content: content, author: author, category: category }), 
       });
 
       if (res.ok) {
@@ -244,13 +235,13 @@ export default function WritePage() {
               required 
             />
             
-            {/* 💡 작성자 오타 방지 마법: 자동으로 내 이름이 박히고 수정이 불가능(readOnly)하게 잠깁니다! */}
+            {/* 💡 미나의 수정 3: 작성자 칸의 자물쇠를 풀고, 맘대로 적을 수 있게 흰색 쌩얼로 복구했습니다! */}
             <input 
               placeholder="글쓴이" 
-              className="w-full md:w-48 p-3 border border-gray-300 bg-gray-100 rounded-sm focus:outline-none font-bold text-gray-500 cursor-not-allowed"
+              className="w-full md:w-48 p-3 border border-gray-300 rounded-sm focus:border-gray-500 outline-none font-bold text-gray-800"
               value={author}
-              readOnly
-              title="작성자는 로그인된 아이디로 자동 설정됩니다."
+              onChange={(e) => setAuthor(e.target.value)}
+              required 
             />
           </div>
 
