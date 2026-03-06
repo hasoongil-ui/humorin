@@ -2,33 +2,58 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 
 function NavbarContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const currentCategory = searchParams.get('category') || 'all';
   const bestType = searchParams.get('best') || '';
-  const category = searchParams.get('category') || 'all';
 
-  // 💡 미나의 업데이트: 이웃님들이 부동산 수다를 떨 수 있는 '부동산 사랑방'을 추가했습니다!
-  const menus = [
-    { name: '🔥 투데이 베스트', link: '/board?best=today' },
-    { name: '전체글 보기', link: '/board' },
-    { name: '👋 인사 한마디', link: '/board?category=인사 한마디' },
-    { name: '☕ 일상', link: '/board?category=일상' },
-    { name: '😊 유머', link: '/board?category=유머' },
-    { name: '💖 감동', link: '/board?category=감동' },
-    { name: '🏘️ 부동산 사랑방', link: '/board?category=부동산 사랑방' }, // 👈 새로 추가된 사랑방!
-    { name: '💬 그냥 혼잣말', link: '/board?category=그냥 혼잣말' },
-    { name: '👏 묻지마 격려', link: '/board?category=묻지마 격려' },
-    { name: '💡 이거 알려주세요', link: '/board?category=이거 알려주세요' },
-    { name: '💯 백베스트', link: '/board?best=100' }, 
-    { name: '👑 천베스트', link: '/board?best=1000' },
+  // 💡 미나의 핵심 기획: 4개의 큰 기둥과 서브 폴더 구조로 완벽하게 정리했습니다!
+  const menuGroups = [
+    { 
+      name: '전체글 보기', 
+      link: '/board',
+      isSingle: true
+    },
+    {
+      name: '🏆 명예의 전당',
+      sub: [
+        { name: '🔥 투데이 베스트', link: '/board?best=today' },
+        { name: '💯 백베스트', link: '/board?best=100' },
+        { name: '👑 천베스트', link: '/board?best=1000' },
+      ]
+    },
+    {
+      name: '☕ 따뜻한 다락방',
+      sub: [
+        { name: '👋 인사 한마디', link: '/board?category=인사 한마디' },
+        { name: '☕ 세상사는 이야기', link: '/board?category=세상사는 이야기' },
+        { name: '👏 묻지마 격려', link: '/board?category=묻지마 격려' },
+        { name: '💬 그냥 혼잣말', link: '/board?category=그냥 혼잣말' },
+      ]
+    },
+    {
+      name: '😊 꿀잼 & 감동',
+      sub: [
+        { name: '😆 웃어요 (유머)', link: '/board?category=유머' },
+        { name: '💖 나누고 싶은 감동', link: '/board?category=감동' },
+        { name: '🐾 귀여운 동물들', link: '/board?category=귀여운 동물들' },
+      ]
+    },
+    {
+      name: '💡 지식 & 정보',
+      sub: [
+        { name: '📚 유용한 상식', link: '/board?category=유용한 상식' },
+        { name: '🙋 이거 알려주세요', link: '/board?category=이거 알려주세요' },
+        { name: '🏘️ 부동산 사랑방', link: '/board?category=부동산 사랑방' },
+      ]
+    }
   ];
 
   const handleRealEstateClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    // 💡 차가운 '회원전용' 대신, 따뜻하고 다정한 안내 문구로 로그인/가입을 유도합니다!
     if (confirm('오재미의 따뜻한 이웃이 되어주세요! 💖\n로그인하시면 유용한 부동산 실거래 조회를 무료로 이용하실 수 있습니다.\n\n로그인 화면으로 이동할까요?')) {
       router.push('/login');
     }
@@ -36,11 +61,10 @@ function NavbarContent() {
 
   return (
     <>
-      <header className="bg-white p-4 border-b border-gray-200 shadow-sm relative z-10">
+      <header className="bg-white p-4 border-b border-gray-200 shadow-sm relative z-20">
         <div className="max-w-[1200px] mx-auto flex justify-between items-center">
           <Link href="/board" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
           
-          {/* 💡 미나의 야심작: 시선이 가장 잘 가는 우측 상단에 다정한 조회기 버튼 배치! */}
           <button 
             onClick={handleRealEstateClick}
             className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-[13px] md:text-sm font-bold rounded-sm transition-colors shadow-sm flex items-center gap-1.5"
@@ -52,20 +76,45 @@ function NavbarContent() {
         </div>
       </header>
 
-      {/* 💡 메뉴가 많아져서 모바일에서도 쾌적하게 옆으로 밀어볼 수 있게 스크롤 마법을 살짝 걸었습니다! */}
-      <nav className="bg-[#414a66] text-gray-200 shadow-md overflow-x-auto whitespace-nowrap scrollbar-hide">
-        <div className="max-w-[1200px] mx-auto flex items-center px-2 md:px-0">
-          {menus.map((menu) => {
-            const isActive = (category !== 'all' && menu.name.includes(category)) || 
-                             (bestType === 'today' && menu.name.includes('투데이')) ||
-                             (bestType === '100' && menu.name.includes('백베스트')) ||
-                             (bestType === '1000' && menu.name.includes('천베스트')) ||
-                             (category === 'all' && bestType === '' && menu.name === '전체글 보기');
+      {/* 💡 드롭다운 메뉴가 잘려 보이지 않도록 overflow-x-auto를 끄고 flex-wrap으로 변경했습니다! */}
+      <nav className="bg-[#414a66] text-gray-200 shadow-md relative z-10">
+        <div className="max-w-[1200px] mx-auto flex flex-wrap items-center">
+          {menuGroups.map((group) => {
+            if (group.isSingle) {
+              const isActive = currentCategory === 'all' && bestType === '';
+              return (
+                <Link key={group.name} href={group.link!} 
+                  className={`px-5 py-3.5 text-sm font-bold transition-colors ${isActive ? 'bg-[#2a3042] text-white' : 'hover:bg-[#5b6586] hover:text-white'}`}>
+                  {group.name}
+                </Link>
+              );
+            }
+
             return (
-              <Link href={menu.link} key={menu.name} 
-                className={`px-3 md:px-4 py-3 text-[13px] md:text-sm font-bold transition-colors inline-block ${isActive ? 'bg-[#2a3042] text-white' : 'hover:bg-[#5b6586] hover:text-white'}`}>
-                {menu.name}
-              </Link>
+              // 💡 마우스를 올리면 숨겨진 하위 메뉴가 짠! 하고 나타나는 드롭다운 마법 (group & group-hover)
+              <div key={group.name} className="group relative inline-block">
+                <button className="px-5 py-3.5 text-sm font-bold transition-colors hover:bg-[#5b6586] hover:text-white flex items-center gap-1">
+                  {group.name}
+                  <span className="text-[10px] opacity-70">▼</span>
+                </button>
+                
+                {/* 숨겨진 서브 메뉴판 */}
+                <div className="absolute left-0 top-full hidden w-48 bg-white border border-gray-200 shadow-xl group-hover:block rounded-b-sm overflow-hidden z-50">
+                  {group.sub?.map((subItem) => {
+                    const isActive = currentCategory === subItem.name.replace(/.*?\s(.*)/, '$1').replace(/\(.*?\)/g, '').trim() || 
+                                     (bestType && subItem.link.includes(bestType));
+                    return (
+                      <Link 
+                        key={subItem.name} 
+                        href={subItem.link} 
+                        className={`block px-4 py-3 text-[13px] font-bold border-b border-gray-100 transition-colors last:border-0 ${isActive ? 'bg-indigo-50 text-[#3b4890]' : 'text-gray-700 hover:bg-gray-50 hover:text-[#3b4890]'}`}
+                      >
+                        {subItem.name}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </div>
