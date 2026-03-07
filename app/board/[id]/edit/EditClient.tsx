@@ -191,20 +191,12 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
     formData.append('title', title);
     formData.append('content', content);
 
-    try {
-      // 서버에서 전달받은 성공/실패 사인을 확인합니다.
-      const result = await updateAction(formData);
-      
-      if (result && result.success) {
-        // 성공했다면 브라우저가 직접 게시글로 이동시킵니다!
-        router.push(`/board/${post.id}`);
-        router.refresh();
-      } else {
-        alert('서버 저장 중 문제가 발생했습니다.');
-        setIsSubmitting(false);
-      }
-    } catch (error) {
-      alert('수정 처리 중 오류가 발생했습니다.');
+    // 💡 미나의 해결책: 브라우저가 화면 이동(Redirect) 에러를 낚아채지 못하게 방어막을 걷어냈습니다!
+    const result = await updateAction(formData);
+    
+    // 만약 여기까지 코드가 살아서 내려왔다면(화면 이동이 안 되었다면), 서버에서 진짜 에러가 난 것입니다.
+    if (result && result.error) {
+      alert('수정 중 서버 오류가 발생했습니다.');
       setIsSubmitting(false);
     }
   };

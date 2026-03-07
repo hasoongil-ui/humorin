@@ -1,4 +1,6 @@
 import { sql } from '@vercel/postgres';
+import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 import EditClient from './EditClient';
 
 export default async function EditPage(props: any) {
@@ -12,22 +14,31 @@ export default async function EditPage(props: any) {
     return <div className="p-20 text-center text-2xl font-bold">글을 찾을 수 없습니다</div>;
   }
 
-  // 화면 이동(redirect) 명령을 빼고, 성공/실패 결과만 반환하도록 수정했습니다.
+  // 💡 미나의 해결책: 에러를 브라우저가 오해하지 않도록 구조를 바꿨습니다!
   const updatePost = async (formData: FormData) => {
     'use server';
     const title = formData.get('title') as string;
     const content = formData.get('content') as string;
-    
+
+    let isSuccess = false;
+
     try {
       await sql`
         UPDATE posts 
         SET title = ${title}, content = ${content} 
         WHERE id = ${postId}
       `;
-      return { success: true };
+      isSuccess = true;
     } catch (error) {
-      console.error(error);
-      return { success: false };
+      console.error("수정 DB 에러:", error);
+      return { error: 'DB_ERROR' };
+    }
+
+    // 서버 방어막(try-catch) 바깥에서 안전하게 화면을 이동시킵니다.
+    if (isSuccess) {
+      revalidatePath(`/board/${postId}`);
+      revalidatePath('/board');
+      redirect(`/board/${postId}`);
     }
   };
 
