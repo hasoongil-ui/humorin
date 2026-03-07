@@ -369,7 +369,7 @@ export default async function PostDetailPage(props: any) {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
                   {/* 💡 파일 첨부 UI에 "짤방(1MB↓)" 명시하여 사용자에게 가이드! */}
                   <div className="w-full sm:w-auto flex items-center bg-[#f1f3f5] rounded-sm overflow-hidden border border-gray-200">
-                    <span className="px-3 py-1.5 bg-gray-200 text-xs font-bold text-gray-600 border-r border-gray-300">짤방(1MB↓)</span>
+                    <span className="px-3 py-1.5 bg-gray-200 text-xs font-bold text-gray-600 border-r border-gray-300">이미지(1MB↓)</span>
                     <input type="file" name="image" accept="image/*" className="text-xs text-gray-500 file:hidden cursor-pointer px-2 py-1.5 w-full" />
                   </div>
                   <button type="submit" className="w-full sm:w-24 py-2.5 bg-[#3b4890] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-sm shadow-sm flex-shrink-0">댓글 등록</button>
