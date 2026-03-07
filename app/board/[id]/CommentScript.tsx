@@ -16,7 +16,6 @@ export default function CommentScript() {
             alert('1MB 이하의 이미지만 첨부 가능합니다.');
             e.target.value = '';
             
-            // 용량 초과 시, 만약 수정창이고 기존 이미지가 있었다면 다시 기존 이미지로 복구
             if (e.target.id.startsWith('file-edit-')) {
                 const nodeId = e.target.id.replace('file-edit-', '');
                 const form = document.querySelector(`form[data-checkbox-id="edit-${nodeId}"]`);
@@ -39,7 +38,6 @@ export default function CommentScript() {
             previewImage.src = URL.createObjectURL(file);
             previewContainer.classList.remove('hidden');
             
-            // 새 파일을 선택했으니, '기존 이미지 삭제 플래그'를 취소(false)로 변경
             if (e.target.id.startsWith('file-edit-')) {
                const nodeId = e.target.id.replace('file-edit-', '');
                const flag = document.getElementById('remove-image-flag-' + nodeId) as HTMLInputElement;
@@ -47,7 +45,6 @@ export default function CommentScript() {
             }
           }
         } else {
-          // 파일 선택 창을 켰다가 그냥 취소(닫기)를 눌렀을 때
           if (e.target.id.startsWith('file-edit-')) {
               const nodeId = e.target.id.replace('file-edit-', '');
               const form = document.querySelector(`form[data-checkbox-id="edit-${nodeId}"]`);
@@ -75,7 +72,7 @@ export default function CommentScript() {
              if (form) {
                  form.reset(); 
                  const flag = document.getElementById('remove-image-flag-' + nodeId) as HTMLInputElement;
-                 if (flag) flag.value = 'false'; // 삭제 상태 초기화
+                 if (flag) flag.value = 'false'; 
 
                  const previewContainer = document.getElementById('preview-file-edit-' + nodeId);
                  const previewImg = document.getElementById('img-preview-file-edit-' + nodeId) as HTMLImageElement;
@@ -96,7 +93,7 @@ export default function CommentScript() {
       const btn = e.target.closest('.remove-image-btn');
       if (btn) {
          const inputId = btn.getAttribute('data-input-id');
-         const nodeId = btn.getAttribute('data-node-id'); // 수정창 식별자
+         const nodeId = btn.getAttribute('data-node-id'); 
 
          const input = document.getElementById(inputId) as HTMLInputElement;
          if (input) input.value = '';
@@ -104,7 +101,6 @@ export default function CommentScript() {
          const previewContainer = document.getElementById('preview-' + inputId);
          if (previewContainer) previewContainer.classList.add('hidden');
 
-         // 엑스(X) 버튼을 누르면 서버에 '이 이미지 지워주세요' 라고 신호를 보냄
          if (nodeId) {
              const flag = document.getElementById('remove-image-flag-' + nodeId) as HTMLInputElement;
              if (flag) flag.value = 'true';
@@ -112,28 +108,32 @@ export default function CommentScript() {
       }
     };
 
+    // 💡 미나의 새로운 제출 마법: 1초의 딜레이를 완벽하게 숨기는 스마트 버튼!
     const handleSubmit = (e: any) => {
       const form = e.target;
-      
-      if (form.hasAttribute('data-checkbox-id')) {
-        const checkboxId = form.getAttribute('data-checkbox-id');
-        const checkbox = document.getElementById(checkboxId) as HTMLInputElement;
-        if (checkbox) {
-          setTimeout(() => {
-            checkbox.checked = false; 
-            form.reset(); 
-            const previewContainer = document.getElementById('preview-file-' + checkboxId);
-            if(previewContainer) previewContainer.classList.add('hidden'); 
-          }, 100);
-        }
-      }
-      
-      if (form.id === 'main-comment-form') {
-        setTimeout(() => {
-          form.reset();
-          const previewContainer = document.getElementById('preview-file-comment-main');
-          if (previewContainer) previewContainer.classList.add('hidden');
-        }, 100);
+      const submitBtn = form.querySelector('button[type="submit"]');
+
+      if (submitBtn) {
+         // 1. 다다닥 중복 클릭 방지 (비활성화 및 약간 투명하게 처리)
+         submitBtn.disabled = true;
+         submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
+
+         // 2. 버튼 글씨를 상황에 맞게 변경하여 안심시키기
+         const originalText = submitBtn.innerText;
+         if (originalText.includes('수정')) {
+             submitBtn.innerText = '수정 처리 중...';
+         } else {
+             submitBtn.innerText = '등록 처리 중...';
+         }
+
+         // 3. 서버가 다운되거나 응답이 없을 경우를 대비한 안전장치 (3초 뒤 원상복구)
+         setTimeout(() => {
+             if (submitBtn) {
+                 submitBtn.disabled = false;
+                 submitBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+                 submitBtn.innerText = originalText;
+             }
+         }, 3000);
       }
     };
 
