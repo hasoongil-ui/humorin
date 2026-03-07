@@ -92,7 +92,7 @@ export default async function SignupPage(props: any) {
 
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">게시판 닉네임</label>
-            <input name="nickname" required placeholder="예: 하순길대표" className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" />
+            <input name="nickname" required placeholder="예: 상실의 시대" className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" />
           </div>
 
           <button type="submit" className="w-full py-3.5 bg-[#2a3042] text-white rounded-sm font-bold text-lg hover:bg-[#1e2335] shadow-sm mt-6 transition-colors">
