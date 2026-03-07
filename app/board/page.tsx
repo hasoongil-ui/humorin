@@ -177,18 +177,25 @@ export default async function BoardPage(props: any) {
 
         <main className="flex-1 min-w-0 bg-white border border-gray-200 shadow-sm rounded-sm p-4 md:p-6">
           
-          <div className="flex justify-between items-end mb-4">
-            <h2 className="text-xl font-bold text-gray-800">
+          {/* 💡 미나의 핵심: 게시판 제목과 '글쓰기' 버튼을 상단에 함께 배치했습니다! */}
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-800 truncate pr-2">
               {bestType === 'today' ? '🔥 투데이 베스트 (추천 10~99)' : 
                bestType === '100' ? '💯 백베스트 (추천 100~999)' : 
                bestType === '1000' ? '👑 천베스트 (추천 1000+)' : 
                keyword ? `🔍 '${keyword}' 검색 결과 (${totalCount}건)` : 
                category !== 'all' ? `${category}` : '전체글 보기'}
             </h2>
+            
+            {/* 상단 글쓰기 버튼! */}
+            {canWrite && (
+              <Link href={`/board/write?category=${category}`} className="shrink-0 px-4 py-2 bg-[#3b4890] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors shadow-sm flex items-center gap-1">
+                ✏️ 글쓰기
+              </Link>
+            )}
           </div>
 
           <div className="border-t-2 border-gray-700 text-sm">
-            {/* 💡 미나의 핵심 변경 1: 조회수와 공감(추천)의 순서를 바꾸고 글씨를 예쁘게 다듬었습니다! */}
             <div className="hidden md:flex border-b border-gray-300 bg-gray-50 py-3 font-bold text-gray-600 text-center">
               <div className="w-16">번호</div>
               <div className="flex-1">제목</div>
@@ -207,7 +214,6 @@ export default async function BoardPage(props: any) {
                     <span className="text-[#3b4890] mr-1">[{topData.cat}]</span>
                     {topData.cleanTitle}
                     {hasImage(topPost.content) && <span className="ml-1 text-xs opacity-70">🖼️</span>}
-                    {/* 💡 미나의 핵심 변경 2: 클리앙 스타일 붉은색 댓글 수 UI 적용! (추후 서버 연동 시 숫자가 나타납니다) */}
                     {topPost.comment_count > 0 && (
                       <span className="ml-1.5 text-[13px] font-bold text-[#e74c3c]">{topPost.comment_count}</span>
                     )}
@@ -273,6 +279,7 @@ export default async function BoardPage(props: any) {
               )}
             </div>
 
+            {/* 하단 글쓰기 버튼 (사용자 편의를 위해 유지) */}
             <div className="w-full md:w-24 flex justify-end">
               {canWrite && (
                 <Link href={`/board/write?category=${category}`} className="w-full md:w-auto px-5 py-2 bg-[#414a66] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors flex items-center justify-center">

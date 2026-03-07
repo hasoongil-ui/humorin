@@ -18,12 +18,10 @@ export default async function PostDetailPage(props: any) {
   const userCookie = cookieStore.get('ojemi_user');
   const currentUser = userCookie ? userCookie.value : null;
 
-  // 💡 미나의 자동 창고(DB) 업그레이드 마법! 
-  // 대댓글, 공감, 그리고 '이미지 첨부' 기능을 위한 칸을 자동으로 만들어냅니다!
   try { await sql`ALTER TABLE comments ADD COLUMN parent_id INTEGER`; } catch (e) {}
   try { await sql`ALTER TABLE comments ADD COLUMN likes INTEGER DEFAULT 0`; } catch (e) {}
   try { await sql`CREATE TABLE IF NOT EXISTS comment_likes ( comment_id INTEGER, author VARCHAR(255), PRIMARY KEY (comment_id, author) )`; } catch (e) {}
-  try { await sql`ALTER TABLE comments ADD COLUMN image_data TEXT`; } catch (e) {} // 짤방 첨부용 창고 추가!
+  try { await sql`ALTER TABLE comments ADD COLUMN image_data TEXT`; } catch (e) {} 
 
   await sql`UPDATE posts SET views = COALESCE(views, 0) + 1 WHERE id = ${postId}`;
 
@@ -37,10 +35,10 @@ export default async function PostDetailPage(props: any) {
   const isAuthor = currentUser === post.author;
   const { rows: comments } = await sql`SELECT * FROM comments WHERE post_id = ${postId} ORDER BY created_at ASC`;
 
-  // 🏆 베스트 댓글 추출 로직: 공감 3개 이상인 댓글들을 상단에 노출하기 위해 골라냅니다!
+  // 🏆 베스트 댓글 추출
   const bestComments = comments.filter(c => c.likes >= 3).sort((a, b) => b.likes - a.likes).slice(0, 3);
 
-  // 🌳 무한 트리 구조 만들기: 부모-자식 관계를 묶어줍니다.
+  // 🌳 무한 트리 구조 
   const buildTree = (allComments: any[], parentId: number | null = null): any[] => {
     return allComments
       .filter(c => c.parent_id === parentId || (parentId === null && !c.parent_id))
@@ -84,7 +82,7 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // --- ⚡ [액션] 댓글 & 대댓글 등록 (이미지 첨부 포함!) ---
+  // --- ⚡ [액션] 댓글 등록 (이미지 포함) ---
   const addComment = async (formData: FormData) => {
     'use server';
     if (!currentUser) redirect('/login');
@@ -92,15 +90,13 @@ export default async function PostDetailPage(props: any) {
     const parentId = formData.get('parentId') as string;
     const imageFile = formData.get('image') as File;
     
-    if (!content && (!imageFile || imageFile.size === 0)) return; // 글도 그림도 없으면 패스
+    if (!content && (!imageFile || imageFile.size === 0)) return; 
 
     let imageData = null;
-    // 이미지가 첨부되었다면 Base64로 변환하여 DB에 저장 (MVP 버전)
-    if (imageFile && imageFile.size > 0 && imageFile.size <= 2 * 1024 * 1024) { // 2MB 제한
+    if (imageFile && imageFile.size > 0 && imageFile.size <= 2 * 1024 * 1024) { 
       const arrayBuffer = await imageFile.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      const base64 = buffer.toString('base64');
-      imageData = `data:${imageFile.type};base64,${base64}`;
+      imageData = `data:${imageFile.type};base64,${buffer.toString('base64')}`;
     }
 
     if (parentId) {
@@ -111,7 +107,47 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // --- ⚡ [액션] 댓글 공감 토글 ---
+  // --- ⚡ [액션] 댓글 삭제 ---
+  const deleteComment = async (formData: FormData) => {
+    'use server';
+    if (!currentUser) redirect('/login');
+    const commentId = formData.get('commentId') as string;
+    
+    // 본인 확인 후 삭제
+    const { rows } = await sql`SELECT author FROM comments WHERE id = ${commentId}`;
+    if (rows.length > 0 && rows[0].author === currentUser) {
+      await sql`DELETE FROM comments WHERE id = ${commentId}`;
+    }
+    revalidatePath(`/board/${postId}`);
+  };
+
+  // --- ⚡ [액션] 댓글 수정 ---
+  const editComment = async (formData: FormData) => {
+    'use server';
+    if (!currentUser) redirect('/login');
+    const commentId = formData.get('commentId') as string;
+    const content = formData.get('content') as string;
+    const imageFile = formData.get('image') as File;
+
+    const { rows } = await sql`SELECT author FROM comments WHERE id = ${commentId}`;
+    if (rows.length > 0 && rows[0].author === currentUser) {
+      let imageData = null;
+      if (imageFile && imageFile.size > 0 && imageFile.size <= 2 * 1024 * 1024) { 
+        const arrayBuffer = await imageFile.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        imageData = `data:${imageFile.type};base64,${buffer.toString('base64')}`;
+      }
+
+      if (imageData) {
+        await sql`UPDATE comments SET content = ${content}, image_data = ${imageData} WHERE id = ${commentId}`;
+      } else {
+        await sql`UPDATE comments SET content = ${content} WHERE id = ${commentId}`;
+      }
+    }
+    revalidatePath(`/board/${postId}`);
+  };
+
+  // --- ⚡ [액션] 댓글 공감 ---
   const toggleCommentLike = async (formData: FormData) => {
     'use server';
     if (!currentUser) redirect('/login');
@@ -128,20 +164,18 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 🌳 재귀 함수를 이용해 무한 뎁스의 댓글 트리를 그리는 마법의 컴포넌트!
+  // 🌳 재귀 함수 컴포넌트
   const renderCommentNode = (node: any, depth: number = 0) => {
     const isReply = depth > 0;
-    // 깊이가 깊어질수록 들여쓰기 적용 (최대 5단계까지만 들여쓰기해서 모바일 화면 깨짐 방지)
     const paddingLeft = isReply ? `${Math.min(depth * 1.5, 4)}rem` : '0';
+    const isCommentAuthor = currentUser === node.author;
     
     return (
       <div key={node.id} className="w-full">
-        {/* 개별 댓글 디자인 */}
         <div 
           className={`p-4 border-b border-gray-100 relative group transition-colors ${isReply ? 'bg-gray-50/70' : 'bg-white'}`}
           style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '1rem' }}
         >
-          {/* 대댓글 꺾쇠 (ㄴ 모양) */}
           {isReply && (
             <div className="absolute left-2 top-5 border-l-2 border-b-2 border-gray-300 w-3 h-3 rounded-bl-sm" style={{ left: `calc(${paddingLeft} - 0.5rem)` }}></div>
           )}
@@ -151,18 +185,26 @@ export default async function PostDetailPage(props: any) {
               {node.author}
               {node.likes >= 3 && <span className="px-1.5 py-0.5 bg-rose-100 text-rose-600 text-[10px] rounded-sm">베스트</span>}
             </div>
+            {/* 본인 댓글인 경우 수정/삭제 텍스트 버튼 */}
+            {isCommentAuthor && (
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                <label htmlFor={`edit-${node.id}`} className="cursor-pointer hover:text-gray-600">수정</label>
+                <form action={deleteComment}>
+                  <input type="hidden" name="commentId" value={node.id} />
+                  <button type="submit" className="hover:text-red-500">삭제</button>
+                </form>
+              </div>
+            )}
           </div>
           
           <div className="text-gray-800 text-[15px] mb-3 leading-relaxed break-words whitespace-pre-wrap">{node.content}</div>
           
-          {/* 🖼️ 첨부된 이미지가 있으면 출력! */}
           {node.image_data && (
             <div className="mb-4">
               <img src={node.image_data} alt="첨부이미지" className="max-w-full md:max-w-md rounded-sm border border-gray-200 shadow-sm" />
             </div>
           )}
           
-          {/* 하단 버튼 영역 (답글 / 공감) */}
           <div className="flex items-center gap-3">
             <label htmlFor={`reply-${node.id}`} className="cursor-pointer text-[13px] text-gray-500 font-bold hover:text-[#3b4890] flex items-center gap-1 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
@@ -179,24 +221,43 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 대댓글 작성 폼 (숨겨져 있다가 답글 누르면 열림) */}
-        <input type="checkbox" id={`reply-${node.id}`} className="hidden peer" />
-        <div className="hidden peer-checked:block bg-gray-100 p-4 border-b border-gray-200">
-          {currentUser ? (
-            <form action={addComment} className="flex flex-col gap-2" style={{ paddingLeft: `calc(1rem + ${paddingLeft})` }}>
-              <input type="hidden" name="parentId" value={node.id} />
-              <textarea name="content" placeholder={`@${node.author} 님에게 답글 남기기...`} className="w-full p-3 border border-gray-300 rounded-sm focus:border-[#3b4890] outline-none font-medium text-sm bg-white resize-none h-20" required />
-              <div className="flex justify-between items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm -mt-2.5">
-                <input type="file" name="image" accept="image/*" className="text-xs text-gray-500 file:mr-4 file:py-1 file:px-3 file:rounded-sm file:border-0 file:text-xs file:font-bold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer" />
-                <button type="submit" className="px-5 py-2 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-xs shadow-sm">등록</button>
-              </div>
-            </form>
-          ) : (
-            <div className="text-center text-gray-500 font-bold text-sm py-2">대댓글을 작성하려면 로그인해주세요.</div>
-          )}
+        {/* 💡 대댓글 작성 폼 (숨겨져 있다가 열림) - 모바일 버튼 잘림 완벽 해결! */}
+        <div className="w-full">
+          <input type="checkbox" id={`reply-${node.id}`} className="hidden peer" />
+          <div className="hidden peer-checked:block bg-gray-100 p-3 sm:p-4 border-b border-gray-200">
+            {currentUser ? (
+              <form action={addComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }}>
+                <input type="hidden" name="parentId" value={node.id} />
+                <textarea name="content" placeholder={`@${node.author} 님에게 답글 남기기...`} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-sm bg-white resize-none h-20" required />
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
+                  <input type="file" name="image" accept="image/*" className="w-full sm:w-auto text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-sm file:border-0 file:text-xs file:font-bold file:bg-[#f1f3f5] file:text-[#3b4890] hover:file:bg-gray-200 cursor-pointer" />
+                  <button type="submit" className="w-full sm:w-20 py-2 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-xs shadow-sm flex-shrink-0">등록</button>
+                </div>
+              </form>
+            ) : (
+              <div className="text-center text-gray-500 font-bold text-sm py-2">대댓글을 작성하려면 로그인해주세요.</div>
+            )}
+          </div>
         </div>
 
-        {/* 자식 댓글(대댓글)이 있으면 재귀적으로 파고 들어가며 렌더링! */}
+        {/* 💡 댓글 수정 폼 (본인에게만 보임) */}
+        {isCommentAuthor && (
+          <div className="w-full">
+            <input type="checkbox" id={`edit-${node.id}`} className="hidden peer" />
+            <div className="hidden peer-checked:block bg-gray-100 p-3 sm:p-4 border-b border-gray-200">
+              <form action={editComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }}>
+                <input type="hidden" name="commentId" value={node.id} />
+                <textarea name="content" defaultValue={node.content} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-gray-600 outline-none font-medium text-sm bg-white resize-none h-20" required />
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
+                  <input type="file" name="image" accept="image/*" className="w-full sm:w-auto text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-sm file:border-0 file:text-xs file:font-bold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer" />
+                  <button type="submit" className="w-full sm:w-20 py-2 bg-gray-600 text-white rounded-sm font-bold hover:bg-gray-800 transition-colors text-xs shadow-sm flex-shrink-0">수정완료</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* 자식 댓글 렌더링 */}
         {node.children && node.children.length > 0 && (
           <div className="w-full">
             {node.children.map((child: any) => renderCommentNode(child, depth + 1))}
@@ -267,9 +328,7 @@ export default async function PostDetailPage(props: any) {
           <Link href={`/board?category=${postData.cat !== '일반' ? postData.cat : 'all'}`} className="w-full md:w-auto text-center px-8 py-2 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-sm shadow-sm">목록으로</Link>
         </div>
 
-        {/* =========================================
-            🏆 미나의 야심작: 푸르딩딩 베스트 댓글 영역 
-            ========================================= */}
+        {/* 🏆 베스트 댓글 영역 */}
         {bestComments.length > 0 && (
           <div className="mt-16 bg-blue-50 border border-blue-200 rounded-sm overflow-hidden shadow-sm">
             <div className="bg-[#3b4890] px-5 py-2.5 text-white font-black text-[15px] flex items-center gap-2">
@@ -283,7 +342,6 @@ export default async function PostDetailPage(props: any) {
                       {c.author}
                     </div>
                     <div className="text-gray-800 text-[15px] leading-relaxed break-words whitespace-pre-wrap">{c.content}</div>
-                    {/* 베스트 댓글 내 짤방 노출 */}
                     {c.image_data && <img src={c.image_data} className="mt-3 max-w-full md:max-w-xs rounded-sm border border-blue-200" alt="베스트 짤방" />}
                   </div>
                   <div className="flex flex-col items-center bg-white border border-blue-200 rounded px-3 py-1.5 shadow-sm min-w-[60px]">
@@ -296,9 +354,7 @@ export default async function PostDetailPage(props: any) {
           </div>
         )}
 
-        {/* =========================================
-            💬 일반 댓글 트리 구조 영역
-            ========================================= */}
+        {/* 💬 일반 댓글 영역 */}
         <div className={`bg-white border border-gray-200 rounded-sm overflow-hidden shadow-sm ${bestComments.length > 0 ? 'mt-8' : 'mt-16'}`}>
           <div className="bg-gray-50 px-5 py-4 border-b border-gray-200">
             <h3 className="text-[16px] font-bold text-gray-800">
@@ -314,14 +370,14 @@ export default async function PostDetailPage(props: any) {
             )}
           </div>
 
-          {/* 메인 댓글 작성 폼 (가장 아래 배치, 첨부파일 포함) */}
-          <div className="p-5 bg-gray-100 border-t border-gray-200">
+          {/* 메인 댓글 작성 폼 - 모바일 반응형 완벽 적용 */}
+          <div className="p-3 sm:p-5 bg-gray-100 border-t border-gray-200">
             {currentUser ? (
               <form action={addComment} className="flex flex-col gap-0">
-                <textarea name="content" placeholder="주제와 무관한 댓글이나 악플은 삭제될 수 있습니다. (우측 하단 첨부파일 클릭하여 짤방 등록 가능!)" className="w-full p-4 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-[14.5px] bg-white resize-none h-24" required />
-                <div className="flex justify-between items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm">
-                  <input type="file" name="image" accept="image/*" className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:text-sm file:font-bold file:bg-[#f1f3f5] file:text-[#3b4890] hover:file:bg-gray-200 cursor-pointer" />
-                  <button type="submit" className="w-24 py-2.5 bg-[#3b4890] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-sm shadow-sm">댓글 등록</button>
+                <textarea name="content" placeholder="주제와 무관한 댓글이나 악플은 삭제될 수 있습니다. (우측 하단 첨부파일 클릭하여 짤방 등록 가능!)" className="w-full p-3 sm:p-4 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-[14px] bg-white resize-none h-20 sm:h-24" required />
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
+                  <input type="file" name="image" accept="image/*" className="w-full sm:w-auto text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-sm file:border-0 file:text-xs file:font-bold file:bg-[#f1f3f5] file:text-[#3b4890] hover:file:bg-gray-200 cursor-pointer" />
+                  <button type="submit" className="w-full sm:w-24 py-2.5 bg-[#3b4890] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-sm shadow-sm flex-shrink-0">댓글 등록</button>
                 </div>
               </form>
             ) : (
