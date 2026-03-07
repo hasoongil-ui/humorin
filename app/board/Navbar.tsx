@@ -16,7 +16,7 @@ function NavbarContent() {
       isSingle: true
     },
     {
-      name: '🏆 명예의 전당',
+      name: '베스트 모음',
       sub: [
         { name: '🔥 투데이 베스트', link: '/board?best=today' },
         { name: '💯 백베스트', link: '/board?best=100' },
@@ -24,7 +24,7 @@ function NavbarContent() {
       ]
     },
     {
-      name: '☕ 따뜻한 다락방',
+      name: '따뜻한 다락방',
       sub: [
         { name: '👋 인사 한마디', link: '/board?category=인사 한마디' },
         { name: '☕ 세상사는 이야기', link: '/board?category=세상사는 이야기' },
@@ -34,7 +34,7 @@ function NavbarContent() {
       ]
     },
     {
-      name: '😊 꿀잼 & 감동',
+      name: '순한 유머 & 감동',
       sub: [
         { name: '😆 웃어요 (유머)', link: '/board?category=유머' },
         { name: '💖 나누고 싶은 감동', link: '/board?category=감동' },
@@ -42,7 +42,7 @@ function NavbarContent() {
       ]
     },
     {
-      name: '💡 지식 & 정보',
+      name: '지식 & 정보',
       sub: [
         { name: '📚 유용한 상식', link: '/board?category=유용한 상식' },
         { name: '🏘️ 부동산 사랑방', link: '/board?category=부동산 사랑방' },
