@@ -80,8 +80,6 @@ export default async function PostDetailPage(props: any) {
 
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200">
-      {/* 💡 중복되던 상단 로고 헤더는 철거했습니다! 이제 모든 화면에 GNB(지붕)가 덮여있습니다! */}
-
       <main className="max-w-[1000px] mx-auto p-5 md:p-8 mt-4 mb-20 overflow-hidden">
         
         <div className="border-b-2 border-gray-800 pb-4 mb-8">
@@ -92,7 +90,6 @@ export default async function PostDetailPage(props: any) {
           <div className="flex flex-col md:flex-row justify-between text-gray-500 text-sm gap-3 md:gap-0">
             <div className="font-bold text-gray-700 text-base">{post.author}</div>
             
-            {/* 💡 대표님 지시대로 [조회수] -> [공감] 순서로 변경하고 디자인을 싹 다듬었습니다! */}
             <div className="flex flex-wrap gap-4 items-center font-medium">
               <span className="text-gray-400">{formattedDate}</span>
               <span className="text-gray-500">조회 {post.views || 0}</span>
@@ -106,41 +103,43 @@ export default async function PostDetailPage(props: any) {
           dangerouslySetInnerHTML={{ __html: post.content }}
         />
 
-        {/* 💡 미나의 야심작: 네이버 블로그 감성의 동그랗고 예쁜 하트 공감 버튼! */}
+        {/* 💡 수정된 부분 1: 뚱뚱한 하트 빼고 세련된 네이버/클리앙 스타일 캡슐형 공감 버튼 적용 */}
         <div className="mt-16 flex justify-center border-t border-gray-100 pt-10">
           <form action={toggleLike}>
             <button 
               type="submit" 
-              className={`flex flex-col items-center justify-center w-20 h-20 md:w-24 md:h-24 rounded-full border-2 transition-all shadow-sm group ${
+              className={`flex items-center gap-2 px-5 py-2.5 border rounded-full transition-all shadow-sm group ${
                 hasLiked 
                   ? 'border-rose-500 bg-rose-50 text-rose-500 hover:bg-rose-100' 
                   : 'border-gray-300 bg-white text-gray-500 hover:border-rose-400 hover:text-rose-400'
               }`}
             >
-              <span className="text-2xl md:text-3xl mb-1 group-hover:scale-110 transition-transform">
-                {hasLiked ? '❤️' : '🤍'}
-              </span>
-              <span className="font-bold text-[13px] md:text-sm">공감 {post.likes || 0}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`w-5 h-5 transition-transform group-hover:scale-110 ${hasLiked ? 'text-rose-500' : 'text-gray-400 group-hover:text-rose-400'}`}>
+                <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+              </svg>
+              <span className="text-sm font-bold">공감</span>
+              <span className="text-sm font-black">{post.likes || 0}</span>
             </button>
           </form>
         </div>
 
+        {/* 💡 수정된 부분 2: 눈 아픈 빨간색 톤다운 (인디핑크 #e06c75) & 수정/삭제 버튼 높이 완벽 정렬 */}
         <div className="mt-12 border-t border-gray-200 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+          <div className="flex flex-row items-center gap-2 w-full md:w-auto">
             {isAuthor && (
               <>
-                <Link href={`/board/${postId}/edit`} className="w-full text-center px-6 py-2.5 bg-gray-600 text-white rounded-sm font-bold hover:bg-gray-700 transition-colors shadow-sm text-sm">
+                <Link href={`/board/${postId}/edit`} className="flex-1 md:flex-none text-center px-6 py-2 bg-[#4b5563] text-white rounded-sm font-bold hover:bg-[#374151] transition-colors shadow-sm text-sm">
                   수정
                 </Link>
-                <form action={deletePost} className="w-full">
-                  <button type="submit" className="w-full px-6 py-2.5 bg-red-500 text-white rounded-sm font-bold hover:bg-red-600 transition-colors shadow-sm text-sm">
+                <form action={deletePost} className="flex-1 md:flex-none">
+                  <button type="submit" className="w-full px-6 py-2 bg-[#e06c75] text-white rounded-sm font-bold hover:bg-[#c95d66] transition-colors shadow-sm text-sm">
                     삭제
                   </button>
                 </form>
               </>
             )}
           </div>
-          <Link href={`/board?category=${postData.cat !== '일반' ? postData.cat : 'all'}`} className="w-full md:w-auto text-center px-8 py-2.5 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-sm shadow-sm">
+          <Link href={`/board?category=${postData.cat !== '일반' ? postData.cat : 'all'}`} className="w-full md:w-auto text-center px-8 py-2 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-sm shadow-sm">
             목록으로
           </Link>
         </div>
