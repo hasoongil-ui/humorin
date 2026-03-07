@@ -56,7 +56,7 @@ export default async function SignupPage(props: any) {
       <div className="bg-white p-8 rounded-sm shadow-sm border border-gray-200 w-full max-w-[400px]">
         <div className="text-center mb-8">
           <Link href="/" className="text-4xl font-black text-[#3b4890] tracking-tighter inline-block mb-2">OJEMI</Link>
-          <h2 className="text-xl font-bold text-gray-800 mt-2">명품 VIP 회원 가입</h2>
+          <h2 className="text-xl font-bold text-gray-800 mt-2">회원 가입</h2>
         </div>
 
         {/* 🚨 경고창 1: 가입 실패 (아이디 중복 등) */}
