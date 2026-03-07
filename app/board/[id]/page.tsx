@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import CommentScript from './CommentScript';
 import { PostLikeButton, CommentLikeButton } from './InteractiveButtons';
+import CommentForm from './CommentForm';
 
 function extractData(fullTitle: string) {
   if (!fullTitle) return { cat: '일반', cleanTitle: '' };
@@ -80,33 +80,28 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
+  // 💡 미나의 최적화: 무거운 이미지 변환 작업을 버리고, 가벼운 URL 주소만 저장합니다!
   const addComment = async (formData: FormData) => {
     'use server';
-    if (!currentUser) redirect('/login');
+    if (!currentUser) return;
     const content = (formData.get('content') as string) || ''; 
     const parentId = formData.get('parentId') as string;
-    const imageFile = formData.get('image') as File;
+    const imageUrl = formData.get('imageUrl') as string;
     
-    if (!content.trim() && (!imageFile || imageFile.size === 0)) return; 
-
-    let imageData = null;
-    if (imageFile && imageFile.size > 0 && imageFile.size <= 1 * 1024 * 1024) { 
-      const arrayBuffer = await imageFile.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      imageData = `data:${imageFile.type};base64,${buffer.toString('base64')}`;
-    }
+    const finalImage = imageUrl || null;
+    if (!content.trim() && !finalImage) return; 
 
     if (parentId) {
-      await sql`INSERT INTO comments (post_id, author, content, parent_id, image_data) VALUES (${postId}, ${currentUser}, ${content}, ${parentId}, ${imageData})`;
+      await sql`INSERT INTO comments (post_id, author, content, parent_id, image_data) VALUES (${postId}, ${currentUser}, ${content}, ${parentId}, ${finalImage})`;
     } else {
-      await sql`INSERT INTO comments (post_id, author, content, image_data) VALUES (${postId}, ${currentUser}, ${content}, ${imageData})`;
+      await sql`INSERT INTO comments (post_id, author, content, image_data) VALUES (${postId}, ${currentUser}, ${content}, ${finalImage})`;
     }
     revalidatePath(`/board/${postId}`);
   };
 
   const deleteComment = async (formData: FormData) => {
     'use server';
-    if (!currentUser) redirect('/login');
+    if (!currentUser) return;
     const commentId = formData.get('commentId') as string;
     
     const { rows = [] } = await sql`SELECT author FROM comments WHERE id = ${commentId}`;
@@ -118,41 +113,24 @@ export default async function PostDetailPage(props: any) {
 
   const editComment = async (formData: FormData) => {
     'use server';
-    if (!currentUser) redirect('/login');
+    if (!currentUser) return;
     const commentId = formData.get('commentId') as string;
     const content = (formData.get('content') as string) || '';
-    const imageFile = formData.get('image') as File;
-    const removeExistingImage = formData.get('removeExistingImage') === 'true';
+    const imageUrl = formData.get('imageUrl') as string;
 
-    const { rows = [] } = await sql`SELECT author, image_data FROM comments WHERE id = ${commentId}`;
+    const { rows = [] } = await sql`SELECT author FROM comments WHERE id = ${commentId}`;
     if (rows.length > 0 && rows[0].author === currentUser) {
-      let imageData = null;
-      let hasNewImage = false;
-
-      if (imageFile && imageFile.size > 0 && imageFile.size <= 1 * 1024 * 1024) { 
-        const arrayBuffer = await imageFile.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        imageData = `data:${imageFile.type};base64,${buffer.toString('base64')}`;
-        hasNewImage = true;
-      }
-
-      const finalImage = hasNewImage ? imageData : (removeExistingImage ? null : rows[0].image_data);
+      const finalImage = imageUrl || null;
       if (!content.trim() && !finalImage) return;
 
-      if (hasNewImage) {
-        await sql`UPDATE comments SET content = ${content}, image_data = ${imageData} WHERE id = ${commentId}`;
-      } else if (removeExistingImage) {
-        await sql`UPDATE comments SET content = ${content}, image_data = NULL WHERE id = ${commentId}`;
-      } else {
-        await sql`UPDATE comments SET content = ${content} WHERE id = ${commentId}`;
-      }
+      await sql`UPDATE comments SET content = ${content}, image_data = ${finalImage} WHERE id = ${commentId}`;
     }
     revalidatePath(`/board/${postId}`);
   };
 
   const toggleCommentLike = async (formData: FormData) => {
     'use server';
-    if (!currentUser) redirect('/login');
+    if (!currentUser) return;
     const commentId = formData.get('commentId') as string;
     
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_likes WHERE comment_id = ${commentId} AND author = ${currentUser}`;
@@ -216,70 +194,28 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
+        {/* 대댓글 작성 폼 */}
         <div className="w-full">
           <input type="checkbox" id={`reply-${node.id}`} className="hidden peer" />
           <div className="hidden peer-checked:block bg-gray-100 p-3 sm:p-4 border-b border-gray-200">
             {currentUser ? (
-              <form action={addComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }} data-checkbox-id={`reply-${node.id}`}>
-                <input type="hidden" name="parentId" value={node.id} />
-                <textarea name="content" placeholder="답글 남기기" className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-sm bg-white resize-none h-20" />
-                
-                <div id={`preview-file-reply-${node.id}`} className="hidden bg-white border-x border-gray-300 px-3 pb-2 pt-1">
-                  <div className="relative inline-block bg-gray-50 p-2 rounded-sm border border-gray-200">
-                    <img id={`img-preview-file-reply-${node.id}`} className="max-h-20 object-contain rounded-sm" alt="미리보기" />
-                    <button type="button" data-input-id={`file-reply-${node.id}`} className="remove-image-btn absolute -top-2 -right-2 bg-white rounded-full border border-gray-300 p-1 hover:bg-gray-100 shadow-sm">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-gray-500"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
-                  <div className="w-full sm:w-auto flex items-center gap-2">
-                    <input type="file" id={`file-reply-${node.id}`} name="image" accept="image/*" className="image-upload-input sr-only" />
-                    <label htmlFor={`file-reply-${node.id}`} className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-sm text-xs font-bold text-gray-600 transition-colors shadow-sm">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-500"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
-                      이미지 첨부 (1MB 이하)
-                    </label>
-                  </div>
-                  <button type="submit" className="w-full sm:w-20 py-2 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-xs shadow-sm flex-shrink-0">등록</button>
-                </div>
-              </form>
+              <div style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }}>
+                 <CommentForm postId={postId} parentId={node.id} author={node.author} actionType="reply" submitAction={addComment} />
+              </div>
             ) : (
               <div className="text-center text-gray-500 font-bold text-sm py-2">대댓글을 작성하려면 로그인해주세요.</div>
             )}
           </div>
         </div>
 
+        {/* 수정 폼 */}
         {isCommentAuthor && (
           <div className="w-full">
             <input type="checkbox" id={`edit-${node.id}`} className="hidden peer" />
             <div className="hidden peer-checked:block bg-gray-100 p-3 sm:p-4 border-b border-gray-200">
-              <form action={editComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }} data-checkbox-id={`edit-${node.id}`} data-original-image={node.image_data || ''}>
-                <input type="hidden" name="commentId" value={node.id} />
-                <input type="hidden" name="removeExistingImage" id={`remove-image-flag-${node.id}`} value="false" />
-                
-                <textarea name="content" defaultValue={node.content} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-gray-600 outline-none font-medium text-sm bg-white resize-none h-20" />
-                
-                <div id={`preview-file-edit-${node.id}`} className={`bg-white border-x border-gray-300 px-3 pb-2 pt-1 ${node.image_data ? '' : 'hidden'}`}>
-                  <div className="relative inline-block bg-gray-50 p-2 rounded-sm border border-gray-200">
-                    <img id={`img-preview-file-edit-${node.id}`} src={node.image_data || undefined} className="max-h-20 object-contain rounded-sm" alt="미리보기" />
-                    <button type="button" data-input-id={`file-edit-${node.id}`} data-node-id={node.id} className="remove-image-btn absolute -top-2 -right-2 bg-white rounded-full border border-gray-300 p-1 hover:bg-gray-100 shadow-sm">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-gray-500"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
-                  <div className="w-full sm:w-auto flex items-center gap-2">
-                    <input type="file" id={`file-edit-${node.id}`} name="image" accept="image/*" className="image-upload-input sr-only" />
-                    <label htmlFor={`file-edit-${node.id}`} className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-sm text-xs font-bold text-gray-600 transition-colors shadow-sm">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-500"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
-                      이미지 변경 (1MB 이하)
-                    </label>
-                  </div>
-                  <button type="submit" className="w-full sm:w-20 py-2 bg-gray-600 text-white rounded-sm font-bold hover:bg-gray-800 transition-colors text-xs shadow-sm flex-shrink-0">수정완료</button>
-                </div>
-              </form>
+               <div style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }}>
+                  <CommentForm postId={postId} commentId={node.id} initialContent={node.content} initialImage={node.image_data} actionType="edit" submitAction={editComment} />
+               </div>
             </div>
           </div>
         )}
@@ -377,29 +313,7 @@ export default async function PostDetailPage(props: any) {
 
           <div className="p-3 sm:p-5 bg-gray-100 border-t border-gray-200">
             {currentUser ? (
-              <form action={addComment} id="main-comment-form" className="flex flex-col gap-0">
-                <textarea name="content" placeholder="건전한 커뮤니티 문화를 위해 배려 부탁드립니다." className="w-full p-3 sm:p-4 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-[14px] bg-white resize-none h-20 sm:h-24" />
-                
-                <div id="preview-file-comment-main" className="hidden bg-white border-x border-gray-300 px-3 pb-2 pt-1">
-                  <div className="relative inline-block bg-gray-50 p-2 rounded-sm border border-gray-200">
-                    <img id="img-preview-file-comment-main" className="max-h-20 object-contain rounded-sm" alt="미리보기" />
-                    <button type="button" data-input-id="file-comment-main" className="remove-image-btn absolute -top-2 -right-2 bg-white rounded-full border border-gray-300 p-1 hover:bg-gray-100 shadow-sm">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-gray-500"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
-                  <div className="w-full sm:w-auto flex items-center gap-2">
-                    <input type="file" id="file-comment-main" name="image" accept="image/*" className="image-upload-input sr-only" />
-                    <label htmlFor="file-comment-main" className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-sm text-xs font-bold text-gray-600 transition-colors shadow-sm">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-500"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
-                      이미지 첨부 (1MB 이하)
-                    </label>
-                  </div>
-                  <button type="submit" className="w-full sm:w-24 py-2.5 bg-[#3b4890] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-sm shadow-sm flex-shrink-0">댓글 등록</button>
-                </div>
-              </form>
+              <CommentForm postId={postId} actionType="main" submitAction={addComment} />
             ) : (
               <div className="p-4 bg-white border border-gray-200 text-center text-gray-500 rounded-sm font-bold text-sm shadow-sm">
                 댓글을 작성하려면 <Link href="/login" className="text-[#3b4890] hover:underline">로그인</Link>이 필요합니다.
@@ -410,9 +324,6 @@ export default async function PostDetailPage(props: any) {
         </div>
 
       </main>
-      
-      {/* 💡 미나의 강제 리프레시 마법: 서버에서 응답이 올 때마다 스크립트를 재가동시켜 유령 폼을 박살 냅니다! */}
-      <CommentScript key={Math.random()} />
     </div>
   );
 }
