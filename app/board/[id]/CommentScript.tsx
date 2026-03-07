@@ -106,43 +106,12 @@ export default function CommentScript() {
       }
     };
 
-    const handleSubmit = (e: any) => {
-      const form = e.target;
-      const submitBtn = form.querySelector('button[type="submit"]');
-
-      // 💡 미나의 핵심 해결책: 오직 '댓글 관련 폼'일 때만 작동하도록 방어막을 쳤습니다! (공감 버튼 무사 통과)
-      const isCommentForm = form.hasAttribute('data-checkbox-id') || form.id === 'main-comment-form';
-
-      if (isCommentForm && submitBtn) {
-         submitBtn.disabled = true;
-         submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
-
-         // 💡 글자만 덮어씌워서 공감 하트가 날아가는 현상 원천 차단!
-         const originalHTML = submitBtn.innerHTML;
-         if (originalHTML.includes('수정')) {
-             submitBtn.innerHTML = '수정 처리 중...';
-         } else {
-             submitBtn.innerHTML = '등록 처리 중...';
-         }
-
-         setTimeout(() => {
-             if (submitBtn) {
-                 submitBtn.disabled = false;
-                 submitBtn.classList.remove('opacity-60', 'cursor-not-allowed');
-                 submitBtn.innerHTML = originalHTML;
-             }
-         }, 3000);
-      }
-    };
-
     document.addEventListener('change', handleChange);
     document.addEventListener('click', handleClick);
-    document.addEventListener('submit', handleSubmit);
 
     return () => {
       document.removeEventListener('change', handleChange);
       document.removeEventListener('click', handleClick);
-      document.removeEventListener('submit', handleSubmit);
     };
   }, []);
 
