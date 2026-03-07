@@ -42,7 +42,7 @@ export default function LoginPage() {
           <Link href="/board" className="text-4xl font-black text-[#3b4890] tracking-tighter inline-block mb-3">
             OJEMI
           </Link>
-          <h2 className="text-xl font-bold text-gray-800">VIP 로그인</h2>
+          <h2 className="text-xl font-bold text-gray-800">로그인</h2>
         </div>
 
         {/* 로그인 폼 */}
@@ -86,7 +86,7 @@ export default function LoginPage() {
             href="/signup" 
             className="text-[#3b4890] font-bold hover:underline inline-block text-[14px]"
           >
-            회원가입 하고 함께하기 👉
+            회원가입 하고 함께하기
           </Link>
         </div>
 
