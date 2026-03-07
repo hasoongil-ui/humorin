@@ -57,57 +57,65 @@ export default function WritePage() {
     });
   }, []);
 
+  // 💡 미나의 핵심 개조: 다중 파일 선택(multiple) 및 연속 업로드 허용!
   const imageHandler = () => {
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
     input.setAttribute('accept', 'image/*');
+    input.setAttribute('multiple', 'true'); // 👈 이제 Shift 키로 싹쓸이 선택 가능!
     input.click();
 
     input.onchange = async () => {
-      const file = input.files ? input.files[0] : null;
-      if (!file) return;
-
-      if (file.size > 10 * 1024 * 1024) {
-        alert(`[${file.name}] 용량이 너무 큽니다! (최대 10MB)`);
-        return; 
-      }
+      const files = input.files;
+      if (!files || files.length === 0) return;
 
       setIsUploading(true);
 
-      try {
-        let fileToUpload = file;
-        if (file.type !== 'image/gif' && file.type !== 'image/webp') {
-          const img = new Image();
-          img.src = URL.createObjectURL(file);
-          await new Promise((resolve) => { img.onload = resolve; });
-          const isLongImage = img.height > img.width * 2; 
-          URL.revokeObjectURL(img.src);
+      // 선택된 여러 장의 사진을 하나씩 차례대로 처리합니다!
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
 
-          if (!isLongImage) {
-            const options = { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true };
-            fileToUpload = await imageCompression(file, options);
+        if (file.size > 10 * 1024 * 1024) {
+          alert(`[${file.name}] 용량이 너무 큽니다! (최대 10MB). 이 파일은 건너뜁니다.`);
+          continue; 
+        }
+
+        try {
+          let fileToUpload = file;
+          if (file.type !== 'image/gif' && file.type !== 'image/webp') {
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            await new Promise((resolve) => { img.onload = resolve; });
+            const isLongImage = img.height > img.width * 2; 
+            URL.revokeObjectURL(img.src);
+
+            if (!isLongImage) {
+              const options = { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true };
+              fileToUpload = await imageCompression(file, options);
+            }
           }
+          
+          const ticketRes = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: fileToUpload.name, contentType: fileToUpload.type }),
+          });
+          
+          const { uploadUrl, publicUrl } = await ticketRes.json();
+          if (uploadUrl) {
+            await fetch(uploadUrl, { method: 'PUT', body: fileToUpload, headers: { 'Content-Type': fileToUpload.type } });
+            const editor = quillRef.current.getEditor();
+            const range = editor.getSelection() || { index: editor.getLength() }; // 커서 위치 찾기
+            editor.insertEmbed(range.index, 'image', publicUrl);
+            editor.setSelection(range.index + 1); 
+          }
+        } catch (error) {
+          console.error('업로드 에러:', error);
+          alert(`[${file.name}] 사진 업로드 중 오류가 발생했습니다.`);
         }
-        
-        const ticketRes = await fetch('/api/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: fileToUpload.name, contentType: fileToUpload.type }),
-        });
-        
-        const { uploadUrl, publicUrl } = await ticketRes.json();
-        if (uploadUrl) {
-          await fetch(uploadUrl, { method: 'PUT', body: fileToUpload, headers: { 'Content-Type': fileToUpload.type } });
-          const editor = quillRef.current.getEditor();
-          const range = editor.getSelection();
-          editor.insertEmbed(range.index, 'image', publicUrl);
-          editor.setSelection(range.index + 1); 
-        }
-      } catch (error) {
-        alert('사진 업로드 중 오류가 발생했습니다.');
-      } finally {
-        setIsUploading(false);
       }
+      
+      setIsUploading(false); // 모든 사진이 다 올라가면 로딩 끝!
     };
   };
 
@@ -139,7 +147,7 @@ export default function WritePage() {
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
           const editor = quillRef.current.getEditor();
-          const range = editor.getSelection();
+          const range = editor.getSelection() || { index: editor.getLength() };
           editor.insertEmbed(range.index, 'video', publicUrl);
           editor.setSelection(range.index + 1); 
         }
@@ -159,8 +167,8 @@ export default function WritePage() {
     },
     toolbar: {
       container: [
-        ['image', 'video', 'link'],                                   
-        ['undo', 'redo'],                                             
+        ['image', 'video', 'link'],                                 
+        ['undo', 'redo'],                                           
         [{ 'header': [1, 2, 3, 4, 5, 6, false] }],                    
         [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }], 
         ['bold', 'italic', 'underline', 'strike'],                    
@@ -242,12 +250,11 @@ export default function WritePage() {
         
         <h1 className="text-xl font-bold text-gray-800 mb-6 border-b border-gray-300 pb-3 flex items-center gap-2">
           글쓰기
-          {isUploading && <span className="text-sm font-bold text-red-500 animate-pulse ml-4">(미디어 파일 업로드 중...)</span>}
+          {isUploading && <span className="text-sm font-bold text-red-500 animate-pulse ml-4">(미디어 파일 다중 업로드 중... 🚀)</span>}
         </h1>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
-            {/* 💡 미나의 복구 마법: 상실의 시대 블로그 맞춤형 카테고리 복구! */}
             <select 
               value={category} 
               onChange={(e) => setCategory(e.target.value)}
@@ -257,7 +264,7 @@ export default function WritePage() {
                 <option value="인사 한마디">👋 인사 한마디</option>
                 <option value="세상사는 이야기">☕ 세상사는 이야기</option>
                 <option value="묻지마 격려">👏 묻지마 격려</option>
-                <option value="이거 알려주세요">🙋 이거 알려주세요</option> {/* 👈 이사 왔습니다! */}
+                <option value="이거 알려주세요">🙋 이거 알려주세요</option>
                 <option value="그냥 혼잣말">💬 그냥 혼잣말</option>
               </optgroup>
               <optgroup label="😊 꿀잼 & 감동">
@@ -268,7 +275,6 @@ export default function WritePage() {
               <optgroup label="💡 지식 & 정보">
                 <option value="유용한 상식">📚 유용한 상식</option>
                 <option value="부동산 사랑방">🏘️ 부동산 사랑방</option>
-                {/* 실거래 조회는 쓰는 곳이 아니므로 메뉴에서 제외 */}
               </optgroup>
             </select>
 
@@ -296,7 +302,7 @@ export default function WritePage() {
               modules={modules}
               value={content} 
               onChange={setContent} 
-              placeholder="여기에 내용을 작성해주세요. 상단 메뉴의 🖼️ (사진) 또는 🎬 (동영상) 아이콘으로 미디어를 먼저 추가해 보세요!"
+              placeholder="여기에 내용을 작성해주세요. 상단 메뉴의 🖼️ (사진) 아이콘을 누르고 Shift 키를 이용해 여러 장을 한 번에 올려보세요!"
             />
           </div>
 
