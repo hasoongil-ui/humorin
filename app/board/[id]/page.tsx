@@ -83,11 +83,12 @@ export default async function PostDetailPage(props: any) {
   const addComment = async (formData: FormData) => {
     'use server';
     if (!currentUser) redirect('/login');
-    const content = formData.get('content') as string;
+    // 💡 미나의 개선: 글씨가 비어있어도 이미지만 있으면 통과되도록 방어막 조정!
+    const content = (formData.get('content') as string) || ''; 
     const parentId = formData.get('parentId') as string;
     const imageFile = formData.get('image') as File;
     
-    if (!content && (!imageFile || imageFile.size === 0)) return; 
+    if (!content.trim() && (!imageFile || imageFile.size === 0)) return; 
 
     let imageData = null;
     if (imageFile && imageFile.size > 0 && imageFile.size <= 1 * 1024 * 1024) { 
@@ -120,20 +121,31 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!currentUser) redirect('/login');
     const commentId = formData.get('commentId') as string;
-    const content = formData.get('content') as string;
+    const content = (formData.get('content') as string) || '';
     const imageFile = formData.get('image') as File;
+    const removeExistingImage = formData.get('removeExistingImage') === 'true'; // 삭제 플래그 수신
 
-    const { rows = [] } = await sql`SELECT author FROM comments WHERE id = ${commentId}`;
+    const { rows = [] } = await sql`SELECT author, image_data FROM comments WHERE id = ${commentId}`;
     if (rows.length > 0 && rows[0].author === currentUser) {
       let imageData = null;
+      let hasNewImage = false;
+
       if (imageFile && imageFile.size > 0 && imageFile.size <= 1 * 1024 * 1024) { 
         const arrayBuffer = await imageFile.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         imageData = `data:${imageFile.type};base64,${buffer.toString('base64')}`;
+        hasNewImage = true;
       }
 
-      if (imageData) {
+      // 글과 사진이 모두 날아가는 완전 빈 깡통 댓글 방지
+      const finalImage = hasNewImage ? imageData : (removeExistingImage ? null : rows[0].image_data);
+      if (!content.trim() && !finalImage) return;
+
+      // 새 이미지가 있으면 덮어쓰고, 삭제 플래그가 켜졌으면 사진 칸을 NULL(비움) 처리!
+      if (hasNewImage) {
         await sql`UPDATE comments SET content = ${content}, image_data = ${imageData} WHERE id = ${commentId}`;
+      } else if (removeExistingImage) {
+        await sql`UPDATE comments SET content = ${content}, image_data = NULL WHERE id = ${commentId}`;
       } else {
         await sql`UPDATE comments SET content = ${content} WHERE id = ${commentId}`;
       }
@@ -179,7 +191,6 @@ export default async function PostDetailPage(props: any) {
             </div>
             {isCommentAuthor && (
               <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                {/* 💡 미나의 개선: 수정/삭제 텍스트를 깔끔한 버튼 모양으로 디자인 업그레이드! */}
                 <label htmlFor={`edit-${node.id}`} className="cursor-pointer px-2.5 py-1 bg-white border border-gray-200 rounded-sm hover:bg-gray-50 hover:text-gray-800 transition-colors shadow-sm font-medium">수정</label>
                 <form action={deleteComment}>
                   <input type="hidden" name="commentId" value={node.id} />
@@ -219,7 +230,8 @@ export default async function PostDetailPage(props: any) {
             {currentUser ? (
               <form action={addComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }} data-checkbox-id={`reply-${node.id}`}>
                 <input type="hidden" name="parentId" value={node.id} />
-                <textarea name="content" placeholder={`@${node.author} 님에게 답글 남기기...`} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-sm bg-white resize-none h-20" required />
+                {/* 💡 required 삭제 완료! 이제 텍스트 안 적어도 전송 가능 */}
+                <textarea name="content" placeholder="답글 남기기" className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-sm bg-white resize-none h-20" />
                 
                 <div id={`preview-file-reply-${node.id}`} className="hidden bg-white border-x border-gray-300 px-3 pb-2 pt-1">
                   <div className="relative inline-block bg-gray-50 p-2 rounded-sm border border-gray-200">
@@ -247,18 +259,25 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
+        {/* 💡 기존 댓글 수정 폼 */}
         {isCommentAuthor && (
           <div className="w-full">
             <input type="checkbox" id={`edit-${node.id}`} className="hidden peer" />
             <div className="hidden peer-checked:block bg-gray-100 p-3 sm:p-4 border-b border-gray-200">
-              <form action={editComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }} data-checkbox-id={`edit-${node.id}`}>
+              {/* 💡 기존 이미지를 복구할 수 있도록 폼 태그에 원본 이미지 주소를 달아둡니다! */}
+              <form action={editComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }} data-checkbox-id={`edit-${node.id}`} data-original-image={node.image_data || ''}>
                 <input type="hidden" name="commentId" value={node.id} />
-                <textarea name="content" defaultValue={node.content} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-gray-600 outline-none font-medium text-sm bg-white resize-none h-20" required />
+                {/* 💡 숨겨진 지우개 플래그: 이 값이 true가 되면 서버가 DB에서 사진을 완전히 날려버립니다 */}
+                <input type="hidden" name="removeExistingImage" id={`remove-image-flag-${node.id}`} value="false" />
                 
-                <div id={`preview-file-edit-${node.id}`} className="hidden bg-white border-x border-gray-300 px-3 pb-2 pt-1">
+                {/* 💡 required 삭제 완료! */}
+                <textarea name="content" defaultValue={node.content} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-gray-600 outline-none font-medium text-sm bg-white resize-none h-20" />
+                
+                {/* 💡 수정창 열었을 때 기존 이미지가 있으면 즉시 띄워주는 로직 탑재! */}
+                <div id={`preview-file-edit-${node.id}`} className={`bg-white border-x border-gray-300 px-3 pb-2 pt-1 ${node.image_data ? '' : 'hidden'}`}>
                   <div className="relative inline-block bg-gray-50 p-2 rounded-sm border border-gray-200">
-                    <img id={`img-preview-file-edit-${node.id}`} className="max-h-20 object-contain rounded-sm" alt="미리보기" />
-                    <button type="button" data-input-id={`file-edit-${node.id}`} className="remove-image-btn absolute -top-2 -right-2 bg-white rounded-full border border-gray-300 p-1 hover:bg-gray-100 shadow-sm">
+                    <img id={`img-preview-file-edit-${node.id}`} src={node.image_data || undefined} className="max-h-20 object-contain rounded-sm" alt="미리보기" />
+                    <button type="button" data-input-id={`file-edit-${node.id}`} data-node-id={node.id} className="remove-image-btn absolute -top-2 -right-2 bg-white rounded-full border border-gray-300 p-1 hover:bg-gray-100 shadow-sm">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-gray-500"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
                     </button>
                   </div>
@@ -389,7 +408,8 @@ export default async function PostDetailPage(props: any) {
           <div className="p-3 sm:p-5 bg-gray-100 border-t border-gray-200">
             {currentUser ? (
               <form action={addComment} id="main-comment-form" className="flex flex-col gap-0">
-                <textarea name="content" placeholder="건전한 커뮤니티 문화를 위해 배려 부탁드립니다." className="w-full p-3 sm:p-4 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-[14px] bg-white resize-none h-20 sm:h-24" required />
+                {/* 💡 required 삭제 완료! */}
+                <textarea name="content" placeholder="건전한 커뮤니티 문화를 위해 배려 부탁드립니다." className="w-full p-3 sm:p-4 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-[14px] bg-white resize-none h-20 sm:h-24" />
                 
                 <div id="preview-file-comment-main" className="hidden bg-white border-x border-gray-300 px-3 pb-2 pt-1">
                   <div className="relative inline-block bg-gray-50 p-2 rounded-sm border border-gray-200">
