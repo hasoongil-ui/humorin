@@ -211,7 +211,6 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 대댓글 작성 폼 - 카메라 아이콘 적용 및 텍스트 수정 */}
         <div className="w-full">
           <input type="checkbox" id={`reply-${node.id}`} className="hidden peer" />
           <div className="hidden peer-checked:block bg-gray-100 p-3 sm:p-4 border-b border-gray-200">
@@ -219,10 +218,19 @@ export default async function PostDetailPage(props: any) {
               <form action={addComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }}>
                 <input type="hidden" name="parentId" value={node.id} />
                 <textarea name="content" placeholder={`@${node.author} 님에게 답글 남기기...`} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-sm bg-white resize-none h-20" required />
+                
+                <div id={`preview-file-reply-${node.id}`} className="hidden bg-white border-x border-gray-300 px-3 pb-2 pt-1">
+                  <div className="relative inline-block bg-gray-50 p-2 rounded-sm border border-gray-200">
+                    <img id={`img-preview-file-reply-${node.id}`} className="max-h-20 object-contain rounded-sm" alt="미리보기" />
+                    <button type="button" data-input-id={`file-reply-${node.id}`} className="remove-image-btn absolute -top-2 -right-2 bg-white rounded-full border border-gray-300 p-1 hover:bg-gray-100 shadow-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-gray-500"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
                   <div className="w-full sm:w-auto flex items-center gap-2">
-                    {/* 💡 개조 포인트: label과 SVG를 활용한 클릭 가능한 카메라 아이콘 UI */}
-                    <input type="file" id={`file-reply-${node.id}`} name="image" accept="image/*" className="sr-only" />
+                    <input type="file" id={`file-reply-${node.id}`} name="image" accept="image/*" className="image-upload-input sr-only" />
                     <label htmlFor={`file-reply-${node.id}`} className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-sm text-xs font-bold text-gray-600 transition-colors shadow-sm">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-500"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
                       이미지 첨부 (1MB 이하)
@@ -237,7 +245,6 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 댓글 수정 폼 - 카메라 아이콘 적용 및 텍스트 수정 */}
         {isCommentAuthor && (
           <div className="w-full">
             <input type="checkbox" id={`edit-${node.id}`} className="hidden peer" />
@@ -245,10 +252,19 @@ export default async function PostDetailPage(props: any) {
               <form action={editComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }}>
                 <input type="hidden" name="commentId" value={node.id} />
                 <textarea name="content" defaultValue={node.content} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-gray-600 outline-none font-medium text-sm bg-white resize-none h-20" required />
+                
+                <div id={`preview-file-edit-${node.id}`} className="hidden bg-white border-x border-gray-300 px-3 pb-2 pt-1">
+                  <div className="relative inline-block bg-gray-50 p-2 rounded-sm border border-gray-200">
+                    <img id={`img-preview-file-edit-${node.id}`} className="max-h-20 object-contain rounded-sm" alt="미리보기" />
+                    <button type="button" data-input-id={`file-edit-${node.id}`} className="remove-image-btn absolute -top-2 -right-2 bg-white rounded-full border border-gray-300 p-1 hover:bg-gray-100 shadow-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-gray-500"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
                   <div className="w-full sm:w-auto flex items-center gap-2">
-                    {/* 💡 개조 포인트:label과 SVG를 활용한 클릭 가능한 카메라 아이콘 UI */}
-                    <input type="file" id={`file-edit-${node.id}`} name="image" accept="image/*" className="sr-only" />
+                    <input type="file" id={`file-edit-${node.id}`} name="image" accept="image/*" className="image-upload-input sr-only" />
                     <label htmlFor={`file-edit-${node.id}`} className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-sm text-xs font-bold text-gray-600 transition-colors shadow-sm">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-500"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
                       이미지 변경 (1MB 이하)
@@ -284,7 +300,6 @@ export default async function PostDetailPage(props: any) {
             <div className="flex flex-wrap gap-4 items-center font-medium">
               <span className="text-gray-400">{formattedDate}</span>
               <span className="text-gray-500">조회 {post.views || 0}</span>
-              {/* 💡 이모티콘 제거 */}
               <span className="text-rose-500 font-bold">공감 {post.likes || 0}</span>
             </div>
           </div>
@@ -344,7 +359,6 @@ export default async function PostDetailPage(props: any) {
                     {c.image_data && <img src={c.image_data} className="mt-3 max-w-full md:max-w-xs rounded-sm border border-blue-200" alt="베스트 이미지" />}
                   </div>
                   <div className="flex flex-col items-center bg-white border border-blue-200 rounded px-3 py-1.5 shadow-sm min-w-[60px]">
-                    {/* 💡 이모티콘 제거 및 SVG 활용 */}
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-rose-500 mb-1"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" /></svg>
                     <span className="text-[#3b4890] font-black text-sm">{c.likes}</span>
                   </div>
@@ -363,22 +377,29 @@ export default async function PostDetailPage(props: any) {
 
           <div className="flex flex-col">
             {commentTree.length === 0 ? (
-              <div className="text-center text-gray-400 py-10 font-medium text-sm">아직 등록된 댓글이 없습니다. 첫 번째 댓글을 남겨보세요!</div>
+              <div className="text-center text-gray-400 py-10 font-medium text-sm">아직 등록된 댓글이 없습니다. 첫 번째 댓글을 남겨보세요.</div>
             ) : (
               commentTree.map(node => renderCommentNode(node, 0))
             )}
           </div>
 
-          {/* 메인 댓글 작성 폼 - 카메라 아이콘 적용 및 텍스트 수정 */}
           <div className="p-3 sm:p-5 bg-gray-100 border-t border-gray-200">
             {currentUser ? (
               <form action={addComment} className="flex flex-col gap-0">
-                {/* 💡 텍스트 가이드에서 이모티콘 제거 */}
                 <textarea name="content" placeholder="건전한 커뮤니티 문화를 위해 배려 부탁드립니다." className="w-full p-3 sm:p-4 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-[14px] bg-white resize-none h-20 sm:h-24" required />
+                
+                <div id="preview-file-comment-main" className="hidden bg-white border-x border-gray-300 px-3 pb-2 pt-1">
+                  <div className="relative inline-block bg-gray-50 p-2 rounded-sm border border-gray-200">
+                    <img id="img-preview-file-comment-main" className="max-h-20 object-contain rounded-sm" alt="미리보기" />
+                    <button type="button" data-input-id="file-comment-main" className="remove-image-btn absolute -top-2 -right-2 bg-white rounded-full border border-gray-300 p-1 hover:bg-gray-100 shadow-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-gray-500"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
                   <div className="w-full sm:w-auto flex items-center gap-2">
-                    {/* 💡 개조 포인트: label과 SVG를 활용한 클릭 가능한 카메라 아이콘 UI */}
-                    <input type="file" id="file-comment-main" name="image" accept="image/*" className="sr-only" />
+                    <input type="file" id="file-comment-main" name="image" accept="image/*" className="image-upload-input sr-only" />
                     <label htmlFor="file-comment-main" className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-sm text-xs font-bold text-gray-600 transition-colors shadow-sm">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-500"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
                       이미지 첨부 (1MB 이하)
@@ -397,6 +418,44 @@ export default async function PostDetailPage(props: any) {
         </div>
 
       </main>
+
+      <script dangerouslySetInnerHTML={{ __html: `
+        if (typeof window !== 'undefined') {
+          document.addEventListener('change', function(e) {
+            if (e.target && e.target.classList.contains('image-upload-input')) {
+              const file = e.target.files[0];
+              const previewContainer = document.getElementById('preview-' + e.target.id);
+              const previewImage = document.getElementById('img-preview-' + e.target.id);
+              
+              if (file) {
+                if (file.size > 1048576) {
+                  alert('1MB 이하의 이미지만 첨부 가능합니다.');
+                  e.target.value = '';
+                  if(previewContainer) previewContainer.classList.add('hidden');
+                  return;
+                }
+                if(previewImage && previewContainer) {
+                  previewImage.src = URL.createObjectURL(file);
+                  previewContainer.classList.remove('hidden');
+                }
+              } else {
+                if(previewContainer) previewContainer.classList.add('hidden');
+              }
+            }
+          });
+
+          document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.remove-image-btn');
+            if (btn) {
+               const inputId = btn.getAttribute('data-input-id');
+               const input = document.getElementById(inputId);
+               if(input) input.value = '';
+               const previewContainer = document.getElementById('preview-' + inputId);
+               if(previewContainer) previewContainer.classList.add('hidden');
+            }
+          });
+        }
+      `}} />
     </div>
   );
 }
