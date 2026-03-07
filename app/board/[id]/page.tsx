@@ -29,7 +29,7 @@ export default async function PostDetailPage(props: any) {
   const post = postRows[0];
 
   if (!post) {
-    return <div className="p-20 text-center text-2xl font-bold">글을 찾을 수 없습니다 😭</div>;
+    return <div className="p-20 text-center text-2xl font-bold">글을 찾을 수 없습니다</div>;
   }
 
   const isAuthor = currentUser === post.author;
@@ -67,7 +67,8 @@ export default async function PostDetailPage(props: any) {
   const toggleLike = async () => {
     'use server';
     if (!currentUser) redirect('/login');
-    const { rows: checkRows } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author = ${currentUser}`;
+    const { rows: checkRows = [] } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author = ${currentUser}`;
+    
     if (checkRows.length > 0) {
       await sql`DELETE FROM likes WHERE post_id = ${postId} AND author = ${currentUser}`;
       await sql`UPDATE posts SET likes = GREATEST(COALESCE(likes, 0) - 1, 0) WHERE id = ${postId}`;
@@ -78,7 +79,6 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 💡 미나의 핵심 처방: 1MB 방어막 가동!
   const addComment = async (formData: FormData) => {
     'use server';
     if (!currentUser) redirect('/login');
@@ -89,8 +89,6 @@ export default async function PostDetailPage(props: any) {
     if (!content && (!imageFile || imageFile.size === 0)) return; 
 
     let imageData = null;
-    // 파일이 있고, 사이즈가 1MB(1048576 bytes) 이하일 때만 처리합니다.
-    // 만약 유저가 1MB 넘는 걸 올리면? 서버를 뻗게 만들지 않고, 사진만 스킵하고 텍스트 댓글만 안전하게 등록합니다!
     if (imageFile && imageFile.size > 0 && imageFile.size <= 1 * 1024 * 1024) { 
       const arrayBuffer = await imageFile.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
@@ -110,7 +108,7 @@ export default async function PostDetailPage(props: any) {
     if (!currentUser) redirect('/login');
     const commentId = formData.get('commentId') as string;
     
-    const { rows } = await sql`SELECT author FROM comments WHERE id = ${commentId}`;
+    const { rows = [] } = await sql`SELECT author FROM comments WHERE id = ${commentId}`;
     if (rows.length > 0 && rows[0].author === currentUser) {
       await sql`DELETE FROM comments WHERE id = ${commentId}`;
     }
@@ -124,10 +122,9 @@ export default async function PostDetailPage(props: any) {
     const content = formData.get('content') as string;
     const imageFile = formData.get('image') as File;
 
-    const { rows } = await sql`SELECT author FROM comments WHERE id = ${commentId}`;
+    const { rows = [] } = await sql`SELECT author FROM comments WHERE id = ${commentId}`;
     if (rows.length > 0 && rows[0].author === currentUser) {
       let imageData = null;
-      // 수정 시에도 1MB 방어막 적용
       if (imageFile && imageFile.size > 0 && imageFile.size <= 1 * 1024 * 1024) { 
         const arrayBuffer = await imageFile.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
@@ -148,7 +145,7 @@ export default async function PostDetailPage(props: any) {
     if (!currentUser) redirect('/login');
     const commentId = formData.get('commentId') as string;
     
-    const { rows: checkRows } = await sql`SELECT * FROM comment_likes WHERE comment_id = ${commentId} AND author = ${currentUser}`;
+    const { rows: checkRows = [] } = await sql`SELECT * FROM comment_likes WHERE comment_id = ${commentId} AND author = ${currentUser}`;
     if (checkRows.length > 0) {
       await sql`DELETE FROM comment_likes WHERE comment_id = ${commentId} AND author = ${currentUser}`;
       await sql`UPDATE comments SET likes = GREATEST(COALESCE(likes, 0) - 1, 0) WHERE id = ${commentId}`;
@@ -181,10 +178,10 @@ export default async function PostDetailPage(props: any) {
             </div>
             {isCommentAuthor && (
               <div className="flex items-center gap-2 text-xs text-gray-400">
-                <label htmlFor={`edit-${node.id}`} className="cursor-pointer hover:text-gray-600">수정</label>
+                <label htmlFor={`edit-${node.id}`} className="cursor-pointer hover:text-gray-600 font-medium">수정</label>
                 <form action={deleteComment}>
                   <input type="hidden" name="commentId" value={node.id} />
-                  <button type="submit" className="hover:text-red-500">삭제</button>
+                  <button type="submit" className="hover:text-red-500 font-medium">삭제</button>
                 </form>
               </div>
             )}
@@ -214,7 +211,7 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 대댓글 작성 폼 */}
+        {/* 대댓글 작성 폼 - 카메라 아이콘 적용 및 텍스트 수정 */}
         <div className="w-full">
           <input type="checkbox" id={`reply-${node.id}`} className="hidden peer" />
           <div className="hidden peer-checked:block bg-gray-100 p-3 sm:p-4 border-b border-gray-200">
@@ -223,9 +220,13 @@ export default async function PostDetailPage(props: any) {
                 <input type="hidden" name="parentId" value={node.id} />
                 <textarea name="content" placeholder={`@${node.author} 님에게 답글 남기기...`} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-sm bg-white resize-none h-20" required />
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
-                  <div className="w-full sm:w-auto flex items-center bg-[#f1f3f5] rounded-sm overflow-hidden border border-gray-200">
-                    <span className="px-3 py-1.5 bg-gray-200 text-xs font-bold text-gray-600 border-r border-gray-300">짤방(1MB↓)</span>
-                    <input type="file" name="image" accept="image/*" className="text-xs text-gray-500 file:hidden cursor-pointer px-2 py-1.5 w-full" />
+                  <div className="w-full sm:w-auto flex items-center gap-2">
+                    {/* 💡 개조 포인트: label과 SVG를 활용한 클릭 가능한 카메라 아이콘 UI */}
+                    <input type="file" id={`file-reply-${node.id}`} name="image" accept="image/*" className="sr-only" />
+                    <label htmlFor={`file-reply-${node.id}`} className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-sm text-xs font-bold text-gray-600 transition-colors shadow-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-500"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
+                      이미지 첨부 (1MB 이하)
+                    </label>
                   </div>
                   <button type="submit" className="w-full sm:w-20 py-2 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-xs shadow-sm flex-shrink-0">등록</button>
                 </div>
@@ -236,7 +237,7 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 댓글 수정 폼 */}
+        {/* 댓글 수정 폼 - 카메라 아이콘 적용 및 텍스트 수정 */}
         {isCommentAuthor && (
           <div className="w-full">
             <input type="checkbox" id={`edit-${node.id}`} className="hidden peer" />
@@ -245,9 +246,13 @@ export default async function PostDetailPage(props: any) {
                 <input type="hidden" name="commentId" value={node.id} />
                 <textarea name="content" defaultValue={node.content} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-gray-600 outline-none font-medium text-sm bg-white resize-none h-20" required />
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
-                  <div className="w-full sm:w-auto flex items-center bg-[#f1f3f5] rounded-sm overflow-hidden border border-gray-200">
-                    <span className="px-3 py-1.5 bg-gray-200 text-xs font-bold text-gray-600 border-r border-gray-300">짤방(1MB↓) 변경</span>
-                    <input type="file" name="image" accept="image/*" className="text-xs text-gray-500 file:hidden cursor-pointer px-2 py-1.5 w-full" />
+                  <div className="w-full sm:w-auto flex items-center gap-2">
+                    {/* 💡 개조 포인트:label과 SVG를 활용한 클릭 가능한 카메라 아이콘 UI */}
+                    <input type="file" id={`file-edit-${node.id}`} name="image" accept="image/*" className="sr-only" />
+                    <label htmlFor={`file-edit-${node.id}`} className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-sm text-xs font-bold text-gray-600 transition-colors shadow-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-500"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
+                      이미지 변경 (1MB 이하)
+                    </label>
                   </div>
                   <button type="submit" className="w-full sm:w-20 py-2 bg-gray-600 text-white rounded-sm font-bold hover:bg-gray-800 transition-colors text-xs shadow-sm flex-shrink-0">수정완료</button>
                 </div>
@@ -279,7 +284,8 @@ export default async function PostDetailPage(props: any) {
             <div className="flex flex-wrap gap-4 items-center font-medium">
               <span className="text-gray-400">{formattedDate}</span>
               <span className="text-gray-500">조회 {post.views || 0}</span>
-              <span className="text-rose-500 font-bold">❤️ 공감 {post.likes || 0}</span>
+              {/* 💡 이모티콘 제거 */}
+              <span className="text-rose-500 font-bold">공감 {post.likes || 0}</span>
             </div>
           </div>
         </div>
@@ -325,7 +331,7 @@ export default async function PostDetailPage(props: any) {
         {bestComments.length > 0 && (
           <div className="mt-16 bg-blue-50 border border-blue-200 rounded-sm overflow-hidden shadow-sm">
             <div className="bg-[#3b4890] px-5 py-2.5 text-white font-black text-[15px] flex items-center gap-2">
-              🏆 명예의 전당 베스트 댓글
+              명예의 전당 베스트 댓글
             </div>
             <div className="divide-y divide-blue-100">
               {bestComments.map((c) => (
@@ -335,10 +341,11 @@ export default async function PostDetailPage(props: any) {
                       {c.author}
                     </div>
                     <div className="text-gray-800 text-[15px] leading-relaxed break-words whitespace-pre-wrap">{c.content}</div>
-                    {c.image_data && <img src={c.image_data} className="mt-3 max-w-full md:max-w-xs rounded-sm border border-blue-200" alt="베스트 짤방" />}
+                    {c.image_data && <img src={c.image_data} className="mt-3 max-w-full md:max-w-xs rounded-sm border border-blue-200" alt="베스트 이미지" />}
                   </div>
                   <div className="flex flex-col items-center bg-white border border-blue-200 rounded px-3 py-1.5 shadow-sm min-w-[60px]">
-                    <span className="text-rose-500 text-sm">❤️</span>
+                    {/* 💡 이모티콘 제거 및 SVG 활용 */}
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-rose-500 mb-1"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" /></svg>
                     <span className="text-[#3b4890] font-black text-sm">{c.likes}</span>
                   </div>
                 </div>
@@ -350,7 +357,7 @@ export default async function PostDetailPage(props: any) {
         <div className={`bg-white border border-gray-200 rounded-sm overflow-hidden shadow-sm ${bestComments.length > 0 ? 'mt-8' : 'mt-16'}`}>
           <div className="bg-gray-50 px-5 py-4 border-b border-gray-200">
             <h3 className="text-[16px] font-bold text-gray-800">
-              💬 전체 댓글 <span className="text-[#e74c3c] ml-1">{comments.length}</span>
+              전체 댓글 <span className="text-[#e74c3c] ml-1">{comments.length}</span>
             </h3>
           </div>
 
@@ -362,15 +369,20 @@ export default async function PostDetailPage(props: any) {
             )}
           </div>
 
+          {/* 메인 댓글 작성 폼 - 카메라 아이콘 적용 및 텍스트 수정 */}
           <div className="p-3 sm:p-5 bg-gray-100 border-t border-gray-200">
             {currentUser ? (
               <form action={addComment} className="flex flex-col gap-0">
+                {/* 💡 텍스트 가이드에서 이모티콘 제거 */}
                 <textarea name="content" placeholder="건전한 커뮤니티 문화를 위해 배려 부탁드립니다." className="w-full p-3 sm:p-4 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-[14px] bg-white resize-none h-20 sm:h-24" required />
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
-                  {/* 💡 파일 첨부 UI에 "짤방(1MB↓)" 명시하여 사용자에게 가이드! */}
-                  <div className="w-full sm:w-auto flex items-center bg-[#f1f3f5] rounded-sm overflow-hidden border border-gray-200">
-                    <span className="px-3 py-1.5 bg-gray-200 text-xs font-bold text-gray-600 border-r border-gray-300">이미지(1MB↓)</span>
-                    <input type="file" name="image" accept="image/*" className="text-xs text-gray-500 file:hidden cursor-pointer px-2 py-1.5 w-full" />
+                  <div className="w-full sm:w-auto flex items-center gap-2">
+                    {/* 💡 개조 포인트: label과 SVG를 활용한 클릭 가능한 카메라 아이콘 UI */}
+                    <input type="file" id="file-comment-main" name="image" accept="image/*" className="sr-only" />
+                    <label htmlFor="file-comment-main" className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-sm text-xs font-bold text-gray-600 transition-colors shadow-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-500"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
+                      이미지 첨부 (1MB 이하)
+                    </label>
                   </div>
                   <button type="submit" className="w-full sm:w-24 py-2.5 bg-[#3b4890] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-sm shadow-sm flex-shrink-0">댓글 등록</button>
                 </div>
