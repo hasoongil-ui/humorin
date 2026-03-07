@@ -4,6 +4,31 @@ import { useEffect } from 'react';
 
 export default function CommentScript() {
   useEffect(() => {
+    // 💡 미나의 진공청소기: 컴포넌트가 로드되거나 서버 액션이 끝날 때마다 찌꺼기를 완벽히 지웁니다.
+    const cleanUpForms = () => {
+        const mainForm = document.getElementById('main-comment-form') as HTMLFormElement;
+        if (mainForm) mainForm.reset();
+        
+        const mainPreview = document.getElementById('preview-file-comment-main');
+        if (mainPreview) mainPreview.classList.add('hidden');
+
+        const replyForms = document.querySelectorAll('form[data-checkbox-id^="reply-"]');
+        replyForms.forEach(form => {
+            (form as HTMLFormElement).reset();
+            const checkboxId = form.getAttribute('data-checkbox-id');
+            if (checkboxId) {
+                const preview = document.getElementById('preview-file-' + checkboxId.replace('reply-', ''));
+                if (preview) preview.classList.add('hidden');
+            }
+        });
+        
+        const fileInputs = document.querySelectorAll('.image-upload-input');
+        fileInputs.forEach(input => { (input as HTMLInputElement).value = ''; });
+    };
+
+    // 스크립트가 실행되자마자 청소기 가동!
+    cleanUpForms();
+
     const handleChange = (e: any) => {
       if (e.target && e.target.classList && e.target.classList.contains('image-upload-input')) {
         const file = e.target.files[0];
@@ -106,12 +131,39 @@ export default function CommentScript() {
       }
     };
 
+    // 💡 안전한 '등록 중...' 표시 복구 (공감 버튼 타겟팅 차단 유지)
+    const handleSubmit = (e: any) => {
+      const form = e.target;
+      const isCommentForm = form.hasAttribute('data-checkbox-id') || form.id === 'main-comment-form';
+
+      if (isCommentForm) {
+         const submitBtn = form.querySelector('button[type="submit"]');
+         if (submitBtn) {
+             submitBtn.disabled = true;
+             submitBtn.classList.add('opacity-60', 'cursor-wait');
+             
+             submitBtn.setAttribute('data-original-text', submitBtn.innerText);
+             submitBtn.innerText = '처리 중...';
+
+             setTimeout(() => {
+                 if (submitBtn) {
+                     submitBtn.disabled = false;
+                     submitBtn.classList.remove('opacity-60', 'cursor-wait');
+                     submitBtn.innerText = submitBtn.getAttribute('data-original-text') || '등록';
+                 }
+             }, 3000);
+         }
+      }
+    };
+
     document.addEventListener('change', handleChange);
     document.addEventListener('click', handleClick);
+    document.addEventListener('submit', handleSubmit);
 
     return () => {
       document.removeEventListener('change', handleChange);
       document.removeEventListener('click', handleClick);
+      document.removeEventListener('submit', handleSubmit);
     };
   }, []);
 
