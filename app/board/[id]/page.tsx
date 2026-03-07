@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
+import CommentScript from './CommentScript';
 
 function extractData(fullTitle: string) {
   if (!fullTitle) return { cat: '일반', cleanTitle: '' };
@@ -418,44 +419,9 @@ export default async function PostDetailPage(props: any) {
         </div>
 
       </main>
-
-      <script dangerouslySetInnerHTML={{ __html: `
-        if (typeof window !== 'undefined') {
-          document.addEventListener('change', function(e) {
-            if (e.target && e.target.classList.contains('image-upload-input')) {
-              const file = e.target.files[0];
-              const previewContainer = document.getElementById('preview-' + e.target.id);
-              const previewImage = document.getElementById('img-preview-' + e.target.id);
-              
-              if (file) {
-                if (file.size > 1048576) {
-                  alert('1MB 이하의 이미지만 첨부 가능합니다.');
-                  e.target.value = '';
-                  if(previewContainer) previewContainer.classList.add('hidden');
-                  return;
-                }
-                if(previewImage && previewContainer) {
-                  previewImage.src = URL.createObjectURL(file);
-                  previewContainer.classList.remove('hidden');
-                }
-              } else {
-                if(previewContainer) previewContainer.classList.add('hidden');
-              }
-            }
-          });
-
-          document.addEventListener('click', function(e) {
-            const btn = e.target.closest('.remove-image-btn');
-            if (btn) {
-               const inputId = btn.getAttribute('data-input-id');
-               const input = document.getElementById(inputId);
-               if(input) input.value = '';
-               const previewContainer = document.getElementById('preview-' + inputId);
-               if(previewContainer) previewContainer.classList.add('hidden');
-            }
-          });
-        }
-      `}} />
+      
+      {/* 💡 미나의 새로운 해결책: 브라우저 전용 두뇌를 부착했습니다! */}
+      <CommentScript />
     </div>
   );
 }
