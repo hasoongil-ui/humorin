@@ -5,7 +5,6 @@ import { useEffect } from 'react';
 export default function CommentScript() {
   useEffect(() => {
     const handleChange = (e: any) => {
-      // 1. 파일 첨부 상태 변화 감지
       if (e.target && e.target.classList && e.target.classList.contains('image-upload-input')) {
         const file = e.target.files[0];
         const previewContainer = document.getElementById('preview-' + e.target.id);
@@ -63,7 +62,6 @@ export default function CommentScript() {
         }
       }
 
-      // 2. 수정 폼 닫기(취소) 시 완벽 원상복구 로직
       if (e.target && e.target.type === 'checkbox' && e.target.id.startsWith('edit-')) {
          if (!e.target.checked) {
              const nodeId = e.target.id.replace('edit-', '');
@@ -108,30 +106,30 @@ export default function CommentScript() {
       }
     };
 
-    // 💡 미나의 새로운 제출 마법: 1초의 딜레이를 완벽하게 숨기는 스마트 버튼!
     const handleSubmit = (e: any) => {
       const form = e.target;
       const submitBtn = form.querySelector('button[type="submit"]');
 
-      if (submitBtn) {
-         // 1. 다다닥 중복 클릭 방지 (비활성화 및 약간 투명하게 처리)
+      // 💡 미나의 핵심 해결책: 오직 '댓글 관련 폼'일 때만 작동하도록 방어막을 쳤습니다! (공감 버튼 무사 통과)
+      const isCommentForm = form.hasAttribute('data-checkbox-id') || form.id === 'main-comment-form';
+
+      if (isCommentForm && submitBtn) {
          submitBtn.disabled = true;
          submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
 
-         // 2. 버튼 글씨를 상황에 맞게 변경하여 안심시키기
-         const originalText = submitBtn.innerText;
-         if (originalText.includes('수정')) {
-             submitBtn.innerText = '수정 처리 중...';
+         // 💡 글자만 덮어씌워서 공감 하트가 날아가는 현상 원천 차단!
+         const originalHTML = submitBtn.innerHTML;
+         if (originalHTML.includes('수정')) {
+             submitBtn.innerHTML = '수정 처리 중...';
          } else {
-             submitBtn.innerText = '등록 처리 중...';
+             submitBtn.innerHTML = '등록 처리 중...';
          }
 
-         // 3. 서버가 다운되거나 응답이 없을 경우를 대비한 안전장치 (3초 뒤 원상복구)
          setTimeout(() => {
              if (submitBtn) {
                  submitBtn.disabled = false;
                  submitBtn.classList.remove('opacity-60', 'cursor-not-allowed');
-                 submitBtn.innerText = originalText;
+                 submitBtn.innerHTML = originalHTML;
              }
          }, 3000);
       }
