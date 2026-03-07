@@ -35,10 +35,8 @@ export default async function PostDetailPage(props: any) {
   const isAuthor = currentUser === post.author;
   const { rows: comments } = await sql`SELECT * FROM comments WHERE post_id = ${postId} ORDER BY created_at ASC`;
 
-  // 🏆 베스트 댓글 추출
   const bestComments = comments.filter(c => c.likes >= 3).sort((a, b) => b.likes - a.likes).slice(0, 3);
 
-  // 🌳 무한 트리 구조 
   const buildTree = (allComments: any[], parentId: number | null = null): any[] => {
     return allComments
       .filter(c => c.parent_id === parentId || (parentId === null && !c.parent_id))
@@ -60,14 +58,12 @@ export default async function PostDetailPage(props: any) {
   const formattedDate = `${kstDate.getFullYear()}-${String(kstDate.getMonth() + 1).padStart(2, '0')}-${String(kstDate.getDate()).padStart(2, '0')} ${String(kstDate.getHours()).padStart(2, '0')}:${String(kstDate.getMinutes()).padStart(2, '0')}`;
   const postData = extractData(post.title);
 
-  // --- ⚡ [액션] 게시글 삭제 ---
   const deletePost = async () => {
     'use server';
     await sql`DELETE FROM posts WHERE id = ${postId}`;
     redirect('/board');
   };
 
-  // --- ⚡ [액션] 게시글 공감 ---
   const toggleLike = async () => {
     'use server';
     if (!currentUser) redirect('/login');
@@ -82,7 +78,7 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // --- ⚡ [액션] 댓글 등록 (이미지 포함) ---
+  // 💡 미나의 핵심 처방: 1MB 방어막 가동!
   const addComment = async (formData: FormData) => {
     'use server';
     if (!currentUser) redirect('/login');
@@ -93,7 +89,9 @@ export default async function PostDetailPage(props: any) {
     if (!content && (!imageFile || imageFile.size === 0)) return; 
 
     let imageData = null;
-    if (imageFile && imageFile.size > 0 && imageFile.size <= 2 * 1024 * 1024) { 
+    // 파일이 있고, 사이즈가 1MB(1048576 bytes) 이하일 때만 처리합니다.
+    // 만약 유저가 1MB 넘는 걸 올리면? 서버를 뻗게 만들지 않고, 사진만 스킵하고 텍스트 댓글만 안전하게 등록합니다!
+    if (imageFile && imageFile.size > 0 && imageFile.size <= 1 * 1024 * 1024) { 
       const arrayBuffer = await imageFile.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       imageData = `data:${imageFile.type};base64,${buffer.toString('base64')}`;
@@ -107,13 +105,11 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // --- ⚡ [액션] 댓글 삭제 ---
   const deleteComment = async (formData: FormData) => {
     'use server';
     if (!currentUser) redirect('/login');
     const commentId = formData.get('commentId') as string;
     
-    // 본인 확인 후 삭제
     const { rows } = await sql`SELECT author FROM comments WHERE id = ${commentId}`;
     if (rows.length > 0 && rows[0].author === currentUser) {
       await sql`DELETE FROM comments WHERE id = ${commentId}`;
@@ -121,7 +117,6 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // --- ⚡ [액션] 댓글 수정 ---
   const editComment = async (formData: FormData) => {
     'use server';
     if (!currentUser) redirect('/login');
@@ -132,7 +127,8 @@ export default async function PostDetailPage(props: any) {
     const { rows } = await sql`SELECT author FROM comments WHERE id = ${commentId}`;
     if (rows.length > 0 && rows[0].author === currentUser) {
       let imageData = null;
-      if (imageFile && imageFile.size > 0 && imageFile.size <= 2 * 1024 * 1024) { 
+      // 수정 시에도 1MB 방어막 적용
+      if (imageFile && imageFile.size > 0 && imageFile.size <= 1 * 1024 * 1024) { 
         const arrayBuffer = await imageFile.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         imageData = `data:${imageFile.type};base64,${buffer.toString('base64')}`;
@@ -147,7 +143,6 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // --- ⚡ [액션] 댓글 공감 ---
   const toggleCommentLike = async (formData: FormData) => {
     'use server';
     if (!currentUser) redirect('/login');
@@ -164,7 +159,6 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 🌳 재귀 함수 컴포넌트
   const renderCommentNode = (node: any, depth: number = 0) => {
     const isReply = depth > 0;
     const paddingLeft = isReply ? `${Math.min(depth * 1.5, 4)}rem` : '0';
@@ -185,7 +179,6 @@ export default async function PostDetailPage(props: any) {
               {node.author}
               {node.likes >= 3 && <span className="px-1.5 py-0.5 bg-rose-100 text-rose-600 text-[10px] rounded-sm">베스트</span>}
             </div>
-            {/* 본인 댓글인 경우 수정/삭제 텍스트 버튼 */}
             {isCommentAuthor && (
               <div className="flex items-center gap-2 text-xs text-gray-400">
                 <label htmlFor={`edit-${node.id}`} className="cursor-pointer hover:text-gray-600">수정</label>
@@ -221,7 +214,7 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 💡 대댓글 작성 폼 (숨겨져 있다가 열림) - 모바일 버튼 잘림 완벽 해결! */}
+        {/* 대댓글 작성 폼 */}
         <div className="w-full">
           <input type="checkbox" id={`reply-${node.id}`} className="hidden peer" />
           <div className="hidden peer-checked:block bg-gray-100 p-3 sm:p-4 border-b border-gray-200">
@@ -230,7 +223,10 @@ export default async function PostDetailPage(props: any) {
                 <input type="hidden" name="parentId" value={node.id} />
                 <textarea name="content" placeholder={`@${node.author} 님에게 답글 남기기...`} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-sm bg-white resize-none h-20" required />
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
-                  <input type="file" name="image" accept="image/*" className="w-full sm:w-auto text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-sm file:border-0 file:text-xs file:font-bold file:bg-[#f1f3f5] file:text-[#3b4890] hover:file:bg-gray-200 cursor-pointer" />
+                  <div className="w-full sm:w-auto flex items-center bg-[#f1f3f5] rounded-sm overflow-hidden border border-gray-200">
+                    <span className="px-3 py-1.5 bg-gray-200 text-xs font-bold text-gray-600 border-r border-gray-300">짤방(1MB↓)</span>
+                    <input type="file" name="image" accept="image/*" className="text-xs text-gray-500 file:hidden cursor-pointer px-2 py-1.5 w-full" />
+                  </div>
                   <button type="submit" className="w-full sm:w-20 py-2 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-xs shadow-sm flex-shrink-0">등록</button>
                 </div>
               </form>
@@ -240,7 +236,7 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 💡 댓글 수정 폼 (본인에게만 보임) */}
+        {/* 댓글 수정 폼 */}
         {isCommentAuthor && (
           <div className="w-full">
             <input type="checkbox" id={`edit-${node.id}`} className="hidden peer" />
@@ -249,7 +245,10 @@ export default async function PostDetailPage(props: any) {
                 <input type="hidden" name="commentId" value={node.id} />
                 <textarea name="content" defaultValue={node.content} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-gray-600 outline-none font-medium text-sm bg-white resize-none h-20" required />
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
-                  <input type="file" name="image" accept="image/*" className="w-full sm:w-auto text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-sm file:border-0 file:text-xs file:font-bold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer" />
+                  <div className="w-full sm:w-auto flex items-center bg-[#f1f3f5] rounded-sm overflow-hidden border border-gray-200">
+                    <span className="px-3 py-1.5 bg-gray-200 text-xs font-bold text-gray-600 border-r border-gray-300">짤방(1MB↓) 변경</span>
+                    <input type="file" name="image" accept="image/*" className="text-xs text-gray-500 file:hidden cursor-pointer px-2 py-1.5 w-full" />
+                  </div>
                   <button type="submit" className="w-full sm:w-20 py-2 bg-gray-600 text-white rounded-sm font-bold hover:bg-gray-800 transition-colors text-xs shadow-sm flex-shrink-0">수정완료</button>
                 </div>
               </form>
@@ -257,7 +256,6 @@ export default async function PostDetailPage(props: any) {
           </div>
         )}
 
-        {/* 자식 댓글 렌더링 */}
         {node.children && node.children.length > 0 && (
           <div className="w-full">
             {node.children.map((child: any) => renderCommentNode(child, depth + 1))}
@@ -271,7 +269,6 @@ export default async function PostDetailPage(props: any) {
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200">
       <main className="max-w-[1000px] mx-auto p-5 md:p-8 mt-4 mb-20 overflow-hidden">
         
-        {/* 본문 헤더 */}
         <div className="border-b-2 border-gray-800 pb-4 mb-8">
           <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-4 break-words">
             <span className="text-[#3b4890] mr-2">[{postData.cat}]</span>
@@ -287,13 +284,11 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 본문 내용 */}
         <div 
           className="min-h-[200px] md:min-h-[400px] text-gray-900 text-base md:text-[17px] whitespace-pre-wrap leading-relaxed break-words"
           dangerouslySetInnerHTML={{ __html: post.content }}
         />
 
-        {/* 본문 공감 버튼 */}
         <div className="mt-16 flex justify-center border-t border-gray-100 pt-10">
           <form action={toggleLike}>
             <button 
@@ -313,7 +308,6 @@ export default async function PostDetailPage(props: any) {
           </form>
         </div>
 
-        {/* 본문 수정/삭제/목록 버튼 */}
         <div className="mt-12 border-t border-gray-200 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex flex-row items-center gap-2 w-full md:w-auto">
             {isAuthor && (
@@ -328,7 +322,6 @@ export default async function PostDetailPage(props: any) {
           <Link href={`/board?category=${postData.cat !== '일반' ? postData.cat : 'all'}`} className="w-full md:w-auto text-center px-8 py-2 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-sm shadow-sm">목록으로</Link>
         </div>
 
-        {/* 🏆 베스트 댓글 영역 */}
         {bestComments.length > 0 && (
           <div className="mt-16 bg-blue-50 border border-blue-200 rounded-sm overflow-hidden shadow-sm">
             <div className="bg-[#3b4890] px-5 py-2.5 text-white font-black text-[15px] flex items-center gap-2">
@@ -354,7 +347,6 @@ export default async function PostDetailPage(props: any) {
           </div>
         )}
 
-        {/* 💬 일반 댓글 영역 */}
         <div className={`bg-white border border-gray-200 rounded-sm overflow-hidden shadow-sm ${bestComments.length > 0 ? 'mt-8' : 'mt-16'}`}>
           <div className="bg-gray-50 px-5 py-4 border-b border-gray-200">
             <h3 className="text-[16px] font-bold text-gray-800">
@@ -370,13 +362,16 @@ export default async function PostDetailPage(props: any) {
             )}
           </div>
 
-          {/* 메인 댓글 작성 폼 - 모바일 반응형 완벽 적용 */}
           <div className="p-3 sm:p-5 bg-gray-100 border-t border-gray-200">
             {currentUser ? (
               <form action={addComment} className="flex flex-col gap-0">
-                <textarea name="content" placeholder="주제와 무관한 댓글이나 악플은 삭제될 수 있습니다. (우측 하단 첨부파일 클릭하여 짤방 등록 가능!)" className="w-full p-3 sm:p-4 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-[14px] bg-white resize-none h-20 sm:h-24" required />
+                <textarea name="content" placeholder="건전한 커뮤니티 문화를 위해 배려 부탁드립니다." className="w-full p-3 sm:p-4 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-[14px] bg-white resize-none h-20 sm:h-24" required />
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-t-0 border-gray-300 p-2 rounded-b-sm gap-2 sm:gap-0">
-                  <input type="file" name="image" accept="image/*" className="w-full sm:w-auto text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-sm file:border-0 file:text-xs file:font-bold file:bg-[#f1f3f5] file:text-[#3b4890] hover:file:bg-gray-200 cursor-pointer" />
+                  {/* 💡 파일 첨부 UI에 "짤방(1MB↓)" 명시하여 사용자에게 가이드! */}
+                  <div className="w-full sm:w-auto flex items-center bg-[#f1f3f5] rounded-sm overflow-hidden border border-gray-200">
+                    <span className="px-3 py-1.5 bg-gray-200 text-xs font-bold text-gray-600 border-r border-gray-300">짤방(1MB↓)</span>
+                    <input type="file" name="image" accept="image/*" className="text-xs text-gray-500 file:hidden cursor-pointer px-2 py-1.5 w-full" />
+                  </div>
                   <button type="submit" className="w-full sm:w-24 py-2.5 bg-[#3b4890] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-colors text-sm shadow-sm flex-shrink-0">댓글 등록</button>
                 </div>
               </form>
