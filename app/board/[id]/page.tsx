@@ -178,11 +178,12 @@ export default async function PostDetailPage(props: any) {
               {node.likes >= 3 && <span className="px-1.5 py-0.5 bg-rose-100 text-rose-600 text-[10px] rounded-sm">베스트</span>}
             </div>
             {isCommentAuthor && (
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <label htmlFor={`edit-${node.id}`} className="cursor-pointer hover:text-gray-600 font-medium">수정</label>
+              <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                {/* 💡 미나의 개선: 수정/삭제 텍스트를 깔끔한 버튼 모양으로 디자인 업그레이드! */}
+                <label htmlFor={`edit-${node.id}`} className="cursor-pointer px-2.5 py-1 bg-white border border-gray-200 rounded-sm hover:bg-gray-50 hover:text-gray-800 transition-colors shadow-sm font-medium">수정</label>
                 <form action={deleteComment}>
                   <input type="hidden" name="commentId" value={node.id} />
-                  <button type="submit" className="hover:text-red-500 font-medium">삭제</button>
+                  <button type="submit" className="px-2.5 py-1 bg-white border border-gray-200 rounded-sm hover:bg-gray-50 hover:text-red-500 transition-colors shadow-sm font-medium">삭제</button>
                 </form>
               </div>
             )}
@@ -216,7 +217,7 @@ export default async function PostDetailPage(props: any) {
           <input type="checkbox" id={`reply-${node.id}`} className="hidden peer" />
           <div className="hidden peer-checked:block bg-gray-100 p-3 sm:p-4 border-b border-gray-200">
             {currentUser ? (
-              <form action={addComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }}>
+              <form action={addComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }} data-checkbox-id={`reply-${node.id}`}>
                 <input type="hidden" name="parentId" value={node.id} />
                 <textarea name="content" placeholder={`@${node.author} 님에게 답글 남기기...`} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-sm bg-white resize-none h-20" required />
                 
@@ -250,7 +251,7 @@ export default async function PostDetailPage(props: any) {
           <div className="w-full">
             <input type="checkbox" id={`edit-${node.id}`} className="hidden peer" />
             <div className="hidden peer-checked:block bg-gray-100 p-3 sm:p-4 border-b border-gray-200">
-              <form action={editComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }}>
+              <form action={editComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }} data-checkbox-id={`edit-${node.id}`}>
                 <input type="hidden" name="commentId" value={node.id} />
                 <textarea name="content" defaultValue={node.content} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-gray-600 outline-none font-medium text-sm bg-white resize-none h-20" required />
                 
@@ -384,9 +385,10 @@ export default async function PostDetailPage(props: any) {
             )}
           </div>
 
+          {/* 메인 댓글 작성 폼 */}
           <div className="p-3 sm:p-5 bg-gray-100 border-t border-gray-200">
             {currentUser ? (
-              <form action={addComment} className="flex flex-col gap-0">
+              <form action={addComment} id="main-comment-form" className="flex flex-col gap-0">
                 <textarea name="content" placeholder="건전한 커뮤니티 문화를 위해 배려 부탁드립니다." className="w-full p-3 sm:p-4 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-[14px] bg-white resize-none h-20 sm:h-24" required />
                 
                 <div id="preview-file-comment-main" className="hidden bg-white border-x border-gray-300 px-3 pb-2 pt-1">
@@ -420,7 +422,6 @@ export default async function PostDetailPage(props: any) {
 
       </main>
       
-      {/* 💡 미나의 새로운 해결책: 브라우저 전용 두뇌를 부착했습니다! */}
       <CommentScript />
     </div>
   );

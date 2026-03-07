@@ -16,7 +16,7 @@ function NavbarContent() {
       isSingle: true
     },
     {
-      name: '베스트 모음',
+      name: '명예의 전당',
       sub: [
         { name: '🔥 투데이 베스트', link: '/board?best=today' },
         { name: '💯 백베스트', link: '/board?best=100' },
