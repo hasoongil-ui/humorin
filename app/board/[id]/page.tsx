@@ -19,10 +19,7 @@ export default async function PostDetailPage(props: any) {
   const userCookie = cookieStore.get('ojemi_user');
   const currentUser = userCookie ? userCookie.value : null;
 
-  try { await sql`ALTER TABLE comments ADD COLUMN parent_id INTEGER`; } catch (e) {}
-  try { await sql`ALTER TABLE comments ADD COLUMN likes INTEGER DEFAULT 0`; } catch (e) {}
-  try { await sql`CREATE TABLE IF NOT EXISTS comment_likes ( comment_id INTEGER, author VARCHAR(255), PRIMARY KEY (comment_id, author) )`; } catch (e) {}
-  try { await sql`ALTER TABLE comments ADD COLUMN image_data TEXT`; } catch (e) {} 
+  // 🚨 [미나의 조치] 매번 DB 창고를 멈추게 만들었던 주범인 ALTER TABLE 공사 코드 4줄을 영구 삭제했습니다! 🚨
 
   await sql`UPDATE posts SET views = COALESCE(views, 0) + 1 WHERE id = ${postId}`;
 
@@ -83,7 +80,6 @@ export default async function PostDetailPage(props: any) {
   const addComment = async (formData: FormData) => {
     'use server';
     if (!currentUser) redirect('/login');
-    // 💡 미나의 개선: 글씨가 비어있어도 이미지만 있으면 통과되도록 방어막 조정!
     const content = (formData.get('content') as string) || ''; 
     const parentId = formData.get('parentId') as string;
     const imageFile = formData.get('image') as File;
@@ -123,7 +119,7 @@ export default async function PostDetailPage(props: any) {
     const commentId = formData.get('commentId') as string;
     const content = (formData.get('content') as string) || '';
     const imageFile = formData.get('image') as File;
-    const removeExistingImage = formData.get('removeExistingImage') === 'true'; // 삭제 플래그 수신
+    const removeExistingImage = formData.get('removeExistingImage') === 'true';
 
     const { rows = [] } = await sql`SELECT author, image_data FROM comments WHERE id = ${commentId}`;
     if (rows.length > 0 && rows[0].author === currentUser) {
@@ -137,11 +133,9 @@ export default async function PostDetailPage(props: any) {
         hasNewImage = true;
       }
 
-      // 글과 사진이 모두 날아가는 완전 빈 깡통 댓글 방지
       const finalImage = hasNewImage ? imageData : (removeExistingImage ? null : rows[0].image_data);
       if (!content.trim() && !finalImage) return;
 
-      // 새 이미지가 있으면 덮어쓰고, 삭제 플래그가 켜졌으면 사진 칸을 NULL(비움) 처리!
       if (hasNewImage) {
         await sql`UPDATE comments SET content = ${content}, image_data = ${imageData} WHERE id = ${commentId}`;
       } else if (removeExistingImage) {
@@ -230,7 +224,6 @@ export default async function PostDetailPage(props: any) {
             {currentUser ? (
               <form action={addComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }} data-checkbox-id={`reply-${node.id}`}>
                 <input type="hidden" name="parentId" value={node.id} />
-                {/* 💡 required 삭제 완료! 이제 텍스트 안 적어도 전송 가능 */}
                 <textarea name="content" placeholder="답글 남기기" className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-sm bg-white resize-none h-20" />
                 
                 <div id={`preview-file-reply-${node.id}`} className="hidden bg-white border-x border-gray-300 px-3 pb-2 pt-1">
@@ -259,21 +252,16 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 💡 기존 댓글 수정 폼 */}
         {isCommentAuthor && (
           <div className="w-full">
             <input type="checkbox" id={`edit-${node.id}`} className="hidden peer" />
             <div className="hidden peer-checked:block bg-gray-100 p-3 sm:p-4 border-b border-gray-200">
-              {/* 💡 기존 이미지를 복구할 수 있도록 폼 태그에 원본 이미지 주소를 달아둡니다! */}
               <form action={editComment} className="flex flex-col gap-0" style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '0' }} data-checkbox-id={`edit-${node.id}`} data-original-image={node.image_data || ''}>
                 <input type="hidden" name="commentId" value={node.id} />
-                {/* 💡 숨겨진 지우개 플래그: 이 값이 true가 되면 서버가 DB에서 사진을 완전히 날려버립니다 */}
                 <input type="hidden" name="removeExistingImage" id={`remove-image-flag-${node.id}`} value="false" />
                 
-                {/* 💡 required 삭제 완료! */}
                 <textarea name="content" defaultValue={node.content} className="w-full p-3 border border-gray-300 rounded-t-sm focus:border-gray-600 outline-none font-medium text-sm bg-white resize-none h-20" />
                 
-                {/* 💡 수정창 열었을 때 기존 이미지가 있으면 즉시 띄워주는 로직 탑재! */}
                 <div id={`preview-file-edit-${node.id}`} className={`bg-white border-x border-gray-300 px-3 pb-2 pt-1 ${node.image_data ? '' : 'hidden'}`}>
                   <div className="relative inline-block bg-gray-50 p-2 rounded-sm border border-gray-200">
                     <img id={`img-preview-file-edit-${node.id}`} src={node.image_data || undefined} className="max-h-20 object-contain rounded-sm" alt="미리보기" />
@@ -404,11 +392,9 @@ export default async function PostDetailPage(props: any) {
             )}
           </div>
 
-          {/* 메인 댓글 작성 폼 */}
           <div className="p-3 sm:p-5 bg-gray-100 border-t border-gray-200">
             {currentUser ? (
               <form action={addComment} id="main-comment-form" className="flex flex-col gap-0">
-                {/* 💡 required 삭제 완료! */}
                 <textarea name="content" placeholder="건전한 커뮤니티 문화를 위해 배려 부탁드립니다." className="w-full p-3 sm:p-4 border border-gray-300 rounded-t-sm focus:border-[#3b4890] outline-none font-medium text-[14px] bg-white resize-none h-20 sm:h-24" />
                 
                 <div id="preview-file-comment-main" className="hidden bg-white border-x border-gray-300 px-3 pb-2 pt-1">
@@ -424,7 +410,7 @@ export default async function PostDetailPage(props: any) {
                   <div className="w-full sm:w-auto flex items-center gap-2">
                     <input type="file" id="file-comment-main" name="image" accept="image/*" className="image-upload-input sr-only" />
                     <label htmlFor="file-comment-main" className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-sm text-xs font-bold text-gray-600 transition-colors shadow-sm">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-500"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-500"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
                       이미지 첨부 (1MB 이하)
                     </label>
                   </div>
