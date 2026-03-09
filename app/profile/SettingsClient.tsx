@@ -42,7 +42,7 @@ export default function SettingsClient({ currentUser }: { currentUser: string })
       
       <div className="max-w-md space-y-6">
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">아이디 (닉네임)</label>
+          <label className="block text-sm font-bold text-gray-700 mb-2">닉네임</label>
           <input 
             type="text" 
             value={newNickname}
