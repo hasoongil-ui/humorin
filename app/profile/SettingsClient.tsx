@@ -1,42 +1,38 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { updateProfileAction, deleteAccountAction } from './actions';
 
-export default function SettingsClient({ 
-  currentUser, 
-  onUpdatePassword, 
-  onDeleteAccount 
-}: {
-  currentUser: string;
-  onUpdatePassword: (newPass: string) => Promise<boolean>;
-  onDeleteAccount: () => void;
-}) {
+export default function SettingsClient({ currentUser }: { currentUser: string }) {
+  const router = useRouter();
+  const [newNickname, setNewNickname] = useState(currentUser);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 💡 비밀번호 변경 엔진 가동!
   const handleSave = async () => {
-    if (!newPassword) return alert('새 비밀번호를 입력해주세요.');
-    if (newPassword !== confirmPassword) return alert('비밀번호가 일치하지 않습니다.');
+    if (newPassword && newPassword !== confirmPassword) return alert('비밀번호가 일치하지 않습니다.');
+    if (newNickname !== currentUser && newNickname.trim().length < 2) return alert('닉네임은 2글자 이상 입력하세요.');
     
     setIsSubmitting(true);
-    const success = await onUpdatePassword(newPassword);
     
-    if (success) {
-      alert('비밀번호가 성공적으로 변경되었습니다! 🔒');
+    const res = await updateProfileAction(currentUser, newNickname.trim(), newPassword);
+    
+    alert(res.message); 
+    
+    if (res.success) {
       setNewPassword('');
       setConfirmPassword('');
-    } else {
-      alert('비밀번호 변경에 실패했습니다. 다시 시도해주세요.');
+      router.refresh(); 
     }
+    
     setIsSubmitting(false);
   };
 
-  // 💡 회원 탈퇴 엔진 가동!
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (confirm('정말 오재미를 탈퇴하시겠습니까?\n이 작업은 되돌릴 수 없으며, 작성하신 글은 그대로 남습니다.')) {
-      onDeleteAccount();
+      await deleteAccountAction(currentUser);
     }
   };
 
@@ -49,11 +45,11 @@ export default function SettingsClient({
           <label className="block text-sm font-bold text-gray-700 mb-2">아이디 (닉네임)</label>
           <input 
             type="text" 
-            value={currentUser} 
-            disabled 
-            className="w-full p-3 bg-gray-100 border border-gray-200 rounded-sm text-gray-500 font-bold cursor-not-allowed" 
+            value={newNickname}
+            onChange={(e) => setNewNickname(e.target.value)}
+            className="w-full p-3 border border-gray-300 rounded-sm focus:border-[#3b4890] outline-none transition-colors font-bold text-gray-800" 
           />
-          <p className="text-xs text-rose-500 mt-1.5 font-medium">* 현재 아이디는 변경할 수 없습니다.</p>
+          <p className="text-xs text-gray-500 mt-1.5 font-medium">* 닉네임 변경 시 과거에 작성한 글과 댓글의 이름도 모두 변경됩니다.</p>
         </div>
 
         <div>
@@ -89,10 +85,7 @@ export default function SettingsClient({
       </div>
 
       <div className="mt-16 pt-6 border-t border-gray-100 flex justify-end">
-        <button 
-          onClick={handleDelete} 
-          className="text-xs font-bold text-gray-400 hover:text-red-500 transition-colors underline underline-offset-2"
-        >
+        <button onClick={handleDelete} className="text-xs font-bold text-gray-400 hover:text-red-500 transition-colors underline underline-offset-2">
           오재미 회원 탈퇴
         </button>
       </div>
