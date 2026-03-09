@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import { PostLikeButton, CommentLikeButton } from './InteractiveButtons';
+import { PostLikeButton, CommentLikeButton, PostScrapButton } from './InteractiveButtons';
 import CommentForm from './CommentForm';
 
 function extractData(fullTitle: string) {
@@ -20,6 +20,7 @@ export default async function PostDetailPage(props: any) {
   const userCookie = cookieStore.get('ojemi_user');
   const currentUser = userCookie ? userCookie.value : null;
 
+  // 조회수 증가
   await sql`UPDATE posts SET views = COALESCE(views, 0) + 1 WHERE id = ${postId}`;
 
   const { rows: postRows } = await sql`SELECT * FROM posts WHERE id = ${postId}`;
@@ -31,7 +32,6 @@ export default async function PostDetailPage(props: any) {
 
   const isAuthor = currentUser === post.author;
   const { rows: comments } = await sql`SELECT * FROM comments WHERE post_id = ${postId} ORDER BY created_at ASC`;
-
   const bestComments = comments.filter(c => c.likes >= 3).sort((a, b) => b.likes - a.likes).slice(0, 3);
 
   const buildTree = (allComments: any[], parentId: number | null = null): any[] => {
@@ -45,10 +45,20 @@ export default async function PostDetailPage(props: any) {
   const commentTree = buildTree(comments, null);
 
   let hasLiked = false;
+  let hasScrapped = false; 
   let userCommentLikes: number[] = [];
+  
   if (currentUser) {
     const { rows: likeRows } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author = ${currentUser}`;
     if (likeRows.length > 0) hasLiked = true;
+
+    // 💡 미나의 수술: 무거운 CREATE TABLE 검사 구문을 삭제하고, 가볍게 조회만 하도록 최적화했습니다!
+    try {
+      const { rows: scrapRows } = await sql`SELECT * FROM scraps WHERE post_id = ${postId} AND author = ${currentUser}`;
+      if (scrapRows.length > 0) hasScrapped = true;
+    } catch (e) {
+      console.error("스크랩 테이블 조회 에러(최초 1회 발생 가능):", e);
+    }
 
     const { rows: clRows } = await sql`SELECT comment_id FROM comment_likes WHERE author = ${currentUser}`;
     userCommentLikes = clRows.map(row => row.comment_id);
@@ -80,14 +90,25 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 💡 미나의 최적화: 무거운 이미지 변환 작업을 버리고, 가벼운 URL 주소만 저장합니다!
+  const toggleScrap = async () => {
+    'use server';
+    if (!currentUser) redirect('/login');
+    // 💡 미나의 수술: 여기도 무거운 테이블 생성 구문을 제거했습니다. (이미 Vercel DB에 생성되었으므로 불필요합니다)
+    const { rows: checkRows = [] } = await sql`SELECT * FROM scraps WHERE post_id = ${postId} AND author = ${currentUser}`;
+    if (checkRows.length > 0) {
+      await sql`DELETE FROM scraps WHERE post_id = ${postId} AND author = ${currentUser}`;
+    } else {
+      await sql`INSERT INTO scraps (post_id, author) VALUES (${postId}, ${currentUser})`;
+    }
+    revalidatePath(`/board/${postId}`);
+  };
+
   const addComment = async (formData: FormData) => {
     'use server';
     if (!currentUser) return;
     const content = (formData.get('content') as string) || ''; 
     const parentId = formData.get('parentId') as string;
     const imageUrl = formData.get('imageUrl') as string;
-    
     const finalImage = imageUrl || null;
     if (!content.trim() && !finalImage) return; 
 
@@ -103,7 +124,6 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!currentUser) return;
     const commentId = formData.get('commentId') as string;
-    
     const { rows = [] } = await sql`SELECT author FROM comments WHERE id = ${commentId}`;
     if (rows.length > 0 && rows[0].author === currentUser) {
       await sql`DELETE FROM comments WHERE id = ${commentId}`;
@@ -122,7 +142,6 @@ export default async function PostDetailPage(props: any) {
     if (rows.length > 0 && rows[0].author === currentUser) {
       const finalImage = imageUrl || null;
       if (!content.trim() && !finalImage) return;
-
       await sql`UPDATE comments SET content = ${content}, image_data = ${finalImage} WHERE id = ${commentId}`;
     }
     revalidatePath(`/board/${postId}`);
@@ -132,7 +151,6 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!currentUser) return;
     const commentId = formData.get('commentId') as string;
-    
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_likes WHERE comment_id = ${commentId} AND author = ${currentUser}`;
     if (checkRows.length > 0) {
       await sql`DELETE FROM comment_likes WHERE comment_id = ${commentId} AND author = ${currentUser}`;
@@ -159,7 +177,6 @@ export default async function PostDetailPage(props: any) {
           {isReply && (
             <div className="absolute left-2 top-5 border-l-2 border-b-2 border-gray-300 w-3 h-3 rounded-bl-sm" style={{ left: `calc(${paddingLeft} - 0.5rem)` }}></div>
           )}
-          
           <div className="flex justify-between items-start mb-2">
             <div className="font-bold text-gray-800 text-[13.5px] flex items-center gap-2">
               {node.author}
@@ -175,26 +192,21 @@ export default async function PostDetailPage(props: any) {
               </div>
             )}
           </div>
-          
           <div className="text-gray-800 text-[15px] mb-3 leading-relaxed break-words whitespace-pre-wrap">{node.content}</div>
-          
           {node.image_data && (
             <div className="mb-4">
               <img src={node.image_data} alt="첨부이미지" className="max-w-full md:max-w-md rounded-sm border border-gray-200 shadow-sm" />
             </div>
           )}
-          
           <div className="flex items-center gap-3">
             <label htmlFor={`reply-${node.id}`} className="cursor-pointer text-[13px] text-gray-500 font-bold hover:text-[#3b4890] flex items-center gap-1 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
               답글
             </label>
-            
             <CommentLikeButton commentId={node.id} initialLikes={node.likes || 0} initialHasLiked={hasUserLikedComment} toggleAction={toggleCommentLike} />
           </div>
         </div>
 
-        {/* 대댓글 작성 폼 */}
         <div className="w-full">
           <input type="checkbox" id={`reply-${node.id}`} className="hidden peer" />
           <div className="hidden peer-checked:block bg-gray-100 p-3 sm:p-4 border-b border-gray-200">
@@ -208,7 +220,6 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 수정 폼 */}
         {isCommentAuthor && (
           <div className="w-full">
             <input type="checkbox" id={`edit-${node.id}`} className="hidden peer" />
@@ -232,7 +243,6 @@ export default async function PostDetailPage(props: any) {
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200">
       <main className="max-w-[1000px] mx-auto p-5 md:p-8 mt-4 mb-20 overflow-hidden">
-        
         <div className="border-b-2 border-gray-800 pb-4 mb-8">
           <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-4 break-words">
             <span className="text-[#3b4890] mr-2">[{postData.cat}]</span>
@@ -248,13 +258,11 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        <div 
-          className="min-h-[200px] md:min-h-[400px] text-gray-900 text-base md:text-[17px] whitespace-pre-wrap leading-relaxed break-words"
-          dangerouslySetInnerHTML={{ __html: post.content }}
-        />
+        <div className="min-h-[200px] md:min-h-[400px] text-gray-900 text-base md:text-[17px] whitespace-pre-wrap leading-relaxed break-words" dangerouslySetInnerHTML={{ __html: post.content }} />
 
-        <div className="mt-16 flex justify-center border-t border-gray-100 pt-10">
+        <div className="mt-16 flex justify-center items-center gap-3 border-t border-gray-100 pt-10">
           <PostLikeButton postId={postId} initialLikes={post.likes || 0} initialHasLiked={hasLiked} toggleAction={toggleLike} />
+          <PostScrapButton postId={postId} initialHasScrapped={hasScrapped} toggleScrapAction={toggleScrap} />
         </div>
 
         <div className="mt-12 border-t border-gray-200 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -273,16 +281,12 @@ export default async function PostDetailPage(props: any) {
 
         {bestComments.length > 0 && (
           <div className="mt-16 bg-blue-50 border border-blue-200 rounded-sm overflow-hidden shadow-sm">
-            <div className="bg-[#3b4890] px-5 py-2.5 text-white font-black text-[15px] flex items-center gap-2">
-              명예의 전당 베스트 댓글
-            </div>
+            <div className="bg-[#3b4890] px-5 py-2.5 text-white font-black text-[15px] flex items-center gap-2">명예의 전당 베스트 댓글</div>
             <div className="divide-y divide-blue-100">
               {bestComments.map((c) => (
                 <div key={`best-${c.id}`} className="p-4 flex items-start justify-between">
                   <div>
-                    <div className="font-bold text-gray-800 text-[13.5px] mb-1.5 flex items-center gap-2">
-                      {c.author}
-                    </div>
+                    <div className="font-bold text-gray-800 text-[13.5px] mb-1.5 flex items-center gap-2">{c.author}</div>
                     <div className="text-gray-800 text-[15px] leading-relaxed break-words whitespace-pre-wrap">{c.content}</div>
                     {c.image_data && <img src={c.image_data} className="mt-3 max-w-full md:max-w-xs rounded-sm border border-blue-200" alt="베스트 이미지" />}
                   </div>
@@ -302,7 +306,6 @@ export default async function PostDetailPage(props: any) {
               전체 댓글 <span className="text-[#e74c3c] ml-1">{comments.length}</span>
             </h3>
           </div>
-
           <div className="flex flex-col">
             {commentTree.length === 0 ? (
               <div className="text-center text-gray-400 py-10 font-medium text-sm">아직 등록된 댓글이 없습니다. 첫 번째 댓글을 남겨보세요.</div>
@@ -310,7 +313,6 @@ export default async function PostDetailPage(props: any) {
               commentTree.map(node => renderCommentNode(node, 0))
             )}
           </div>
-
           <div className="p-3 sm:p-5 bg-gray-100 border-t border-gray-200">
             {currentUser ? (
               <CommentForm postId={postId} actionType="main" submitAction={addComment} />
@@ -320,9 +322,7 @@ export default async function PostDetailPage(props: any) {
               </div>
             )}
           </div>
-
         </div>
-
       </main>
     </div>
   );

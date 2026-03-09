@@ -16,7 +16,8 @@ import 'react-quill-new/dist/quill.snow.css';
 export default function WriteClient({ currentUser }: { currentUser: string }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState('인사 한마디'); 
+  // 💡 미나의 수정: 기본 카테고리를 '자유게시판'으로 설정했습니다.
+  const [category, setCategory] = useState('자유게시판'); 
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const router = useRouter();
@@ -164,8 +165,8 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
     },
     toolbar: {
       container: [
-        ['image', 'video', 'link'],                               
-        ['undo', 'redo'],                                         
+        ['image', 'video', 'link'],                      
+        ['undo', 'redo'],                                       
         [{ 'header': [1, 2, 3, 4, 5, 6, false] }],                    
         [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }], 
         ['bold', 'italic', 'underline', 'strike'],                    
@@ -197,7 +198,6 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
       const res = await fetch('/api/post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // 💡 미나의 철통 보안: 사용자가 임의로 이름을 적지 못하게 하고, 쿠키에서 가져온 진짜 이름(currentUser)을 서버로 쏩니다!
         body: JSON.stringify({ title: title, content: content, author: currentUser, category: category }), 
       });
 
@@ -258,21 +258,19 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
               onChange={(e) => setCategory(e.target.value)}
               className="p-3 border border-gray-300 rounded-sm focus:border-gray-500 outline-none font-bold bg-white text-gray-700 w-full md:w-56 shadow-sm"
             >
-              <optgroup label="따뜻한 다락방">
-                <option value="인사 한마디">인사 한마디</option>
-                <option value="세상사는 이야기">세상사는 이야기</option>
-                <option value="묻지마 격려">묻지마 격려</option>
-                <option value="이거 알려주세요">이거 알려주세요</option>
-                <option value="그냥 혼잣말">그냥 혼잣말</option>
-              </optgroup>
-              <optgroup label="꿀잼 & 감동">
+              {/* 💡 미나의 핵심: 대표님의 기획대로 부동산은 빼고, 순한 유머와 다락방으로 싹 교체했습니다! */}
+              <optgroup label="순한 유머 & 감동">
                 <option value="유머">웃어요 (유머)</option>
                 <option value="감동">나누고 싶은 감동</option>
+                <option value="세상사는 이야기">세상사는 이야기</option>
                 <option value="귀여운 동물들">귀여운 동물들</option>
+                <option value="자유게시판">자유게시판</option>
               </optgroup>
-              <optgroup label="지식 & 정보">
+              <optgroup label="따뜻한 다락방">
                 <option value="유용한 상식">유용한 상식</option>
-                <option value="부동산 사랑방">부동산 사랑방</option>
+                <option value="맛집">맛집</option>
+                <option value="가볼만한 곳">가볼만한 곳</option>
+                <option value="볼만한 영화">볼만한 영화</option>
               </optgroup>
             </select>
 
@@ -284,7 +282,6 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
               required 
             />
             
-            {/* 💡 미나의 개선: 사용자가 맘대로 이름을 치지 못하게 막고, 닉네임을 깔끔하게 표시만 해줍니다. */}
             <div className="w-full md:w-48 p-3 border border-gray-200 bg-gray-50 rounded-sm flex items-center font-bold text-gray-600">
               {currentUser}
             </div>

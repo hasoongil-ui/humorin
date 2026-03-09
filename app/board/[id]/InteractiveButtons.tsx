@@ -2,17 +2,20 @@
 
 import { useState, useTransition } from 'react';
 
+// ------------------------------------------------------------------
+// 1. 기존 명품 엔진: 게시글 공감 버튼
+// ------------------------------------------------------------------
 export function PostLikeButton({ postId, initialLikes, initialHasLiked, toggleAction }: any) {
   const [likes, setLikes] = useState(initialLikes);
   const [hasLiked, setHasLiked] = useState(initialHasLiked);
   const [isPending, startTransition] = useTransition();
 
   const handleLike = () => {
-    // 버튼을 누르는 즉시 0.001초 만에 화면 변경 (선반영)
+    // 선반영 (낙관적 UI)
     setHasLiked(!hasLiked);
     setLikes(hasLiked ? Math.max(0, likes - 1) : likes + 1);
 
-    // 실제 서버 통신은 백그라운드에서 조용히 처리하여 화면 멈춤(Freezing) 방지
+    // 백그라운드 서버 통신
     startTransition(async () => {
       await toggleAction();
     });
@@ -38,13 +41,52 @@ export function PostLikeButton({ postId, initialLikes, initialHasLiked, toggleAc
   );
 }
 
+// ------------------------------------------------------------------
+// 2. 💡 미나의 신규 엔진: 게시글 스크랩(북마크) 버튼
+// ------------------------------------------------------------------
+export function PostScrapButton({ postId, initialHasScrapped, toggleScrapAction }: any) {
+  const [hasScrapped, setHasScrapped] = useState(initialHasScrapped);
+  const [isPending, startTransition] = useTransition();
+
+  const handleScrap = () => {
+    // 💡 누르자마자 0.001초 만에 화면을 파란색으로 칠해버립니다!
+    setHasScrapped(!hasScrapped);
+
+    // 💡 조용히 DB 창고(스크랩 테이블)에 저장하러 다녀옵니다.
+    startTransition(async () => {
+      await toggleScrapAction();
+    });
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleScrap}
+      disabled={isPending}
+      className={`flex items-center gap-2 px-5 py-2.5 border rounded-full transition-all shadow-sm group ${
+        hasScrapped
+          ? 'border-[#3b4890] bg-[#ebedf5] text-[#3b4890] hover:bg-[#dfe2ef]'
+          : 'border-gray-300 bg-white text-gray-500 hover:border-[#3b4890] hover:text-[#3b4890]'
+      }`}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`w-5 h-5 transition-transform group-hover:scale-110 ${hasScrapped ? 'text-[#3b4890]' : 'text-gray-400 group-hover:text-[#3b4890]'}`}>
+        {/* 예쁜 북마크(리본) 아이콘 */}
+        <path fillRule="evenodd" d="M6.32 2.577a4.902 4.902 0 0 1 3.07-.638h5.22c1.082 0 2.122.213 3.07.638A4.896 4.896 0 0 1 20.306 5.2a4.903 4.903 0 0 1 .637 3.069v11.53c0 .66-.75 1.04-1.28.64l-7.23-5.42a.75.75 0 0 0-.904 0l-7.23 5.42c-.53.4-1.28.02-1.28-.64V8.27c0-1.082.213-2.121.638-3.07A4.895 4.895 0 0 1 6.32 2.577Z" clipRule="evenodd" />
+      </svg>
+      <span className="text-sm font-bold">{hasScrapped ? '스크랩 취소' : '스크랩'}</span>
+    </button>
+  );
+}
+
+// ------------------------------------------------------------------
+// 3. 기존 명품 엔진: 댓글 공감 버튼
+// ------------------------------------------------------------------
 export function CommentLikeButton({ commentId, initialLikes, initialHasLiked, toggleAction }: any) {
   const [likes, setLikes] = useState(initialLikes);
   const [hasLiked, setHasLiked] = useState(initialHasLiked);
   const [isPending, startTransition] = useTransition();
 
   const handleLike = () => {
-    // 댓글 공감 역시 누르는 즉시 화면에 선반영
     setHasLiked(!hasLiked);
     setLikes(hasLiked ? Math.max(0, likes - 1) : likes + 1);
 
