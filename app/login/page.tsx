@@ -12,7 +12,6 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 💡 대표님이 기존에 쓰시던 서버 로그인 API 연동 로직입니다.
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
@@ -71,17 +70,24 @@ export default function LoginPage() {
             />
           </div>
 
+          {/* 💡 미나의 핵심 추가 로직: 아이디 / 비밀번호 찾기 우측 정렬 링크! */}
+          <div className="flex justify-end mt-1 mb-2">
+            <Link href="/find-account" className="text-[12px] text-gray-500 font-bold hover:text-[#3b4890] transition-colors underline underline-offset-2">
+              아이디 / 비밀번호 찾기
+            </Link>
+          </div>
+
+          {/* 💡 정중한 톤을 위해 이모티콘 제거 */}
           <button
             type="submit"
             className="w-full py-3.5 mt-2 bg-[#2a3042] hover:bg-[#1e2335] text-white font-bold rounded-sm text-lg transition-colors flex justify-center items-center gap-2"
           >
-            <span>🔒</span> 로그인하기
+            로그인하기
           </button>
         </form>
 
-        {/* 💡 미나의 핵심 추가 로직: 다정한 회원가입 유도 영역! */}
         <div className="mt-8 pt-6 border-t border-gray-100 text-center text-[13px] text-gray-600 font-medium">
-          <p className="mb-2 text-gray-500">아직 오재미의 이웃이 아니신가요?</p>
+          <p className="mb-2 text-gray-500">아직 오재미의 회원이 아니신가요?</p>
           <Link 
             href="/signup" 
             className="text-[#3b4890] font-bold hover:underline inline-block text-[14px]"
