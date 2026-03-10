@@ -104,10 +104,10 @@ export default async function HomePage() {
           
           <div>
             <h1 className="text-2xl md:text-3xl font-black text-white mb-2">
-              반갑습니다! <span className="text-[#aeb7db]">커뮤니티 오재미</span>입니다.
+              반갑습니다! 세상의 모든 재미 <span className="text-yellow-400">오!재미</span> 입니다.
             </h1>
             <p className="text-sm md:text-base text-gray-300 font-medium">
-              함께 웃고, 나누고, 소통하는 우리들의 따뜻한 공간입니다.
+              함께 웃고, 나누고, 소통하는 우리들의 따뜻한 공간 오! 재미.
             </p>
           </div>
 
