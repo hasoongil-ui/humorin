@@ -51,33 +51,43 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
         Quill.register(CustomVideo, true);
 
         const icons = Quill.import('ui/icons') as any;
+        icons['videoLink'] = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`;
         icons['undo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="6 10 4 12 2 10 6 10"></polygon><path class="ql-stroke" d="M8.09,13.91A4.6,4.6,0,0,0,9,14,5,5,0,1,0,4,9"></path></svg>`;
         icons['redo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="12 10 14 12 16 10 12 10"></polygon><path class="ql-stroke" d="M9.91,13.91A4.6,4.6,0,0,1,9,14a5,5,0,1,1,5-5"></path></svg>`;
       }
     });
   }, []);
 
-  const processAndUploadMedia = async (fileArray: File[]) => {
+  useEffect(() => {
+    setTimeout(() => {
+      const addTooltip = (className: string, title: string) => {
+        const btns = document.querySelectorAll(className);
+        btns.forEach(btn => btn.setAttribute('title', title));
+      };
+      addTooltip('.ql-image', '사진 첨부 (PC 업로드)');
+      addTooltip('.ql-video', '동영상 첨부 (PC 업로드)');
+      addTooltip('.ql-videoLink', '동영상 링크로 업로드');
+    }, 1000); 
+  }, []);
+
+  const processAndUploadImages = async (fileArray: File[]) => {
     if (!quillRef.current) return;
     setIsUploading(true);
     const editor = quillRef.current.getEditor();
     
     for (let i = 0; i < fileArray.length; i++) {
       const file = fileArray[i];
-      const isImage = file.type.startsWith('image/');
-      const isVideo = file.type.startsWith('video/');
-
-      if (!isImage && !isVideo) continue;
+      if (!file.type.startsWith('image/')) continue;
       
       if (file.size > 10 * 1024 * 1024) {
-        alert(`[${file.name}] 용량이 초과되었습니다 (최대 10MB).\n10MB 이상의 영상은 외부 링크를 이용해 주십시오.`);
+        alert(`[${file.name}] 사진 용량이 너무 큽니다 (최대 10MB).`);
         continue; 
       }
 
       try {
         let fileToUpload = file;
         
-        if (isImage && file.type !== 'image/gif' && file.type !== 'image/webp') {
+        if (file.type !== 'image/gif' && file.type !== 'image/webp') {
           const img = new Image();
           img.src = URL.createObjectURL(file);
           await new Promise((resolve) => { img.onload = resolve; });
@@ -100,28 +110,22 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: fileToUpload, headers: { 'Content-Type': fileToUpload.type } });
           const range = editor.getSelection(true) || { index: editor.getLength() };
-          
-          if (isVideo) {
-            editor.insertEmbed(range.index, 'mp4Video', publicUrl);
-          } else {
-            editor.insertEmbed(range.index, 'image', publicUrl);
-          }
-          
+          editor.insertEmbed(range.index, 'image', publicUrl);
           editor.insertText(range.index + 1, '\n');
           editor.setSelection(range.index + 2); 
         }
       } catch (error) {
         console.error('업로드 에러:', error);
-        alert('미디어 업로드 중 오류가 발생했습니다.');
+        alert('이미지 업로드 중 오류가 발생했습니다.');
       }
     }
     
     setIsUploading(false); 
   };
 
-  const uploadMediaRef = useRef(processAndUploadMedia);
+  const uploadImagesRef = useRef(processAndUploadImages);
   useEffect(() => {
-    uploadMediaRef.current = processAndUploadMedia;
+    uploadImagesRef.current = processAndUploadImages;
   });
 
   useEffect(() => {
@@ -132,61 +136,86 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
       const items = e.clipboardData?.items;
       if (!items) return;
 
-      let hasMedia = false;
-      const mediaFiles: File[] = [];
+      let hasImage = false;
+      const imageFiles: File[] = [];
 
       for (let i = 0; i < items.length; i++) {
-        if (items[i].type.startsWith('image/') || items[i].type.startsWith('video/')) {
-          hasMedia = true;
+        if (items[i].type.startsWith('image/')) {
+          hasImage = true;
           const file = items[i].getAsFile();
-          if (file) mediaFiles.push(file);
+          if (file) imageFiles.push(file);
         }
       }
 
-      if (hasMedia && mediaFiles.length > 0) {
+      if (hasImage && imageFiles.length > 0) {
         e.preventDefault(); 
         e.stopPropagation();
-        uploadMediaRef.current(mediaFiles); 
-      }
-    };
-
-    const handleNativeDrop = (e: DragEvent) => {
-      const files = e.dataTransfer?.files;
-      if (!files) return;
-
-      const mediaFiles = Array.from(files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
-      if (mediaFiles.length > 0) {
-        e.preventDefault();
-        e.stopPropagation();
-        uploadMediaRef.current(mediaFiles);
+        uploadImagesRef.current(imageFiles); 
       }
     };
 
     container.addEventListener('paste', handleNativePaste, true);
-    container.addEventListener('drop', handleNativeDrop, true);
-
-    return () => {
-      container.removeEventListener('paste', handleNativePaste, true);
-      container.removeEventListener('drop', handleNativeDrop, true);
-    };
+    return () => container.removeEventListener('paste', handleNativePaste, true);
   }, []);
 
-  const mediaHandler = () => {
+  const imageHandler = () => {
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'image/*,video/mp4,video/webm'); 
+    input.setAttribute('accept', 'image/*');
     input.setAttribute('multiple', 'true'); 
     input.click();
 
     input.onchange = async () => {
       const files = input.files;
       if (!files || files.length === 0) return;
-      await processAndUploadMedia(Array.from(files));
+      await processAndUploadImages(Array.from(files));
+    };
+  };
+
+  const videoFileHandler = () => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'video/mp4,video/webm'); 
+    input.click();
+
+    input.onchange = async () => {
+      const file = input.files ? input.files[0] : null;
+      if (!file) return;
+
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`[${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).\n10MB 이상의 긴 영상은 [동영상 링크] 버튼을 이용해 주십시오.`);
+        return; 
+      }
+
+      setIsUploading(true);
+
+      try {
+        const ticketRes = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, contentType: file.type }),
+        });
+        
+        const { uploadUrl, publicUrl } = await ticketRes.json();
+        if (uploadUrl) {
+          await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+          const editor = quillRef.current.getEditor();
+          const range = editor.getSelection(true) || { index: editor.getLength() };
+          editor.insertEmbed(range.index, 'mp4Video', publicUrl);
+          
+          editor.insertText(range.index + 1, '\n');
+          editor.setSelection(range.index + 2);
+        }
+      } catch (error) {
+        alert('동영상 업로드 중 오류가 발생했습니다.');
+      } finally {
+        setIsUploading(false);
+      }
     };
   };
 
   const videoLinkHandler = () => {
-    const url = prompt('외부 동영상 주소(MP4 링크 또는 유튜브)를 붙여넣으세요.\n\n※ 내 PC에 있는 동영상을 직접 올리시려면 취소를 누르시고 에디터 상단의 [사진(그림)] 아이콘을 이용해 주세요.');
+    const url = prompt('동영상 주소(MP4 링크 또는 유튜브)를 붙여넣으세요.');
 
     if (url && url.trim().length > 0) {
       const editor = quillRef.current.getEditor();
@@ -213,20 +242,22 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
     history: { delay: 500, maxStack: 100, userOnly: true },
     toolbar: {
       container: [
-        ['image', 'video', 'link'],
-        ['undo', 'redo'],
-        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-        [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }],
-        ['bold', 'italic', 'underline', 'strike'],
-        [{ 'color': [] }, { 'background': [] }],
-        [{ 'align': [] }],
-        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-        ['blockquote', 'code-block'],
-        ['clean']
+        ['image', 'video', 'videoLink'],                      
+        ['link'],                                       
+        ['undo', 'redo'],                                       
+        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],                    
+        [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }], 
+        ['bold', 'italic', 'underline', 'strike'],                    
+        [{ 'color': [] }, { 'background': [] }],                      
+        [{ 'align': [] }],                                            
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],                
+        ['blockquote', 'code-block'],                                 
+        ['clean']                                                     
       ],
-      handlers: {
-        image: mediaHandler,
-        video: videoLinkHandler,
+      handlers: { 
+        image: imageHandler,
+        video: videoFileHandler,
+        videoLink: videoLinkHandler,
         undo: function() { this.quill.history.undo(); },
         redo: function() { this.quill.history.redo(); }
       }
@@ -241,7 +272,7 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
     }
 
     if (content.includes('data:image/')) {
-      alert('기존에 등록된 거대한 텍스트 이미지(Base64)가 남아있습니다.\n해당 이미지를 에디터에서 지운 뒤 다시 붙여넣어 주시면 클라우드로 정상 등록됩니다.');
+      alert('기존에 등록된 용량 초과 텍스트 이미지(Base64)가 남아있습니다.\n해당 이미지를 에디터에서 지운 뒤 다시 붙여넣어 주시면 정상 등록됩니다.');
       return;
     }
 
@@ -274,12 +305,13 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
         .ql-editor { font-size: 1.05rem; line-height: 1.8; }
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
         
-        .ql-editor iframe.ql-video { 
+        .ql-editor video, .ql-editor iframe.ql-video { 
           width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; 
-          border-radius: 8px; display: block; margin: 10px auto 30px auto !important; 
+          border-radius: 8px; background: #000; border: none; 
+          display: block; margin: 10px auto 30px auto !important; 
         }
         
-        @media (max-width: 768px) { .ql-editor iframe.ql-video { aspect-ratio: 16/9; height: auto; } }
+        @media (max-width: 768px) { .ql-editor video, .ql-editor iframe.ql-video { aspect-ratio: 16/9; height: auto; } }
         .ql-toolbar.ql-snow {
           background-color: #f8f9fa;
           padding: 12px 15px;
@@ -295,7 +327,7 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
 
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-bold text-gray-800">게시글 수정</h2>
-        {isUploading && <span className="text-sm font-medium text-gray-500">(미디어 파일 처리 중...)</span>}
+        {isUploading && <span className="text-sm font-medium text-gray-500">(업로드 처리 중...)</span>}
       </div>
 
       <div className="flex flex-col gap-3">
@@ -315,7 +347,7 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
           modules={modules}
           value={content}
           onChange={setContent}
-          placeholder="내용을 수정해 주십시오. (직접 업로드는 그림 아이콘, 링크 연결은 필름 아이콘을 누르세요.)"
+          placeholder="내용을 수정해 주십시오."
         />
       </div>
 
