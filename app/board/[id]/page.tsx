@@ -23,7 +23,7 @@ export default async function PostDetailPage(props: any) {
   const currentUser = userCookie ? userCookie.value : null;
   const currentUserId = userIdCookie ? userIdCookie.value : null;
 
-  // 👑 미나의 완벽한 절대 권력 탐지기: 로그인한 진짜 아이디가 'admin'이면 무조건 관리자!
+  // 👑 관리자 권한 확인
   const isAdmin = currentUserId === 'admin';
 
   // 조회수 증가
@@ -36,7 +36,9 @@ export default async function PostDetailPage(props: any) {
     return <div className="p-20 text-center text-2xl font-bold">글을 찾을 수 없습니다</div>;
   }
 
-  const isAuthor = currentUser === post.author || currentUserId === post.author;
+  // 💡 작성자 본인인지 확인 (글쓴이 닉네임과 내 닉네임이 같으면 본인!)
+  const isAuthor = currentUser === post.author;
+
   const { rows: comments } = await sql`SELECT * FROM comments WHERE post_id = ${postId} ORDER BY created_at ASC`;
   const bestComments = comments.filter(c => c.likes >= 3).sort((a, b) => b.likes - a.likes).slice(0, 3);
 
@@ -202,7 +204,6 @@ export default async function PostDetailPage(props: any) {
           {node.image_data && <div className="mb-4"><img src={node.image_data} alt="첨부이미지" className="max-w-full md:max-w-md rounded-sm border border-gray-200 shadow-sm" /></div>}
           <div className="flex items-center gap-3">
             <label htmlFor={`reply-${node.id}`} className="cursor-pointer text-[13px] text-gray-500 font-bold hover:text-[#3b4890] flex items-center gap-1 transition-colors">답글</label>
-            {/* 💡 미나의 핵심: 댓글 공감 버튼에도 isAdmin 꽂아넣기! */}
             <CommentLikeButton commentId={node.id} initialLikes={node.likes || 0} initialHasLiked={hasUserLikedComment} toggleAction={toggleCommentLike} isAdmin={isAdmin} />
           </div>
         </div>
@@ -232,22 +233,32 @@ export default async function PostDetailPage(props: any) {
         </div>
         <div className="min-h-[300px] text-gray-900 text-base md:text-[17px] whitespace-pre-wrap leading-relaxed break-words" dangerouslySetInnerHTML={{ __html: post.content }} />
         <div className="mt-16 flex justify-center items-center gap-3 border-t border-gray-100 pt-10">
-          {/* 💡 미나의 핵심: 게시글 공감 버튼에도 isAdmin 꽂아넣기! */}
           <PostLikeButton postId={postId} initialLikes={post.likes || 0} initialHasLiked={hasLiked} toggleAction={toggleLike} isAdmin={isAdmin} />
           <PostScrapButton postId={postId} initialHasScrapped={hasScrapped} toggleScrapAction={toggleScrap} />
         </div>
+        
+        {/* 🚨 미나의 완벽 복구: 본인 글에는 '수정'과 '삭제' 모두 노출! 관리자에겐 '강제삭제'만 노출! */}
         <div className="mt-12 border-t border-gray-200 pt-6 flex justify-between items-center">
           <div className="flex gap-2">
+            {/* 글 작성자 본인일 때만 '수정' 버튼 노출 */}
+            {isAuthor && (
+              <Link href={`/board/${postId}/edit`} className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-sm font-bold text-sm hover:bg-gray-50 transition-colors shadow-sm">
+                수정
+              </Link>
+            )}
+            
+            {/* 본인이거나 관리자일 때 '삭제' 기능 활성화 */}
             {(isAuthor || isAdmin) && (
               <form action={deletePost}>
-                <button type="submit" className={`px-6 py-2 text-white rounded-sm font-bold text-sm ${isAdmin && !isAuthor ? 'bg-red-600' : 'bg-[#e06c75]'}`}>
+                <button type="submit" className={`px-6 py-2 text-white rounded-sm font-bold text-sm shadow-sm transition-colors ${isAdmin && !isAuthor ? 'bg-red-600 hover:bg-red-700' : 'bg-[#e06c75] hover:bg-red-500'}`}>
                   {isAdmin && !isAuthor ? '🚨 관리자 강제삭제' : '삭제'}
                 </button>
               </form>
             )}
           </div>
-          <Link href={`/board`} className="px-8 py-2 bg-[#414a66] text-white rounded-sm font-bold text-sm">목록으로</Link>
+          <Link href={`/board`} className="px-8 py-2 bg-[#414a66] text-white rounded-sm font-bold text-sm shadow-sm hover:bg-[#2a3042] transition-colors">목록으로</Link>
         </div>
+
         <div className="mt-16 bg-gray-50 px-5 py-4 border border-gray-200">
            <h3 className="text-[16px] font-bold text-gray-800">댓글 <span className="text-[#e74c3c]">{comments.length}</span></h3>
            <div className="mt-4">{commentTree.map(node => renderCommentNode(node, 0))}</div>

@@ -21,6 +21,7 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
   const router = useRouter();
 
   const quillRef = useRef<any>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     import('react-quill-new').then((RQ) => {
@@ -28,13 +29,19 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
       if (Quill) {
         const BlockEmbed = Quill.import('blots/block/embed') as any;
         class CustomVideo extends BlockEmbed {
-          static blotName = 'video';
+          static blotName = 'mp4Video';
           static tagName = 'VIDEO';
           
           static create(value: any) {
             let node = super.create();
             node.setAttribute('controls', 'true');
             node.setAttribute('src', value);
+            node.style.display = 'block';
+            node.style.width = '100%';
+            node.style.maxWidth = '800px';
+            node.style.margin = '10px auto 30px auto'; 
+            node.style.borderRadius = '8px';
+            node.style.backgroundColor = '#000';
             return node;
           }
           static value(node: any) {
@@ -50,112 +57,160 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
     });
   }, []);
 
-  const imageHandler = () => {
+  const processAndUploadMedia = async (fileArray: File[]) => {
+    if (!quillRef.current) return;
+    setIsUploading(true);
+    const editor = quillRef.current.getEditor();
+    
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i];
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+
+      if (!isImage && !isVideo) continue;
+      
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`[${file.name}] 용량이 초과되었습니다 (최대 10MB).\n10MB 이상의 영상은 외부 링크를 이용해 주십시오.`);
+        continue; 
+      }
+
+      try {
+        let fileToUpload = file;
+        
+        if (isImage && file.type !== 'image/gif' && file.type !== 'image/webp') {
+          const img = new Image();
+          img.src = URL.createObjectURL(file);
+          await new Promise((resolve) => { img.onload = resolve; });
+          const isLongImage = img.height > img.width * 2; 
+          URL.revokeObjectURL(img.src);
+
+          if (!isLongImage) {
+            const options = { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true };
+            fileToUpload = await imageCompression(file, options);
+          }
+        }
+        
+        const ticketRes = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: fileToUpload.name, contentType: fileToUpload.type }),
+        });
+        
+        const { uploadUrl, publicUrl } = await ticketRes.json();
+        if (uploadUrl) {
+          await fetch(uploadUrl, { method: 'PUT', body: fileToUpload, headers: { 'Content-Type': fileToUpload.type } });
+          const range = editor.getSelection(true) || { index: editor.getLength() };
+          
+          if (isVideo) {
+            editor.insertEmbed(range.index, 'mp4Video', publicUrl);
+          } else {
+            editor.insertEmbed(range.index, 'image', publicUrl);
+          }
+          
+          editor.insertText(range.index + 1, '\n');
+          editor.setSelection(range.index + 2); 
+        }
+      } catch (error) {
+        console.error('업로드 에러:', error);
+        alert('미디어 업로드 중 오류가 발생했습니다.');
+      }
+    }
+    
+    setIsUploading(false); 
+  };
+
+  const uploadMediaRef = useRef(processAndUploadMedia);
+  useEffect(() => {
+    uploadMediaRef.current = processAndUploadMedia;
+  });
+
+  useEffect(() => {
+    const container = editorContainerRef.current;
+    if (!container) return;
+
+    const handleNativePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      let hasMedia = false;
+      const mediaFiles: File[] = [];
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/') || items[i].type.startsWith('video/')) {
+          hasMedia = true;
+          const file = items[i].getAsFile();
+          if (file) mediaFiles.push(file);
+        }
+      }
+
+      if (hasMedia && mediaFiles.length > 0) {
+        e.preventDefault(); 
+        e.stopPropagation();
+        uploadMediaRef.current(mediaFiles); 
+      }
+    };
+
+    const handleNativeDrop = (e: DragEvent) => {
+      const files = e.dataTransfer?.files;
+      if (!files) return;
+
+      const mediaFiles = Array.from(files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
+      if (mediaFiles.length > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadMediaRef.current(mediaFiles);
+      }
+    };
+
+    container.addEventListener('paste', handleNativePaste, true);
+    container.addEventListener('drop', handleNativeDrop, true);
+
+    return () => {
+      container.removeEventListener('paste', handleNativePaste, true);
+      container.removeEventListener('drop', handleNativeDrop, true);
+    };
+  }, []);
+
+  const mediaHandler = () => {
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'image/*');
-    input.setAttribute('multiple', 'true');
+    input.setAttribute('accept', 'image/*,video/mp4,video/webm'); 
+    input.setAttribute('multiple', 'true'); 
     input.click();
 
     input.onchange = async () => {
       const files = input.files;
       if (!files || files.length === 0) return;
-
-      setIsUploading(true);
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-
-        if (file.size > 10 * 1024 * 1024) {
-          alert(`[${file.name}] 용량이 너무 큽니다. (최대 10MB) 이 파일은 제외됩니다.`);
-          continue;
-        }
-
-        try {
-          let fileToUpload = file;
-          if (file.type !== 'image/gif' && file.type !== 'image/webp') {
-            const img = new Image();
-            img.src = URL.createObjectURL(file);
-            await new Promise((resolve) => { img.onload = resolve; });
-            const isLongImage = img.height > img.width * 2;
-            URL.revokeObjectURL(img.src);
-
-            if (!isLongImage) {
-              const options = { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true };
-              fileToUpload = await imageCompression(file, options);
-            }
-          }
-
-          const ticketRes = await fetch('/api/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: fileToUpload.name, contentType: fileToUpload.type }),
-          });
-
-          const { uploadUrl, publicUrl } = await ticketRes.json();
-          if (uploadUrl) {
-            await fetch(uploadUrl, { method: 'PUT', body: fileToUpload, headers: { 'Content-Type': fileToUpload.type } });
-            const editor = quillRef.current.getEditor();
-            const range = editor.getSelection() || { index: editor.getLength() };
-            editor.insertEmbed(range.index, 'image', publicUrl);
-            editor.setSelection(range.index + 1);
-          }
-        } catch (error) {
-          console.error('업로드 에러:', error);
-          alert(`[${file.name}] 이미지 업로드 중 오류가 발생했습니다.`);
-        }
-      }
-
-      setIsUploading(false);
+      await processAndUploadMedia(Array.from(files));
     };
   };
 
-  const videoHandler = () => {
-    const input = document.createElement('input');
-    input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'video/mp4,video/webm');
-    input.click();
+  const videoLinkHandler = () => {
+    const url = prompt('외부 동영상 주소(MP4 링크 또는 유튜브)를 붙여넣으세요.\n\n※ 내 PC에 있는 동영상을 직접 올리시려면 취소를 누르시고 에디터 상단의 [사진(그림)] 아이콘을 이용해 주세요.');
 
-    input.onchange = async () => {
-      const file = input.files ? input.files[0] : null;
-      if (!file) return;
+    if (url && url.trim().length > 0) {
+      const editor = quillRef.current.getEditor();
+      const range = editor.getSelection(true) || { index: editor.getLength() };
+      const cleanUrl = url.trim();
 
-      if (file.size > 50 * 1024 * 1024) {
-        alert(`[${file.name}] 용량이 너무 큽니다. (최대 50MB)`);
-        return;
-      }
-
-      setIsUploading(true);
-
-      try {
-        const ticketRes = await fetch('/api/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: file.name, contentType: file.type }),
-        });
-
-        const { uploadUrl, publicUrl } = await ticketRes.json();
-        if (uploadUrl) {
-          await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-          const editor = quillRef.current.getEditor();
-          const range = editor.getSelection() || { index: editor.getLength() };
-          editor.insertEmbed(range.index, 'video', publicUrl);
-          editor.setSelection(range.index + 1);
+      if (cleanUrl.match(/\.(mp4|webm)$/i)) {
+        editor.insertEmbed(range.index, 'mp4Video', cleanUrl);
+      } else {
+        let embedUrl = cleanUrl;
+        const ytMatch = cleanUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+        if (ytMatch) {
+           embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}`;
         }
-      } catch (error) {
-        alert('동영상 업로드 중 오류가 발생했습니다.');
-      } finally {
-        setIsUploading(false);
+        editor.insertEmbed(range.index, 'video', embedUrl);
       }
-    };
+      
+      editor.insertText(range.index + 1, '\n');
+      editor.setSelection(range.index + 2);
+    }
   };
 
   const modules = useMemo(() => ({
-    history: {
-      delay: 500,
-      maxStack: 100,
-      userOnly: true
-    },
+    history: { delay: 500, maxStack: 100, userOnly: true },
     toolbar: {
       container: [
         ['image', 'video', 'link'],
@@ -170,8 +225,8 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
         ['clean']
       ],
       handlers: {
-        image: imageHandler,
-        video: videoHandler,
+        image: mediaHandler,
+        video: videoLinkHandler,
         undo: function() { this.quill.history.undo(); },
         redo: function() { this.quill.history.redo(); }
       }
@@ -181,9 +236,15 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content || content === '<p><br></p>') {
-      alert('내용을 입력해주세요.');
+      alert('내용을 작성해 주십시오.');
       return;
     }
+
+    if (content.includes('data:image/')) {
+      alert('기존에 등록된 거대한 텍스트 이미지(Base64)가 남아있습니다.\n해당 이미지를 에디터에서 지운 뒤 다시 붙여넣어 주시면 클라우드로 정상 등록됩니다.');
+      return;
+    }
+
     if (isUploading || isSubmitting) return;
     setIsSubmitting(true);
 
@@ -191,10 +252,8 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
     formData.append('title', title);
     formData.append('content', content);
 
-    // 💡 미나의 해결책: 브라우저가 화면 이동(Redirect) 에러를 낚아채지 못하게 방어막을 걷어냈습니다!
     const result = await updateAction(formData);
     
-    // 만약 여기까지 코드가 살아서 내려왔다면(화면 이동이 안 되었다면), 서버에서 진짜 에러가 난 것입니다.
     if (result && result.error) {
       alert('수정 중 서버 오류가 발생했습니다.');
       setIsSubmitting(false);
@@ -214,8 +273,13 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
         }
         .ql-editor { font-size: 1.05rem; line-height: 1.8; }
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
-        .ql-editor video { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: inline-block; vertical-align: top; }
-        @media (max-width: 768px) { .ql-editor video { aspect-ratio: 16/9; height: auto; } }
+        
+        .ql-editor iframe.ql-video { 
+          width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; 
+          border-radius: 8px; display: block; margin: 10px auto 30px auto !important; 
+        }
+        
+        @media (max-width: 768px) { .ql-editor iframe.ql-video { aspect-ratio: 16/9; height: auto; } }
         .ql-toolbar.ql-snow {
           background-color: #f8f9fa;
           padding: 12px 15px;
@@ -229,6 +293,11 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
         button.ql-undo:hover, button.ql-redo:hover { color: #3b4890; }
       `}} />
 
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-lg font-bold text-gray-800">게시글 수정</h2>
+        {isUploading && <span className="text-sm font-medium text-gray-500">(미디어 파일 처리 중...)</span>}
+      </div>
+
       <div className="flex flex-col gap-3">
         <input
           placeholder="제목을 입력하세요"
@@ -239,14 +308,14 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
         />
       </div>
 
-      <div className="bg-white rounded-sm mt-4">
+      <div className="bg-white rounded-sm mt-4" ref={editorContainerRef}>
         <ReactQuill
           ref={quillRef}
           theme="snow"
           modules={modules}
           value={content}
           onChange={setContent}
-          placeholder="내용을 수정해주세요."
+          placeholder="내용을 수정해 주십시오. (직접 업로드는 그림 아이콘, 링크 연결은 필름 아이콘을 누르세요.)"
         />
       </div>
 
