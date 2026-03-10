@@ -26,29 +26,36 @@ function formatShortDate(dateString: any) {
 }
 
 export default async function HomePage() {
-  // 💡 미나의 핵심 추가: 대문에서도 유저가 누구인지 (쿠키) 확인합니다!
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('ojemi_user');
   const currentUser = userCookie ? userCookie.value : null;
 
-  // 💡 대문 전용 로그아웃 엔진
+  const userIdCookie = cookieStore.get('ojemi_userid');
+  const isAdmin = userIdCookie?.value === 'admin';
+
   const handleLogout = async () => {
     'use server';
     const store = await cookies();
     store.delete('ojemi_user');
+    store.delete('ojemi_userid');
   };
 
-  const [bestResult, humorResult, freeResult, lifeResult] = await Promise.all([
-    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 ORDER BY date DESC LIMIT 6`,
-    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[유머]%' ORDER BY date DESC LIMIT 6`,
-    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[자유게시판]%' ORDER BY date DESC LIMIT 6`,
-    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[세상사는 이야기]%' ORDER BY date DESC LIMIT 6`,
+  // 🚨 미나의 수술: 6개밖에 안 보이던 글을 가독성 최고 황금비율인 '10개(LIMIT 10)'로 대폭 늘렸습니다!
+  const [bestResult, humorResult, emotionResult, freeResult, lifeResult, animalResult] = await Promise.all([
+    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 ORDER BY date DESC LIMIT 10`,
+    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[유머]%' ORDER BY date DESC LIMIT 10`,
+    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[감동]%' ORDER BY date DESC LIMIT 10`,
+    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[자유게시판]%' ORDER BY date DESC LIMIT 10`,
+    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[세상사는 이야기]%' ORDER BY date DESC LIMIT 10`,
+    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[귀여운 동물들]%' OR title LIKE '[동물]%' ORDER BY date DESC LIMIT 10`,
   ]);
 
   const bestPosts = bestResult.rows;
   const humorPosts = humorResult.rows;
+  const emotionPosts = emotionResult.rows;
   const freePosts = freeResult.rows;
   const lifePosts = lifeResult.rows;
+  const animalPosts = animalResult.rows;
 
   const BoardWidget = ({ title, icon, link, posts, highlight = false }: any) => (
     <div className={`bg-white border ${highlight ? 'border-[#3b4890] shadow-md' : 'border-gray-200 shadow-sm'} rounded-sm overflow-hidden flex flex-col`}>
@@ -93,10 +100,8 @@ export default async function HomePage() {
       <Navbar />
       <main className="max-w-[1200px] mx-auto p-4 md:py-8 mb-20">
         
-        {/* 상단 대형 배너 영역 */}
         <div className="bg-[#414a66] rounded-sm p-6 md:p-10 mb-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
           
-          {/* 왼쪽: 환영 인사 */}
           <div>
             <h1 className="text-2xl md:text-3xl font-black text-white mb-2">
               반갑습니다! <span className="text-[#aeb7db]">커뮤니티 오재미</span>입니다.
@@ -106,15 +111,20 @@ export default async function HomePage() {
             </p>
           </div>
 
-          {/* 오른쪽: 로그인/로그아웃 및 유저 메뉴 패널 */}
           <div className="flex flex-col items-center md:items-end gap-3">
             {currentUser ? (
-              // 🟢 로그인 상태일 때
               <>
                 <div className="text-gray-200 text-sm font-medium">
                   <span className="text-white font-black text-base">{currentUser}</span> 님, 환영합니다!
                 </div>
                 <div className="flex items-center gap-2">
+                  
+                  {isAdmin && (
+                    <Link href="/admin" className="px-4 py-2 bg-red-600 text-white text-sm font-black rounded-sm hover:bg-red-700 transition-colors shadow-sm">
+                      ADMIN
+                    </Link>
+                  )}
+
                   <Link href="/profile" className="px-4 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm">
                     내정보
                   </Link>
@@ -129,13 +139,13 @@ export default async function HomePage() {
                 </div>
               </>
             ) : (
-              // 🔴 로그아웃 상태일 때
               <>
                 <div className="text-gray-300 text-sm font-bold">
                   오재미를 더 편리하게 이용하세요.
                 </div>
                 <div className="flex items-center gap-2">
-                  <Link href="/login" className="px-8 py-2 bg-[#ebedf5] text-[#3b4890] text-sm font-black rounded-sm shadow-md hover:bg-white transition-colors">
+                  {/* 🚨 미나의 스마트 로그인 동선 설계: 로그인 버튼을 누르면 "나 대문(/)에서 왔어!" 라고 알려줍니다 */}
+                  <Link href="/login?redirect=/" className="px-8 py-2 bg-[#ebedf5] text-[#3b4890] text-sm font-black rounded-sm shadow-md hover:bg-white transition-colors">
                     로그인
                   </Link>
                   <Link href="/signup" className="px-6 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm">
@@ -150,9 +160,11 @@ export default async function HomePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <BoardWidget title="투데이 베스트" icon="🔥" link="/board?best=today" posts={bestPosts} highlight={true} />
-          <BoardWidget title="웃어요 (유머)" icon="😆" link="/board?category=유머" posts={humorPosts} />
+          <BoardWidget title="유머" icon="😆" link="/board?category=유머" posts={humorPosts} />
+          <BoardWidget title="나누고 싶은 감동" icon="💖" link="/board?category=감동" posts={emotionPosts} />
           <BoardWidget title="자유게시판" icon="💬" link="/board?category=자유게시판" posts={freePosts} />
           <BoardWidget title="세상사는 이야기" icon="☕" link="/board?category=세상사는 이야기" posts={lifePosts} />
+          <BoardWidget title="귀여운 동물들" icon="🐾" link="/board?category=귀여운 동물들" posts={animalPosts} />
         </div>
       </main>
     </div>

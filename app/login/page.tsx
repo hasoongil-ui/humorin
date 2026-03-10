@@ -1,13 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default function LoginPage() {
+// 💡 미나의 핵심: 폼 영역만 따로 분리하여 Next.js 에러를 방지하는 고급 기술!
+function LoginForm() {
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
+  
+  // 💡 미나의 스마트 리다이렉트 엔진: 주소창에 달린 꼬리표(redirect)를 찾아냅니다!
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,8 +25,8 @@ export default function LoginPage() {
       });
 
       if (res.ok) {
-        // 로그인 성공 시 메인 게시판으로 이동!
-        router.push('/board');
+        // 🚨 핵심 수술: 꼬리표(redirectUrl)가 있으면 그곳으로, 없으면 기본 게시판(/board)으로 이동!
+        router.push(redirectUrl || '/board');
         router.refresh();
       } else {
         alert('아이디 또는 비밀번호를 확인해주세요.');
@@ -32,6 +37,49 @@ export default function LoginPage() {
     }
   };
 
+  return (
+    <form onSubmit={handleLogin} className="space-y-5">
+      <div>
+        <label className="block text-sm font-bold text-gray-700 mb-2">아이디</label>
+        <input
+          type="text"
+          placeholder="아이디 입력"
+          className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium"
+          value={id}
+          onChange={(e) => setId(e.target.value)}
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-bold text-gray-700 mb-2">비밀번호</label>
+        <input
+          type="password"
+          placeholder="비밀번호 입력"
+          className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+      </div>
+
+      <div className="flex justify-end mt-1 mb-2">
+        <Link href="/find-account" className="text-[12px] text-gray-500 font-bold hover:text-[#3b4890] transition-colors underline underline-offset-2">
+          아이디 / 비밀번호 찾기
+        </Link>
+      </div>
+
+      <button
+        type="submit"
+        className="w-full py-3.5 mt-2 bg-[#2a3042] hover:bg-[#1e2335] text-white font-bold rounded-sm text-lg transition-colors flex justify-center items-center gap-2"
+      >
+        로그인하기
+      </button>
+    </form>
+  );
+}
+
+export default function LoginPage() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center bg-gray-50 px-4">
       <div className="bg-white p-8 md:p-10 rounded-sm shadow-sm border border-gray-200 w-full max-w-[400px]">
@@ -44,47 +92,10 @@ export default function LoginPage() {
           <h2 className="text-xl font-bold text-gray-800">로그인</h2>
         </div>
 
-        {/* 로그인 폼 */}
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">아이디</label>
-            <input
-              type="text"
-              placeholder="아이디 입력"
-              className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium"
-              value={id}
-              onChange={(e) => setId(e.target.value)}
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">비밀번호</label>
-            <input
-              type="password"
-              placeholder="비밀번호 입력"
-              className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          {/* 💡 미나의 핵심 추가 로직: 아이디 / 비밀번호 찾기 우측 정렬 링크! */}
-          <div className="flex justify-end mt-1 mb-2">
-            <Link href="/find-account" className="text-[12px] text-gray-500 font-bold hover:text-[#3b4890] transition-colors underline underline-offset-2">
-              아이디 / 비밀번호 찾기
-            </Link>
-          </div>
-
-          {/* 💡 정중한 톤을 위해 이모티콘 제거 */}
-          <button
-            type="submit"
-            className="w-full py-3.5 mt-2 bg-[#2a3042] hover:bg-[#1e2335] text-white font-bold rounded-sm text-lg transition-colors flex justify-center items-center gap-2"
-          >
-            로그인하기
-          </button>
-        </form>
+        {/* 💡 Next.js 최신 규격(Suspense)에 맞춰 폼을 안전하게 감싸줍니다 */}
+        <Suspense fallback={<div className="text-center py-4 text-gray-500 font-bold">로딩 중...</div>}>
+          <LoginForm />
+        </Suspense>
 
         <div className="mt-8 pt-6 border-t border-gray-100 text-center text-[13px] text-gray-600 font-medium">
           <p className="mb-2 text-gray-500">아직 오재미의 회원이 아니신가요?</p>

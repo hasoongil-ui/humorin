@@ -1,19 +1,16 @@
-import { cookies } from 'next/headers';
+import { sql } from '@vercel/postgres';
 import { redirect } from 'next/navigation';
-import { db } from '@vercel/postgres';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
-import Navbar from '../board/Navbar';
-import SettingsClient from './SettingsClient';
-import { logoutAction } from './actions';
+import { updateProfileAction } from './actions';
 
-function formatDate(dateValue: any) {
-  if (!dateValue) return '';
+function formatDate(dateString: string) {
   try {
-    const date = new Date(dateValue);
+    const date = new Date(dateString);
     const yyyy = date.getFullYear();
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
-    return `${yyyy}.${mm}.${dd}`;
+    return `${yyyy}.${mm}.${dd}`; 
   } catch (e) {
     return '';
   }
@@ -21,149 +18,127 @@ function formatDate(dateValue: any) {
 
 export default async function ProfilePage(props: any) {
   const searchParams = await props.searchParams;
-  const currentTab = searchParams.tab || 'posts';
+  const currentTab = searchParams?.tab || 'posts';
 
   const cookieStore = await cookies();
-  const userCookie = cookieStore.get('ojemi_user');
+  const userCookie = cookieStore.get('ojemi_user');      
+  const userIdCookie = cookieStore.get('ojemi_userid');  
+  
   const currentUser = userCookie ? userCookie.value : null;
+  const currentUserId = userIdCookie ? userIdCookie.value : null;
 
   if (!currentUser) {
     redirect('/login');
   }
 
-  const client = await db.connect();
   let myPosts: any[] = [];
-  let myScraps: any[] = []; 
-  
-  try {
-    const postsResult = await client.sql`SELECT * FROM posts WHERE author = ${currentUser} ORDER BY id DESC LIMIT 100`;
-    myPosts = postsResult.rows;
+  let myScraps: any[] = [];
 
-    const scrapsResult = await client.sql`SELECT p.* FROM posts p JOIN scraps s ON p.id = s.post_id WHERE s.author = ${currentUser} ORDER BY s.created_at DESC LIMIT 100`;
-    myScraps = scrapsResult.rows;
-  } catch (error: any) {
-    console.error("데이터 불러오기 실패:", error);
-  } finally {
-    client.release();
+  if (currentTab === 'posts' || currentTab === 'scraps') {
+    try {
+      const postsResult = await sql`SELECT * FROM posts WHERE author = ${currentUser} ORDER BY id DESC LIMIT 100`;
+      myPosts = postsResult.rows;
+
+      try {
+        const scrapsResult = await sql`
+          SELECT p.* FROM posts p
+          JOIN scraps s ON p.id = s.post_id
+          WHERE s.author = ${currentUser}
+          ORDER BY s.created_at DESC LIMIT 100
+        `;
+        myScraps = scrapsResult.rows;
+      } catch (e) {
+        console.error("스크랩 조회 중 에러:", e);
+      }
+    } catch (error) {
+      console.error("프로필 DB 조회 에러:", error);
+    }
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] font-sans text-gray-800 pb-20">
-      <Navbar />
-
-      <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-6">
+    <div className="min-h-[80vh] bg-gray-50 flex justify-center py-10 px-4 font-sans">
+      <div className="w-full max-w-[800px] bg-white rounded-sm shadow-sm border border-gray-200 overflow-hidden">
         
-        <div className="w-full md:w-64 flex-shrink-0">
-          <div className="bg-white border border-gray-200 shadow-sm rounded-sm p-6 text-center sticky top-8">
-            <div className="w-20 h-20 bg-gray-100 rounded-full mx-auto flex items-center justify-center mb-4 border border-gray-200">
-              <svg className="w-10 h-10 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-              </svg>
+        <div className="bg-[#2a3042] p-8 text-white text-center relative">
+          {currentUserId === 'admin' && (
+            <div className="absolute top-4 right-4 bg-red-600 text-white text-xs font-black px-3 py-1 rounded-sm shadow-md">
+              👑 최고 관리자 계정
             </div>
-            <h2 className="text-xl font-black text-gray-900">{currentUser} 님</h2>
-            <p className="text-sm text-gray-500 mt-1 font-medium">커뮤니티 오재미</p>
-            
-            <div className="mt-6 flex justify-around border-t border-gray-100 pt-4">
-              <div className="text-center">
-                <p className="text-xs text-gray-500 font-bold mb-1">작성글</p>
-                <p className="text-lg font-black text-[#3b4890]">{myPosts.length}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-gray-500 font-bold mb-1">스크랩</p>
-                <p className="text-lg font-black text-[#e74c3c]">{myScraps.length}</p>
-              </div>
-            </div>
-            
-            <Link href="/profile?tab=settings">
-              <button className="w-full mt-6 py-2 bg-gray-50 text-gray-600 border border-gray-200 font-bold rounded-sm hover:bg-gray-100 transition-colors text-sm mb-2">
-                ⚙️ 회원정보 수정
-              </button>
-            </Link>
-            
-            <form action={logoutAction}>
-              <button type="submit" className="w-full py-2 bg-gray-800 text-white font-bold rounded-sm hover:bg-gray-900 transition-colors text-sm">
-                로그아웃
-              </button>
-            </form>
+          )}
+          <div className="w-20 h-20 bg-white/20 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl font-black shadow-inner">
+            {currentUser.charAt(0)}
           </div>
+          <h2 className="text-2xl font-black mb-1">{currentUser}</h2>
+          <p className="text-gray-300 text-sm font-medium">오재미의 소중한 이웃</p>
         </div>
 
-        <div className="flex-1 bg-white border border-gray-200 shadow-sm rounded-sm">
+        <div className="flex border-b border-gray-200 bg-white">
+          <Link href="/profile?tab=posts" className={`flex-1 py-4 text-center font-bold text-sm transition-colors ${currentTab === 'posts' ? 'text-[#3b4890] border-b-2 border-[#3b4890] bg-indigo-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>내가 쓴 글</Link>
+          <Link href="/profile?tab=scraps" className={`flex-1 py-4 text-center font-bold text-sm transition-colors ${currentTab === 'scraps' ? 'text-[#3b4890] border-b-2 border-[#3b4890] bg-indigo-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>스크랩 북</Link>
+          <Link href="/profile?tab=settings" className={`flex-1 py-4 text-center font-bold text-sm transition-colors ${currentTab === 'settings' ? 'text-[#3b4890] border-b-2 border-[#3b4890] bg-indigo-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>정보 수정</Link>
+        </div>
+
+        <div className="p-6 md:p-8">
           
-          <div className="flex border-b border-gray-200">
-            <Link href="/profile?tab=posts" className={`flex-1 py-4 text-center font-bold text-sm md:text-base ${currentTab === 'posts' ? 'border-b-2 border-[#3b4890] text-[#3b4890] bg-indigo-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>
-              내가 쓴 글 (최근 100개)
-            </Link>
-            <Link href="/profile?tab=scraps" className={`flex-1 py-4 text-center font-bold text-sm md:text-base ${currentTab === 'scraps' ? 'border-b-2 border-[#3b4890] text-[#3b4890] bg-indigo-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>
-              스크랩한 글
-            </Link>
-            <Link href="/profile?tab=settings" className={`flex-1 py-4 text-center font-bold text-sm md:text-base ${currentTab === 'settings' ? 'border-b-2 border-[#3b4890] text-[#3b4890] bg-indigo-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>
-              정보 수정
-            </Link>
-          </div>
+          {currentTab === 'posts' && (
+            <div>
+              {myPosts.length === 0 ? (
+                <div className="text-center py-16 text-gray-400 font-bold text-sm">아직 작성하신 글이 없습니다.</div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {myPosts.map((post: any) => (
+                    <div key={post.id} className="py-4 hover:bg-gray-50 transition-colors px-2 rounded-sm flex justify-between items-center gap-4">
+                      <Link href={`/board/${post.id}`} className="flex-1 min-w-0">
+                        <div className="text-[15px] font-bold text-gray-800 truncate mb-1">{post.title}</div>
+                        <div className="text-xs text-gray-400 font-medium">{formatDate(post.date)} · 조회 {post.views || 0} · 공감 {post.likes || 0}</div>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-          <div className="p-0">
-            {currentTab === 'posts' && (
-              <div>
-                {myPosts.length > 0 ? (
-                  <ul className="divide-y divide-gray-100">
-                    {myPosts.map((post) => {
-                      const postDate = post.created_at || post.createdAt || post.date || post.reg_date || '';
-                      return (
-                        <li key={post.id} className="hover:bg-gray-50 transition-colors">
-                          <Link href={`/board/${post.id}`} className="block py-3 px-4 md:py-3.5 md:px-5">
-                            <div className="flex justify-between items-center">
-                              <span className="font-medium text-[15px] text-gray-800 hover:underline">{post.title}</span>
-                              <span className="text-xs text-gray-400 font-medium whitespace-nowrap ml-4">{formatDate(postDate)}</span>
-                            </div>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <div className="py-20 text-center text-gray-400 font-bold">
-                    <p>아직 작성한 글이 없습니다.</p>
-                    <Link href="/board/write"><button className="mt-4 px-6 py-2 bg-[#3b4890] text-white rounded-sm hover:bg-[#2a3042] transition-colors">첫 글 쓰러 가기</button></Link>
-                  </div>
-                )}
-              </div>
-            )}
+          {currentTab === 'scraps' && (
+            <div>
+              {myScraps.length === 0 ? (
+                <div className="text-center py-16 text-gray-400 font-bold text-sm">스크랩한 글이 없습니다.</div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {myScraps.map((post: any) => (
+                    <div key={post.id} className="py-4 hover:bg-gray-50 transition-colors px-2 rounded-sm flex justify-between items-center gap-4">
+                      <Link href={`/board/${post.id}`} className="flex-1 min-w-0">
+                        <div className="text-[15px] font-bold text-gray-800 truncate mb-1">{post.title}</div>
+                        <div className="text-xs text-gray-400 font-medium">{post.author} · {formatDate(post.date)}</div>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-            {currentTab === 'scraps' && (
-              <div>
-                {myScraps.length > 0 ? (
-                  <ul className="divide-y divide-gray-100">
-                    {myScraps.map((post) => {
-                      const postDate = post.created_at || post.createdAt || post.date || post.reg_date || '';
-                      return (
-                        <li key={`scrap-${post.id}`} className="hover:bg-gray-50 transition-colors">
-                          <Link href={`/board/${post.id}`} className="block py-3 px-4 md:py-3.5 md:px-5">
-                            <div className="flex justify-between items-center">
-                              <span className="font-medium text-[15px] text-gray-800 hover:underline">{post.title}</span>
-                              <div className="flex items-center gap-3 ml-4">
-                                <span className="text-xs text-gray-500 font-bold">{post.author}</span>
-                                <span className="text-xs text-gray-400 font-medium whitespace-nowrap">{formatDate(postDate)}</span>
-                              </div>
-                            </div>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <div className="py-20 text-center text-gray-400 font-bold">
-                    <p>아직 스크랩한 글이 없습니다.</p>
-                    <Link href="/board"><button className="mt-4 px-6 py-2 bg-gray-100 text-gray-600 rounded-sm border border-gray-300 hover:bg-gray-200 transition-colors">게시판 둘러보기</button></Link>
-                  </div>
-                )}
-              </div>
-            )}
+          {currentTab === 'settings' && (
+            <div className="max-w-[400px] mx-auto py-4">
+              <form action={updateProfileAction} className="space-y-6">
+                <input type="hidden" name="currentUserId" value={currentUserId || ''} />
+                <input type="hidden" name="currentNickname" value={currentUser || ''} />
 
-            {currentTab === 'settings' && (
-              <SettingsClient currentUser={currentUser} />
-            )}
-          </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">새 닉네임</label>
+                  <input name="newNickname" placeholder="변경할 닉네임 입력 (선택)" className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">새 비밀번호</label>
+                  <input type="password" name="newPassword" placeholder="변경할 비밀번호 입력 (선택)" className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" />
+                </div>
+                <button type="submit" className="w-full py-3.5 bg-[#2a3042] text-white rounded-sm font-bold text-[15px] hover:bg-[#1e2335] shadow-sm transition-colors mt-4">
+                  정보 수정하기
+                </button>
+              </form>
+            </div>
+          )}
+
         </div>
       </div>
     </div>
