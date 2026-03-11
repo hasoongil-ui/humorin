@@ -34,7 +34,6 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
     import('react-quill-new').then((RQ) => {
       const Quill = RQ.Quill;
       if (Quill) {
-        // 커스텀 MP4 비디오 블록 등록
         const BlockEmbed = Quill.import('blots/block/embed') as any;
         class CustomVideo extends BlockEmbed {
           static blotName = 'mp4Video';
@@ -44,7 +43,6 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
             let node = super.create();
             node.setAttribute('controls', 'true');
             node.setAttribute('src', value);
-            // 에디터가 무시할 수 없는 강제 여백(띄어쓰기) 적용
             node.style.display = 'block';
             node.style.width = '100%';
             node.style.maxWidth = '800px';
@@ -59,7 +57,6 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
         }
         Quill.register(CustomVideo, true);
 
-        // 💡 미나의 새로운 아이콘 추가: '동영상 링크 전용' 아이콘 등록! (네모 박스 안의 사슬 모양)
         const icons = Quill.import('ui/icons') as any;
         icons['videoLink'] = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`;
         icons['undo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="6 10 4 12 2 10 6 10"></polygon><path class="ql-stroke" d="M8.09,13.91A4.6,4.6,0,0,0,9,14,5,5,0,1,0,4,9"></path></svg>`;
@@ -68,7 +65,6 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
     });
   }, []);
 
-  // 💡 대표님 기획: 마우스 오버 시 친절한 안내 문구(툴팁) 띄우기
   useEffect(() => {
     setTimeout(() => {
       const addTooltip = (className: string, title: string) => {
@@ -78,10 +74,9 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
       addTooltip('.ql-image', '사진 첨부 (PC 업로드)');
       addTooltip('.ql-video', '동영상 첨부 (PC 업로드)');
       addTooltip('.ql-videoLink', '동영상 링크로 업로드');
-    }, 1000); // 에디터가 다 그려진 후 툴팁을 붙입니다.
+    }, 1000); 
   }, []);
 
-  // [1] 사진(이미지) 전용 업로드 엔진 (롤백 완료)
   const processAndUploadImages = async (fileArray: File[]) => {
     if (!quillRef.current) return;
     setIsUploading(true);
@@ -140,7 +135,6 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
     uploadImagesRef.current = processAndUploadImages;
   });
 
-  // 복붙(Paste) 가로채기: 이제 '사진'만 안전하게 가로채고, 다른 건 건드리지 않습니다!
   useEffect(() => {
     const container = editorContainerRef.current;
     if (!container) return;
@@ -153,7 +147,6 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
       const imageFiles: File[] = [];
 
       for (let i = 0; i < items.length; i++) {
-        // 이미지만 골라서 R2 창고로 보냅니다.
         if (items[i].type.startsWith('image/')) {
           hasImage = true;
           const file = items[i].getAsFile();
@@ -186,7 +179,6 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
     };
   };
 
-  // [2] 동영상(MP4) PC 전용 업로드 엔진 (롤백 완료)
   const videoFileHandler = () => {
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
@@ -229,7 +221,6 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
     };
   };
 
-  // [3] 새로운 기능: 동영상 링크 전용 엔진!
   const videoLinkHandler = () => {
     const url = prompt('동영상 주소(MP4 링크 또는 유튜브)를 붙여넣으세요.');
 
@@ -249,7 +240,6 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
         editor.insertEmbed(range.index, 'video', embedUrl);
       }
       
-      // 영상 삽입 후 자동으로 한 줄 띄우기!
       editor.insertText(range.index + 1, '\n');
       editor.setSelection(range.index + 2);
     }
@@ -259,7 +249,7 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
     history: { delay: 500, maxStack: 100, userOnly: true },
     toolbar: {
       container: [
-        ['image', 'video', 'videoLink'], // 사진, 동영상업로드, 동영상링크 아이콘 3개 나란히 배치                      
+        ['image', 'video', 'videoLink'],                      
         ['link'],                                       
         ['undo', 'redo'],                                       
         [{ 'header': [1, 2, 3, 4, 5, 6, false] }],                    
@@ -273,8 +263,8 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
       ],
       handlers: { 
         image: imageHandler,
-        video: videoFileHandler,    // 기존 필름 아이콘: PC 직접 업로드 복구 완료
-        videoLink: videoLinkHandler, // 새 네모사슬 아이콘: 주소 링크 복붙 전용
+        video: videoFileHandler,
+        videoLink: videoLinkHandler,
         undo: function() { this.quill.history.undo(); },
         redo: function() { this.quill.history.redo(); }
       }
@@ -330,7 +320,6 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
         .ql-editor { font-size: 1.05rem; line-height: 1.8; }
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
         
-        /* 외부 링크 및 직접 업로드 영상 간격 완벽 유지 */
         .ql-editor video, .ql-editor iframe.ql-video { 
           width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; 
           border-radius: 8px; background: #000; border: none; 
@@ -377,6 +366,13 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
                 <option value="맛집">맛집</option>
                 <option value="가볼만한 곳">가볼만한 곳</option>
                 <option value="볼만한 영화">볼만한 영화</option>
+              </optgroup>
+              {/* 💡 미나의 업데이트: 나도 작가 게시판 카테고리 추가! */}
+              <optgroup label="나도 작가 (창작)">
+                <option value="수필/에세이">수필/에세이</option>
+                <option value="시/단상">시/단상</option>
+                <option value="소설/웹소설">소설/웹소설</option>
+                <option value="창작/기타">창작/기타</option>
               </optgroup>
             </select>
 

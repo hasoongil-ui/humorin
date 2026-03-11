@@ -34,7 +34,7 @@ function NavbarContent() {
         { name: '💖 나누고 싶은 감동', link: '/board?category=감동' },
         { name: '☕ 세상사는 이야기', link: '/board?category=세상사는 이야기' },
         { name: '🐾 귀여운 동물들', link: '/board?category=귀여운 동물들' },
-        { name: '💬 자유게시판', link: '/board?category=자유게시판' },
+        { name: '💬 흥미로운 이야기', link: '/board?category=자유게시판' },
       ]
     },
     {
@@ -53,6 +53,16 @@ function NavbarContent() {
         { name: '💊 건강/의학 정보', link: '/board?category=건강' },
         { name: '💰 재테크/금융', link: '/board?category=재테크' },
       ]
+    },
+    // 💡 미나의 추가: 나도 작가 메뉴 그룹 추가 완료!
+    {
+      name: '✒️ 나도 작가',
+      sub: [
+        { name: '📝 수필/에세이', link: '/board?category=수필/에세이' },
+        { name: '✨ 시/단상', link: '/board?category=시/단상' },
+        { name: '📚 소설/웹소설', link: '/board?category=소설/웹소설' },
+        { name: '🎨 창작/기타', link: '/board?category=창작/기타' },
+      ]
     }
   ];
 
@@ -60,7 +70,6 @@ function NavbarContent() {
     <>
       <header className="bg-white p-4 border-b border-gray-200 shadow-sm relative z-20">
         <div className="max-w-[1200px] mx-auto flex justify-between items-center">
-          {/* 💡 미나의 핵심 수정: /board 였던 주소를 메인 대문인 / 로 바꿨습니다! */}
           <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
         </div>
       </header>
@@ -71,7 +80,7 @@ function NavbarContent() {
             if (group.isSingle) {
               let isActive = false;
               if (group.name === '전체글 보기') isActive = currentCategory === 'all' && bestType === '';
-              if (group.name === '투데이 베스트') isActive = bestType === 'today';
+              if (group.name === '🔥투데이 베스트') isActive = bestType === 'today';
 
               return (
                 <Link key={group.name} href={group.link!} 

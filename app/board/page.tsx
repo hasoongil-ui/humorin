@@ -37,7 +37,6 @@ function extractData(fullTitle: string) {
   return { cat: '일반', cleanTitle: fullTitle };
 }
 
-// 💡 미나의 핵심: 새로운 카테고리들에 맞게 예쁘고 가벼운 SVG 아이콘들을 대거 추가했습니다!
 function CategoryIcon({ category }: { category: string }) {
   const baseClass = "w-4 h-4 inline-block mr-2 flex-shrink-0";
   
@@ -46,7 +45,9 @@ function CategoryIcon({ category }: { category: string }) {
       return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`${baseClass} text-orange-500`}><path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm3.656 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Z" /></svg>;
     case '감동': 
       return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`${baseClass} text-rose-500`}><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" /></svg>;
+    // 💡 미나의 수정: '흥미로운 이야기' 아이콘 매핑 (과거 자유게시판 글도 호환되도록 유지)
     case '자유게시판': 
+    case '흥미로운 이야기': 
     case '세상사는 이야기': 
       return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`${baseClass} text-amber-600`}><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>;
     case '귀여운 동물들': 
@@ -65,6 +66,12 @@ function CategoryIcon({ category }: { category: string }) {
       return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`${baseClass} text-pink-500`}><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>;
     case '재테크': 
       return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`${baseClass} text-yellow-600`}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+    // 💡 나도 작가 카테고리 아이콘 추가!
+    case '수필/에세이':
+    case '시/단상':
+    case '소설/웹소설':
+    case '창작/기타':
+      return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`${baseClass} text-indigo-400`}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.89 1.12l-2.83.941a.75.75 0 01-.95-.95l.94-2.83a4.5 4.5 0 011.12-1.89l13.66-13.66z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 7.125L16.875 4.5" /></svg>;
     default: 
       return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`${baseClass} text-gray-400`}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>;
   }
@@ -96,39 +103,35 @@ export default async function BoardPage(props: any) {
 
   const categoryPattern = `%[${category}]%`;
 
-  // 💡 미나의 초고속 렌더링 엔진: "AND likes < 100" 등 속도를 저하시키는 제약을 없애고 무제한 누적 시스템으로 변경!
+  // 💡 미나의 핵심 적용: "최근 48시간 롤링 & 최소 공감 3개 이상" 장원 로직 적용 완료!
   if (category !== 'all' && !keyword && bestType === '' && page === 1) {
     const { rows: topRows } = await sql`
       SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count 
       FROM posts 
-      WHERE title LIKE ${categoryPattern} AND date >= NOW() - INTERVAL '1 day' AND likes > 0 
+      WHERE title LIKE ${categoryPattern} AND date >= NOW() - INTERVAL '48 hours' AND likes >= 3 
       ORDER BY likes DESC, views DESC LIMIT 1
     `;
     if (topRows.length > 0) topPost = topRows[0];
   }
 
-  // 🔥 투데이 베스트: 공감 10개 이상 무제한 (상한선 제거로 속도 UP!)
   if (bestType === 'today') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 10`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } 
-  // 💯 백베스트: 공감 100개 이상 무제한
   else if (bestType === '100') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 100`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 100 ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } 
-  // 👑 천베스트: 공감 1000개 이상
   else if (bestType === '1000') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 1000`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 1000 ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } 
-  // 일반 검색 및 카테고리 로직
   else if (keyword && category !== 'all') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'})`;
     totalCount = Number(countResult.rows[0].count);
@@ -208,12 +211,12 @@ export default async function BoardPage(props: any) {
             <div className="bg-[#414a66] text-white text-[13px] font-bold py-2.5 px-3 border-b border-[#2a3042]">
               즐겨찾는 게시판
             </div>
-            {/* 💡 미나의 수정: 좌측 메뉴도 대표님의 새로운 구조에 맞게 리모델링! */}
+            {/* 💡 미나의 수정: 좌측 사이드바 메뉴도 '흥미로운 이야기'로 교체했습니다! */}
             <ul className="text-[13px] font-bold text-gray-600">
               <li><Link href="/board" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100">전체글 보기</Link></li>
               <li><Link href="/board?best=today" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100">🔥 투데이 베스트</Link></li>
               <li><Link href="/board?category=유머" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100">유머 게시판</Link></li>
-              <li><Link href="/board?category=자유게시판" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890]">자유게시판</Link></li>
+              <li><Link href="/board?category=흥미로운 이야기" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890]">흥미로운 이야기</Link></li>
             </ul>
           </div>
         </aside>
@@ -221,7 +224,6 @@ export default async function BoardPage(props: any) {
         <main className="flex-1 min-w-0 bg-white border border-gray-200 shadow-sm rounded-sm p-4 md:p-6">
           
           <div className="flex justify-between items-center mb-4">
-            {/* 💡 미나의 수정: 상단 타이틀도 명예롭게 변경했습니다! */}
             <h2 className="text-xl font-bold text-gray-800 truncate pr-2">
               {bestType === 'today' ? '🔥 투데이 베스트 (추천 10+)' : 
                bestType === '100' ? '💯 백베스트 (추천 100+)' : 
