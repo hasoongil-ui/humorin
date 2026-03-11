@@ -34,7 +34,8 @@ function NavbarContent() {
         { name: '💖 나누고 싶은 감동', link: '/board?category=감동' },
         { name: '☕ 세상사는 이야기', link: '/board?category=세상사는 이야기' },
         { name: '🐾 귀여운 동물들', link: '/board?category=귀여운 동물들' },
-        { name: '💬 흥미로운 이야기', link: '/board?category=자유게시판' },
+        // 💡 [미나 완벽 수정] 클릭 주소도 '흥미로운 이야기'로 완벽 교체 완료!
+        { name: '💬 흥미로운 이야기', link: '/board?category=흥미로운 이야기' },
       ]
     },
     {
@@ -54,7 +55,6 @@ function NavbarContent() {
         { name: '💰 재테크/금융', link: '/board?category=재테크' },
       ]
     },
-    // 💡 미나의 추가: 나도 작가 메뉴 그룹 추가 완료!
     {
       name: '✒️ 나도 작가',
       sub: [

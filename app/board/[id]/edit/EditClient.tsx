@@ -7,10 +7,19 @@ import imageCompression from 'browser-image-compression';
 import { Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
-const ReactQuill = dynamic(() => import('react-quill-new'), {
-  ssr: false,
-  loading: () => <div className="p-20 text-center font-bold text-gray-400">에디터 로딩 중...</div>
-});
+// 💡 [미나 수정 1] TS 에러를 완벽하게 없애주는 ReactQuill 래퍼 컴포넌트 이식
+const ReactQuillWrapper = dynamic(
+  async () => {
+    const { default: RQ } = await import('react-quill-new');
+    return function Comp({ forwardedRef, ...props }: any) {
+      return <RQ ref={forwardedRef} {...props} />;
+    };
+  },
+  {
+    ssr: false,
+    loading: () => <div className="p-20 text-center font-bold text-gray-400">에디터 로딩 중...</div>
+  }
+);
 import 'react-quill-new/dist/quill.snow.css';
 
 export default function EditClient({ post, updateAction }: { post: any, updateAction: any }) {
@@ -28,6 +37,7 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
       const Quill = RQ.Quill;
       if (Quill) {
         const BlockEmbed = Quill.import('blots/block/embed') as any;
+        
         class CustomVideo extends BlockEmbed {
           static blotName = 'mp4Video';
           static tagName = 'VIDEO';
@@ -36,6 +46,7 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
             let node = super.create();
             node.setAttribute('controls', 'true');
             node.setAttribute('src', value);
+            node.setAttribute('preload', 'metadata');
             node.style.display = 'block';
             node.style.width = '100%';
             node.style.maxWidth = '800px';
@@ -50,8 +61,29 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
         }
         Quill.register(CustomVideo, true);
 
+        // 💡 [미나 수정 2] 유튜브 전용 iframe 강제 생성 블롯 이식
+        class YoutubeVideo extends BlockEmbed {
+          static blotName = 'youtubeVideo';
+          static tagName = 'IFRAME';
+          static create(value: any) {
+            let node = super.create();
+            node.setAttribute('src', value);
+            node.setAttribute('frameborder', '0');
+            node.setAttribute('allowfullscreen', 'true');
+            node.setAttribute('class', 'ql-video');
+            node.style.display = 'block';
+            node.style.width = '100%';
+            node.style.maxWidth = '800px';
+            node.style.aspectRatio = '16/9';
+            node.style.margin = '10px auto 30px auto';
+            node.style.borderRadius = '8px';
+            return node;
+          }
+          static value(node: any) { return node.getAttribute('src'); }
+        }
+        Quill.register(YoutubeVideo, true);
+
         const icons = Quill.import('ui/icons') as any;
-        icons['videoLink'] = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`;
         icons['undo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="6 10 4 12 2 10 6 10"></polygon><path class="ql-stroke" d="M8.09,13.91A4.6,4.6,0,0,0,9,14,5,5,0,1,0,4,9"></path></svg>`;
         icons['redo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="12 10 14 12 16 10 12 10"></polygon><path class="ql-stroke" d="M9.91,13.91A4.6,4.6,0,0,1,9,14a5,5,0,1,1,5-5"></path></svg>`;
       }
@@ -66,7 +98,6 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
       };
       addTooltip('.ql-image', '사진 첨부 (PC 업로드)');
       addTooltip('.ql-video', '동영상 첨부 (PC 업로드)');
-      addTooltip('.ql-videoLink', '동영상 링크로 업로드');
     }, 1000); 
   }, []);
 
@@ -133,9 +164,34 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
     if (!container) return;
 
     const handleNativePaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
+      const clipboardData = e.clipboardData;
+      if (!clipboardData) return;
 
+      // 💡 [미나 수정 3] 유튜브 주소 Ctrl+V 시 자동으로 텍스트 링크와 16:9 영상 출력
+      const text = clipboardData.getData('text/plain');
+      if (text) {
+        const ytRegex = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})$/i;
+        const match = text.trim().match(ytRegex);
+        
+        if (match) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const embedUrl = `https://www.youtube.com/embed/${match[1]}`;
+          const editor = quillRef.current.getEditor();
+          const range = editor.getSelection(true) || { index: editor.getLength() };
+          
+          editor.insertText(range.index, text.trim(), 'link', text.trim());
+          editor.insertText(range.index + text.trim().length, '\n');
+          editor.insertEmbed(range.index + text.trim().length + 1, 'youtubeVideo', embedUrl);
+          editor.insertText(range.index + text.trim().length + 2, '\n');
+          editor.setSelection(range.index + text.trim().length + 3);
+          return;
+        }
+      }
+
+      // 기존 이미지 붙여넣기 로직
+      const items = clipboardData.items;
       let hasImage = false;
       const imageFiles: File[] = [];
 
@@ -183,7 +239,7 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
       if (!file) return;
 
       if (file.size > 10 * 1024 * 1024) {
-        alert(`[${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).\n10MB 이상의 긴 영상은 [동영상 링크] 버튼을 이용해 주십시오.`);
+        alert(`[${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).`);
         return; 
       }
 
@@ -214,35 +270,11 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
     };
   };
 
-  const videoLinkHandler = () => {
-    const url = prompt('동영상 주소(MP4 링크 또는 유튜브)를 붙여넣으세요.');
-
-    if (url && url.trim().length > 0) {
-      const editor = quillRef.current.getEditor();
-      const range = editor.getSelection(true) || { index: editor.getLength() };
-      const cleanUrl = url.trim();
-
-      if (cleanUrl.match(/\.(mp4|webm)$/i)) {
-        editor.insertEmbed(range.index, 'mp4Video', cleanUrl);
-      } else {
-        let embedUrl = cleanUrl;
-        const ytMatch = cleanUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-        if (ytMatch) {
-           embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}`;
-        }
-        editor.insertEmbed(range.index, 'video', embedUrl);
-      }
-      
-      editor.insertText(range.index + 1, '\n');
-      editor.setSelection(range.index + 2);
-    }
-  };
-
   const modules = useMemo(() => ({
     history: { delay: 500, maxStack: 100, userOnly: true },
     toolbar: {
       container: [
-        ['image', 'video', 'videoLink'],                      
+        ['image', 'video'], // 💡 링크 아이콘 영구 삭제!
         ['link'],                                       
         ['undo', 'redo'],                                       
         [{ 'header': [1, 2, 3, 4, 5, 6, false] }],                    
@@ -256,8 +288,7 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
       ],
       handlers: { 
         image: imageHandler,
-        video: videoFileHandler,
-        videoLink: videoLinkHandler,
+        video: videoFileHandler, // PC 영상 업로드만 유지
         undo: function() { this.quill.history.undo(); },
         redo: function() { this.quill.history.redo(); }
       }
@@ -341,13 +372,14 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
       </div>
 
       <div className="bg-white rounded-sm mt-4" ref={editorContainerRef}>
-        <ReactQuill
-          ref={quillRef}
+        {/* 💡 [미나 수정 4] 위에서 만든 래퍼로 교체하여 TS 에러 완벽 방어! */}
+        <ReactQuillWrapper
+          forwardedRef={quillRef}
           theme="snow"
           modules={modules}
           value={content}
           onChange={setContent}
-          placeholder="내용을 수정해 주십시오."
+          placeholder="내용을 수정해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다."
         />
       </div>
 
