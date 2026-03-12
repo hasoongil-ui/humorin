@@ -102,7 +102,6 @@ export default async function BoardPage(props: any) {
 
   const categoryPattern = `%[${category}]%`;
 
-  // 💡 미나의 마법: 모든 쿼리에 `AND COALESCE(status, 'published') = 'published'` 검문소 추가!
   if (category !== 'all' && !keyword && bestType === '' && page === 1) {
     const { rows: topRows } = await sql`
       SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count 
@@ -250,9 +249,9 @@ export default async function BoardPage(props: any) {
             {topPost && (() => {
               const topData = extractData(topPost.title);
               return (
-                <Link href={`/board/${topPost.id}`} className="flex flex-col md:flex-row border-b border-gray-200 py-3 bg-blue-50/50 hover:bg-gray-50 transition-colors cursor-pointer items-center">
+                <div className="flex flex-col md:flex-row border-b border-gray-200 py-3 bg-blue-50/50 hover:bg-gray-50 transition-colors items-center group">
                   <div className="hidden md:block w-16 text-center text-xs text-gray-500 font-bold">장원</div>
-                  <div className="flex-1 px-3 w-full font-bold text-gray-900 truncate text-left flex items-center">
+                  <Link href={`/board/${topPost.id}`} className="flex-1 px-3 w-full font-bold text-gray-900 truncate text-left flex items-center hover:underline cursor-pointer">
                     <CategoryIcon category={topData.cat} />
                     <span className="truncate">{topData.cleanTitle}</span>
                     {hasImage(topPost.content) && (
@@ -261,14 +260,22 @@ export default async function BoardPage(props: any) {
                     {topPost.comment_count > 0 && (
                       <span className="ml-1.5 text-[13px] font-bold text-[#e74c3c]">[{topPost.comment_count}]</span>
                     )}
-                  </div>
+                  </Link>
                   <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-xs text-gray-500 justify-between items-center">
-                    <div className="md:w-32 md:text-center font-semibold text-gray-700 truncate">{topPost.author}</div>
+                    <div className="md:w-32 md:text-center font-semibold text-gray-700 truncate">
+                      {topPost.author_id ? (
+                        <Link href={`/user/${topPost.author_id}`} className="hover:text-[#3b4890] hover:underline cursor-pointer">
+                          {topPost.author}
+                        </Link>
+                      ) : (
+                        <span>{topPost.author}</span>
+                      )}
+                    </div>
                     <div className="md:w-24 md:text-center text-gray-400">{formatDate(topPost.date)}</div>
                     <div className="md:w-16 md:text-center text-gray-400">{topPost.views || 0}</div>
                     <div className="md:w-16 md:text-center font-bold text-rose-500">{topPost.likes || 0}</div>
                   </div>
-                </Link>
+                </div>
               );
             })()}
 
@@ -278,9 +285,9 @@ export default async function BoardPage(props: any) {
               renderPosts.map((post: any) => {
                 const postData = extractData(post.title);
                 return (
-                  <Link href={`/board/${post.id}`} key={post.id} className="flex flex-col md:flex-row border-b border-gray-200 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer items-center group">
+                  <div key={post.id} className="flex flex-col md:flex-row border-b border-gray-200 py-2.5 hover:bg-gray-50 transition-colors items-center group">
                     <div className="hidden md:block w-16 text-center text-xs text-gray-400">{post.id}</div>
-                    <div className="flex-1 px-3 w-full text-gray-800 group-hover:underline truncate text-left text-[15px] flex items-center">
+                    <Link href={`/board/${post.id}`} className="flex-1 px-3 w-full text-gray-800 hover:underline cursor-pointer truncate text-left text-[15px] flex items-center">
                       <CategoryIcon category={postData.cat} />
                       <span className="truncate">{postData.cleanTitle}</span>
                       {hasImage(post.content) && (
@@ -289,16 +296,24 @@ export default async function BoardPage(props: any) {
                       {post.comment_count > 0 && (
                         <span className="ml-1.5 text-[13px] font-bold text-[#e74c3c]">[{post.comment_count}]</span>
                       )}
-                    </div>
+                    </Link>
                     <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-xs text-gray-500 justify-between items-center">
-                      <div className="md:w-32 md:text-center font-medium text-gray-600 truncate">{post.author}</div>
+                      <div className="md:w-32 md:text-center font-medium text-gray-600 truncate">
+                        {post.author_id ? (
+                          <Link href={`/user/${post.author_id}`} className="hover:text-[#3b4890] hover:underline cursor-pointer">
+                            {post.author}
+                          </Link>
+                        ) : (
+                          <span>{post.author}</span>
+                        )}
+                      </div>
                       <div className="md:w-24 md:text-center">{formatDate(post.date)}</div>
                       <div className="md:w-16 md:text-center">{post.views || 0}</div>
                       <div className={`md:w-16 md:text-center font-bold ${post.likes > 0 ? 'text-rose-500' : 'text-gray-300'}`}>
                         {post.likes || 0}
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 );
               })
             )}

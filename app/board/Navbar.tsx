@@ -2,24 +2,28 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+// 💡 방금 만든 점수 배달 요원들을 불러옵니다!
+import { getUserProfile, handleLogoutAction } from './navActions';
 
 function NavbarContent() {
   const searchParams = useSearchParams();
   const currentCategory = searchParams.get('category') || 'all';
   const bestType = searchParams.get('best') || '';
 
+  // 💡 [미나 마법] 내 계급과 점수를 담아둘 그릇!
+  const [user, setUser] = useState<{ nickname: string; level: string; points: number } | null>(null);
+
+  // 💡 화면이 켜지자마자 서버 요원에게 점수를 가져오라고 시킵니다.
+  useEffect(() => {
+    getUserProfile().then(data => {
+      if (data) setUser(data);
+    });
+  }, []);
+
   const menuGroups = [
-    { 
-      name: '전체글 보기', 
-      link: '/board',
-      isSingle: true 
-    },
-    { 
-      name: '🔥투데이 베스트', 
-      link: '/board?best=today',
-      isSingle: true 
-    },
+    { name: '전체글 보기', link: '/board', isSingle: true },
+    { name: '🔥투데이 베스트', link: '/board?best=today', isSingle: true },
     {
       name: '명예의 전당',
       sub: [
@@ -34,7 +38,6 @@ function NavbarContent() {
         { name: '💖 나누고 싶은 감동', link: '/board?category=감동' },
         { name: '☕ 세상사는 이야기', link: '/board?category=세상사는 이야기' },
         { name: '🐾 귀여운 동물들', link: '/board?category=귀여운 동물들' },
-        // 💡 [미나 완벽 수정] 클릭 주소도 '흥미로운 이야기'로 완벽 교체 완료!
         { name: '💬 흥미로운 이야기', link: '/board?category=흥미로운 이야기' },
       ]
     },
@@ -71,6 +74,39 @@ function NavbarContent() {
       <header className="bg-white p-4 border-b border-gray-200 shadow-sm relative z-20">
         <div className="max-w-[1200px] mx-auto flex justify-between items-center">
           <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
+
+          {/* 💡 [미나 마법] 우측 상단 내 정보 & 포인트 표시 구역! */}
+          <div className="flex items-center gap-2 md:gap-4">
+            {user ? (
+              <>
+                <div className="text-[13px] md:text-[14px] font-medium text-gray-700 hidden sm:block">
+                  <span className="text-emerald-600 font-black mr-1">[{user.level}]</span>
+                  <span className="font-bold text-[#3b4890]">{user.nickname}</span>
+                  <span className="ml-1.5 text-rose-500 font-bold text-[13px]">({user.points} P)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Link href="/profile" className="px-3 py-1.5 bg-[#ebedf5] text-[#3b4890] text-[11px] md:text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors shadow-sm">
+                    내정보
+                  </Link>
+                  <form action={handleLogoutAction}>
+                    <button type="submit" className="px-3 py-1.5 bg-gray-100 text-gray-600 text-[11px] md:text-xs font-bold rounded-sm hover:bg-gray-200 transition-colors shadow-sm">
+                      로그아웃
+                    </button>
+                  </form>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <Link href="/login" className="px-4 py-1.5 bg-[#ebedf5] text-[#3b4890] text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors">
+                  로그인
+                </Link>
+                <Link href="/signup" className="px-4 py-1.5 bg-[#2a3042] text-white text-xs font-bold rounded-sm hover:bg-gray-900 transition-colors">
+                  회원가입
+                </Link>
+              </div>
+            )}
+          </div>
+
         </div>
       </header>
 

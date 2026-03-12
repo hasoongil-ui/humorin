@@ -2,7 +2,7 @@ import { sql } from '@vercel/postgres';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
-import { updateProfileAction } from './actions';
+import SettingsForm from './SettingsForm';
 
 function formatDate(dateString: string) {
   try {
@@ -14,6 +14,30 @@ function formatDate(dateString: string) {
   } catch (e) {
     return '';
   }
+}
+
+// 💡 [미나 마법] 7단계 계급 시스템 정의 (대표님 기획 반영!)
+const TIER_SYSTEM = [
+  { name: '씨앗', min: 0, icon: '🌱', color: 'text-green-300' },
+  { name: '새싹', min: 100, icon: '🌿', color: 'text-emerald-400' },
+  { name: '잎새', min: 500, icon: '🍃', color: 'text-teal-400' },
+  { name: '꽃', min: 2000, icon: '🌸', color: 'text-pink-400' },
+  { name: '열매', min: 10000, icon: '🍎', color: 'text-red-400' },
+  { name: '나무', min: 50000, icon: '🌳', color: 'text-amber-600' },
+  { name: '숲의 전설', min: 200000, icon: '🏞️', color: 'text-yellow-400' }
+];
+
+function getTierInfo(points: number) {
+  let current = TIER_SYSTEM[0];
+  let next = TIER_SYSTEM[1];
+  for (let i = TIER_SYSTEM.length - 1; i >= 0; i--) {
+    if (points >= TIER_SYSTEM[i].min) {
+      current = TIER_SYSTEM[i];
+      next = TIER_SYSTEM[i + 1] || current; // 만렙이면 다음 레벨도 내 레벨
+      break;
+    }
+  }
+  return { current, next };
 }
 
 export default async function ProfilePage(props: any) {
@@ -31,45 +55,104 @@ export default async function ProfilePage(props: any) {
     redirect('/login');
   }
 
+  let points = 0;
   let myPosts: any[] = [];
   let myScraps: any[] = [];
 
-  if (currentTab === 'posts' || currentTab === 'scraps') {
-    try {
+  try {
+    if (currentUserId) {
+      const userRes = await sql`SELECT points FROM users WHERE user_id = ${currentUserId}`;
+      if (userRes.rows.length > 0) {
+        points = userRes.rows[0].points || 0;
+      }
+    }
+
+    if (currentTab === 'posts' || currentTab === 'scraps') {
       const postsResult = await sql`SELECT * FROM posts WHERE author = ${currentUser} ORDER BY id DESC LIMIT 100`;
       myPosts = postsResult.rows;
 
       try {
         const scrapsResult = await sql`
-          SELECT p.* FROM posts p
-          JOIN scraps s ON p.id = s.post_id
-          WHERE s.author = ${currentUser}
-          ORDER BY s.created_at DESC LIMIT 100
+          SELECT p.* FROM posts p JOIN scraps s ON p.id = s.post_id
+          WHERE s.author = ${currentUser} ORDER BY s.created_at DESC LIMIT 100
         `;
         myScraps = scrapsResult.rows;
       } catch (e) {
         console.error("스크랩 조회 중 에러:", e);
       }
-    } catch (error) {
-      console.error("프로필 DB 조회 에러:", error);
     }
+  } catch (error) {
+    console.error("프로필 DB 조회 에러:", error);
   }
+
+  // 💡 동적 계급 계산!
+  const { current: currentTier, next: nextTier } = getTierInfo(points);
+  const isMaxLevel = currentTier.name === nextTier.name;
+  
+  // 퍼센트 계산 (만렙이면 100%)
+  const progressPercent = isMaxLevel 
+    ? 100 
+    : Math.min(((points - currentTier.min) / (nextTier.min - currentTier.min)) * 100, 100);
 
   return (
     <div className="min-h-[80vh] bg-gray-50 flex justify-center py-10 px-4 font-sans">
       <div className="w-full max-w-[800px] bg-white rounded-sm shadow-sm border border-gray-200 overflow-hidden">
         
-        <div className="bg-[#2a3042] p-8 text-white text-center relative">
+        {/* 🎮 [게임 능력치 창 UI] */}
+        <div className="bg-[#2a3042] p-6 md:p-8 text-white text-center relative overflow-hidden">
           {currentUserId === 'admin' && (
-            <div className="absolute top-4 right-4 bg-red-600 text-white text-xs font-black px-3 py-1 rounded-sm shadow-md">
-              👑 최고 관리자 계정
+            <div className="absolute top-4 right-4 bg-red-600 text-white text-xs font-black px-3 py-1 rounded-sm shadow-md z-10">
+              👑 최고 관리자
             </div>
           )}
-          <div className="w-20 h-20 bg-white/20 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl font-black shadow-inner">
-            {currentUser.charAt(0)}
+          
+          <div className="relative z-10">
+            <div className="w-20 h-20 bg-white/10 rounded-full mx-auto mb-3 flex items-center justify-center text-3xl font-black shadow-inner border border-white/20">
+              {currentUser.charAt(0)}
+            </div>
+            <h2 className="text-2xl font-black mb-1">{currentUser}</h2>
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 ${currentTier.color} font-bold text-sm rounded-full mb-6 border border-white/10`}>
+              <span>{currentTier.icon}</span> {currentTier.name} 등급
+            </div>
+
+            {/* 🔥 경험치 프로그레스 바 */}
+            <div className="max-w-[400px] mx-auto bg-black/30 p-4 rounded-md border border-white/10 backdrop-blur-sm mb-4">
+              <div className="flex justify-between text-[13px] font-bold text-gray-300 mb-2">
+                <span>내 포인트: <span className="text-rose-400">{points.toLocaleString()} P</span></span>
+                {!isMaxLevel ? (
+                  <span>다음 단계 <span className="text-white">[{nextTier.icon} {nextTier.name}]</span> 까지: {(nextTier.min - points).toLocaleString()} P 남음</span>
+                ) : (
+                  <span className="text-yellow-400">✨ 오재미의 전설 달성! ✨</span>
+                )}
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden shadow-inner relative">
+                <div className="bg-gradient-to-r from-rose-500 to-yellow-400 h-3 rounded-full transition-all duration-1000 ease-out" style={{ width: `${progressPercent}%` }}></div>
+              </div>
+            </div>
+
+            {/* 💡 [대표님 기획] 한눈에 보는 진화 트리 & 점수 획득 방법 */}
+            <div className="max-w-[500px] mx-auto bg-white/5 rounded-sm p-3 border border-white/10">
+              <div className="flex items-center justify-center gap-1 md:gap-2 text-[10px] md:text-xs font-bold text-gray-400 mb-3 overflow-x-auto whitespace-nowrap pb-1">
+                {TIER_SYSTEM.map((tier, idx) => (
+                  <div key={tier.name} className="flex items-center gap-1 md:gap-2">
+                    <div className={`flex flex-col items-center ${currentTier.name === tier.name ? 'text-white scale-110 drop-shadow-md' : 'opacity-60'}`}>
+                      <span className="text-lg md:text-xl">{tier.icon}</span>
+                      <span className="mt-0.5">{tier.name}</span>
+                    </div>
+                    {idx < TIER_SYSTEM.length - 1 && <span className="text-gray-600">➔</span>}
+                  </div>
+                ))}
+              </div>
+              <div className="border-t border-white/10 pt-2 text-[11px] md:text-xs text-gray-300 font-medium flex justify-center gap-4">
+                <span>📝 글 작성 <span className="text-yellow-400 font-bold">+10P</span></span>
+                <span>💬 댓글 작성 <span className="text-yellow-400 font-bold">+5P</span></span>
+                <span>💖 내 글 추천받음 <span className="text-yellow-400 font-bold">+2P</span></span>
+              </div>
+            </div>
+
           </div>
-          <h2 className="text-2xl font-black mb-1">{currentUser}</h2>
-          <p className="text-gray-300 text-sm font-medium">오재미의 소중한 이웃</p>
+          
+          <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
         </div>
 
         <div className="flex border-b border-gray-200 bg-white">
@@ -120,22 +203,7 @@ export default async function ProfilePage(props: any) {
 
           {currentTab === 'settings' && (
             <div className="max-w-[400px] mx-auto py-4">
-              <form action={updateProfileAction} className="space-y-6">
-                <input type="hidden" name="currentUserId" value={currentUserId || ''} />
-                <input type="hidden" name="currentNickname" value={currentUser || ''} />
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">새 닉네임</label>
-                  <input name="newNickname" placeholder="변경할 닉네임 입력 (선택)" className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">새 비밀번호</label>
-                  <input type="password" name="newPassword" placeholder="변경할 비밀번호 입력 (선택)" className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" />
-                </div>
-                <button type="submit" className="w-full py-3.5 bg-[#2a3042] text-white rounded-sm font-bold text-[15px] hover:bg-[#1e2335] shadow-sm transition-colors mt-4">
-                  정보 수정하기
-                </button>
-              </form>
+              <SettingsForm currentUserId={currentUserId!} currentNickname={currentUser} />
             </div>
           )}
 

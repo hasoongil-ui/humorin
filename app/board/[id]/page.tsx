@@ -6,7 +6,6 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { PostLikeButton, CommentLikeButton, PostScrapButton } from './InteractiveButtons';
 import CommentForm from './CommentForm';
-// 💡 [미나 추가] 방금 업그레이드한 볼륨 마법사를 불러옵니다!
 import VideoVolumeFix from './VideoVolumeFix'; 
 
 function extractData(fullTitle: string) {
@@ -36,7 +35,7 @@ export default async function PostDetailPage(props: any) {
     return <div className="p-20 text-center text-2xl font-bold">글을 찾을 수 없습니다</div>;
   }
 
-  const isAuthor = currentUser === post.author;
+  const isAuthor = currentUserId === post.author_id || (!post.author_id && currentUser === post.author);
 
   const { rows: comments } = await sql`SELECT * FROM comments WHERE post_id = ${postId} ORDER BY created_at ASC`;
   const buildTree = (allComments: any[], parentId: number | null = null): any[] => {
@@ -53,16 +52,16 @@ export default async function PostDetailPage(props: any) {
   let hasScrapped = false; 
   let userCommentLikes: number[] = [];
   
-  if (currentUser) {
-    const { rows: likeRows } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author = ${currentUser}`;
+  if (currentUserId) {
+    const { rows: likeRows } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
     if (likeRows.length > 0) hasLiked = true;
 
     try {
-      const { rows: scrapRows } = await sql`SELECT * FROM scraps WHERE post_id = ${postId} AND author = ${currentUser}`;
+      const { rows: scrapRows } = await sql`SELECT * FROM scraps WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
       if (scrapRows.length > 0) hasScrapped = true;
     } catch (e) {}
 
-    const { rows: clRows } = await sql`SELECT comment_id FROM comment_likes WHERE author = ${currentUser}`;
+    const { rows: clRows } = await sql`SELECT comment_id FROM comment_likes WHERE author_id = ${currentUserId}`;
     userCommentLikes = clRows.map(row => row.comment_id);
   }
 
@@ -72,77 +71,102 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!isAdmin && !isAuthor) return; 
     await sql`DELETE FROM posts WHERE id = ${postId}`;
+    if (post.author_id) {
+      await sql`UPDATE users SET points = GREATEST(COALESCE(points, 0) - 10, 0) WHERE user_id = ${post.author_id}`;
+    }
     redirect('/board');
   };
 
   const toggleLike = async () => {
     'use server';
-    if (!currentUser) redirect('/login');
-    const { rows: checkRows = [] } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author = ${currentUser}`;
+    if (!currentUserId) redirect('/login');
+    const { rows: checkRows = [] } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
     const likePower = isAdmin ? 10 : 1; 
 
     if (checkRows.length > 0) {
-      await sql`DELETE FROM likes WHERE post_id = ${postId} AND author = ${currentUser}`;
+      await sql`DELETE FROM likes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
       await sql`UPDATE posts SET likes = GREATEST(COALESCE(likes, 0) - ${likePower}, 0) WHERE id = ${postId}`;
+      if (post.author_id) {
+        await sql`UPDATE users SET points = GREATEST(COALESCE(points, 0) - 2, 0) WHERE user_id = ${post.author_id}`;
+      }
     } else {
-      await sql`INSERT INTO likes (post_id, author) VALUES (${postId}, ${currentUser})`;
+      await sql`INSERT INTO likes (post_id, author, author_id) VALUES (${postId}, ${currentUser}, ${currentUserId})`;
       await sql`UPDATE posts SET likes = COALESCE(likes, 0) + ${likePower} WHERE id = ${postId}`;
+      if (post.author_id) {
+        await sql`UPDATE users SET points = COALESCE(points, 0) + 2 WHERE user_id = ${post.author_id}`;
+      }
     }
     revalidatePath(`/board/${postId}`);
   };
 
   const toggleScrap = async () => {
     'use server';
-    if (!currentUser) redirect('/login');
-    const { rows: checkRows = [] } = await sql`SELECT * FROM scraps WHERE post_id = ${postId} AND author = ${currentUser}`;
+    if (!currentUserId) redirect('/login');
+    const { rows: checkRows = [] } = await sql`SELECT * FROM scraps WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
-      await sql`DELETE FROM scraps WHERE post_id = ${postId} AND author = ${currentUser}`;
+      await sql`DELETE FROM scraps WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
     } else {
-      await sql`INSERT INTO scraps (post_id, author) VALUES (${postId}, ${currentUser})`;
+      await sql`INSERT INTO scraps (post_id, author, author_id) VALUES (${postId}, ${currentUser}, ${currentUserId})`;
     }
     revalidatePath(`/board/${postId}`);
   };
 
   const addComment = async (formData: FormData) => {
     'use server';
-    if (!currentUser) return;
+    if (!currentUserId) return;
     const content = (formData.get('content') as string) || ''; 
     const parentId = formData.get('parentId') as string;
     const imageUrl = formData.get('imageUrl') as string;
     if (!content.trim() && !imageUrl) return; 
 
     if (parentId) {
-      await sql`INSERT INTO comments (post_id, author, content, parent_id, image_data) VALUES (${postId}, ${currentUser}, ${content}, ${parentId}, ${imageUrl || null})`;
+      await sql`INSERT INTO comments (post_id, author, author_id, content, parent_id, image_data) VALUES (${postId}, ${currentUser}, ${currentUserId}, ${content}, ${parentId}, ${imageUrl || null})`;
     } else {
-      await sql`INSERT INTO comments (post_id, author, content, image_data) VALUES (${postId}, ${currentUser}, ${content}, ${imageUrl || null})`;
+      await sql`INSERT INTO comments (post_id, author, author_id, content, image_data) VALUES (${postId}, ${currentUser}, ${currentUserId}, ${content}, ${imageUrl || null})`;
     }
+    await sql`UPDATE users SET points = COALESCE(points, 0) + 5 WHERE user_id = ${currentUserId}`;
     revalidatePath(`/board/${postId}`);
   };
 
   const deleteComment = async (formData: FormData) => {
     'use server';
-    if (!currentUser) return;
+    if (!currentUserId) return;
     const commentId = formData.get('commentId') as string;
-    const { rows = [] } = await sql`SELECT author FROM comments WHERE id = ${commentId}`;
-    if (rows.length > 0 && (isAdmin || rows[0].author === currentUser)) {
-      await sql`DELETE FROM comments WHERE id = ${commentId}`;
+    const { rows = [] } = await sql`SELECT author_id, author FROM comments WHERE id = ${commentId}`;
+    if (rows.length > 0) {
+      const commentAuthorId = rows[0].author_id;
+      if (isAdmin || commentAuthorId === currentUserId) {
+        await sql`DELETE FROM comments WHERE id = ${commentId}`;
+        if (commentAuthorId) {
+          await sql`UPDATE users SET points = GREATEST(COALESCE(points, 0) - 5, 0) WHERE user_id = ${commentAuthorId}`;
+        }
+      }
     }
     revalidatePath(`/board/${postId}`);
   };
 
   const toggleCommentLike = async (formData: FormData) => {
     'use server';
-    if (!currentUser) return;
+    if (!currentUserId) return;
     const commentId = formData.get('commentId') as string;
-    const { rows: checkRows = [] } = await sql`SELECT * FROM comment_likes WHERE comment_id = ${commentId} AND author = ${currentUser}`;
+    const { rows: checkRows = [] } = await sql`SELECT * FROM comment_likes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
     const likePower = isAdmin ? 10 : 1;
 
+    const { rows: commentRows = [] } = await sql`SELECT author_id FROM comments WHERE id = ${commentId}`;
+    const commentAuthorId = commentRows[0]?.author_id;
+
     if (checkRows.length > 0) {
-      await sql`DELETE FROM comment_likes WHERE comment_id = ${commentId} AND author = ${currentUser}`;
+      await sql`DELETE FROM comment_likes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
       await sql`UPDATE comments SET likes = GREATEST(COALESCE(likes, 0) - ${likePower}, 0) WHERE id = ${commentId}`;
+      if (commentAuthorId) {
+        await sql`UPDATE users SET points = GREATEST(COALESCE(points, 0) - 2, 0) WHERE user_id = ${commentAuthorId}`;
+      }
     } else {
-      await sql`INSERT INTO comment_likes (comment_id, author) VALUES (${commentId}, ${currentUser})`;
+      await sql`INSERT INTO comment_likes (comment_id, author, author_id) VALUES (${commentId}, ${currentUser}, ${currentUserId})`;
       await sql`UPDATE comments SET likes = COALESCE(likes, 0) + ${likePower} WHERE id = ${commentId}`;
+      if (commentAuthorId) {
+        await sql`UPDATE users SET points = COALESCE(points, 0) + 2 WHERE user_id = ${commentAuthorId}`;
+      }
     }
     revalidatePath(`/board/${postId}`);
   };
@@ -150,7 +174,7 @@ export default async function PostDetailPage(props: any) {
   const renderCommentNode = (node: any, depth: number = 0) => {
     const isReply = depth > 0;
     const paddingLeft = isReply ? `${Math.min(depth * 1.5, 4)}rem` : '0';
-    const isCommentAuthor = currentUser === node.author;
+    const isCommentAuthor = currentUserId === node.author_id || (!node.author_id && currentUser === node.author);
     const canDeleteComment = isCommentAuthor || isAdmin; 
     const hasUserLikedComment = userCommentLikes.includes(node.id);
     
@@ -159,7 +183,13 @@ export default async function PostDetailPage(props: any) {
         <div className={`p-4 border-b border-gray-100 relative group ${isReply ? 'bg-gray-50/70' : 'bg-white'}`} style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '1rem' }}>
           <div className="flex justify-between items-start mb-2">
             <div className="font-bold text-[13.5px] flex items-center gap-2">
-              {node.author}
+              {node.author_id ? (
+                <Link href={`/user/${node.author_id}`} className="hover:text-[#3b4890] hover:underline cursor-pointer transition-colors">
+                  {node.author}
+                </Link>
+              ) : (
+                <span>{node.author}</span>
+              )}
               {node.likes >= 3 && <span className="px-1.5 py-0.5 bg-rose-100 text-rose-600 text-[10px] rounded-sm">베스트</span>}
             </div>
             {canDeleteComment && (
@@ -185,7 +215,6 @@ export default async function PostDetailPage(props: any) {
 
   let finalContent = post.content || '';
   if (finalContent) {
-    // 💡 [미나 마법 1] MP4 영상에 무조건 '음소거(muted)' 강제 추가!
     finalContent = finalContent.replace(
       /<video([^>]*)src="([^"]+)"([^>]*)>/gi,
       (match, beforeSrc, srcUrl, afterSrc) => {
@@ -194,14 +223,13 @@ export default async function PostDetailPage(props: any) {
       }
     );
 
-    // 💡 [미나 마법 2] 유튜브 iframe에 '음소거(mute=1)'와 '볼륨조절 권한(enablejsapi=1)' 강제 추가!
     finalContent = finalContent.replace(
       /src="([^"]*youtube\.com\/embed\/[^"]*)"/gi,
       (match, srcUrl) => {
         try {
           const url = new URL(srcUrl.startsWith('http') ? srcUrl : `https:${srcUrl}`);
           url.searchParams.set('mute', '1');
-          url.searchParams.set('enablejsapi', '1'); // 이 권한이 있어야 20% 볼륨 조절이 먹힙니다!
+          url.searchParams.set('enablejsapi', '1'); 
           return `src="${url.toString()}"`;
         } catch(e) {
           return match;
@@ -213,7 +241,6 @@ export default async function PostDetailPage(props: any) {
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
       
-      {/* 💡 [마법 발동] 화면이 열리면 볼륨 마법사가 조용히 20% 셋팅을 시작합니다! */}
       <VideoVolumeFix />
 
       <style>{`
@@ -237,7 +264,16 @@ export default async function PostDetailPage(props: any) {
         <div className="border-b-2 border-gray-800 pb-4 mb-8">
           <h1 className="text-2xl md:text-3xl font-black mb-4"><span className="text-[#3b4890] mr-2">[{postData.cat}]</span>{postData.cleanTitle}</h1>
           <div className="flex justify-between text-gray-500 text-sm font-bold">
-            <div>{post.author} {isAdmin && <span className="bg-yellow-100 text-yellow-700 text-[11px] px-1 rounded-sm">Admin</span>}</div>
+            <div className="flex items-center gap-2">
+              {post.author_id ? (
+                <Link href={`/user/${post.author_id}`} className="hover:text-[#3b4890] hover:underline cursor-pointer transition-colors">
+                  {post.author}
+                </Link>
+              ) : (
+                <span>{post.author}</span>
+              )}
+              {isAdmin && <span className="bg-yellow-100 text-yellow-700 text-[11px] px-1 rounded-sm">Admin</span>}
+            </div>
             <div className="text-rose-500">공감 {post.likes || 0}</div>
           </div>
         </div>

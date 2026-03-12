@@ -40,12 +40,12 @@ export default async function HomePage() {
     store.delete('ojemi_userid');
   };
 
-  // 🚨 미나의 수술: 6개밖에 안 보이던 글을 가독성 최고 황금비율인 '10개(LIMIT 10)'로 대폭 늘렸습니다!
-  const [bestResult, humorResult, emotionResult, freeResult, lifeResult, animalResult] = await Promise.all([
+  // 🚨 미나의 수술: '자유게시판'을 찾던 돋보기를 '흥미로운 이야기'로 완벽 교체!
+  const [bestResult, humorResult, emotionResult, interestResult, lifeResult, animalResult] = await Promise.all([
     sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 ORDER BY date DESC LIMIT 10`,
     sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[유머]%' ORDER BY date DESC LIMIT 10`,
     sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[감동]%' ORDER BY date DESC LIMIT 10`,
-    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[자유게시판]%' ORDER BY date DESC LIMIT 10`,
+    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[흥미로운 이야기]%' ORDER BY date DESC LIMIT 10`,
     sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[세상사는 이야기]%' ORDER BY date DESC LIMIT 10`,
     sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[귀여운 동물들]%' OR title LIKE '[동물]%' ORDER BY date DESC LIMIT 10`,
   ]);
@@ -53,7 +53,7 @@ export default async function HomePage() {
   const bestPosts = bestResult.rows;
   const humorPosts = humorResult.rows;
   const emotionPosts = emotionResult.rows;
-  const freePosts = freeResult.rows;
+  const interestPosts = interestResult.rows;
   const lifePosts = lifeResult.rows;
   const animalPosts = animalResult.rows;
 
@@ -144,7 +144,6 @@ export default async function HomePage() {
                   오재미를 더 편리하게 이용하세요.
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* 🚨 미나의 스마트 로그인 동선 설계: 로그인 버튼을 누르면 "나 대문(/)에서 왔어!" 라고 알려줍니다 */}
                   <Link href="/login?redirect=/" className="px-8 py-2 bg-[#ebedf5] text-[#3b4890] text-sm font-black rounded-sm shadow-md hover:bg-white transition-colors">
                     로그인
                   </Link>
@@ -158,12 +157,15 @@ export default async function HomePage() {
 
         </div>
 
+        {/* 💡 미나의 퍼즐 맞추기: 대표님이 원하시는 황금 순서대로 완벽하게 재배치했습니다! */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <BoardWidget title="투데이 베스트" icon="🔥" link="/board?best=today" posts={bestPosts} highlight={true} />
           <BoardWidget title="유머" icon="😆" link="/board?category=유머" posts={humorPosts} />
+          
           <BoardWidget title="나누고 싶은 감동" icon="💖" link="/board?category=감동" posts={emotionPosts} />
-          <BoardWidget title="자유게시판" icon="💬" link="/board?category=자유게시판" posts={freePosts} />
           <BoardWidget title="세상사는 이야기" icon="☕" link="/board?category=세상사는 이야기" posts={lifePosts} />
+          
+          <BoardWidget title="흥미로운 이야기" icon="💡" link="/board?category=흥미로운 이야기" posts={interestPosts} />
           <BoardWidget title="귀여운 동물들" icon="🐾" link="/board?category=귀여운 동물들" posts={animalPosts} />
         </div>
       </main>
