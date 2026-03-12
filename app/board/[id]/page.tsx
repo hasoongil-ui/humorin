@@ -243,15 +243,28 @@ export default async function PostDetailPage(props: any) {
       
       <VideoVolumeFix />
 
+      {/* 💡 [미나 마법] 강제 여백은 빼고, 유저가 '엔터' 친 빈 줄(p, br)이 정상적으로 작동하도록 복원했습니다! */}
       <style>{`
+        .ql-editor img {
+          display: block;
+          max-width: 100%;
+          height: auto;
+          border-radius: 8px;
+        }
         .ql-editor iframe.ql-video, .ql-editor video {
+          display: block;
           width: 100%;
           aspect-ratio: 16 / 9;
           height: auto;
           border-radius: 8px;
-          margin-top: 1.5rem;
-          margin-bottom: 1.5rem;
           background-color: #000;
+        }
+        /* 유저가 엔터 쳐서 만든 빈 공간이 뭉개지지 않고 정확히 높이를 차지하도록 보장 */
+        .ql-editor p {
+          min-height: 1.5em;
+        }
+        .ql-editor p br {
+          display: block;
         }
       `}</style>
 
