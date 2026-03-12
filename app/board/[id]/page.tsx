@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { PostLikeButton, CommentLikeButton, PostScrapButton } from './InteractiveButtons';
 import CommentForm from './CommentForm';
+// 💡 [미나 추가] 방금 업그레이드한 볼륨 마법사를 불러옵니다!
+import VideoVolumeFix from './VideoVolumeFix'; 
 
 function extractData(fullTitle: string) {
   if (!fullTitle) return { cat: '일반', cleanTitle: '' };
@@ -183,17 +185,37 @@ export default async function PostDetailPage(props: any) {
 
   let finalContent = post.content || '';
   if (finalContent) {
+    // 💡 [미나 마법 1] MP4 영상에 무조건 '음소거(muted)' 강제 추가!
     finalContent = finalContent.replace(
       /<video([^>]*)src="([^"]+)"([^>]*)>/gi,
       (match, beforeSrc, srcUrl, afterSrc) => {
         const newSrc = srcUrl.includes('#t=') ? srcUrl : `${srcUrl}#t=0.001`;
-        return `<video controls="true" preload="metadata" playsinline="true" src="${newSrc}">`;
+        return `<video controls="true" preload="metadata" playsinline="true" muted="true" src="${newSrc}">`;
+      }
+    );
+
+    // 💡 [미나 마법 2] 유튜브 iframe에 '음소거(mute=1)'와 '볼륨조절 권한(enablejsapi=1)' 강제 추가!
+    finalContent = finalContent.replace(
+      /src="([^"]*youtube\.com\/embed\/[^"]*)"/gi,
+      (match, srcUrl) => {
+        try {
+          const url = new URL(srcUrl.startsWith('http') ? srcUrl : `https:${srcUrl}`);
+          url.searchParams.set('mute', '1');
+          url.searchParams.set('enablejsapi', '1'); // 이 권한이 있어야 20% 볼륨 조절이 먹힙니다!
+          return `src="${url.toString()}"`;
+        } catch(e) {
+          return match;
+        }
       }
     );
   }
 
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
+      
+      {/* 💡 [마법 발동] 화면이 열리면 볼륨 마법사가 조용히 20% 셋팅을 시작합니다! */}
+      <VideoVolumeFix />
+
       <style>{`
         .ql-editor iframe.ql-video, .ql-editor video {
           width: 100%;

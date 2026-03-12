@@ -14,18 +14,24 @@ export default async function EditPage(props: any) {
     return <div className="p-20 text-center text-2xl font-bold">글을 찾을 수 없습니다</div>;
   }
 
-  // 💡 미나의 해결책: 에러를 브라우저가 오해하지 않도록 구조를 바꿨습니다!
   const updatePost = async (formData: FormData) => {
     'use server';
     const title = formData.get('title') as string;
     const content = formData.get('content') as string;
+    const youtube = formData.get('youtube') as string;
+
+    // 💡 [미나의 철통 보안] 칸을 비웠다면 확실하게 DB에서도 null(없음) 처리합니다!
+    const youtubeValue = youtube && youtube.trim() !== '' ? youtube.trim() : null;
 
     let isSuccess = false;
 
     try {
       await sql`
         UPDATE posts 
-        SET title = ${title}, content = ${content} 
+        SET 
+          title = ${title}, 
+          content = ${content},
+          youtube = ${youtubeValue}
         WHERE id = ${postId}
       `;
       isSuccess = true;
@@ -34,7 +40,6 @@ export default async function EditPage(props: any) {
       return { error: 'DB_ERROR' };
     }
 
-    // 서버 방어막(try-catch) 바깥에서 안전하게 화면을 이동시킵니다.
     if (isSuccess) {
       revalidatePath(`/board/${postId}`);
       revalidatePath('/board');
@@ -44,7 +49,7 @@ export default async function EditPage(props: any) {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
-      <main className="max-w-6xl mx-auto p-4 md:p-6 mt-4">
+      <main className="max-w-6xl mx-auto p-4 md:p-6 mt-4 mb-20">
         <div className="bg-white rounded-sm shadow-sm border border-gray-200 p-6">
           <EditClient post={post} updateAction={updatePost} />
         </div>
