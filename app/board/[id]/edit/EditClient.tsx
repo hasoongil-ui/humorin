@@ -170,7 +170,7 @@ export default function EditClient({ post, updateAction }: { post: any, updateAc
       // 💡 [미나 수정 3] 유튜브 주소 Ctrl+V 시 자동으로 텍스트 링크와 16:9 영상 출력
       const text = clipboardData.getData('text/plain');
       if (text) {
-        const ytRegex = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})$/i;
+        const ytRegex = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
         
         if (match) {

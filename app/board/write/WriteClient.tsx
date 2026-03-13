@@ -21,11 +21,11 @@ const ReactQuillWrapper = dynamic(
 );
 import 'react-quill-new/dist/quill.snow.css';
 
-export default function WriteClient({ currentUser }: { currentUser: string }) {
+// 💡 [미나 마법] 통제실에서 받아온 무기(isAdmin, isGlobalLocked, boards)를 장착합니다!
+export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boards }: { currentUser: string, isAdmin: boolean, isGlobalLocked: boolean, boards: any[] }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  // 💡 [수정됨] 글쓰기 진입 시 기본값을 '흥미로운 이야기'로 설정
-  const [category, setCategory] = useState('흥미로운 이야기'); 
+  const [category, setCategory] = useState(boards && boards.length > 0 ? boards[0].name : '흥미로운 이야기'); 
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const router = useRouter();
@@ -33,7 +33,14 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
   const quillRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
+  // 💡 [절대 방어막 1] 화면에 들어오자마자 셧다운 여부를 검사해서 튕겨냅니다!
   useEffect(() => {
+    if (isGlobalLocked && !isAdmin) {
+      alert("🚨 현재 관리자에 의해 사이트 전체 글쓰기가 제한되었습니다.");
+      router.push('/board');
+      return;
+    }
+
     const params = new URLSearchParams(window.location.search);
     const currentCat = params.get('category');
     if (currentCat && currentCat !== 'all') {
@@ -91,7 +98,7 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
         icons['redo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="12 10 14 12 16 10 12 10"></polygon><path class="ql-stroke" d="M9.91,13.91A4.6,4.6,0,0,1,9,14a5,5,0,1,1,5-5"></path></svg>`;
       }
     });
-  }, []);
+  }, [isGlobalLocked, isAdmin, router]);
 
   useEffect(() => {
     setTimeout(() => {
@@ -104,6 +111,7 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
     }, 1000); 
   }, []);
 
+  // 이미지/비디오 업로드 로직은 그대로 유지!
   const processAndUploadImages = async (fileArray: File[]) => {
     if (!quillRef.current) return;
     setIsUploading(true);
@@ -162,7 +170,7 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
 
       const text = clipboardData.getData('text/plain');
       if (text) {
-        const ytRegex = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})$/i;
+        const ytRegex = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
         
         if (match) {
@@ -279,6 +287,18 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // 💡 [절대 방어막 2] 뚫고 들어와서 글을 쓰려고 해도 여기서 막힙니다!
+    if (isGlobalLocked && !isAdmin) {
+      alert('🚨 현재 관리자에 의해 글쓰기가 전면 차단되었습니다.'); return;
+    }
+    
+    // 💡 [절별 방어막] 특정 게시판만 잠겼는지도 검사합니다!
+    const targetBoard = boards.find((b: any) => b.name === category);
+    if (targetBoard?.is_write_locked && !isAdmin) {
+      alert(`🚨 해당 [${category}] 게시판은 현재 관리자에 의해 글쓰기가 잠겨있습니다.`); return;
+    }
+
     if (!content || content === '<p><br></p>') {
       alert('내용을 작성해 주십시오.'); return;
     }
@@ -305,6 +325,18 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
     }
   };
 
+  // 💡 [미나 마법] DB에서 가져온 게시판들을 예쁘게 그룹으로 묶어주는 함수입니다.
+  const groupedBoards = boards.reduce((acc: any, board: any) => {
+    if (!acc[board.group_name]) acc[board.group_name] = [];
+    acc[board.group_name].push(board);
+    return acc;
+  }, {});
+
+  // 일반 유저가 셧다운 상태일 때는 아예 화면 자체를 하얗게 가려버립니다!
+  if (isGlobalLocked && !isAdmin) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
       <style dangerouslySetInnerHTML={{__html: `
@@ -327,30 +359,28 @@ export default function WriteClient({ currentUser }: { currentUser: string }) {
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
+            
+            {/* 💡 [자동화 완료!] 관리자가 DB에 추가한 게시판이 알아서 예쁘게 들어갑니다! */}
             <select value={category} onChange={(e) => setCategory(e.target.value)} className="p-3 border border-gray-300 rounded-sm focus:border-gray-500 outline-none font-bold bg-white text-gray-700 w-full md:w-56 shadow-sm">
-              <optgroup label="게시판">
-                <option value="유머">유머</option>
-                <option value="감동">나누고 싶은 감동</option>
-                <option value="세상사는 이야기">세상사는 이야기</option>
-                <option value="귀여운 동물들">귀여운 동물들</option>
-                {/* 💡 [수정됨] 드롭다운 목록에서도 '흥미로운 이야기'로 완벽 교체! */}
-                <option value="흥미로운 이야기">흥미로운 이야기</option>
-              </optgroup>
-              <optgroup label="정보 및 공유">
-                <option value="유용한 상식">유용한 상식</option>
-                <option value="맛집">맛집</option>
-                <option value="가볼만한 곳">가볼만한 곳</option>
-                <option value="볼만한 영화">볼만한 영화</option>
-              </optgroup>
-              <optgroup label="나도 작가 (창작)">
-                <option value="수필/에세이">수필/에세이</option>
-                <option value="시/단상">시/단상</option>
-                <option value="소설/웹소설">소설/웹소설</option>
-                <option value="창작/기타">창작/기타</option>
-              </optgroup>
+              {Object.keys(groupedBoards).length > 0 ? (
+                Object.keys(groupedBoards).map((groupName) => (
+                  <optgroup key={groupName} label={groupName}>
+                    {groupedBoards[groupName].map((b: any) => (
+                      <option key={b.name} value={b.name} disabled={b.is_write_locked && !isAdmin}>
+                        {b.name} {b.is_write_locked && !isAdmin ? ' 🔒 (잠김)' : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))
+              ) : (
+                <option value="일반">게시판을 불러오는 중...</option>
+              )}
             </select>
+            
             <input placeholder="제목을 입력하세요." className="flex-1 p-3 border border-gray-300 rounded-sm focus:border-gray-500 outline-none font-bold text-gray-900" value={title} onChange={(e) => setTitle(e.target.value)} required />
-            <div className="w-full md:w-48 p-3 border border-gray-200 bg-gray-50 rounded-sm flex items-center font-bold text-gray-600">{currentUser}</div>
+            <div className="w-full md:w-48 p-3 border border-gray-200 bg-gray-50 rounded-sm flex items-center font-bold text-gray-600">
+              {currentUser} {isAdmin && <span className="text-xs text-red-500 ml-1">(Admin)</span>}
+            </div>
           </div>
 
           <div className="bg-white rounded-sm mt-4" ref={editorContainerRef}>

@@ -36,6 +36,21 @@ export default async function PostDetailPage(props: any) {
   }
 
   const isAuthor = currentUserId === post.author_id || (!post.author_id && currentUser === post.author);
+  const postData = extractData(post.title);
+
+  // 💡 [핵심 마법 1] 통제실(DB)에서 전체 셧다운과 '이 게시판의 개별 셧다운' 상태를 가져옵니다!
+  let isGlobalCommentLocked = false;
+  let isBoardCommentLocked = false;
+  try {
+    const { rows: settings } = await sql`SELECT value FROM site_settings WHERE key = 'global_comment_lock'`;
+    if (settings.length > 0 && settings[0].value === 'true') isGlobalCommentLocked = true;
+
+    const { rows: boardLocks } = await sql`SELECT is_comment_locked FROM boards WHERE name = ${postData.cat}`;
+    if (boardLocks.length > 0 && boardLocks[0].is_comment_locked) isBoardCommentLocked = true;
+  } catch (e) {}
+
+  // 관리자가 아니면서, (전체 잠금 OR 개별 잠금) 중 하나라도 걸려있으면 true!
+  const isCommentLocked = (isGlobalCommentLocked || isBoardCommentLocked) && !isAdmin;
 
   const { rows: comments } = await sql`SELECT * FROM comments WHERE post_id = ${postId} ORDER BY created_at ASC`;
   const buildTree = (allComments: any[], parentId: number | null = null): any[] => {
@@ -64,8 +79,6 @@ export default async function PostDetailPage(props: any) {
     const { rows: clRows } = await sql`SELECT comment_id FROM comment_likes WHERE author_id = ${currentUserId}`;
     userCommentLikes = clRows.map(row => row.comment_id);
   }
-
-  const postData = extractData(post.title);
 
   const deletePost = async () => {
     'use server';
@@ -114,6 +127,20 @@ export default async function PostDetailPage(props: any) {
   const addComment = async (formData: FormData) => {
     'use server';
     if (!currentUserId) return;
+
+    // 💡 [핵심 마법 2] 뚫고 들어오려는 해커를 서버에서 한 번 더 차단하는 이중 방어막!
+    let isActionLocked = false;
+    try {
+      const { rows: settings } = await sql`SELECT value FROM site_settings WHERE key = 'global_comment_lock'`;
+      const { rows: boardLocks } = await sql`SELECT is_comment_locked FROM boards WHERE name = ${postData.cat}`;
+      if ((settings[0]?.value === 'true' || boardLocks[0]?.is_comment_locked) && !isAdmin) {
+        isActionLocked = true;
+      }
+    } catch (e) {}
+    
+    // 잠겼으면 아무것도 못하게 튕겨냄
+    if (isActionLocked) return;
+
     const content = (formData.get('content') as string) || ''; 
     const parentId = formData.get('parentId') as string;
     const imageUrl = formData.get('imageUrl') as string;
@@ -202,12 +229,20 @@ export default async function PostDetailPage(props: any) {
           <div className="text-[15px] mb-3 whitespace-pre-wrap">{node.content}</div>
           {node.image_data && <div className="mb-4"><img src={node.image_data} alt="첨부" className="max-w-md rounded-sm border" /></div>}
           <div className="flex items-center gap-3">
-            <label htmlFor={`reply-${node.id}`} className="cursor-pointer text-[13px] text-gray-500 font-bold hover:text-[#3b4890]">답글</label>
+            {/* 💡 [핵심 마법 3] 잠겼으면 기존 댓글에 대댓글(답글)도 못 달게 숨깁니다! */}
+            {!isCommentLocked && (
+              <label htmlFor={`reply-${node.id}`} className="cursor-pointer text-[13px] text-gray-500 font-bold hover:text-[#3b4890]">답글</label>
+            )}
             <CommentLikeButton commentId={node.id} initialLikes={node.likes || 0} initialHasLiked={hasUserLikedComment} toggleAction={toggleCommentLike} isAdmin={isAdmin} />
           </div>
         </div>
+        
+        {/* 대댓글 폼 렌더링 영역 */}
         <input type="checkbox" id={`reply-${node.id}`} className="hidden peer" />
-        <div className="hidden peer-checked:block bg-gray-100 p-3">{currentUser && <CommentForm postId={postId} parentId={node.id} author={node.author} actionType="reply" submitAction={addComment} />}</div>
+        <div className="hidden peer-checked:block bg-gray-100 p-3">
+          {!isCommentLocked && currentUser && <CommentForm postId={postId} parentId={node.id} author={node.author} actionType="reply" submitAction={addComment} />}
+        </div>
+        
         {node.children && node.children.map((child: any) => renderCommentNode(child, depth + 1))}
       </div>
     );
@@ -240,32 +275,12 @@ export default async function PostDetailPage(props: any) {
 
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
-      
       <VideoVolumeFix />
-
-      {/* 💡 [미나 마법] 강제 여백은 빼고, 유저가 '엔터' 친 빈 줄(p, br)이 정상적으로 작동하도록 복원했습니다! */}
       <style>{`
-        .ql-editor img {
-          display: block;
-          max-width: 100%;
-          height: auto;
-          border-radius: 8px;
-        }
-        .ql-editor iframe.ql-video, .ql-editor video {
-          display: block;
-          width: 100%;
-          aspect-ratio: 16 / 9;
-          height: auto;
-          border-radius: 8px;
-          background-color: #000;
-        }
-        /* 유저가 엔터 쳐서 만든 빈 공간이 뭉개지지 않고 정확히 높이를 차지하도록 보장 */
-        .ql-editor p {
-          min-height: 1.5em;
-        }
-        .ql-editor p br {
-          display: block;
-        }
+        .ql-editor img { display: block; max-width: 100%; height: auto; border-radius: 8px; }
+        .ql-editor iframe.ql-video, .ql-editor video { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; border-radius: 8px; background-color: #000; }
+        .ql-editor p { min-height: 1.5em; }
+        .ql-editor p br { display: block; }
       `}</style>
 
       {isAdmin && (
@@ -310,8 +325,22 @@ export default async function PostDetailPage(props: any) {
 
         <div className="mt-16 bg-gray-50 p-5 border">
            <h3 className="font-bold">댓글 <span className="text-[#e74c3c]">{comments.length}</span></h3>
+           
            <div className="mt-4">{commentTree.map(node => renderCommentNode(node, 0))}</div>
-           <div className="mt-6">{currentUser ? <CommentForm postId={postId} actionType="main" submitAction={addComment} /> : <div className="p-4 bg-white border text-center font-bold text-sm">로그인이 필요합니다.</div>}</div>
+           
+           <div className="mt-6">
+             {/* 💡 [핵심 마법 4] 잠겼을 때 폼을 빼앗고 🔒 자물쇠 경고를 띄웁니다! */}
+             {isCommentLocked ? (
+               <div className="p-6 bg-gray-200/50 border border-gray-300 text-center font-bold text-[15px] text-gray-500 rounded-sm flex flex-col items-center justify-center gap-2">
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8 text-gray-400 mb-1"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                 현재 관리자에 의해 이 게시판의 댓글 작성이 금지되었습니다.
+               </div>
+             ) : currentUser ? (
+               <CommentForm postId={postId} actionType="main" submitAction={addComment} />
+             ) : (
+               <div className="p-4 bg-white border border-gray-200 text-center font-bold text-sm text-gray-500 rounded-sm shadow-sm">로그인이 필요합니다.</div>
+             )}
+           </div>
         </div>
       </main>
     </div>

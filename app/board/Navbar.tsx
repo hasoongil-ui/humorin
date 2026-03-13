@@ -3,25 +3,74 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-// 💡 방금 만든 점수 배달 요원들을 불러옵니다!
-import { getUserProfile, handleLogoutAction } from './navActions';
+import { getUserProfile, handleLogoutAction, getDynamicBoards } from './navActions';
+
+const TIER_SYSTEM = [
+  { name: '씨앗', min: 0, icon: '🌱', color: 'text-green-600' },
+  { name: '새싹', min: 100, icon: '🌿', color: 'text-emerald-600' },
+  { name: '잎새', min: 500, icon: '🍃', color: 'text-teal-600' },
+  { name: '꽃', min: 2000, icon: '🌸', color: 'text-pink-600' },
+  { name: '열매', min: 10000, icon: '🍎', color: 'text-red-600' },
+  { name: '나무', min: 50000, icon: '🌳', color: 'text-amber-700' },
+  { name: '숲의 전설', min: 200000, icon: '🏞️', color: 'text-yellow-600' }
+];
+
+function getTierInfo(points: number) {
+  let current = TIER_SYSTEM[0];
+  for (let i = TIER_SYSTEM.length - 1; i >= 0; i--) {
+    if (points >= TIER_SYSTEM[i].min) {
+      current = TIER_SYSTEM[i];
+      break;
+    }
+  }
+  return current;
+}
 
 function NavbarContent() {
   const searchParams = useSearchParams();
   const currentCategory = searchParams.get('category') || 'all';
   const bestType = searchParams.get('best') || '';
 
-  // 💡 [미나 마법] 내 계급과 점수를 담아둘 그릇!
   const [user, setUser] = useState<{ nickname: string; level: string; points: number } | null>(null);
+  const [tierInfo, setTierInfo] = useState(TIER_SYSTEM[0]);
+  const [dynamicMenus, setDynamicMenus] = useState<any[]>([]); 
 
-  // 💡 화면이 켜지자마자 서버 요원에게 점수를 가져오라고 시킵니다.
   useEffect(() => {
-    getUserProfile().then(data => {
-      if (data) setUser(data);
+    // 💡 에러 1 해결: (data: any) 라고 정체를 강제로 지정해서 컴퓨터의 의심을 없앱니다!
+    getUserProfile().then((data: any) => {
+      if (data) {
+        setUser({
+          nickname: data.nickname,
+          level: data.level,
+          points: Number(data.points) || 0
+        });
+        setTierInfo(getTierInfo(Number(data.points) || 0));
+      }
+    });
+
+    // 💡 여기도 (boards: any[]) 라고 확실하게 알려줍니다!
+    getDynamicBoards().then((boards: any[]) => {
+      if (boards && boards.length > 0) {
+        const groupsMap: Record<string, any[]> = {};
+        boards.forEach((b: any) => {
+          if (!groupsMap[b.group_name]) groupsMap[b.group_name] = [];
+          groupsMap[b.group_name].push({
+            name: b.name,
+            link: `/board?category=${b.name}`,
+            isSpecial: b.name === '게시판 신설 요청' 
+          });
+        });
+
+        const formattedGroups = Object.keys(groupsMap).map(groupName => ({
+          name: groupName,
+          sub: groupsMap[groupName]
+        }));
+        setDynamicMenus(formattedGroups);
+      }
     });
   }, []);
 
-  const menuGroups = [
+  const staticGroups = [
     { name: '전체글 보기', link: '/board', isSingle: true },
     { name: '🔥투데이 베스트', link: '/board?best=today', isSingle: true },
     {
@@ -30,44 +79,10 @@ function NavbarContent() {
         { name: '💯 백베스트', link: '/board?best=100' },
         { name: '👑 천베스트', link: '/board?best=1000' },
       ]
-    },
-    {
-      name: '순한 유머 & 감동',
-      sub: [
-        { name: '😆 웃어요 (유머)', link: '/board?category=유머' },
-        { name: '💖 나누고 싶은 감동', link: '/board?category=감동' },
-        { name: '☕ 세상사는 이야기', link: '/board?category=세상사는 이야기' },
-        { name: '🐾 귀여운 동물들', link: '/board?category=귀여운 동물들' },
-        { name: '💬 흥미로운 이야기', link: '/board?category=흥미로운 이야기' },
-      ]
-    },
-    {
-      name: '따뜻한 다락방',
-      sub: [
-        { name: '📚 유용한 상식', link: '/board?category=유용한 상식' },
-        { name: '🍜 맛집', link: '/board?category=맛집' },
-        { name: '🏕️ 가볼만한 곳', link: '/board?category=가볼만한 곳' },
-        { name: '🎬 볼만한 영화', link: '/board?category=볼만한 영화' },
-        { name: '✨ [게시판 신설 요청]', link: '/board?category=게시판 신설 요청', isSpecial: true },
-      ]
-    },
-    {
-      name: '지식 & 정보',
-      sub: [
-        { name: '💊 건강/의학 정보', link: '/board?category=건강' },
-        { name: '💰 재테크/금융', link: '/board?category=재테크' },
-      ]
-    },
-    {
-      name: '✒️ 나도 작가',
-      sub: [
-        { name: '📝 수필/에세이', link: '/board?category=수필/에세이' },
-        { name: '✨ 시/단상', link: '/board?category=시/단상' },
-        { name: '📚 소설/웹소설', link: '/board?category=소설/웹소설' },
-        { name: '🎨 창작/기타', link: '/board?category=창작/기타' },
-      ]
     }
   ];
+
+  const menuGroups = [...staticGroups, ...dynamicMenus];
 
   return (
     <>
@@ -75,14 +90,17 @@ function NavbarContent() {
         <div className="max-w-[1200px] mx-auto flex justify-between items-center">
           <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
 
-          {/* 💡 [미나 마법] 우측 상단 내 정보 & 포인트 표시 구역! */}
           <div className="flex items-center gap-2 md:gap-4">
             {user ? (
               <>
-                <div className="text-[13px] md:text-[14px] font-medium text-gray-700 hidden sm:block">
-                  <span className="text-emerald-600 font-black mr-1">[{user.level}]</span>
-                  <span className="font-bold text-[#3b4890]">{user.nickname}</span>
-                  <span className="ml-1.5 text-rose-500 font-bold text-[13px]">({user.points} P)</span>
+                <div className="text-[13px] md:text-[14px] font-medium text-gray-700 hidden sm:flex items-center gap-1.5">
+                  <span className={`font-black ${tierInfo.color}`}>
+                    {tierInfo.icon} [{tierInfo.name}]
+                  </span>
+                  <Link href={`/user/${user.nickname}`} className="font-bold text-[#3b4890] hover:underline cursor-pointer">
+                    {user.nickname}
+                  </Link>
+                  <span className="text-rose-500 font-bold text-[13px]">({user.points.toLocaleString()} P)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Link href="/profile" className="px-3 py-1.5 bg-[#ebedf5] text-[#3b4890] text-[11px] md:text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors shadow-sm">
@@ -106,13 +124,12 @@ function NavbarContent() {
               </div>
             )}
           </div>
-
         </div>
       </header>
 
       <nav className="bg-[#414a66] text-gray-200 shadow-md relative z-10">
         <div className="max-w-[1200px] mx-auto flex flex-wrap items-center">
-          {menuGroups.map((group) => {
+          {menuGroups.map((group: any) => { // 💡 혹시 모를 에러 방지용 (group: any) 추가!
             if (group.isSingle) {
               let isActive = false;
               if (group.name === '전체글 보기') isActive = currentCategory === 'all' && bestType === '';
@@ -134,7 +151,8 @@ function NavbarContent() {
                 </button>
                 
                 <div className="absolute left-0 top-full hidden w-52 bg-white border border-gray-200 shadow-xl group-hover:block rounded-b-sm overflow-hidden z-50">
-                  {group.sub?.map((subItem) => {
+                  {/* 💡 에러 2 해결: (subItem: any) 라고 정체를 알려줍니다! */}
+                  {group.sub?.map((subItem: any) => { 
                     if (subItem.isSpecial) {
                       return (
                         <Link 
@@ -147,8 +165,7 @@ function NavbarContent() {
                       );
                     }
 
-                    const isActive = currentCategory === subItem.name.replace(/.*?\s(.*)/, '$1').replace(/\(.*?\)/g, '').trim() || 
-                                     (bestType && subItem.link?.includes(bestType));
+                    const isActive = currentCategory === subItem.name;
                     return (
                       <Link 
                         key={subItem.name} 

@@ -88,6 +88,15 @@ export default async function BoardPage(props: any) {
   let totalCount = 0; 
   let topPost = null;
 
+  // 💡 [DB 연동 마법] 좌측 사이드바에 띄워줄 게시판 목록을 DB에서 직접 가져옵니다!
+  let sidebarBoards = [];
+  try {
+    const { rows } = await sql`SELECT * FROM boards ORDER BY sort_order ASC, id ASC`;
+    sidebarBoards = rows;
+  } catch (e) {
+    console.error("사이드바 게시판 불러오기 실패");
+  }
+
   const categoryPattern = `%[${category}]%`;
 
   if (category !== 'all' && !keyword && bestType === '' && page === 1) {
@@ -193,15 +202,24 @@ export default async function BoardPage(props: any) {
             )}
           </div>
 
+          {/* 💡 [연동 완료!] 좌측 사이드바가 이제 관리자의 컨트롤 패널 지시를 받습니다! */}
           <div className="hidden md:block bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden">
             <div className="bg-[#414a66] text-white text-[13px] font-bold py-2.5 px-3 border-b border-[#2a3042]">
-              즐겨찾는 게시판
+              운영 중인 게시판
             </div>
             <ul className="text-[13px] font-bold text-gray-600">
               <li><Link href="/board" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100">전체글 보기</Link></li>
               <li><Link href="/board?best=today" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100">🔥 투데이 베스트</Link></li>
-              <li><Link href="/board?category=유머" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100">유머 게시판</Link></li>
-              <li><Link href="/board?category=흥미로운 이야기" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890]">흥미로운 이야기</Link></li>
+              {sidebarBoards.map(board => {
+                const isActive = category === board.name;
+                return (
+                  <li key={board.id}>
+                    <Link href={`/board?category=${board.name}`} className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 last:border-0 ${isActive ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>
+                      {board.name}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </aside>

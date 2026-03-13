@@ -5,24 +5,33 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 async function updateUserStatus(formData: FormData) {
   'use server';
   const targetUser = formData.get('userid') as string;
   const newStatus = formData.get('status') as string;
-  
   try {
     await sql`UPDATE users SET status = ${newStatus} WHERE user_id = ${targetUser}`;
   } catch (error) {}
   revalidatePath('/admin');
 }
 
-// 💡 [비번 초기화 서버 액션] 비밀번호를 000000으로 리셋합니다!
 async function resetPassword(formData: FormData) {
   'use server';
   const targetUser = formData.get('userid') as string;
   try {
     await sql`UPDATE users SET password = '000000' WHERE user_id = ${targetUser}`;
-    console.log(`[서버] ${targetUser} 회원의 비밀번호가 000000으로 초기화되었습니다.`);
+  } catch (error) {}
+  revalidatePath('/admin');
+}
+
+async function updateUserPoints(formData: FormData) {
+  'use server';
+  const targetUser = formData.get('userid') as string;
+  const newPoints = Number(formData.get('points'));
+  try {
+    await sql`UPDATE users SET points = ${newPoints} WHERE user_id = ${targetUser}`;
   } catch (error) {}
   revalidatePath('/admin');
 }
@@ -32,17 +41,13 @@ export default async function AdminDashboardPage(props: any) {
   const currentUserId = cookieStore.get('ojemi_userid')?.value;
   if (currentUserId !== 'admin') redirect('/'); 
 
-  // 💡 [페이지네이션 로직] 현재 페이지를 파악해서 50개씩 끊어옵니다.
   const searchParams = await props.searchParams;
   const currentPage = Number(searchParams?.page) || 1;
   const limit = 50;
   const offset = (currentPage - 1) * limit;
 
-  let totalUsers = 0;
-  let todayUsers = 0;
-  let bannedUsers = 0;
-  let userList: any[] = [];
-  let totalPages = 1;
+  let totalUsers = 0; let todayUsers = 0; let bannedUsers = 0;
+  let userList: any[] = []; let totalPages = 1;
 
   try {
     const { rows: stats } = await sql`
@@ -56,12 +61,11 @@ export default async function AdminDashboardPage(props: any) {
     todayUsers = Number(stats[0]?.today) || 0;
     bannedUsers = Number(stats[0]?.banned) || 0;
     
-    // 전체 페이지 수 계산
-    totalPages = Math.ceil(totalUsers / limit);
+    totalPages = Math.ceil(totalUsers / limit) || 1;
 
     const { rows } = await sql`
       SELECT 
-        u.id, u.user_id as userid, u.nickname, 
+        u.id, u.user_id as userid, u.nickname, u.points,
         COALESCE(u.ip, '알수없음') as ip, 
         COALESCE(u.status, 'active') as status,
         u.created_at, COALESCE(u.last_login, u.created_at) as last_login,
@@ -74,12 +78,14 @@ export default async function AdminDashboardPage(props: any) {
     userList = rows.map(row => {
       const formatDate = (date: any) => {
         if (!date) return '-';
-        const d = new Date(date);
-        return `${d.getFullYear().toString().slice(2)}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        try {
+          const d = new Date(date);
+          return `${d.getFullYear().toString().slice(2)}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        } catch(e) { return '-'; }
       };
       return { ...row, created_at: formatDate(row.created_at), last_login: formatDate(row.last_login) };
     });
-  } catch (e) { console.error(e); }
+  } catch (e) {}
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
@@ -91,6 +97,8 @@ export default async function AdminDashboardPage(props: any) {
           <ul className="space-y-1">
             <li><Link href="/admin" className="flex items-center gap-3 px-6 py-3 bg-[#3b4890] text-white font-bold border-l-4 border-indigo-300"><span>👥</span> 회원 관리</Link></li>
             <li><Link href="/admin/posts" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>📝</span> 게시글 관리</Link></li>
+            <li><Link href="/admin/comments" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>💬</span> 댓글 관리</Link></li>
+            <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>⚙️</span> 설정/게시판 관리</Link></li>
           </ul>
         </nav>
       </aside>
@@ -109,19 +117,19 @@ export default async function AdminDashboardPage(props: any) {
             <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm flex items-center justify-between"><div><p className="text-[11px] font-bold text-gray-500 mb-1">현재 페이지</p><p className="text-xl font-black text-indigo-600">{currentPage} / {totalPages}</p></div></div>
           </div>
 
-          <div className="bg-white rounded-sm border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-            <div className="overflow-x-auto w-full">
-              {/* 💡 [표 너비 조정] 비번 초기화 버튼이 들어가야 해서 권한 변경(맨 끝) 칸을 25%로 넓혔습니다! */}
-              <table className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[900px]">
-                <colgroup><col style={{ width: '5%' }} /><col style={{ width: '15%' }} /><col style={{ width: '20%' }} /><col style={{ width: '15%' }} /><col style={{ width: '10%' }} /><col style={{ width: '10%' }} /><col style={{ width: '25%' }} /></colgroup>
-                <thead>
+          {/* 💡 [핵심 방어막!] 여기서부터 브라우저의 간섭을 완전히 무시하도록 강력하게 차단했습니다! */}
+          <div suppressHydrationWarning className="bg-white rounded-sm border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+            <div suppressHydrationWarning className="overflow-x-auto w-full">
+              <table suppressHydrationWarning className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[1000px]">
+                <colgroup><col style={{ width: '5%' }} /><col style={{ width: '15%' }} /><col style={{ width: '15%' }} /><col style={{ width: '10%' }} /><col style={{ width: '10%' }} /><col style={{ width: '10%' }} /><col style={{ width: '35%' }} /></colgroup>
+                <thead suppressHydrationWarning>
                   <tr className="bg-white border-b border-gray-300 text-[11px] text-gray-500 font-black tracking-wider uppercase">
-                    <th className="px-3 py-2 text-center">No</th><th className="px-3 py-2">회원 정보</th><th className="px-3 py-2">가입 / 최근로그인</th><th className="px-3 py-2">IP 주소</th><th className="px-3 py-2 text-center">활동</th><th className="px-3 py-2 text-center">상태</th><th className="px-3 py-2 text-center border-l border-gray-100">관리 액션</th>
+                    <th className="px-3 py-2 text-center">No</th><th className="px-3 py-2">회원 정보</th><th className="px-3 py-2">가입/로그인</th><th className="px-3 py-2">IP 주소</th><th className="px-3 py-2 text-center">활동</th><th className="px-3 py-2 text-center">상태</th><th className="px-3 py-2 text-center border-l border-gray-100">관리 액션</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody suppressHydrationWarning>
                   {userList.map((user, index) => (
-                    <tr key={user.id} className="border-b border-gray-100 hover:bg-indigo-50/50 transition-colors">
+                    <tr key={user.id} suppressHydrationWarning className="border-b border-gray-100 hover:bg-indigo-50/50 transition-colors">
                       <td className="px-3 py-1.5 text-center text-gray-400 font-medium text-[11px]">{offset + index + 1}</td>
                       <td className="px-3 py-1.5 whitespace-normal break-words">
                         <div className="font-bold text-[#3b4890] text-[12px] truncate" title={user.userid}>{user.userid}</div>
@@ -132,26 +140,32 @@ export default async function AdminDashboardPage(props: any) {
                         <div><span className="text-gray-400 w-6 inline-block">최근</span>{user.last_login}</div>
                       </td>
                       <td className="px-3 py-1.5"><div className={`text-[11px] font-mono font-bold px-1.5 py-0.5 rounded-sm inline-block truncate max-w-full ${user.ip !== '알수없음' && user.ip.startsWith('211.55') ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-gray-100 text-gray-600'}`}>{user.ip}</div></td>
-                      <td className="px-3 py-1.5 text-center"><span className="text-[11px] font-bold text-gray-600">글 {user.post_count}</span></td>
+                      <td className="px-3 py-1.5 text-center">
+                        <div className="text-[11px] font-bold text-gray-600 mb-0.5">글 {Number(user.post_count)}</div>
+                        <div className="text-[11px] font-bold text-rose-500">{user.points || 0} P</div>
+                      </td>
                       <td className="px-3 py-1.5 text-center">
                         {user.status === 'active' && <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-sm border border-emerald-100">정상</span>}
                         {user.status === 'banned' && <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm border border-rose-100">정지</span>}
                         {user.status === 'shadow_banned' && <span className="text-[10px] font-black text-gray-600 bg-gray-100 px-2 py-0.5 rounded-sm border border-gray-200">그림자</span>}
                       </td>
                       <td className="px-3 py-1.5 border-l border-gray-100">
-                        <div className="flex justify-center items-center gap-1">
-                          {/* 💡 1. 상태 변경 폼 */}
+                        <div className="flex justify-center items-center gap-2">
                           <form action={updateUserStatus} className="flex items-center gap-1">
                             <input type="hidden" name="userid" value={user.userid} />
-                            <select name="status" defaultValue={user.status} className="text-[11px] font-bold px-1 py-1 rounded-sm border outline-none cursor-pointer w-20 text-gray-600">
+                            <select name="status" defaultValue={user.status} className="text-[11px] font-bold px-1 py-1 rounded-sm border outline-none cursor-pointer w-16 text-gray-600">
                               <option value="active">정상</option><option value="shadow_banned">그림자</option><option value="banned">정지</option>
                             </select>
-                            <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-white border border-gray-300 rounded-sm hover:bg-gray-50 text-gray-700 shadow-sm">변경</button>
+                            <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-white border border-gray-300 rounded-sm hover:bg-gray-50 text-gray-700">변경</button>
                           </form>
-                          {/* 💡 2. 비번 000000 초기화 폼 */}
-                          <form action={resetPassword}>
+                          <form action={updateUserPoints} className="flex items-center gap-1 border-l pl-2">
                             <input type="hidden" name="userid" value={user.userid} />
-                            <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-amber-50 border border-amber-300 rounded-sm hover:bg-amber-100 text-amber-700 shadow-sm">비번 초기화</button>
+                            <input type="number" name="points" defaultValue={user.points || 0} className="text-[11px] font-bold px-1 py-1 rounded-sm border outline-none w-16 text-gray-800" />
+                            <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-blue-50 border border-blue-200 rounded-sm hover:bg-blue-100 text-blue-700">P수정</button>
+                          </form>
+                          <form action={resetPassword} className="border-l pl-2">
+                            <input type="hidden" name="userid" value={user.userid} />
+                            <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-amber-50 border border-amber-300 rounded-sm hover:bg-amber-100 text-amber-700">비번 리셋</button>
                           </form>
                         </div>
                       </td>
@@ -161,8 +175,7 @@ export default async function AdminDashboardPage(props: any) {
               </table>
             </div>
             
-            {/* 💡 [진짜 페이지네이션] 버튼 클릭 시 ?page=2 이런 식으로 주소가 바뀝니다! */}
-            <div className="p-3 border-t border-gray-200 bg-gray-50 flex justify-center flex-shrink-0">
+            <div suppressHydrationWarning className="p-3 border-t border-gray-200 bg-gray-50 flex justify-center flex-shrink-0">
                <div className="flex gap-2">
                  <Link href={`/admin?page=${currentPage - 1}`} className={`px-3 py-1 border border-gray-300 bg-white text-gray-500 text-[11px] font-bold rounded-sm hover:bg-gray-50 ${currentPage <= 1 ? 'pointer-events-none opacity-40' : ''}`}>◀ 이전</Link>
                  <div className="px-4 py-1 font-black text-gray-700 text-[12px]">{currentPage} <span className="text-gray-400 font-medium">/ {totalPages}</span></div>
