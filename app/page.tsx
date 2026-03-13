@@ -26,6 +26,7 @@ function formatShortDate(dateString: any) {
 }
 
 function getIconForCategory(category: string) {
+  // 1. 핵심 게시판들은 대표님이 원하시는 찰떡 아이콘으로 고정!
   if (category.includes('유머')) return '😆';
   if (category.includes('감동')) return '💖';
   if (category.includes('세상')) return '☕';
@@ -34,7 +35,25 @@ function getIconForCategory(category: string) {
   if (category.includes('정보') || category.includes('상식')) return '📘';
   if (category.includes('질문')) return '❓';
   if (category.includes('자유')) return '💬';
-  return '📌'; 
+
+  // 2. 미나가 엄선한 40개의 다채롭고 예쁜 예비 이모지 보따리! (여기에 맘껏 더 추가하셔도 됩니다)
+  const randomEmojis = [
+    '🚀', '🌟', '💎', '🌈', '🎯', '🎨', '🧩', '🎧', '🍿', '🎈',
+    '🔮', '🏆', '🍔', '🍺', '🏕️', '🛸', '🎸', '🎮', '📸', '🍀',
+    '☀️', '🌙', '⚡', '🔥', '👑', '🍒', '🍉', '🌴', '🌻', '🐶',
+    '🐱', '🐳', '🍩', '🍷', '🛹', '✈️', '⛵', '🏰', '🎡', '💎'
+  ];
+
+  // 3. 게시판 이름 글자들을 갈아 넣어서 고유한 숫자를 뽑아냅니다. (이름 궁합 로직)
+  let hash = 0;
+  for (let i = 0; i < category.length; i++) {
+    hash = category.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  // 4. 뽑아낸 숫자로 보따리 안의 이모지 중 하나를 골라줍니다! (음수 방지를 위해 Math.abs 사용)
+  const index = Math.abs(hash) % randomEmojis.length;
+
+  return randomEmojis[index];
 }
 
 export default async function HomePage() {
@@ -52,7 +71,6 @@ export default async function HomePage() {
     store.delete('ojemi_userid');
   };
 
-  // 🚨 [에러 해결!] 빈 상자에 'any[]' 라는 이름표를 붙여서 타입스크립트를 안심시킵니다!
   let mainBoards: any[] = [];
   try {
     const { rows } = await sql`SELECT * FROM boards WHERE is_main_visible = true ORDER BY main_sort_order ASC, id ASC`;
@@ -61,17 +79,21 @@ export default async function HomePage() {
     console.error("메인 보드 불러오기 에러", e);
   }
 
+  // 💡 [수술 1] 투데이 베스트 쿼리와 함께, 전체글 보기를 위한 '최신글 무조건 10개 쿼리'를 추가합니다!
   const bestQuery = sql`SELECT id, title, author, date, best_at, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 ORDER BY best_at DESC NULLS LAST, date DESC LIMIT 10`;
+  const allPostsQuery = sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts ORDER BY date DESC LIMIT 10`;
   
   const boardQueries = mainBoards.map(board => {
     const pattern = `[${board.name}]%`; 
     return sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${pattern} ORDER BY date DESC LIMIT 10`;
   });
 
-  const results = await Promise.all([bestQuery, ...boardQueries]);
+  // 💡 [수술 2] 투데이 베스트(0번), 전체글(1번), 나머지 게시판들 순서로 결과를 받아옵니다!
+  const results = await Promise.all([bestQuery, allPostsQuery, ...boardQueries]);
   
   const bestPosts = results[0].rows; 
-  const dynamicBoardPosts = results.slice(1).map(res => res.rows); 
+  const allRecentPosts = results[1].rows; 
+  const dynamicBoardPosts = results.slice(2).map(res => res.rows); 
 
   const BoardWidget = ({ title, icon, link, posts, highlight = false }: any) => (
     <div className={`bg-white border ${highlight ? 'border-[#3b4890] shadow-md' : 'border-gray-200 shadow-sm'} rounded-sm overflow-hidden flex flex-col`}>
@@ -170,8 +192,11 @@ export default async function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* 💡 [수술 3] 0순위: 투데이 베스트 / 1순위: 전체글 보기를 영구 박제합니다! */}
           <BoardWidget title="투데이 베스트" icon="🔥" link="/board?best=today" posts={bestPosts} highlight={true} />
+          <BoardWidget title="전체 새글 보기" icon="📝" link="/board" posts={allRecentPosts} />
           
+          {/* 💡 2순위부터는 관리자가 설정한 대로 렌더링! */}
           {mainBoards.map((board, index) => (
             <BoardWidget 
               key={board.id} 

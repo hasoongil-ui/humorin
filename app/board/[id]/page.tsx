@@ -101,7 +101,6 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!currentUserId) redirect('/login');
     
-    // 💡 [핵심 마법 1] 관리자가 슈퍼파워(+10)를 쓸 때도 승급 시계를 확인하고 도장을 찍습니다!
     if (isAdmin) {
       await sql`
         UPDATE posts 
@@ -125,7 +124,6 @@ export default async function PostDetailPage(props: any) {
       }
     } else {
       await sql`INSERT INTO likes (post_id, author, author_id) VALUES (${postId}, ${currentUser}, ${currentUserId})`;
-      // 💡 [핵심 마법 2] 일반 유저가 공감을 눌러서 승급 기준을 넘으면 현재 시간(CURRENT_TIMESTAMP)을 찍습니다!
       await sql`
         UPDATE posts 
         SET 
@@ -183,15 +181,29 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
+  // 💡 [핵심 마법 1] 스마트 삭제 로직 도입! (자식이 있으면 살려두고 내용만 바꿈)
   const deleteComment = async (formData: FormData) => {
     'use server';
     if (!currentUserId) return;
     const commentId = formData.get('commentId') as string;
+    
     const { rows = [] } = await sql`SELECT author_id, author FROM comments WHERE id = ${commentId}`;
     if (rows.length > 0) {
       const commentAuthorId = rows[0].author_id;
       if (isAdmin || commentAuthorId === currentUserId) {
-        await sql`DELETE FROM comments WHERE id = ${commentId}`;
+        
+        // 이 댓글 밑에 달린 대댓글(자식)이 있는지 검사합니다!
+        const { rows: childRows } = await sql`SELECT id FROM comments WHERE parent_id = ${commentId}`;
+        
+        if (childRows.length > 0) {
+          // 자식이 있으면 고아 방지를 위해 '소프트 딜리트(내용 세탁)' 처리!
+          await sql`UPDATE comments SET content = '작성자가 삭제한 댓글입니다.', author = '알 수 없음', author_id = null, image_data = null WHERE id = ${commentId}`;
+        } else {
+          // 자식이 없으면 쿨하게 DB에서 완전 삭제!
+          await sql`DELETE FROM comments WHERE id = ${commentId}`;
+        }
+
+        // 포인트 회수는 공통으로 진행
         if (commentAuthorId) {
           await sql`UPDATE users SET points = GREATEST(COALESCE(points, 0) - 5, 0) WHERE user_id = ${commentAuthorId}`;
         }
@@ -246,25 +258,31 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  const renderCommentNode = (node: any, depth: number = 0) => {
+  // 💡 [핵심 마법 2] 렌더링 할 때 부모의 이름(parentAuthor)을 물려받도록 수정!
+  const renderCommentNode = (node: any, depth: number = 0, parentAuthor: string | null = null) => {
     const isReply = depth > 0;
     const paddingLeft = isReply ? `${Math.min(depth * 1.5, 4)}rem` : '0';
     const isCommentAuthor = currentUserId === node.author_id || (!node.author_id && currentUser === node.author);
     const canDeleteComment = isCommentAuthor || isAdmin; 
     const hasUserLikedComment = userCommentLikes.includes(node.id);
     
+    // 삭제된 댓글인지 확인
+    const isDeleted = node.content === '작성자가 삭제한 댓글입니다.';
+    
     let bgColorClass = isReply ? 'bg-gray-50/70' : 'bg-white';
     let badge = null;
     
-    if (node.likes >= 30) {
-      bgColorClass = 'bg-green-100/40 border-green-300';
-      badge = <span className="px-2 py-0.5 bg-green-500 text-white text-[11px] rounded-full shadow-sm font-black tracking-wide">🌳 오재미 숲 성지</span>;
-    } else if (node.likes >= 10) {
-      bgColorClass = 'bg-emerald-50 border-emerald-200';
-      badge = <span className="px-2 py-0.5 bg-emerald-500 text-white text-[11px] rounded-full shadow-sm font-bold">🌲 튼튼한 나무</span>;
-    } else if (node.likes >= 3) {
-      bgColorClass = 'bg-blue-50/60 border-blue-200';
-      badge = <span className="px-2 py-0.5 bg-blue-400 text-white text-[11px] rounded-full shadow-sm font-bold">🌱 공감 새싹</span>;
+    if (!isDeleted) {
+      if (node.likes >= 30) {
+        bgColorClass = 'bg-green-100/40 border-green-300';
+        badge = <span className="px-2 py-0.5 bg-green-500 text-white text-[11px] rounded-full shadow-sm font-black tracking-wide">🌳 오재미 숲 성지</span>;
+      } else if (node.likes >= 10) {
+        bgColorClass = 'bg-emerald-50 border-emerald-200';
+        badge = <span className="px-2 py-0.5 bg-emerald-500 text-white text-[11px] rounded-full shadow-sm font-bold">🌲 튼튼한 나무</span>;
+      } else if (node.likes >= 3) {
+        bgColorClass = 'bg-blue-50/60 border-blue-200';
+        badge = <span className="px-2 py-0.5 bg-blue-400 text-white text-[11px] rounded-full shadow-sm font-bold">🌱 공감 새싹</span>;
+      }
     }
 
     return (
@@ -284,11 +302,12 @@ export default async function PostDetailPage(props: any) {
                   {node.author}
                 </Link>
               ) : (
-                <span>{node.author}</span>
+                <span className={isDeleted ? 'text-gray-400 italic' : ''}>{node.author}</span>
               )}
               {badge}
             </div>
-            {canDeleteComment && (
+            {/* 삭제된 댓글이 아닐 때만 삭제 버튼 표시 */}
+            {canDeleteComment && !isDeleted && (
               <form action={deleteComment}>
                 <input type="hidden" name="commentId" value={node.id} />
                 <button type="submit" className="text-xs text-red-500 hover:underline">삭제</button>
@@ -313,26 +332,42 @@ export default async function PostDetailPage(props: any) {
                   </form>
                 </div>
               )}
-              <div className="text-[15px] mb-3 whitespace-pre-wrap text-gray-800">{node.content}</div>
+              
+              {/* 💡 [핵심 마법 3] 본문 렌더링: 대댓글이면 '↳ @부모닉네임' 뱃지를 예쁘게 달아줍니다! */}
+              <div className="text-[15px] mb-3 whitespace-pre-wrap text-gray-800 flex items-start gap-1.5">
+                {isReply && parentAuthor && !isDeleted && (
+                  <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-gray-400 bg-gray-200/60 px-1.5 py-0.5 rounded-sm shrink-0 mt-0.5 border border-gray-200">
+                    ↳ @{parentAuthor}
+                  </span>
+                )}
+                <span className={`${isDeleted ? 'text-gray-400 italic text-[14px]' : ''} leading-relaxed`}>
+                  {node.content}
+                </span>
+              </div>
+              
               {node.image_data && <div className="mb-4"><img src={node.image_data} alt="첨부" className="max-w-md rounded-sm border shadow-sm" /></div>}
             </>
           )}
 
-          <div className="flex items-center gap-3">
-            {!isCommentLocked && (
-              <label htmlFor={`reply-${node.id}`} className="cursor-pointer text-[13px] text-gray-500 font-bold hover:text-[#3b4890]">답글</label>
-            )}
-            <CommentLikeButton commentId={node.id} initialLikes={node.likes || 0} initialHasLiked={hasUserLikedComment} toggleAction={toggleCommentLike} isAdmin={isAdmin} />
-            <CommentReportButton commentId={node.id} currentUserId={currentUserId} isAdmin={isAdmin} />
-          </div>
+          {/* 삭제된 댓글이면 답글/공감/신고 버튼도 숨김 처리하여 유령화 */}
+          {!isDeleted && (
+            <div className="flex items-center gap-3">
+              {!isCommentLocked && (
+                <label htmlFor={`reply-${node.id}`} className="cursor-pointer text-[13px] text-gray-500 font-bold hover:text-[#3b4890]">답글</label>
+              )}
+              <CommentLikeButton commentId={node.id} initialLikes={node.likes || 0} initialHasLiked={hasUserLikedComment} toggleAction={toggleCommentLike} isAdmin={isAdmin} />
+              <CommentReportButton commentId={node.id} currentUserId={currentUserId} isAdmin={isAdmin} />
+            </div>
+          )}
         </div>
         
         <input type="checkbox" id={`reply-${node.id}`} className="hidden peer" />
         <div className="hidden peer-checked:block bg-gray-100 p-3 border-b border-gray-200">
-          {!isCommentLocked && currentUser && <CommentForm postId={postId} parentId={node.id} author={node.author} actionType="reply" submitAction={addComment} />}
+          {!isCommentLocked && currentUser && !isDeleted && <CommentForm postId={postId} parentId={node.id} author={node.author} actionType="reply" submitAction={addComment} />}
         </div>
         
-        {node.children && node.children.map((child: any) => renderCommentNode(child, depth + 1))}
+        {/* 💡 자식 노드를 그릴 때, 현재 노드의 작성자 이름을 부모 이름으로 넘겨줍니다! */}
+        {node.children && node.children.map((child: any) => renderCommentNode(child, depth + 1, node.author))}
       </div>
     );
   };
@@ -444,6 +479,7 @@ export default async function PostDetailPage(props: any) {
         <div className="mt-16 bg-gray-50 p-5 border rounded-sm shadow-sm">
            <h3 className="font-bold text-lg border-b pb-3 border-gray-200">댓글 <span className="text-[#e74c3c]">{comments.length}</span></h3>
            
+           {/* 💡 댓글 렌더링 호출! */}
            <div className="mt-4">{commentTree.map(node => renderCommentNode(node, 0))}</div>
            
            <div className="mt-8">
