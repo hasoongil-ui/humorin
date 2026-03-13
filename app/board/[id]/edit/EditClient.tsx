@@ -52,45 +52,6 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     import('react-quill-new').then((RQ) => {
       const Quill = RQ.Quill;
       if (Quill) {
-        const BlockEmbed = Quill.import('blots/block/embed') as any;
-        const Video = Quill.import('formats/video') as any;
-
-
-        class CustomVideo extends BlockEmbed {
-          static blotName = 'mp4Video';
-          static tagName = 'VIDEO';
-          static create(value: any) {
-            let node = super.create();
-            node.setAttribute('controls', 'true');
-            node.setAttribute('src', value);
-            node.setAttribute('preload', 'metadata');
-            node.style.display = 'block';
-            node.style.width = '100%';
-            node.style.maxWidth = '800px';
-            node.style.margin = '10px auto 30px auto';
-            node.style.borderRadius = '8px';
-            node.style.backgroundColor = '#000';
-            return node;
-          }
-          static value(node: any) { return node.getAttribute('src'); }
-        }
-        Quill.register(CustomVideo, true);
-
-        class YoutubeVideo extends Video {
-          static blotName = 'video';
-          static create(value: any) {
-            let node = super.create(value);
-            node.style.display = 'block';
-            node.style.width = '100%';
-            node.style.maxWidth = '800px';
-            node.style.aspectRatio = '16/9';
-            node.style.margin = '10px auto 30px auto';
-            node.style.borderRadius = '8px';
-            return node;
-          }
-        }
-        Quill.register(YoutubeVideo, true);
-
         const icons = Quill.import('ui/icons') as any;
         icons['undo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="6 10 4 12 2 10 6 10"></polygon><path class="ql-stroke" d="M8.09,13.91A4.6,4.6,0,0,0,9,14,5,5,0,1,0,4,9"></path></svg>`;
         icons['redo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="12 10 14 12 16 10 12 10"></polygon><path class="ql-stroke" d="M9.91,13.91A4.6,4.6,0,0,1,9,14a5,5,0,1,1,5-5"></path></svg>`;
@@ -225,7 +186,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
           const editor = quillRef.current.getEditor();
           const range = editor.getSelection(true) || { index: editor.getLength() };
-          editor.insertEmbed(range.index, 'mp4Video', publicUrl);
+          editor.insertEmbed(range.index, 'video', publicUrl);
           editor.insertText(range.index + 1, '\n');
           editor.setSelection(range.index + 2);
         }
