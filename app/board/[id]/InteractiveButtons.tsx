@@ -1,109 +1,138 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-// ------------------------------------------------------------------
-// 1. 기존 명품 엔진: 게시글 공감 버튼 (+ 관리자 폭격 기능 추가)
-// ------------------------------------------------------------------
 export function PostLikeButton({ postId, initialLikes, initialHasLiked, toggleAction, isAdmin }: any) {
-  const [likes, setLikes] = useState(initialLikes);
-  const [hasLiked, setHasLiked] = useState(initialHasLiked);
-  const [isPending, startTransition] = useTransition();
-
-  const handleLike = () => {
-    // 💡 미나의 핵심: 관리자면 +10점, 일반 유저면 +1점 세팅!
-    const likePower = isAdmin ? 10 : 1;
-
-    // 선반영 (낙관적 UI)
-    setHasLiked(!hasLiked);
-    setLikes(hasLiked ? Math.max(0, likes - likePower) : likes + likePower);
-
-    // 백그라운드 서버 통신
-    startTransition(async () => {
-      await toggleAction();
-    });
+  // 💡 기기 지문 검사 로직
+  const handleLikeSubmit = (e: React.FormEvent) => {
+    if (isAdmin) return; // 관리자는 무한 패스!
+    
+    const deviceKey = `ojemi_liked_post_${postId}`;
+    if (!initialHasLiked) {
+      // 새롭게 공감을 누르려는 경우
+      if (localStorage.getItem(deviceKey) === 'true') {
+        e.preventDefault();
+        alert('이 기기에서는 이미 공감을 누른 기록이 있습니다.\n(다중 계정 조작 방지)');
+        return;
+      }
+      localStorage.setItem(deviceKey, 'true'); // 도장 쾅!
+    } else {
+      // 공감을 취소하는 경우 도장 지워줌
+      localStorage.removeItem(deviceKey);
+    }
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleLike}
-      disabled={isPending}
-      className={`flex items-center gap-2 px-5 py-2.5 border rounded-full transition-all shadow-sm group ${
-        hasLiked
-          ? 'border-rose-500 bg-rose-50 text-rose-500 hover:bg-rose-100'
-          : 'border-gray-300 bg-white text-gray-500 hover:border-rose-400 hover:text-rose-400'
-      }`}
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`w-5 h-5 transition-transform group-hover:scale-110 ${hasLiked ? 'text-rose-500' : 'text-gray-400 group-hover:text-rose-400'}`}>
-        <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
-      </svg>
-      <span className="text-sm font-bold">공감</span>
-      <span className="text-sm font-black">{likes}</span>
-    </button>
+    <form action={toggleAction} onSubmit={handleLikeSubmit}>
+      <button type="submit" className={`px-6 py-2 border rounded-full font-bold text-sm transition-colors flex items-center gap-2 ${initialHasLiked ? 'bg-rose-50 text-rose-500 border-rose-200' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+        {initialHasLiked ? '❤️ 공감 취소' : '🤍 공감'} <span className="text-gray-300">|</span> {initialLikes}
+      </button>
+    </form>
   );
 }
 
-// ------------------------------------------------------------------
-// 2. 미나의 신규 엔진: 게시글 스크랩(북마크) 버튼
-// ------------------------------------------------------------------
 export function PostScrapButton({ postId, initialHasScrapped, toggleScrapAction }: any) {
-  const [hasScrapped, setHasScrapped] = useState(initialHasScrapped);
-  const [isPending, startTransition] = useTransition();
+  return (
+    <form action={toggleScrapAction}>
+      <button type="submit" className={`px-6 py-2 border rounded-full font-bold text-sm transition-colors flex items-center gap-2 ${initialHasScrapped ? 'bg-blue-50 text-blue-500 border-blue-200' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+        {initialHasScrapped ? '⭐ 스크랩 취소' : '⭐ 스크랩'}
+      </button>
+    </form>
+  );
+}
 
-  const handleScrap = () => {
-    setHasScrapped(!hasScrapped);
-
-    startTransition(async () => {
-      await toggleScrapAction();
-    });
+export function CommentLikeButton({ commentId, initialLikes, initialHasLiked, toggleAction, isAdmin }: any) {
+  const handleLikeSubmit = (e: React.FormEvent) => {
+    if (isAdmin) return;
+    const deviceKey = `ojemi_liked_comment_${commentId}`;
+    if (!initialHasLiked) {
+      if (localStorage.getItem(deviceKey) === 'true') {
+        e.preventDefault();
+        alert('이 기기에서는 이미 공감을 누른 기록이 있습니다.');
+        return;
+      }
+      localStorage.setItem(deviceKey, 'true');
+    } else {
+      localStorage.removeItem(deviceKey);
+    }
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleScrap}
-      disabled={isPending}
-      className={`flex items-center gap-2 px-5 py-2.5 border rounded-full transition-all shadow-sm group ${
-        hasScrapped
-          ? 'border-[#3b4890] bg-[#ebedf5] text-[#3b4890] hover:bg-[#dfe2ef]'
-          : 'border-gray-300 bg-white text-gray-500 hover:border-[#3b4890] hover:text-[#3b4890]'
-      }`}
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`w-5 h-5 transition-transform group-hover:scale-110 ${hasScrapped ? 'text-[#3b4890]' : 'text-gray-400 group-hover:text-[#3b4890]'}`}>
-        <path fillRule="evenodd" d="M6.32 2.577a4.902 4.902 0 0 1 3.07-.638h5.22c1.082 0 2.122.213 3.07.638A4.896 4.896 0 0 1 20.306 5.2a4.903 4.903 0 0 1 .637 3.069v11.53c0 .66-.75 1.04-1.28.64l-7.23-5.42a.75.75 0 0 0-.904 0l-7.23 5.42c-.53.4-1.28.02-1.28-.64V8.27c0-1.082.213-2.121.638-3.07A4.895 4.895 0 0 1 6.32 2.577Z" clipRule="evenodd" />
-      </svg>
-      <span className="text-sm font-bold">{hasScrapped ? '스크랩 취소' : '스크랩'}</span>
+    <form action={toggleAction} onSubmit={handleLikeSubmit}>
+      <input type="hidden" name="commentId" value={commentId} />
+      <button type="submit" className={`text-[13px] font-bold transition-colors ${initialHasLiked ? 'text-rose-500' : 'text-gray-400 hover:text-rose-500'}`}>
+        공감 {initialLikes > 0 && initialLikes}
+      </button>
+    </form>
+  );
+}
+
+export function PostReportButton({ postId, currentUserId, isAdmin }: { postId: number, currentUserId: string | null, isAdmin: boolean }) {
+  const router = useRouter();
+  const [isReporting, setIsReporting] = useState(false);
+  
+  const handleReport = async () => {
+    if (!currentUserId) { alert('로그인이 필요합니다.'); router.push('/login'); return; }
+    
+    // 💡 신고 기기 지문 검사
+    const deviceKey = `ojemi_reported_post_${postId}`;
+    if (!isAdmin && localStorage.getItem(deviceKey) === 'true') {
+      alert('이 기기에서는 이미 이 글을 신고하셨습니다.');
+      return;
+    }
+
+    if (!confirm(isAdmin ? '👑 [관리자 모드] 이 게시글에 신고 10회를 누적시키겠습니까?' : '이 게시글을 신고하시겠습니까?')) return;
+    
+    setIsReporting(true);
+    try {
+      const res = await fetch('/api/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId, userId: currentUserId, isAdmin }) });
+      const data = await res.json();
+      if (res.ok) { 
+        if (!isAdmin) localStorage.setItem(deviceKey, 'true'); // 신고 완료 도장 쾅!
+        alert(data.message); 
+        router.refresh(); 
+      } else alert('❌ ' + data.error);
+    } catch (e) { alert('오류 발생'); } finally { setIsReporting(false); }
+  };
+  return (
+    <button onClick={handleReport} disabled={isReporting} className="px-6 py-2 bg-gray-100 text-gray-500 font-bold text-sm rounded-full hover:bg-red-50 hover:text-red-500 transition-colors border border-gray-200 shadow-sm flex items-center gap-2">
+      🚨 신고
     </button>
   );
 }
 
-// ------------------------------------------------------------------
-// 3. 기존 명품 엔진: 댓글 공감 버튼 (+ 관리자 폭격 기능 추가)
-// ------------------------------------------------------------------
-export function CommentLikeButton({ commentId, initialLikes, initialHasLiked, toggleAction, isAdmin }: any) {
-  const [likes, setLikes] = useState(initialLikes);
-  const [hasLiked, setHasLiked] = useState(initialHasLiked);
-  const [isPending, startTransition] = useTransition();
+export function CommentReportButton({ commentId, currentUserId, isAdmin }: { commentId: number, currentUserId: string | null, isAdmin: boolean }) {
+  const router = useRouter();
+  const [isReporting, setIsReporting] = useState(false);
 
-  const handleLike = () => {
-    // 💡 미나의 핵심: 관리자면 +10점, 일반 유저면 +1점 세팅!
-    const likePower = isAdmin ? 10 : 1;
+  const handleReport = async () => {
+    if (!currentUserId) { alert('로그인이 필요합니다.'); router.push('/login'); return; }
+    
+    // 💡 댓글 신고 기기 지문 검사
+    const deviceKey = `ojemi_reported_comment_${commentId}`;
+    if (!isAdmin && localStorage.getItem(deviceKey) === 'true') {
+      alert('이 기기에서는 이미 이 댓글을 신고하셨습니다.');
+      return;
+    }
 
-    setHasLiked(!hasLiked);
-    setLikes(hasLiked ? Math.max(0, likes - likePower) : likes + likePower);
-
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.append('commentId', commentId);
-      await toggleAction(formData);
-    });
+    if (!confirm(isAdmin ? '👑 [관리자 모드] 이 댓글에 신고 10회를 누적시키겠습니까?' : '이 댓글을 신고하시겠습니까?\n(누적 시 자동으로 블라인드 처리됩니다)')) return;
+    
+    setIsReporting(true);
+    try {
+      const res = await fetch('/api/comment-report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commentId, userId: currentUserId, isAdmin }) });
+      const data = await res.json();
+      if (res.ok) { 
+        if (!isAdmin) localStorage.setItem(deviceKey, 'true'); 
+        alert(data.message); 
+        router.refresh(); 
+      } else alert('❌ ' + data.error);
+    } catch (e) { alert('오류 발생'); } finally { setIsReporting(false); }
   };
-
+  
   return (
-    <button type="button" onClick={handleLike} disabled={isPending} className={`text-[13px] font-bold flex items-center gap-1 transition-colors ${hasLiked ? 'text-rose-500 hover:text-rose-600' : 'text-gray-500 hover:text-rose-500'}`}>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" /></svg>
-      공감 {likes}
+    <button onClick={handleReport} disabled={isReporting} className="text-[12px] font-bold text-gray-400 hover:text-red-500 transition-colors ml-2">
+      🚨 신고
     </button>
   );
 }

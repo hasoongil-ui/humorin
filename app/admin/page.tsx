@@ -36,6 +36,22 @@ async function updateUserPoints(formData: FormData) {
   revalidatePath('/admin');
 }
 
+// 💡 [새로 추가된 마법!] 부관리자 임명/해제 서버 액션
+async function toggleAdminRole(formData: FormData) {
+  'use server';
+  const targetUser = formData.get('userid') as string;
+  const currentAdminStatus = formData.get('is_admin') === 'true';
+  const newAdminStatus = !currentAdminStatus; // 상태 반전 (true <-> false)
+  
+  // 최고 관리자(admin)는 절대 건드릴 수 없도록 철통 방어!
+  if (targetUser === 'admin') return; 
+
+  try {
+    await sql`UPDATE users SET is_admin = ${newAdminStatus} WHERE user_id = ${targetUser}`;
+  } catch (error) {}
+  revalidatePath('/admin');
+}
+
 export default async function AdminDashboardPage(props: any) {
   const cookieStore = await cookies();
   const currentUserId = cookieStore.get('ojemi_userid')?.value;
@@ -63,13 +79,15 @@ export default async function AdminDashboardPage(props: any) {
     
     totalPages = Math.ceil(totalUsers / limit) || 1;
 
+    // 💡 [수정됨] DB 쿼리에서 is_admin 값도 가져오도록 추가!
     const { rows } = await sql`
       SELECT 
         u.id, u.user_id as userid, u.nickname, u.points,
         COALESCE(u.ip, '알수없음') as ip, 
         COALESCE(u.status, 'active') as status,
         u.created_at, COALESCE(u.last_login, u.created_at) as last_login,
-        (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count
+        (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count,
+        COALESCE(u.is_admin, false) as is_admin
       FROM users u
       ORDER BY u.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
@@ -117,11 +135,10 @@ export default async function AdminDashboardPage(props: any) {
             <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm flex items-center justify-between"><div><p className="text-[11px] font-bold text-gray-500 mb-1">현재 페이지</p><p className="text-xl font-black text-indigo-600">{currentPage} / {totalPages}</p></div></div>
           </div>
 
-          {/* 💡 [핵심 방어막!] 여기서부터 브라우저의 간섭을 완전히 무시하도록 강력하게 차단했습니다! */}
           <div suppressHydrationWarning className="bg-white rounded-sm border border-gray-200 shadow-sm overflow-hidden flex flex-col">
             <div suppressHydrationWarning className="overflow-x-auto w-full">
-              <table suppressHydrationWarning className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[1000px]">
-                <colgroup><col style={{ width: '5%' }} /><col style={{ width: '15%' }} /><col style={{ width: '15%' }} /><col style={{ width: '10%' }} /><col style={{ width: '10%' }} /><col style={{ width: '10%' }} /><col style={{ width: '35%' }} /></colgroup>
+              <table suppressHydrationWarning className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[1050px]">
+                <colgroup><col style={{ width: '5%' }} /><col style={{ width: '15%' }} /><col style={{ width: '15%' }} /><col style={{ width: '10%' }} /><col style={{ width: '8%' }} /><col style={{ width: '7%' }} /><col style={{ width: '40%' }} /></colgroup>
                 <thead suppressHydrationWarning>
                   <tr className="bg-white border-b border-gray-300 text-[11px] text-gray-500 font-black tracking-wider uppercase">
                     <th className="px-3 py-2 text-center">No</th><th className="px-3 py-2">회원 정보</th><th className="px-3 py-2">가입/로그인</th><th className="px-3 py-2">IP 주소</th><th className="px-3 py-2 text-center">활동</th><th className="px-3 py-2 text-center">상태</th><th className="px-3 py-2 text-center border-l border-gray-100">관리 액션</th>
@@ -132,7 +149,11 @@ export default async function AdminDashboardPage(props: any) {
                     <tr key={user.id} suppressHydrationWarning className="border-b border-gray-100 hover:bg-indigo-50/50 transition-colors">
                       <td className="px-3 py-1.5 text-center text-gray-400 font-medium text-[11px]">{offset + index + 1}</td>
                       <td className="px-3 py-1.5 whitespace-normal break-words">
-                        <div className="font-bold text-[#3b4890] text-[12px] truncate" title={user.userid}>{user.userid}</div>
+                        <div className="font-bold text-[#3b4890] text-[12px] truncate flex items-center gap-1.5" title={user.userid}>
+                          {user.userid}
+                          {/* 💡 [미나 추가] 관리자 뱃지 UI */}
+                          {user.is_admin && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 border border-purple-200 text-[9px] rounded-sm font-black tracking-tighter">ADMIN</span>}
+                        </div>
                         <div className="text-gray-500 text-[11px] mt-0.5 leading-tight line-clamp-2" title={user.nickname}>{user.nickname}</div>
                       </td>
                       <td className="px-3 py-1.5 text-[11px] text-gray-500">
@@ -150,23 +171,38 @@ export default async function AdminDashboardPage(props: any) {
                         {user.status === 'shadow_banned' && <span className="text-[10px] font-black text-gray-600 bg-gray-100 px-2 py-0.5 rounded-sm border border-gray-200">그림자</span>}
                       </td>
                       <td className="px-3 py-1.5 border-l border-gray-100">
-                        <div className="flex justify-center items-center gap-2">
+                        {/* 💡 액션 버튼들을 한 줄로 예쁘게 배치! */}
+                        <div className="flex justify-center items-center gap-1.5 flex-wrap">
                           <form action={updateUserStatus} className="flex items-center gap-1">
                             <input type="hidden" name="userid" value={user.userid} />
-                            <select name="status" defaultValue={user.status} className="text-[11px] font-bold px-1 py-1 rounded-sm border outline-none cursor-pointer w-16 text-gray-600">
+                            <select name="status" defaultValue={user.status} className="text-[11px] font-bold px-1 py-1 rounded-sm border outline-none cursor-pointer w-14 text-gray-600">
                               <option value="active">정상</option><option value="shadow_banned">그림자</option><option value="banned">정지</option>
                             </select>
                             <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-white border border-gray-300 rounded-sm hover:bg-gray-50 text-gray-700">변경</button>
                           </form>
-                          <form action={updateUserPoints} className="flex items-center gap-1 border-l pl-2">
+                          <form action={updateUserPoints} className="flex items-center gap-1 border-l pl-1.5">
                             <input type="hidden" name="userid" value={user.userid} />
-                            <input type="number" name="points" defaultValue={user.points || 0} className="text-[11px] font-bold px-1 py-1 rounded-sm border outline-none w-16 text-gray-800" />
+                            <input type="number" name="points" defaultValue={user.points || 0} className="text-[11px] font-bold px-1 py-1 rounded-sm border outline-none w-14 text-gray-800" />
                             <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-blue-50 border border-blue-200 rounded-sm hover:bg-blue-100 text-blue-700">P수정</button>
                           </form>
-                          <form action={resetPassword} className="border-l pl-2">
+                          <form action={resetPassword} className="border-l pl-1.5">
                             <input type="hidden" name="userid" value={user.userid} />
                             <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-amber-50 border border-amber-300 rounded-sm hover:bg-amber-100 text-amber-700">비번 리셋</button>
                           </form>
+                          {/* 💡 [미나 추가] 관리자 임명 / 해제 토글 버튼 */}
+                          {user.userid !== 'admin' && (
+                            <form action={toggleAdminRole} className="border-l pl-1.5">
+                              <input type="hidden" name="userid" value={user.userid} />
+                              <input type="hidden" name="is_admin" value={user.is_admin ? 'true' : 'false'} />
+                              <button type="submit" className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-colors shadow-sm ${
+                                user.is_admin 
+                                  ? 'bg-purple-100 border border-purple-300 text-purple-700 hover:bg-purple-200' 
+                                  : 'bg-gray-800 border border-gray-900 text-white hover:bg-gray-700'
+                              }`}>
+                                {user.is_admin ? '권한 회수' : '👑 부관리자 임명'}
+                              </button>
+                            </form>
+                          )}
                         </div>
                       </td>
                     </tr>

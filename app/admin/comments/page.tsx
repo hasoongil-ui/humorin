@@ -20,19 +20,36 @@ async function handleBulkAction(formData: FormData) {
       if (action === 'delete') {
         await sql`DELETE FROM comments WHERE id = ${id}`;
       } else if (action === 'hide') {
-        await sql`UPDATE comments SET status = 'hidden' WHERE id = ${id}`;
+        // 💡 [버그 수정] status가 아니라 우리가 만든 is_blinded를 켭니다!
+        await sql`UPDATE comments SET is_blinded = true WHERE id = ${id}`;
       } else if (action === 'show') {
-        await sql`UPDATE comments SET status = 'published' WHERE id = ${id}`;
+        // 💡 [버그 수정] is_blinded를 끕니다!
+        await sql`UPDATE comments SET is_blinded = false WHERE id = ${id}`;
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error("댓글 벌크 액션 에러:", e); // 앞으로 에러가 나면 숨지 않게 기록!
+  }
   revalidatePath('/admin/comments');
 }
 
 export default async function AdminCommentsPage(props: any) {
   const cookieStore = await cookies();
   const currentUserId = cookieStore.get('ojemi_userid')?.value;
-  if (currentUserId !== 'admin') redirect('/'); 
+  
+  // 💡 [버그 수정] 부관리자들도 접근할 수 있게 문을 열어줍니다!
+  let isAdmin = currentUserId === 'admin';
+  if (currentUserId && !isAdmin) {
+    try {
+      const { rows: adminRows } = await sql`SELECT is_admin FROM users WHERE user_id = ${currentUserId}`;
+      if (adminRows.length > 0 && adminRows[0].is_admin) {
+        isAdmin = true;
+      }
+    } catch (e) {}
+  }
+  
+  // 관리자가 아니면 무조건 쫓아냄!
+  if (!isAdmin) redirect('/'); 
 
   const searchParams = await props.searchParams;
   const currentPage = Number(searchParams?.page) || 1;
@@ -47,7 +64,7 @@ export default async function AdminCommentsPage(props: any) {
       SELECT 
         COUNT(*) as total,
         COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as today,
-        COUNT(CASE WHEN status = 'hidden' THEN 1 END) as hidden
+        COUNT(CASE WHEN is_blinded = true THEN 1 END) as hidden
       FROM comments
     `;
     totalComments = Number(stats[0]?.total) || 0;
@@ -63,7 +80,9 @@ export default async function AdminCommentsPage(props: any) {
       LIMIT ${limit} OFFSET ${offset}
     `;
     commentList = rows;
-  } catch (e) {}
+  } catch (e) {
+    console.error("댓글 목록 불러오기 에러:", e);
+  }
 
   const formatDate = (date: any) => {
     if (!date) return '-';
@@ -107,7 +126,6 @@ export default async function AdminCommentsPage(props: any) {
               <div className="flex items-center gap-2">
                 <button type="submit" name="action" value="show" className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-sm hover:bg-emerald-100 flex items-center gap-1">👁️ 선택 공개</button>
                 <button type="submit" name="action" value="hide" className="px-3 py-1.5 bg-gray-800 border border-gray-700 text-gray-200 text-xs font-bold rounded-sm hover:bg-gray-900 flex items-center gap-1">🕵️ 선택 숨김</button>
-                {/* 💡 안전 버튼 적용 완료! */}
                 <SafeButton 
                   label="🗑️ 선택 삭제" 
                   confirmMessage="선택한 댓글을 완전히 삭제하시겠습니까?" 
@@ -120,10 +138,11 @@ export default async function AdminCommentsPage(props: any) {
 
             <div className="overflow-x-auto w-full" suppressHydrationWarning>
               <table className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[1000px]" suppressHydrationWarning>
-                <colgroup><col style={{ width: '4%' }} /><col style={{ width: '6%' }} /><col style={{ width: '45%' }} /><col style={{ width: '15%' }} /><col style={{ width: '15%' }} /><col style={{ width: '15%' }} /></colgroup>
+                {/* 💡 신고 횟수 칸을 위해 비율 조정! */}
+                <colgroup><col style={{ width: '4%' }} /><col style={{ width: '6%' }} /><col style={{ width: '42%' }} /><col style={{ width: '12%' }} /><col style={{ width: '14%' }} /><col style={{ width: '8%' }} /><col style={{ width: '14%' }} /></colgroup>
                 <thead>
                   <tr className="bg-white border-b border-gray-300 text-[11px] text-gray-500 font-black tracking-wider uppercase">
-                    <th className="px-3 py-2 text-center">선택</th><th className="px-3 py-2 text-center">NO</th><th className="px-3 py-2">댓글 내용</th><th className="px-3 py-2">작성자</th><th className="px-3 py-2 text-center">작성일</th><th className="px-3 py-2 text-center">상태</th>
+                    <th className="px-3 py-2 text-center">선택</th><th className="px-3 py-2 text-center">NO</th><th className="px-3 py-2">댓글 내용</th><th className="px-3 py-2">작성자</th><th className="px-3 py-2 text-center">작성일</th><th className="px-3 py-2 text-center">🚨신고</th><th className="px-3 py-2 text-center">상태</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -137,12 +156,14 @@ export default async function AdminCommentsPage(props: any) {
                       </td>
                       <td className="px-3 py-2 text-xs font-bold text-gray-600 truncate">{comment.author}</td>
                       <td className="px-3 py-2 text-center text-[11px] font-bold text-gray-400">{formatDate(comment.created_at)}</td>
+                      {/* 💡 신고 횟수 표시 */}
+                      <td className="px-3 py-2 text-center text-[12px] font-bold text-rose-500">{comment.report_count || 0}</td>
                       <td className="px-3 py-2 text-center">
-                        {(!comment.status || comment.status === 'published') ? <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-sm border border-emerald-100">정상</span> : <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm border border-rose-100">숨김</span>}
+                        {(!comment.is_blinded) ? <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-sm border border-emerald-100">정상</span> : <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm border border-rose-100">블라인드</span>}
                       </td>
                     </tr>
                   ))}
-                  {commentList.length === 0 && <tr><td colSpan={6} className="text-center py-10 text-gray-400 font-bold">댓글이 없습니다.</td></tr>}
+                  {commentList.length === 0 && <tr><td colSpan={7} className="text-center py-10 text-gray-400 font-bold">댓글이 없습니다.</td></tr>}
                 </tbody>
               </table>
             </div>

@@ -46,13 +46,21 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     import('react-quill-new').then((RQ) => {
       const Quill = RQ.Quill;
       if (Quill) {
+        // 💡 [나눔고딕 기본화] 나눔고딕은 디폴트(false)로 빠지므로 화이트리스트에서 제외합니다!
+        const Font = Quill.import('formats/font');
+        Font.whitelist = ['pretendard', 'notosanskr', 'gowundodum', 'hahmlet'];
+        Quill.register(Font, true);
+
+        const Size = Quill.import('attributors/style/size');
+        Size.whitelist = ['10px', '12px', '14px', '15px', '16px', '18px', '20px', '24px', '30px', '36px'];
+        Quill.register(Size, true);
+
         const BlockEmbed = Quill.import('blots/block/embed') as any;
         
-        // 💡 [궁극기 1] mp4 전용 고유 명찰(className) 부착!
         class CustomVideo extends BlockEmbed {
           static blotName = 'mp4Video';
           static tagName = 'VIDEO';
-          static className = 'ojemi-mp4'; // <- 이 명찰이 핵심입니다!
+          static className = 'ojemi-mp4';
           static create(value: any) {
             let node = super.create();
             node.setAttribute('controls', 'true');
@@ -70,11 +78,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         }
         Quill.register(CustomVideo, true);
 
-        // 💡 [궁극기 2] 유튜브 전용 고유 명찰(className) 부착!
         class YoutubeVideo extends BlockEmbed {
           static blotName = 'youtubeVideo';
           static tagName = 'IFRAME';
-          static className = 'ojemi-youtube'; // <- 이 명찰 덕분에 절대 텍스트로 안 바뀝니다!
+          static className = 'ojemi-youtube';
           static create(value: any) {
             let node = super.create();
             node.setAttribute('src', value);
@@ -169,7 +176,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const editor = quillRef.current.getEditor();
           const range = editor.getSelection(true) || { index: editor.getLength() };
           
-          // 💡 고유 명찰이 달린 youtubeVideo 포맷으로 깔끔하게 삽입!
           editor.insertEmbed(range.index, 'youtubeVideo', embedUrl);
           editor.insertText(range.index + 1, '\n');
           editor.setSelection(range.index + 2);
@@ -235,7 +241,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
           const editor = quillRef.current.getEditor();
           const range = editor.getSelection(true) || { index: editor.getLength() };
-          // 💡 고유 명찰이 달린 mp4Video 포맷으로 삽입!
           editor.insertEmbed(range.index, 'mp4Video', publicUrl);
           editor.insertText(range.index + 1, '\n');
           editor.setSelection(range.index + 2);
@@ -252,17 +257,18 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     history: { delay: 500, maxStack: 100, userOnly: true },
     toolbar: {
       container: [
-        ['image', 'video'],                   
-        ['link'],                                       
-        ['undo', 'redo'],                                       
-        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],                    
-        [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }], 
-        ['bold', 'italic', 'underline', 'strike'],                    
-        [{ 'color': [] }, { 'background': [] }],                      
-        [{ 'align': [] }],                                            
-        [{ 'list': 'ordered'}, { 'list': 'bullet' }],                
-        ['blockquote', 'code-block'],                                 
-        ['clean']                                                     
+        ['image', 'video', 'link'], 
+        // 💡 [나눔고딕 기본화] false가 나눔고딕 역할을 합니다!
+        [{ 'font': [false, 'pretendard', 'notosanskr', 'gowundodum', 'hahmlet'] }],
+        [{ 'size': ['10px', '12px', '14px', '15px', false, '18px', '20px', '24px', '30px', '36px'] }], 
+        [{ 'header': [1, 2, 3, 4, false] }], 
+        ['bold', 'italic', 'underline', 'strike'], 
+        [{ 'color': [] }, { 'background': [] }], 
+        [{ 'align': [] }], 
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }], 
+        ['blockquote', 'code-block'], 
+        ['clean'], 
+        ['undo', 'redo'] 
       ],
       handlers: { 
         image: imageHandler,
@@ -320,15 +326,44 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
       <style dangerouslySetInnerHTML={{__html: `
-        .ql-container.ql-snow { height: 600px; border-radius: 0 0 6px 6px; border-color: #d1d5db; }
-        @media (max-width: 768px) { .ql-container.ql-snow { height: 450px; } }
-        .ql-editor { font-size: 1.05rem; line-height: 1.8; }
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Hahmlet:wght@400;700&family=Nanum+Gothic:wght@400;700&family=Noto+Sans+KR:wght@400;700&display=swap');
+
+        .ql-font-pretendard { font-family: 'Pretendard', sans-serif; }
+        .ql-font-notosanskr { font-family: 'Noto Sans KR', sans-serif; }
+        .ql-font-gowundodum { font-family: 'Gowun Dodum', sans-serif; }
+        .ql-font-hahmlet { font-family: 'Hahmlet', serif; }
+
+        /* 💡 [나눔고딕 기본화] 에디터 전체 뼈대를 나눔고딕으로 세팅! */
+        .ql-container { font-family: 'Nanum Gothic', sans-serif; font-size: 16px; }
+        .ql-editor { line-height: 1.8; min-height: 500px; }
+        
+        .ql-snow .ql-picker.ql-font { width: 130px; }
+        /* 💡 아무것도 안 골랐을 때(기본값) '나눔고딕'이라는 글씨가 뜨게 합니다! */
+        .ql-snow .ql-picker.ql-font .ql-picker-label::before, .ql-snow .ql-picker.ql-font .ql-picker-item::before { content: '나눔고딕'; font-family: 'Nanum Gothic'; }
+        
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="pretendard"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="pretendard"]::before { content: '프리텐다드'; font-family: 'Pretendard'; }
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="notosanskr"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="notosanskr"]::before { content: '본고딕'; font-family: 'Noto Sans KR'; }
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="gowundodum"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="gowundodum"]::before { content: '고운돋움'; font-family: 'Gowun Dodum'; }
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="hahmlet"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="hahmlet"]::before { content: '함초롬체'; font-family: 'Hahmlet'; }
+
+        .ql-snow .ql-picker.ql-size { width: 70px; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="10px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="10px"]::before { content: '10'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before { content: '12'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before { content: '14'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="15px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="15px"]::before { content: '15'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: '18'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before { content: '20'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: '24'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="30px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="30px"]::before { content: '30'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before { content: '36'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16'; } 
+
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
-        /* 명찰이 달린 영상들 스타일 매칭 */
         .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
         @media (max-width: 768px) { .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; } }
-        .ql-toolbar.ql-snow { background-color: #f8f9fa; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: inset 0 -1px 0 rgba(0,0,0,0.05); }
-        .ql-toolbar.ql-snow .ql-formats { margin-right: 15px; margin-bottom: 5px; }
+        
+        .ql-toolbar.ql-snow { background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; }
       `}} />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">

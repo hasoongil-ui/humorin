@@ -40,9 +40,8 @@ export default async function HomePage() {
     store.delete('ojemi_userid');
   };
 
-  // 🚨 미나의 수술: '자유게시판'을 찾던 돋보기를 '흥미로운 이야기'로 완벽 교체!
   const [bestResult, humorResult, emotionResult, interestResult, lifeResult, animalResult] = await Promise.all([
-    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 ORDER BY date DESC LIMIT 10`,
+    sql`SELECT id, title, author, date, best_at, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 ORDER BY best_at DESC NULLS LAST, date DESC LIMIT 10`,
     sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[유머]%' ORDER BY date DESC LIMIT 10`,
     sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[감동]%' ORDER BY date DESC LIMIT 10`,
     sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[흥미로운 이야기]%' ORDER BY date DESC LIMIT 10`,
@@ -55,6 +54,7 @@ export default async function HomePage() {
   const emotionPosts = emotionResult.rows;
   const interestPosts = interestResult.rows;
   const lifePosts = lifeResult.rows;
+  // 🚨 멍청한 오타 수정 완료!
   const animalPosts = animalResult.rows;
 
   const BoardWidget = ({ title, icon, link, posts, highlight = false }: any) => (
@@ -157,7 +157,6 @@ export default async function HomePage() {
 
         </div>
 
-        {/* 💡 미나의 퍼즐 맞추기: 대표님이 원하시는 황금 순서대로 완벽하게 재배치했습니다! */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <BoardWidget title="투데이 베스트" icon="🔥" link="/board?best=today" posts={bestPosts} highlight={true} />
           <BoardWidget title="유머" icon="😆" link="/board?category=유머" posts={humorPosts} />

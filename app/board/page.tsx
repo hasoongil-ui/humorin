@@ -88,7 +88,6 @@ export default async function BoardPage(props: any) {
   let totalCount = 0; 
   let topPost = null;
 
-  // 💡 [DB 연동 마법] 좌측 사이드바에 띄워줄 게시판 목록을 DB에서 직접 가져옵니다!
   let sidebarBoards = [];
   try {
     const { rows } = await sql`SELECT * FROM boards ORDER BY sort_order ASC, id ASC`;
@@ -109,22 +108,23 @@ export default async function BoardPage(props: any) {
     if (topRows.length > 0) topPost = topRows[0];
   }
 
+  // 💡 [핵심 마법 3] 베스트 게시판은 'best_at', 백베스트는 'best100_at' 기준으로 정렬합니다!!
   if (bestType === 'today') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published'`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } 
   else if (bestType === '100') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published'`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } 
   else if (bestType === '1000') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published'`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } 
   else if (keyword && category !== 'all') {
@@ -202,7 +202,6 @@ export default async function BoardPage(props: any) {
             )}
           </div>
 
-          {/* 💡 [연동 완료!] 좌측 사이드바가 이제 관리자의 컨트롤 패널 지시를 받습니다! */}
           <div className="hidden md:block bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden">
             <div className="bg-[#414a66] text-white text-[13px] font-bold py-2.5 px-3 border-b border-[#2a3042]">
               운영 중인 게시판
@@ -259,7 +258,16 @@ export default async function BoardPage(props: any) {
                   <div className="hidden md:block w-12 text-center text-xs text-gray-500 font-bold shrink-0">장원</div>
                   <Link href={`/board/${topPost.id}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px] text-gray-800">
                     <CategoryIcon category={topData.cat} />
-                    <span className="truncate group-hover:underline mr-1">{topData.cleanTitle}</span>
+                    
+                    {topPost.is_blinded ? (
+                      <span className="truncate mr-1 text-gray-400 font-medium">
+                        <span className="text-red-500 font-bold mr-1">[블라인드]</span>
+                        {topData.cleanTitle}
+                      </span>
+                    ) : (
+                      <span className="truncate group-hover:underline mr-1">{topData.cleanTitle}</span>
+                    )}
+
                     {hasImage(topPost.content) && (
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 ml-0.5 text-gray-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
                     )}
@@ -295,7 +303,16 @@ export default async function BoardPage(props: any) {
                     <div className="hidden md:block w-12 text-center text-[13px] text-gray-400 shrink-0">{post.id}</div>
                     <Link href={`/board/${post.id}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px] text-gray-800">
                       <CategoryIcon category={postData.cat} />
-                      <span className="truncate group-hover:underline mr-1">{postData.cleanTitle}</span>
+                      
+                      {post.is_blinded ? (
+                        <span className="truncate mr-1 text-gray-400 font-medium">
+                          <span className="text-red-500 font-bold mr-1">[블라인드]</span>
+                          {postData.cleanTitle}
+                        </span>
+                      ) : (
+                        <span className="truncate group-hover:underline mr-1">{postData.cleanTitle}</span>
+                      )}
+
                       {hasImage(post.content) && (
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 ml-0.5 text-gray-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
                       )}
