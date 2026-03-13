@@ -22,12 +22,12 @@ import 'react-quill-new/dist/quill.snow.css';
 export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked, boards, updateAction }: any) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState(post?.content || '');
-  const [category, setCategory] = useState('흥미로운 이야기'); 
+  const [category, setCategory] = useState('흥미로운 이야기');
   const [isUploading, setIsUploading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false); 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditorReady, setIsEditorReady] = useState(false);
   const router = useRouter();
-  
+
   const quillRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +53,9 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
       const Quill = RQ.Quill;
       if (Quill) {
         const BlockEmbed = Quill.import('blots/block/embed') as any;
-        
+        const Video = Quill.import('formats/video') as any;
+
+
         class CustomVideo extends BlockEmbed {
           static blotName = 'mp4Video';
           static tagName = 'VIDEO';
@@ -65,7 +67,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
             node.style.display = 'block';
             node.style.width = '100%';
             node.style.maxWidth = '800px';
-            node.style.margin = '10px auto 30px auto'; 
+            node.style.margin = '10px auto 30px auto';
             node.style.borderRadius = '8px';
             node.style.backgroundColor = '#000';
             return node;
@@ -74,15 +76,10 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
         }
         Quill.register(CustomVideo, true);
 
-        class YoutubeVideo extends BlockEmbed {
-          static blotName = 'youtubeVideo';
-          static tagName = 'IFRAME';
+        class YoutubeVideo extends Video {
+          static blotName = 'video';
           static create(value: any) {
-            let node = super.create();
-            node.setAttribute('src', value);
-            node.setAttribute('frameborder', '0');
-            node.setAttribute('allowfullscreen', 'true');
-            node.setAttribute('class', 'ql-video');
+            let node = super.create(value);
             node.style.display = 'block';
             node.style.width = '100%';
             node.style.maxWidth = '800px';
@@ -91,7 +88,6 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
             node.style.borderRadius = '8px';
             return node;
           }
-          static value(node: any) { return node.getAttribute('src'); }
         }
         Quill.register(YoutubeVideo, true);
 
@@ -107,18 +103,18 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     if (!quillRef.current) return;
     setIsUploading(true);
     const editor = quillRef.current.getEditor();
-    
+
     for (let i = 0; i < fileArray.length; i++) {
       const file = fileArray[i];
       if (!file.type.startsWith('image/')) continue;
-      if (file.size > 10 * 1024 * 1024) continue; 
+      if (file.size > 10 * 1024 * 1024) continue;
       try {
         let fileToUpload = file;
         if (file.type !== 'image/gif' && file.type !== 'image/webp') {
           const img = new Image();
           img.src = URL.createObjectURL(file);
           await new Promise((resolve) => { img.onload = resolve; });
-          const isLongImage = img.height > img.width * 2; 
+          const isLongImage = img.height > img.width * 2;
           URL.revokeObjectURL(img.src);
           if (!isLongImage) {
             const options = { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true };
@@ -136,11 +132,11 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
           const range = editor.getSelection(true) || { index: editor.getLength() };
           editor.insertEmbed(range.index, 'image', publicUrl);
           editor.insertText(range.index + 1, '\n');
-          editor.setSelection(range.index + 2); 
+          editor.setSelection(range.index + 2);
         }
-      } catch (error) {}
+      } catch (error) { }
     }
-    setIsUploading(false); 
+    setIsUploading(false);
   };
 
   const uploadImagesRef = useRef(processAndUploadImages);
@@ -159,16 +155,16 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
         // 💡 2. 유튜브 꼬리표 허용 (텍스트 링크 없이 영상만 쏙!)
         const ytRegex = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
-        
+
         if (match) {
           e.preventDefault();
           e.stopPropagation();
-          
+
           const embedUrl = `https://www.youtube.com/embed/${match[1]}`;
           const editor = quillRef.current.getEditor();
           const range = editor.getSelection(true) || { index: editor.getLength() };
-          
-          editor.insertEmbed(range.index, 'youtubeVideo', embedUrl);
+
+          editor.insertEmbed(range.index, 'video', embedUrl);
           editor.insertText(range.index + 1, '\n');
           editor.setSelection(range.index + 2);
           return;
@@ -186,9 +182,9 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
         }
       }
       if (hasImage && imageFiles.length > 0) {
-        e.preventDefault(); 
+        e.preventDefault();
         e.stopPropagation();
-        uploadImagesRef.current(imageFiles); 
+        uploadImagesRef.current(imageFiles);
       }
     };
 
@@ -200,7 +196,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
     input.setAttribute('accept', 'image/*');
-    input.setAttribute('multiple', 'true'); 
+    input.setAttribute('multiple', 'true');
     input.click();
     input.onchange = async () => {
       const files = input.files;
@@ -212,7 +208,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
   const videoFileHandler = () => {
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'video/mp4,video/webm'); 
+    input.setAttribute('accept', 'video/mp4,video/webm');
     input.click();
     input.onchange = async () => {
       const file = input.files ? input.files[0] : null;
@@ -244,30 +240,30 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     history: { delay: 500, maxStack: 100, userOnly: true },
     toolbar: {
       container: [
-        ['image', 'video'],                   
-        ['link'],                                       
-        ['undo', 'redo'],                                       
-        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],                    
-        [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }], 
-        ['bold', 'italic', 'underline', 'strike'],                    
-        [{ 'color': [] }, { 'background': [] }],                      
-        [{ 'align': [] }],                                            
-        [{ 'list': 'ordered'}, { 'list': 'bullet' }],                
-        ['blockquote', 'code-block'],                                 
-        ['clean']                                                     
+        ['image', 'video'],
+        ['link'],
+        ['undo', 'redo'],
+        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+        [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'color': [] }, { 'background': [] }],
+        [{ 'align': [] }],
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+        ['blockquote', 'code-block'],
+        ['clean']
       ],
-      handlers: { 
+      handlers: {
         image: imageHandler,
-        video: videoFileHandler, 
-        undo: function() { this.quill.history.undo(); },
-        redo: function() { this.quill.history.redo(); }
+        video: videoFileHandler,
+        undo: function () { this.quill.history.undo(); },
+        redo: function () { this.quill.history.redo(); }
       }
     }
   }), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // 💡 3. 개별 게시판 셧다운 시 수정 화면에서도 튕겨냅니다!
     const targetBoard = boards?.find((b: any) => b.name === category);
     if (targetBoard?.is_write_locked && !isAdmin) {
@@ -281,7 +277,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
       alert('게시글에 용량을 초과하는 텍스트 이미지(Base64)가 포함되어 있습니다.\n해당 이미지를 삭제하신 후 다시 첨부해 주십시오.'); return;
     }
     if (isUploading || isSubmitting) return;
-    setIsSubmitting(true); 
+    setIsSubmitting(true);
 
     try {
       // 💡 짝꿍(page.tsx)이 준 updateAction 을 사용해서 안전하게 저장!
@@ -291,7 +287,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
       formData.append('category', category);
 
       const res = await updateAction(formData);
-      
+
       if (res && res.error) {
         alert(res.error);
         setIsSubmitting(false);
@@ -314,7 +310,8 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .ql-container.ql-snow { height: 600px; border-radius: 0 0 6px 6px; border-color: #d1d5db; }
         @media (max-width: 768px) { .ql-container.ql-snow { height: 450px; } }
         .ql-editor { font-size: 1.05rem; line-height: 1.8; }
@@ -329,7 +326,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
         <h1 className="text-xl font-bold text-gray-800 mb-6 border-b border-gray-300 pb-3 flex items-center gap-2">
           글 수정하기 {isUploading && <span className="text-sm font-medium text-gray-500 ml-4">(업로드 처리 중...)</span>}
         </h1>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
             <select value={category} onChange={(e) => setCategory(e.target.value)} className="p-3 border border-gray-300 rounded-sm outline-none font-bold bg-white text-gray-700 w-full md:w-56 shadow-sm">

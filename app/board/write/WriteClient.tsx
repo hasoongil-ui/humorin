@@ -49,6 +49,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const Quill = RQ.Quill;
       if (Quill) {
         const BlockEmbed = Quill.import('blots/block/embed') as any;
+        const Video = Quill.import('formats/video') as any;
+
         
         class CustomVideo extends BlockEmbed {
           static blotName = 'mp4Video';
@@ -70,15 +72,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         }
         Quill.register(CustomVideo, true);
 
-        class YoutubeVideo extends BlockEmbed {
-          static blotName = 'youtubeVideo';
-          static tagName = 'IFRAME';
+        class YoutubeVideo extends Video {
+          static blotName = 'video';
           static create(value: any) {
-            let node = super.create();
-            node.setAttribute('src', value);
-            node.setAttribute('frameborder', '0');
-            node.setAttribute('allowfullscreen', 'true');
-            node.setAttribute('class', 'ql-video');
+            let node = super.create(value);
             node.style.display = 'block';
             node.style.width = '100%';
             node.style.maxWidth = '800px';
@@ -87,7 +84,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             node.style.borderRadius = '8px';
             return node;
           }
-          static value(node: any) { return node.getAttribute('src'); }
         }
         Quill.register(YoutubeVideo, true);
 
@@ -170,7 +166,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const range = editor.getSelection(true) || { index: editor.getLength() };
           
           // 💡 [텍스트 중복 제거] 쓸데없는 텍스트 링크는 안 넣고 오직 '영상'만 예쁘게 넣습니다!
-          editor.insertEmbed(range.index, 'youtubeVideo', embedUrl);
+          editor.insertEmbed(range.index, 'video', embedUrl);
           editor.insertText(range.index + 1, '\n');
           editor.setSelection(range.index + 2);
           return;
