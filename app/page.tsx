@@ -25,6 +25,18 @@ function formatShortDate(dateString: any) {
   return `${String(kstDate.getMonth() + 1).padStart(2, '0')}-${String(kstDate.getDate()).padStart(2, '0')}`;
 }
 
+function getIconForCategory(category: string) {
+  if (category.includes('유머')) return '😆';
+  if (category.includes('감동')) return '💖';
+  if (category.includes('세상')) return '☕';
+  if (category.includes('흥미')) return '💡';
+  if (category.includes('동물')) return '🐾';
+  if (category.includes('정보') || category.includes('상식')) return '📘';
+  if (category.includes('질문')) return '❓';
+  if (category.includes('자유')) return '💬';
+  return '📌'; 
+}
+
 export default async function HomePage() {
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('ojemi_user');
@@ -40,22 +52,26 @@ export default async function HomePage() {
     store.delete('ojemi_userid');
   };
 
-  const [bestResult, humorResult, emotionResult, interestResult, lifeResult, animalResult] = await Promise.all([
-    sql`SELECT id, title, author, date, best_at, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 ORDER BY best_at DESC NULLS LAST, date DESC LIMIT 10`,
-    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[유머]%' ORDER BY date DESC LIMIT 10`,
-    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[감동]%' ORDER BY date DESC LIMIT 10`,
-    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[흥미로운 이야기]%' ORDER BY date DESC LIMIT 10`,
-    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[세상사는 이야기]%' ORDER BY date DESC LIMIT 10`,
-    sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE '[귀여운 동물들]%' OR title LIKE '[동물]%' ORDER BY date DESC LIMIT 10`,
-  ]);
+  // 🚨 [에러 해결!] 빈 상자에 'any[]' 라는 이름표를 붙여서 타입스크립트를 안심시킵니다!
+  let mainBoards: any[] = [];
+  try {
+    const { rows } = await sql`SELECT * FROM boards WHERE is_main_visible = true ORDER BY main_sort_order ASC, id ASC`;
+    mainBoards = rows;
+  } catch (e) {
+    console.error("메인 보드 불러오기 에러", e);
+  }
 
-  const bestPosts = bestResult.rows;
-  const humorPosts = humorResult.rows;
-  const emotionPosts = emotionResult.rows;
-  const interestPosts = interestResult.rows;
-  const lifePosts = lifeResult.rows;
-  // 🚨 멍청한 오타 수정 완료!
-  const animalPosts = animalResult.rows;
+  const bestQuery = sql`SELECT id, title, author, date, best_at, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 ORDER BY best_at DESC NULLS LAST, date DESC LIMIT 10`;
+  
+  const boardQueries = mainBoards.map(board => {
+    const pattern = `[${board.name}]%`; 
+    return sql`SELECT id, title, author, date, likes, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${pattern} ORDER BY date DESC LIMIT 10`;
+  });
+
+  const results = await Promise.all([bestQuery, ...boardQueries]);
+  
+  const bestPosts = results[0].rows; 
+  const dynamicBoardPosts = results.slice(1).map(res => res.rows); 
 
   const BoardWidget = ({ title, icon, link, posts, highlight = false }: any) => (
     <div className={`bg-white border ${highlight ? 'border-[#3b4890] shadow-md' : 'border-gray-200 shadow-sm'} rounded-sm overflow-hidden flex flex-col`}>
@@ -101,7 +117,6 @@ export default async function HomePage() {
       <main className="max-w-[1200px] mx-auto p-4 md:py-8 mb-20">
         
         <div className="bg-[#414a66] rounded-sm p-6 md:p-10 mb-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
-          
           <div>
             <h1 className="text-2xl md:text-3xl font-black text-white mb-2">
               반갑습니다! 세상의 모든 재미 <span className="text-yellow-400">오!재미</span> 입니다.
@@ -118,13 +133,11 @@ export default async function HomePage() {
                   <span className="text-white font-black text-base">{currentUser}</span> 님, 환영합니다!
                 </div>
                 <div className="flex items-center gap-2">
-                  
                   {isAdmin && (
                     <Link href="/admin" className="px-4 py-2 bg-red-600 text-white text-sm font-black rounded-sm hover:bg-red-700 transition-colors shadow-sm">
                       ADMIN
                     </Link>
                   )}
-
                   <Link href="/profile" className="px-4 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm">
                     내정보
                   </Link>
@@ -154,18 +167,20 @@ export default async function HomePage() {
               </>
             )}
           </div>
-
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <BoardWidget title="투데이 베스트" icon="🔥" link="/board?best=today" posts={bestPosts} highlight={true} />
-          <BoardWidget title="유머" icon="😆" link="/board?category=유머" posts={humorPosts} />
           
-          <BoardWidget title="나누고 싶은 감동" icon="💖" link="/board?category=감동" posts={emotionPosts} />
-          <BoardWidget title="세상사는 이야기" icon="☕" link="/board?category=세상사는 이야기" posts={lifePosts} />
-          
-          <BoardWidget title="흥미로운 이야기" icon="💡" link="/board?category=흥미로운 이야기" posts={interestPosts} />
-          <BoardWidget title="귀여운 동물들" icon="🐾" link="/board?category=귀여운 동물들" posts={animalPosts} />
+          {mainBoards.map((board, index) => (
+            <BoardWidget 
+              key={board.id} 
+              title={board.name} 
+              icon={getIconForCategory(board.name)} 
+              link={`/board?category=${board.name}`} 
+              posts={dynamicBoardPosts[index]} 
+            />
+          ))}
         </div>
       </main>
     </div>

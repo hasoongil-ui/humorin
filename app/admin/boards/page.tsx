@@ -21,7 +21,7 @@ async function addBoard(formData: FormData) {
   'use server';
   const name = formData.get('name') as string;
   const group_name = formData.get('group_name') as string;
-  const sort_order = Number(formData.get('sort_order')) || 0;
+  const sort_order = Number(formData.get('sort_order')) || 999;
   try {
     if (name && group_name) {
       await sql`INSERT INTO boards (name, group_name, sort_order) VALUES (${name}, ${group_name}, ${sort_order})`;
@@ -35,9 +35,22 @@ async function updateBoard(formData: FormData) {
   const id = formData.get('id') as string;
   const is_write_locked = formData.get('is_write_locked') === 'on';
   const is_comment_locked = formData.get('is_comment_locked') === 'on';
-  const sort_order = Number(formData.get('sort_order')) || 0;
+  const sort_order = Number(formData.get('sort_order')) || 999;
+  
+  const is_main_visible = formData.get('is_main_visible') === 'on';
+  const main_sort_order = Number(formData.get('main_sort_order')) || 999;
+
   try {
-    await sql`UPDATE boards SET is_write_locked = ${is_write_locked}, is_comment_locked = ${is_comment_locked}, sort_order = ${sort_order} WHERE id = ${id}`;
+    await sql`
+      UPDATE boards 
+      SET 
+        is_write_locked = ${is_write_locked}, 
+        is_comment_locked = ${is_comment_locked}, 
+        sort_order = ${sort_order},
+        is_main_visible = ${is_main_visible},
+        main_sort_order = ${main_sort_order}
+      WHERE id = ${id}
+    `;
   } catch (e) {}
   revalidatePath('/admin/boards');
 }
@@ -144,55 +157,75 @@ export default async function AdminBoardsPage() {
           </div>
 
           <div className="bg-white rounded-sm border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-gray-200 bg-gray-50">
-              <h2 className="text-sm font-black text-gray-800">운영 중인 게시판 목록 ({boardList.length}개)</h2>
-              <p className="text-xs text-gray-500 mt-1">숫자가 낮을수록 메뉴판 앞쪽에 표시됩니다. 개별 게시판의 글쓰기/댓글을 잠글 수도 있습니다.</p>
+            <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-end">
+              <div>
+                <h2 className="text-sm font-black text-gray-800">운영 중인 게시판 목록 ({boardList.length}개)</h2>
+                <p className="text-xs text-gray-500 mt-1">숫자가 낮을수록 앞쪽에 표시됩니다. 메인 노출을 켜면 홈 화면 위젯으로 등장합니다.</p>
+              </div>
             </div>
             
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse whitespace-nowrap">
+              <table className="w-full text-left border-collapse whitespace-nowrap table-fixed">
+                <colgroup>
+                  <col style={{ width: '5%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '20%' }} />
+                </colgroup>
                 <thead>
                   <tr className="bg-white border-b border-gray-300 text-[11px] text-gray-500 font-black tracking-wider uppercase">
-                    <th className="px-4 py-3 text-center">ID</th>
-                    <th className="px-4 py-3">그룹명 (대분류)</th>
-                    <th className="px-4 py-3">게시판 이름 (소분류)</th>
-                    <th className="px-4 py-3 text-center">정렬 순서</th>
-                    <th className="px-4 py-3 text-center text-red-500">글쓰기 잠금</th>
-                    <th className="px-4 py-3 text-center text-red-500">댓글 잠금</th>
-                    <th className="px-4 py-3 text-center">수정 / 삭제</th>
+                    <th className="px-3 py-3 text-center">ID</th>
+                    <th className="px-3 py-3">그룹 / 게시판명</th>
+                    <th className="px-2 py-3 text-center bg-gray-50 border-x border-gray-200">메뉴 순서</th>
+                    <th className="px-2 py-3 text-center bg-gray-50 border-r border-gray-200 text-red-500">글/댓글 잠금</th>
+                    <th className="px-2 py-3 text-center bg-indigo-50 border-r border-indigo-100 text-[#3b4890]">메인 노출</th>
+                    <th className="px-2 py-3 text-center bg-indigo-50 border-r border-indigo-100 text-[#3b4890]">메인 순서</th>
+                    <th className="px-3 py-3 text-center">관리 액션</th>
                   </tr>
                 </thead>
                 <tbody>
                   {boardList.map((board: any) => (
                     <tr key={board.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="px-4 py-2 text-center text-gray-400 font-bold text-xs">{board.id}</td>
-                      <td className="px-4 py-2 text-gray-600 font-bold text-xs">{board.group_name}</td>
-                      <td className="px-4 py-2 text-[#3b4890] font-black text-sm">{board.name}</td>
+                      <td className="px-3 py-2 text-center text-gray-400 font-bold text-xs">{board.id}</td>
+                      <td className="px-3 py-2">
+                        <div className="text-[10px] text-gray-400 font-bold">{board.group_name}</div>
+                        <div className="text-[#3b4890] font-black text-sm truncate">{board.name}</div>
+                      </td>
                       
-                      <td colSpan={4} className="p-0">
-                        <form action={updateBoard} className="flex items-center w-full h-full">
+                      {/* 💡 [에러 해결!] 5칸을 하나로 묶은 합법적인 td 안에, 비율이 완벽하게 맞춰진 Grid 폼을 넣었습니다! */}
+                      <td colSpan={5} className="p-0 h-full">
+                        <form action={updateBoard} className="grid w-full h-full" style={{ gridTemplateColumns: '15fr 15fr 15fr 10fr 20fr' }}>
                           <input type="hidden" name="id" value={board.id} />
                           
-                          <div className="flex-1 flex justify-center border-l border-gray-100 px-4 py-2">
-                            <input type="number" name="sort_order" defaultValue={board.sort_order} className="w-16 border p-1 text-xs font-bold text-center rounded-sm outline-none" />
+                          <div className="flex flex-col items-center justify-center border-x border-gray-100 px-2 py-2 h-full bg-gray-50/30">
+                            <input type="number" name="sort_order" defaultValue={board.sort_order} className="w-14 border p-1 text-xs font-bold text-center rounded-sm outline-none" />
                           </div>
                           
-                          <div className="flex-1 flex justify-center border-l border-gray-100 px-4 py-2">
-                            <input type="checkbox" name="is_write_locked" defaultChecked={board.is_write_locked} className="w-4 h-4 cursor-pointer accent-red-500" />
+                          <div className="flex flex-col gap-1 items-center justify-center border-r border-gray-100 px-2 py-2 h-full bg-gray-50/30">
+                            <label className="flex items-center gap-1 text-[10px] text-gray-500 font-bold cursor-pointer"><input type="checkbox" name="is_write_locked" defaultChecked={board.is_write_locked} className="w-3.5 h-3.5 accent-red-500" /> 글 잠금</label>
+                            <label className="flex items-center gap-1 text-[10px] text-gray-500 font-bold cursor-pointer"><input type="checkbox" name="is_comment_locked" defaultChecked={board.is_comment_locked} className="w-3.5 h-3.5 accent-red-500" /> 댓글잠금</label>
                           </div>
                           
-                          <div className="flex-1 flex justify-center border-l border-gray-100 px-4 py-2">
-                            <input type="checkbox" name="is_comment_locked" defaultChecked={board.is_comment_locked} className="w-4 h-4 cursor-pointer accent-red-500" />
+                          <div className="flex items-center justify-center border-r border-indigo-50 px-2 py-2 h-full bg-indigo-50/30">
+                            <label className="flex items-center justify-center gap-1 text-[11px] font-black text-indigo-600 cursor-pointer">
+                              <input type="checkbox" name="is_main_visible" defaultChecked={board.is_main_visible} className="w-4 h-4 accent-indigo-600" /> ON
+                            </label>
                           </div>
                           
-                          <div className="flex-1 flex justify-center items-center gap-1 border-l border-gray-100 px-4 py-2">
-                            <button type="submit" className="px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-600 text-[11px] font-bold rounded-sm shadow-sm hover:bg-indigo-100">수정적용</button>
-                            {/* 💡 안전 버튼 적용 완료! */}
+                          <div className="flex items-center justify-center border-r border-indigo-50 px-2 py-2 h-full bg-indigo-50/30">
+                            <input type="number" name="main_sort_order" defaultValue={board.main_sort_order} className="w-14 border border-indigo-200 p-1 text-xs font-bold text-center rounded-sm outline-none text-indigo-900" />
+                          </div>
+                          
+                          <div className="flex justify-center items-center gap-1 px-3 py-2 h-full">
+                            <button type="submit" className="px-3 py-1.5 bg-indigo-600 text-white text-[11px] font-bold rounded-sm shadow-sm hover:bg-indigo-700">수정적용</button>
                             <SafeButton 
                               label="삭제" 
-                              confirmMessage="정말 이 게시판을 삭제하시겠습니까?\n(게시판 메뉴만 삭제되며 작성된 글은 보존됩니다)" 
+                              confirmMessage="정말 이 게시판을 삭제하시겠습니까?\n(게시판만 삭제되며 글은 보존됩니다)" 
                               formAction={deleteBoard} 
-                              className="px-3 py-1 bg-white border border-gray-300 text-red-500 text-[11px] font-bold rounded-sm shadow-sm hover:bg-red-50 hover:border-red-200" 
+                              className="px-3 py-1.5 bg-white border border-gray-300 text-red-500 text-[11px] font-bold rounded-sm shadow-sm hover:bg-red-50 hover:border-red-200" 
                             />
                           </div>
                         </form>
