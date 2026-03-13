@@ -14,26 +14,24 @@ const ReactQuillWrapper = dynamic(
       return <RQ ref={forwardedRef} {...props} />;
     };
   },
-  {
-    ssr: false,
-    loading: () => <div className="p-20 text-center font-bold text-gray-400">에디터 로딩 중...</div>
-  }
+  { ssr: false }
 );
 import 'react-quill-new/dist/quill.snow.css';
 
-// 💡 [미나 마법] 통제실에서 받아온 무기(isAdmin, isGlobalLocked, boards)를 장착합니다!
+// 💡 [에러 해결!] 통제실에서 보내주는 무기들(isAdmin, isGlobalLocked, boards)을 정상적으로 받도록 입구를 뚫었습니다!
 export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boards }: { currentUser: string, isAdmin: boolean, isGlobalLocked: boolean, boards: any[] }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState(boards && boards.length > 0 ? boards[0].name : '흥미로운 이야기'); 
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); 
+  const [isEditorReady, setIsEditorReady] = useState(false);
   const router = useRouter();
   
   const quillRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
-  // 💡 [절대 방어막 1] 화면에 들어오자마자 셧다운 여부를 검사해서 튕겨냅니다!
+  // 💡 [절대 방어막] 화면에 들어오자마자 셧다운 여부를 검사합니다!
   useEffect(() => {
     if (isGlobalLocked && !isAdmin) {
       alert("🚨 현재 관리자에 의해 사이트 전체 글쓰기가 제한되었습니다.");
@@ -97,21 +95,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         icons['undo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="6 10 4 12 2 10 6 10"></polygon><path class="ql-stroke" d="M8.09,13.91A4.6,4.6,0,0,0,9,14,5,5,0,1,0,4,9"></path></svg>`;
         icons['redo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="12 10 14 12 16 10 12 10"></polygon><path class="ql-stroke" d="M9.91,13.91A4.6,4.6,0,0,1,9,14a5,5,0,1,1,5-5"></path></svg>`;
       }
+      setIsEditorReady(true);
     });
   }, [isGlobalLocked, isAdmin, router]);
 
-  useEffect(() => {
-    setTimeout(() => {
-      const addTooltip = (className: string, title: string) => {
-        const btns = document.querySelectorAll(className);
-        btns.forEach(btn => btn.setAttribute('title', title));
-      };
-      addTooltip('.ql-image', '사진 첨부 (PC 업로드)');
-      addTooltip('.ql-video', '동영상 첨부 (PC 업로드)');
-    }, 1000); 
-  }, []);
-
-  // 이미지/비디오 업로드 로직은 그대로 유지!
   const processAndUploadImages = async (fileArray: File[]) => {
     if (!quillRef.current) return;
     setIsUploading(true);
@@ -170,6 +157,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       const text = clipboardData.getData('text/plain');
       if (text) {
+        // 💡 [유튜브 꼬리표 허용] 정규식 끝에 있던 '$'를 지워서 공유 링크(?si=)도 통과시킵니다!
         const ytRegex = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
         
@@ -181,11 +169,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const editor = quillRef.current.getEditor();
           const range = editor.getSelection(true) || { index: editor.getLength() };
           
-          editor.insertText(range.index, text.trim(), 'link', text.trim());
-          editor.insertText(range.index + text.trim().length, '\n');
-          editor.insertEmbed(range.index + text.trim().length + 1, 'youtubeVideo', embedUrl);
-          editor.insertText(range.index + text.trim().length + 2, '\n');
-          editor.setSelection(range.index + text.trim().length + 3);
+          // 💡 [텍스트 중복 제거] 쓸데없는 텍스트 링크는 안 넣고 오직 '영상'만 예쁘게 넣습니다!
+          editor.insertEmbed(range.index, 'youtubeVideo', embedUrl);
+          editor.insertText(range.index + 1, '\n');
+          editor.setSelection(range.index + 2);
           return;
         }
       }
@@ -287,14 +274,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // 💡 [절대 방어막 2] 뚫고 들어와서 글을 쓰려고 해도 여기서 막힙니다!
     if (isGlobalLocked && !isAdmin) {
       alert('🚨 현재 관리자에 의해 글쓰기가 전면 차단되었습니다.'); return;
     }
-    
-    // 💡 [절별 방어막] 특정 게시판만 잠겼는지도 검사합니다!
-    const targetBoard = boards.find((b: any) => b.name === category);
+    const targetBoard = boards?.find((b: any) => b.name === category);
     if (targetBoard?.is_write_locked && !isAdmin) {
       alert(`🚨 해당 [${category}] 게시판은 현재 관리자에 의해 글쓰기가 잠겨있습니다.`); return;
     }
@@ -325,17 +308,14 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     }
   };
 
-  // 💡 [미나 마법] DB에서 가져온 게시판들을 예쁘게 그룹으로 묶어주는 함수입니다.
-  const groupedBoards = boards.reduce((acc: any, board: any) => {
+  // 💡 DB에서 가져온 게시판들을 예쁘게 그룹으로 묶어주는 함수
+  const groupedBoards = boards?.reduce((acc: any, board: any) => {
     if (!acc[board.group_name]) acc[board.group_name] = [];
     acc[board.group_name].push(board);
     return acc;
-  }, {});
+  }, {}) || {};
 
-  // 일반 유저가 셧다운 상태일 때는 아예 화면 자체를 하얗게 가려버립니다!
-  if (isGlobalLocked && !isAdmin) {
-    return null;
-  }
+  if (isGlobalLocked && !isAdmin) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
@@ -348,8 +328,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         @media (max-width: 768px) { .ql-editor video, .ql-editor iframe.ql-video { aspect-ratio: 16/9; height: auto; } }
         .ql-toolbar.ql-snow { background-color: #f8f9fa; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: inset 0 -1px 0 rgba(0,0,0,0.05); }
         .ql-toolbar.ql-snow .ql-formats { margin-right: 15px; margin-bottom: 5px; }
-        button.ql-undo, button.ql-redo { cursor: pointer; }
-        button.ql-undo:hover, button.ql-redo:hover { color: #3b4890; }
       `}} />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
@@ -359,9 +337,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
-            
-            {/* 💡 [자동화 완료!] 관리자가 DB에 추가한 게시판이 알아서 예쁘게 들어갑니다! */}
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className="p-3 border border-gray-300 rounded-sm focus:border-gray-500 outline-none font-bold bg-white text-gray-700 w-full md:w-56 shadow-sm">
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="p-3 border border-gray-300 rounded-sm outline-none font-bold bg-white text-gray-700 w-full md:w-56 shadow-sm">
               {Object.keys(groupedBoards).length > 0 ? (
                 Object.keys(groupedBoards).map((groupName) => (
                   <optgroup key={groupName} label={groupName}>
@@ -376,15 +352,21 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
                 <option value="일반">게시판을 불러오는 중...</option>
               )}
             </select>
-            
-            <input placeholder="제목을 입력하세요." className="flex-1 p-3 border border-gray-300 rounded-sm focus:border-gray-500 outline-none font-bold text-gray-900" value={title} onChange={(e) => setTitle(e.target.value)} required />
+            <input placeholder="제목을 입력하세요." className="flex-1 p-3 border border-gray-300 rounded-sm font-bold text-gray-900" value={title} onChange={(e) => setTitle(e.target.value)} required />
             <div className="w-full md:w-48 p-3 border border-gray-200 bg-gray-50 rounded-sm flex items-center font-bold text-gray-600">
               {currentUser} {isAdmin && <span className="text-xs text-red-500 ml-1">(Admin)</span>}
             </div>
           </div>
 
-          <div className="bg-white rounded-sm mt-4" ref={editorContainerRef}>
-            <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={setContent} placeholder="내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다." />
+          <div className="bg-white rounded-sm mt-4 border border-gray-300 overflow-hidden" ref={editorContainerRef}>
+            {/* 💡 [에디터 철통 방어] 준비가 완벽히 끝나기 전까진 절대 본문을 읽어들이지 않습니다! */}
+            {isEditorReady ? (
+              <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={setContent} placeholder="내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다." />
+            ) : (
+              <div className="h-[600px] flex items-center justify-center bg-gray-50 text-gray-400 font-bold text-lg animate-pulse">
+                에디터 엔진 준비 중...
+              </div>
+            )}
           </div>
 
           <div className="mt-3 text-center bg-gray-50 border border-gray-200 p-3 rounded-sm">
@@ -395,7 +377,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
           <div className="flex justify-center gap-2 pt-6 border-t border-gray-100 mt-4">
             <button type="button" onClick={() => router.back()} disabled={isSubmitting} className="px-8 py-3 bg-white border border-gray-300 text-gray-700 rounded-sm font-bold hover:bg-gray-50 disabled:opacity-50 transition-colors">취소</button>
-            <button type="submit" disabled={isUploading || isSubmitting} className="px-12 py-3 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-all disabled:bg-gray-400 flex items-center justify-center gap-2">
+            <button type="submit" disabled={isUploading || isSubmitting || !isEditorReady} className="px-12 py-3 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-all disabled:bg-gray-400 flex items-center justify-center gap-2">
               {isSubmitting && <Loader2 className="animate-spin" size={18} />}
               {isSubmitting ? '등록 중...' : isUploading ? '파일 대기...' : '등록'}
             </button>
