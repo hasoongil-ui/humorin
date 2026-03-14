@@ -258,26 +258,28 @@ export default async function BoardPage(props: any) {
                   <Link href={`/board/${topPost.id}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                     <CategoryIcon category={topData.cat} />
                     
+                    {/* 💡 [수술 1] 블라인드 처리된 글은 제목도, 글쓴이도 숨깁니다! */}
                     {topPost.is_blinded ? (
-                      <span className="truncate mr-1 font-bold md:font-normal text-gray-400">
-                        <span className="text-red-500 font-bold mr-1">[블라인드]</span>
-                        {topData.cleanTitle}
+                      <span className="truncate mr-1 text-gray-400 md:text-gray-500">
+                        블라인드 처리된 글입니다.
                       </span>
                     ) : (
-                      <span className="truncate group-hover:underline mr-1 font-bold md:font-normal text-gray-900 md:text-gray-800">{topData.cleanTitle}</span>
-                    )}
-
-                    {hasImage(topPost.content) && (
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 ml-0.5 text-gray-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
-                    )}
-                    {/* 💡 [수술 완료] 댓글 색상을 곤색으로 우아하게! */}
-                    {topPost.comment_count > 0 && (
-                      <span className="ml-1 text-[11px] sm:text-[12px] font-bold text-[#3b4890] shrink-0">[{topPost.comment_count}]</span>
+                      <>
+                        <span className="truncate group-hover:underline mr-1 font-bold md:font-normal text-gray-900 md:text-gray-800">{topData.cleanTitle}</span>
+                        {hasImage(topPost.content) && (
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 ml-0.5 text-gray-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
+                        )}
+                        {topPost.comment_count > 0 && (
+                          <span className="ml-1 text-[11px] sm:text-[12px] font-bold text-[#3b4890] shrink-0">[{topPost.comment_count}]</span>
+                        )}
+                      </>
                     )}
                   </Link>
                   <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 justify-between items-center shrink-0">
                     <div className="md:w-24 text-left md:text-center font-normal md:font-semibold text-gray-400 md:text-gray-700 truncate">
-                      {topPost.author_id ? (
+                      {topPost.is_blinded ? (
+                        <span>-</span>
+                      ) : topPost.author_id ? (
                         <Link href={`/user/${topPost.author_id}`} className="hover:text-[#3b4890] hover:underline cursor-pointer">
                           {topPost.author}
                         </Link>
@@ -286,10 +288,9 @@ export default async function BoardPage(props: any) {
                       )}
                     </div>
                     <div className="md:w-[70px] md:text-center text-gray-400">{formatDate(topPost.date)}</div>
-                    <div className="md:w-12 md:text-center text-gray-400">{topPost.views || 0}</div>
-                    {/* 💡 [수술 완료] 공감 색상을 곤색으로 우아하게! */}
-                    <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${topPost.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300'}`}>
-                      {topPost.likes || 0}
+                    <div className="md:w-12 md:text-center text-gray-400">{topPost.is_blinded ? '-' : (topPost.views || 0)}</div>
+                    <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${topPost.is_blinded ? 'text-gray-300' : (topPost.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300')}`}>
+                      {topPost.is_blinded ? '-' : (topPost.likes || 0)}
                     </div>
                   </div>
                 </div>
@@ -307,26 +308,28 @@ export default async function BoardPage(props: any) {
                     <Link href={`/board/${post.id}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                       <CategoryIcon category={postData.cat} />
                       
+                      {/* 💡 [수술 1] 블라인드 처리된 글은 조용하게! */}
                       {post.is_blinded ? (
-                        <span className="truncate mr-1 font-bold md:font-normal text-gray-400">
-                          <span className="text-red-500 font-bold mr-1">[블라인드]</span>
-                          {postData.cleanTitle}
+                        <span className="truncate mr-1 text-gray-400 md:text-gray-500">
+                          블라인드 처리된 글입니다.
                         </span>
                       ) : (
-                        <span className="truncate group-hover:underline mr-1 font-bold md:font-normal text-gray-900 md:text-gray-800">{postData.cleanTitle}</span>
-                      )}
-
-                      {hasImage(post.content) && (
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 ml-0.5 text-gray-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
-                      )}
-                      {/* 💡 [수술 완료] 댓글 색상을 곤색으로 우아하게! */}
-                      {post.comment_count > 0 && (
-                        <span className="ml-1 text-[11px] sm:text-[12px] font-bold text-[#3b4890] shrink-0">[{post.comment_count}]</span>
+                        <>
+                          <span className="truncate group-hover:underline mr-1 font-bold md:font-normal text-gray-900 md:text-gray-800">{postData.cleanTitle}</span>
+                          {hasImage(post.content) && (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 ml-0.5 text-gray-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
+                          )}
+                          {post.comment_count > 0 && (
+                            <span className="ml-1 text-[11px] sm:text-[12px] font-bold text-[#3b4890] shrink-0">[{post.comment_count}]</span>
+                          )}
+                        </>
                       )}
                     </Link>
                     <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 justify-between items-center shrink-0">
                       <div className="md:w-24 text-left md:text-center font-normal md:font-medium text-gray-400 md:text-gray-600 truncate">
-                        {post.author_id ? (
+                        {post.is_blinded ? (
+                          <span>-</span>
+                        ) : post.author_id ? (
                           <Link href={`/user/${post.author_id}`} className="hover:text-[#3b4890] hover:underline cursor-pointer">
                             {post.author}
                           </Link>
@@ -335,10 +338,9 @@ export default async function BoardPage(props: any) {
                         )}
                       </div>
                       <div className="md:w-[70px] md:text-center">{formatDate(post.date)}</div>
-                      <div className="md:w-12 md:text-center">{post.views || 0}</div>
-                      {/* 💡 [수술 완료] 공감 색상을 곤색으로 우아하게! */}
-                      <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${post.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300 md:text-gray-300'}`}>
-                        {post.likes || 0}
+                      <div className="md:w-12 md:text-center">{post.is_blinded ? '-' : (post.views || 0)}</div>
+                      <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${post.is_blinded ? 'text-gray-300 md:text-gray-300' : (post.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300 md:text-gray-300')}`}>
+                        {post.is_blinded ? '-' : (post.likes || 0)}
                       </div>
                     </div>
                   </div>

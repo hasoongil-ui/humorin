@@ -267,6 +267,7 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
+  // 💡 [핵심!] 게시글 블라인드 해제 및 신고 횟수 초기화 액션
   const grantPostImmunity = async () => {
     'use server';
     if (!isAdmin) return;
@@ -368,7 +369,6 @@ export default async function PostDetailPage(props: any) {
                     {node.content}
                   </span>
                 </div>
-                {/* 💡 [스마트폰 잘림 해결!] max-w-full sm:max-w-md h-auto 를 줘서 작은 화면에선 무조건 폭에 맞춥니다! */}
                 {node.image_data && <div className="mb-4 mt-2"><img src={node.image_data} alt="첨부" className="max-w-full sm:max-w-md h-auto rounded-sm border shadow-sm" /></div>}
               </div>
 
@@ -446,12 +446,31 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
         
+        {/* 💡 [수술 핵심 부위] 관리자일 경우 블라인드 해제 버튼을 큼직하게 띄워줍니다! */}
         {post.is_blinded && !isAdmin ? (
           <div className="bg-gray-100 p-12 text-center rounded-lg border border-gray-300 my-10 shadow-inner">
             <p className="text-gray-600 font-bold text-lg leading-relaxed">보고 싶어 하지 않은 분들이 많아<br/>블라인드 처리된 게시글입니다.</p>
           </div>
         ) : (
           <div className="post-content-area">
+            {post.is_blinded && isAdmin && (
+              <div className="bg-red-50 border border-red-200 p-4 sm:p-5 rounded-sm mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+                <div>
+                  <p className="text-red-600 font-black text-[15px] sm:text-[16px] flex items-center gap-1.5">
+                    <span>🚨</span> [관리자 알림] 신고가 누적되어 블라인드 처리된 글입니다.
+                  </p>
+                  <p className="text-red-500 text-[12px] font-bold mt-1.5 pl-6">
+                    복구 버튼을 누르면 신고 횟수가 0으로 초기화되고 다시 정상 노출됩니다.
+                  </p>
+                </div>
+                <form action={grantPostImmunity} className="w-full sm:w-auto text-right">
+                  <button type="submit" className="w-full sm:w-auto px-5 py-2.5 bg-red-600 text-white text-[13px] font-black rounded-sm hover:bg-red-700 shadow-md transition-colors flex items-center justify-center gap-1.5">
+                    🛡️ 게시글 복구 (블라인드 해제)
+                  </button>
+                </form>
+              </div>
+            )}
+            
             <div className="min-h-[300px] text-[17px] whitespace-pre-wrap leading-relaxed ql-editor" dangerouslySetInnerHTML={{ __html: finalContent }} />
           </div>
         )}

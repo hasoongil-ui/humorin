@@ -36,18 +36,31 @@ async function updateUserPoints(formData: FormData) {
   revalidatePath('/admin');
 }
 
-// 💡 [새로 추가된 마법!] 부관리자 임명/해제 서버 액션
 async function toggleAdminRole(formData: FormData) {
   'use server';
   const targetUser = formData.get('userid') as string;
   const currentAdminStatus = formData.get('is_admin') === 'true';
-  const newAdminStatus = !currentAdminStatus; // 상태 반전 (true <-> false)
+  const newAdminStatus = !currentAdminStatus; 
   
-  // 최고 관리자(admin)는 절대 건드릴 수 없도록 철통 방어!
   if (targetUser === 'admin') return; 
 
   try {
     await sql`UPDATE users SET is_admin = ${newAdminStatus} WHERE user_id = ${targetUser}`;
+  } catch (error) {}
+  revalidatePath('/admin');
+}
+
+// 💡 [새로 추가된 마법!] 블라인드 신고 횟수 컷트라인 저장 액션
+async function updateBlindThreshold(formData: FormData) {
+  'use server';
+  const newValue = formData.get('threshold') as string;
+  if (!newValue) return;
+  try {
+    await sql`
+      INSERT INTO site_settings (key, value) 
+      VALUES ('report_blind_threshold', ${newValue})
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+    `;
   } catch (error) {}
   revalidatePath('/admin');
 }
@@ -64,8 +77,13 @@ export default async function AdminDashboardPage(props: any) {
 
   let totalUsers = 0; let todayUsers = 0; let bannedUsers = 0;
   let userList: any[] = []; let totalPages = 1;
+  let blindThreshold = 5; // 기본값 5
 
   try {
+    // 💡 [수술 완료] 페이지 뜰 때 DB에서 현재 블라인드 기준 숫자를 읽어옵니다.
+    const { rows: settings } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
+    if (settings.length > 0) blindThreshold = Number(settings[0].value) || 5;
+
     const { rows: stats } = await sql`
       SELECT 
         COUNT(*) as total,
@@ -79,7 +97,6 @@ export default async function AdminDashboardPage(props: any) {
     
     totalPages = Math.ceil(totalUsers / limit) || 1;
 
-    // 💡 [수정됨] DB 쿼리에서 is_admin 값도 가져오도록 추가!
     const { rows } = await sql`
       SELECT 
         u.id, u.user_id as userid, u.nickname, u.points,
@@ -135,6 +152,22 @@ export default async function AdminDashboardPage(props: any) {
             <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm flex items-center justify-between"><div><p className="text-[11px] font-bold text-gray-500 mb-1">현재 페이지</p><p className="text-xl font-black text-indigo-600">{currentPage} / {totalPages}</p></div></div>
           </div>
 
+          {/* 💡 [미나 추가] 자동 블라인드 컨트롤 패널! */}
+          <div className="bg-white p-4 rounded-sm border border-rose-200 shadow-sm mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-rose-500"></div>
+            <div>
+              <h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-rose-500">🚨</span> 자동 블라인드 기준 설정</h2>
+              <p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">게시글이나 댓글이 설정된 횟수만큼 신고를 받으면 즉시 블라인드 처리됩니다.</p>
+            </div>
+            <form action={updateBlindThreshold} className="flex items-center gap-2 bg-gray-50 p-2 rounded-sm border border-gray-200">
+              <input type="number" name="threshold" defaultValue={blindThreshold} min="1" max="999" className="w-16 px-2 py-1 border border-gray-300 rounded-sm text-[13px] font-black text-rose-600 text-center outline-none focus:border-rose-400" />
+              <span className="text-[12px] font-bold text-gray-600">회 누적 시 숨김</span>
+              <button type="submit" className="px-4 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm ml-2">
+                적용하기
+              </button>
+            </form>
+          </div>
+
           <div suppressHydrationWarning className="bg-white rounded-sm border border-gray-200 shadow-sm overflow-hidden flex flex-col">
             <div suppressHydrationWarning className="overflow-x-auto w-full">
               <table suppressHydrationWarning className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[1050px]">
@@ -151,7 +184,6 @@ export default async function AdminDashboardPage(props: any) {
                       <td className="px-3 py-1.5 whitespace-normal break-words">
                         <div className="font-bold text-[#3b4890] text-[12px] truncate flex items-center gap-1.5" title={user.userid}>
                           {user.userid}
-                          {/* 💡 [미나 추가] 관리자 뱃지 UI */}
                           {user.is_admin && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 border border-purple-200 text-[9px] rounded-sm font-black tracking-tighter">ADMIN</span>}
                         </div>
                         <div className="text-gray-500 text-[11px] mt-0.5 leading-tight line-clamp-2" title={user.nickname}>{user.nickname}</div>
@@ -171,7 +203,6 @@ export default async function AdminDashboardPage(props: any) {
                         {user.status === 'shadow_banned' && <span className="text-[10px] font-black text-gray-600 bg-gray-100 px-2 py-0.5 rounded-sm border border-gray-200">그림자</span>}
                       </td>
                       <td className="px-3 py-1.5 border-l border-gray-100">
-                        {/* 💡 액션 버튼들을 한 줄로 예쁘게 배치! */}
                         <div className="flex justify-center items-center gap-1.5 flex-wrap">
                           <form action={updateUserStatus} className="flex items-center gap-1">
                             <input type="hidden" name="userid" value={user.userid} />
@@ -189,7 +220,6 @@ export default async function AdminDashboardPage(props: any) {
                             <input type="hidden" name="userid" value={user.userid} />
                             <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-amber-50 border border-amber-300 rounded-sm hover:bg-amber-100 text-amber-700">비번 리셋</button>
                           </form>
-                          {/* 💡 [미나 추가] 관리자 임명 / 해제 토글 버튼 */}
                           {user.userid !== 'admin' && (
                             <form action={toggleAdminRole} className="border-l pl-1.5">
                               <input type="hidden" name="userid" value={user.userid} />
