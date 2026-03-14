@@ -191,7 +191,6 @@ export function EditCommentForm({ commentId, initialContent, initialImage, editA
 
   return (
     <form onSubmit={handleSubmit} className="bg-white border border-indigo-300 rounded-sm shadow-sm overflow-hidden flex flex-col">
-      {/* 💡 [수술] 여기도 required를 삭제했습니다! */}
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
@@ -216,19 +215,20 @@ export function EditCommentForm({ commentId, initialContent, initialImage, editA
         </div>
       )}
 
-      <div className="bg-gray-50 border-t border-gray-100 px-3 py-2 flex justify-between items-center gap-2">
+      {/* 💡 [핵심 수술 부위] 여기도 flex-wrap과 whitespace-nowrap을 모두 적용했습니다! */}
+      <div className="bg-gray-50 border-t border-gray-100 px-2 sm:px-3 py-2 flex flex-wrap justify-between items-center gap-2">
         <div>
           <input type="file" ref={fileInputRef} id={`edit-image-${commentId}`} accept="image/*" className="hidden" onChange={handleFileChange} disabled={isSubmitting} />
-          <label htmlFor={`edit-image-${commentId}`} className={`cursor-pointer px-3 py-1.5 bg-white border border-gray-300 text-gray-600 text-[12px] font-bold rounded-sm hover:bg-gray-100 shadow-sm flex items-center gap-1 ${isSubmitting ? 'opacity-50' : ''}`}>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
+          <label htmlFor={`edit-image-${commentId}`} className={`cursor-pointer px-2 sm:px-3 py-1.5 bg-white border border-gray-300 text-gray-600 text-[11px] sm:text-[12px] font-bold rounded-sm hover:bg-gray-100 shadow-sm flex items-center justify-center gap-1 whitespace-nowrap flex-shrink-0 ${isSubmitting ? 'opacity-50' : ''}`}>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3 sm:w-4 sm:h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
             {previewUrl ? '이미지 변경' : '이미지 첨부'}
           </label>
         </div>
-        <div className="flex gap-2">
-          <label htmlFor={`edit-${commentId}`} className="cursor-pointer px-4 py-1.5 bg-white border border-gray-300 text-gray-600 text-[12px] font-bold rounded-sm hover:bg-gray-100 shadow-sm flex items-center justify-center">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
+          <label htmlFor={`edit-${commentId}`} className="cursor-pointer px-3 sm:px-4 py-1.5 bg-white border border-gray-300 text-gray-600 text-[11px] sm:text-[12px] font-bold rounded-sm hover:bg-gray-100 shadow-sm flex items-center justify-center whitespace-nowrap flex-shrink-0">
             취소
           </label>
-          <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 bg-[#414a66] text-white text-[12px] font-bold rounded-sm hover:bg-[#2a3042] shadow-sm disabled:bg-gray-400 flex items-center gap-1">
+          <button type="submit" disabled={isSubmitting} className="px-3 sm:px-4 py-1.5 bg-[#414a66] text-white text-[11px] sm:text-[12px] font-bold rounded-sm hover:bg-[#2a3042] shadow-sm disabled:bg-gray-400 flex items-center justify-center gap-1 whitespace-nowrap flex-shrink-0">
             {isSubmitting && <Loader2 className="w-3 h-3 animate-spin" />}
             {isSubmitting ? '저장 중...' : '수정 완료'}
           </button>
