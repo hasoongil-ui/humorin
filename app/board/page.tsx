@@ -70,9 +70,8 @@ export default async function BoardPage(props: any) {
   const category = searchParams.category || 'all';
   const page = searchParams.page ? Number(searchParams.page) : 1;
   
-  // 💡 [검색 변수 세팅]
   const keyword = searchParams.q || ''; 
-  const searchType = searchParams.searchType || 'title'; // title, content, author
+  const searchType = searchParams.searchType || 'title'; 
 
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('ojemi_user');
@@ -101,7 +100,6 @@ export default async function BoardPage(props: any) {
 
   const categoryPattern = category !== 'all' ? `%[${category}]%` : '%';
 
-  // 일반 장원글 로직 (검색중이 아닐 때만 노출)
   if (category !== 'all' && !keyword && bestType === '' && page === 1) {
     const { rows: topRows } = await sql`
       SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count 
@@ -112,7 +110,6 @@ export default async function BoardPage(props: any) {
     if (topRows.length > 0) topPost = topRows[0];
   }
 
-  // 💡 [핵심 수술] 검색어가 있을 때의 다이나믹 쿼리 처리
   if (keyword) {
     const searchPattern = `%${keyword}%`;
     let countRes, rowsRes;
@@ -132,7 +129,6 @@ export default async function BoardPage(props: any) {
     posts = rowsRes.rows;
 
   } 
-  // 일반 베스트 & 전체글 로직
   else if (bestType === 'today') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published'`;
     totalCount = Number(countResult.rows[0].count);
@@ -356,18 +352,18 @@ export default async function BoardPage(props: any) {
             )}
           </div>
 
-          {/* 💡 [미나 수술] 리스트 하단, 페이징 바로 위에 둥글고 세련된 모던 검색창 이식! */}
+          {/* 💡 [미나 수술] 모바일 잘림 방어! 꽉 찬 방탄 검색창 */}
           <div className="flex justify-center mt-6 mb-2 px-2">
             <form method="GET" action="/board" className="flex items-center w-full max-w-[400px] border-2 border-[#3b4890] rounded-full bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               {category !== 'all' && <input type="hidden" name="category" value={category} />}
-              <select name="searchType" defaultValue={searchType} className="pl-4 pr-2 py-2.5 text-[13px] font-bold text-gray-600 bg-transparent outline-none cursor-pointer border-r border-gray-200 focus:text-[#3b4890]">
+              <select name="searchType" defaultValue={searchType} className="shrink-0 pl-3 sm:pl-4 pr-1 sm:pr-2 py-2 sm:py-2.5 text-[12px] sm:text-[13px] font-bold text-gray-600 bg-transparent outline-none cursor-pointer border-r border-gray-200 focus:text-[#3b4890]">
                 <option value="title">제목</option>
                 <option value="content">내용</option>
                 <option value="author">글쓴이</option>
               </select>
-              <input type="text" name="q" defaultValue={keyword} placeholder="검색어를 입력하세요" className="flex-1 px-3 py-2.5 text-[14px] outline-none text-gray-800 placeholder-gray-400 bg-transparent" />
-              <button type="submit" className="px-4 py-2.5 text-white bg-[#3b4890] hover:bg-[#2a3042] font-bold transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+              <input type="text" name="q" defaultValue={keyword} placeholder="검색어 입력" className="flex-1 min-w-0 px-2 sm:px-3 py-2 sm:py-2.5 text-[13px] sm:text-[14px] outline-none text-gray-800 placeholder-gray-400 bg-transparent" />
+              <button type="submit" className="shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-white bg-[#3b4890] hover:bg-[#2a3042] font-bold transition-colors flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
               </button>
             </form>
           </div>
