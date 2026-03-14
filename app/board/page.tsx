@@ -68,9 +68,12 @@ export default async function BoardPage(props: any) {
   const searchParams = await props.searchParams;
   const bestType = searchParams.best || ''; 
   const category = searchParams.category || 'all';
-  const keyword = searchParams.q || ''; 
   const page = searchParams.page ? Number(searchParams.page) : 1;
   
+  // 💡 [검색 변수 세팅]
+  const keyword = searchParams.q || ''; 
+  const searchType = searchParams.searchType || 'title'; // title, content, author
+
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('ojemi_user');
   const currentUser = userCookie ? userCookie.value : null;
@@ -96,8 +99,9 @@ export default async function BoardPage(props: any) {
     console.error("사이드바 게시판 불러오기 실패");
   }
 
-  const categoryPattern = `%[${category}]%`;
+  const categoryPattern = category !== 'all' ? `%[${category}]%` : '%';
 
+  // 일반 장원글 로직 (검색중이 아닐 때만 노출)
   if (category !== 'all' && !keyword && bestType === '' && page === 1) {
     const { rows: topRows } = await sql`
       SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count 
@@ -108,7 +112,28 @@ export default async function BoardPage(props: any) {
     if (topRows.length > 0) topPost = topRows[0];
   }
 
-  if (bestType === 'today') {
+  // 💡 [핵심 수술] 검색어가 있을 때의 다이나믹 쿼리 처리
+  if (keyword) {
+    const searchPattern = `%${keyword}%`;
+    let countRes, rowsRes;
+
+    if (searchType === 'title') {
+      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND title ILIKE ${searchPattern} AND COALESCE(status, 'published') = 'published'`;
+      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND title ILIKE ${searchPattern} AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    } else if (searchType === 'content') {
+      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND content ILIKE ${searchPattern} AND COALESCE(status, 'published') = 'published'`;
+      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND content ILIKE ${searchPattern} AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    } else if (searchType === 'author') {
+      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND author ILIKE ${searchPattern} AND COALESCE(status, 'published') = 'published'`;
+      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND author ILIKE ${searchPattern} AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    }
+
+    totalCount = Number(countRes.rows[0].count);
+    posts = rowsRes.rows;
+
+  } 
+  // 일반 베스트 & 전체글 로직
+  else if (bestType === 'today') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published'`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
@@ -126,31 +151,15 @@ export default async function BoardPage(props: any) {
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   } 
-  else if (keyword && category !== 'all') {
-    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'}) AND COALESCE(status, 'published') = 'published'`;
-    totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'}) AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
-    posts = rows;
-  } else if (keyword) {
-    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'}) AND COALESCE(status, 'published') = 'published'`;
-    totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE (title ILIKE ${'%' + keyword + '%'} OR author ILIKE ${'%' + keyword + '%'}) AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
-    posts = rows;
-  } else if (category !== 'all') {
+  else {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND COALESCE(status, 'published') = 'published'`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
-    posts = rows;
-  } else {
-    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE COALESCE(status, 'published') = 'published'`;
-    totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
 
   const totalPages = Math.ceil(totalCount / limit) || 1;
   const renderPosts = topPost ? posts.filter((p: any) => p.id !== topPost.id) : posts;
-
   const canWrite = bestType === ''; 
 
   return (
@@ -226,10 +235,10 @@ export default async function BoardPage(props: any) {
           
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-gray-800 truncate pr-2">
-              {bestType === 'today' ? '🔥 투데이 베스트 (추천 10+)' : 
+              {keyword ? `'${keyword}' 검색 결과 (${totalCount}건)` : 
+               bestType === 'today' ? '🔥 투데이 베스트 (추천 10+)' : 
                bestType === '100' ? '💯 백베스트 (추천 100+)' : 
                bestType === '1000' ? '👑 천베스트 (추천 1000+)' : 
-               keyword ? `'${keyword}' 검색 결과 (${totalCount}건)` : 
                category !== 'all' ? `${category}` : '전체글 보기'}
             </h2>
             
@@ -258,7 +267,6 @@ export default async function BoardPage(props: any) {
                   <Link href={`/board/${topPost.id}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                     <CategoryIcon category={topData.cat} />
                     
-                    {/* 💡 [수술 1] 블라인드 처리된 글은 제목도, 글쓴이도 숨깁니다! */}
                     {topPost.is_blinded ? (
                       <span className="truncate mr-1 text-gray-400 md:text-gray-500">
                         블라인드 처리된 글입니다.
@@ -308,7 +316,6 @@ export default async function BoardPage(props: any) {
                     <Link href={`/board/${post.id}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                       <CategoryIcon category={postData.cat} />
                       
-                      {/* 💡 [수술 1] 블라인드 처리된 글은 조용하게! */}
                       {post.is_blinded ? (
                         <span className="truncate mr-1 text-gray-400 md:text-gray-500">
                           블라인드 처리된 글입니다.
@@ -349,22 +356,38 @@ export default async function BoardPage(props: any) {
             )}
           </div>
 
-          <div className="flex flex-col md:flex-row justify-between items-center mt-6 gap-4">
+          {/* 💡 [미나 수술] 리스트 하단, 페이징 바로 위에 둥글고 세련된 모던 검색창 이식! */}
+          <div className="flex justify-center mt-6 mb-2 px-2">
+            <form method="GET" action="/board" className="flex items-center w-full max-w-[400px] border-2 border-[#3b4890] rounded-full bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+              {category !== 'all' && <input type="hidden" name="category" value={category} />}
+              <select name="searchType" defaultValue={searchType} className="pl-4 pr-2 py-2.5 text-[13px] font-bold text-gray-600 bg-transparent outline-none cursor-pointer border-r border-gray-200 focus:text-[#3b4890]">
+                <option value="title">제목</option>
+                <option value="content">내용</option>
+                <option value="author">글쓴이</option>
+              </select>
+              <input type="text" name="q" defaultValue={keyword} placeholder="검색어를 입력하세요" className="flex-1 px-3 py-2.5 text-[14px] outline-none text-gray-800 placeholder-gray-400 bg-transparent" />
+              <button type="submit" className="px-4 py-2.5 text-white bg-[#3b4890] hover:bg-[#2a3042] font-bold transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+              </button>
+            </form>
+          </div>
+
+          <div className="flex flex-col md:flex-row justify-between items-center mt-4 gap-4">
             <div className="hidden md:block w-24"></div> 
             
             <div className="flex justify-center items-center gap-1">
               {page > 1 && (
-                <Link href={`/board?page=${page - 1}${keyword ? `&q=${keyword}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className="px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-xs">
+                <Link href={`/board?page=${page - 1}${keyword ? `&q=${keyword}&searchType=${searchType}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className="px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-xs">
                   이전
                 </Link>
               )}
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <Link key={p} href={`/board?page=${p}${keyword ? `&q=${keyword}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className={`px-3 py-1.5 border rounded-sm font-bold text-xs transition-colors ${page === p ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
+                <Link key={p} href={`/board?page=${p}${keyword ? `&q=${keyword}&searchType=${searchType}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className={`px-3 py-1.5 border rounded-sm font-bold text-xs transition-colors ${page === p ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
                   {p}
                 </Link>
               ))}
               {page < totalPages && (
-                <Link href={`/board?page=${page + 1}${keyword ? `&q=${keyword}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className="px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-xs">
+                <Link href={`/board?page=${page + 1}${keyword ? `&q=${keyword}&searchType=${searchType}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className="px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-xs">
                   다음
                 </Link>
               )}
