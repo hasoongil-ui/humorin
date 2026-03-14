@@ -267,7 +267,6 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 💡 [핵심!] 게시글 블라인드 해제 및 신고 횟수 초기화 액션
   const grantPostImmunity = async () => {
     'use server';
     if (!isAdmin) return;
@@ -422,6 +421,10 @@ export default async function PostDetailPage(props: any) {
     );
   }
 
+  // 💡 [핵심 수술] "목록으로" 버튼이 누를 곳을 계산합니다! 
+  // 게시판 카테고리가 '일반'이면 전체글보기로, 아니면 해당 카테고리로 돌아갑니다.
+  const backToListUrl = postData.cat === '일반' ? '/board' : `/board?category=${encodeURIComponent(postData.cat)}`;
+
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
       <VideoVolumeFix />
@@ -446,7 +449,6 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
         
-        {/* 💡 [수술 핵심 부위] 관리자일 경우 블라인드 해제 버튼을 큼직하게 띄워줍니다! */}
         {post.is_blinded && !isAdmin ? (
           <div className="bg-gray-100 p-12 text-center rounded-lg border border-gray-300 my-10 shadow-inner">
             <p className="text-gray-600 font-bold text-lg leading-relaxed">보고 싶어 하지 않은 분들이 많아<br/>블라인드 처리된 게시글입니다.</p>
@@ -487,12 +489,13 @@ export default async function PostDetailPage(props: any) {
         
         <div className="mt-6 border-t pt-6 flex justify-between">
           <div className="flex gap-2">
-            {isAuthor && <Link href={`/board/${postId}/edit`} className="px-6 py-2 border font-bold text-sm">수정</Link>}
+            {isAuthor && <Link href={`/board/${postId}/edit`} className="px-6 py-2 border font-bold text-sm rounded-sm">수정</Link>}
             {(isAuthor || isAdmin) && (
-              <form action={deletePost}><button type="submit" className="px-6 py-2 bg-[#e06c75] text-white font-bold text-sm">삭제</button></form>
+              <form action={deletePost}><button type="submit" className="px-6 py-2 bg-[#e06c75] text-white font-bold text-sm rounded-sm">삭제</button></form>
             )}
           </div>
-          <Link href={`/board`} className="px-8 py-2 bg-[#414a66] text-white font-bold text-sm">목록으로</Link>
+          {/* 💡 [핵심 수술] 사용자가 출발했던 게시판으로 정확하게 안내합니다! */}
+          <Link href={backToListUrl} className="px-8 py-2 bg-[#414a66] text-white font-bold text-sm rounded-sm hover:bg-[#2a3042] transition-colors">목록으로</Link>
         </div>
 
         <div className="mt-16 bg-gray-50 p-5 border rounded-sm shadow-sm">

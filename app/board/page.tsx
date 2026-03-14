@@ -284,9 +284,13 @@ export default async function BoardPage(props: any) {
                       {topPost.is_blinded ? (
                         <span>-</span>
                       ) : topPost.author_id ? (
-                        <Link href={`/user/${topPost.author_id}`} className="hover:text-[#3b4890] hover:underline cursor-pointer">
-                          {topPost.author}
-                        </Link>
+                        <>
+                          {/* 💡 모바일에서는 단순 텍스트, PC에서는 링크로 작동! */}
+                          <span className="md:hidden">{topPost.author}</span>
+                          <Link href={`/user/${topPost.author_id}`} className="hidden md:inline hover:text-[#3b4890] hover:underline cursor-pointer">
+                            {topPost.author}
+                          </Link>
+                        </>
                       ) : (
                         <span>{topPost.author}</span>
                       )}
@@ -333,9 +337,13 @@ export default async function BoardPage(props: any) {
                         {post.is_blinded ? (
                           <span>-</span>
                         ) : post.author_id ? (
-                          <Link href={`/user/${post.author_id}`} className="hover:text-[#3b4890] hover:underline cursor-pointer">
-                            {post.author}
-                          </Link>
+                          <>
+                            {/* 💡 모바일에서는 단순 텍스트, PC에서는 링크로 작동! */}
+                            <span className="md:hidden">{post.author}</span>
+                            <Link href={`/user/${post.author_id}`} className="hidden md:inline hover:text-[#3b4890] hover:underline cursor-pointer">
+                              {post.author}
+                            </Link>
+                          </>
                         ) : (
                           <span>{post.author}</span>
                         )}
@@ -352,7 +360,6 @@ export default async function BoardPage(props: any) {
             )}
           </div>
 
-          {/* 💡 [미나 수술] 모바일 잘림 방어! 꽉 찬 방탄 검색창 */}
           <div className="flex justify-center mt-6 mb-2 px-2">
             <form method="GET" action="/board" className="flex items-center w-full max-w-[400px] border-2 border-[#3b4890] rounded-full bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               {category !== 'all' && <input type="hidden" name="category" value={category} />}
