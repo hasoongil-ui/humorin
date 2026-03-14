@@ -50,7 +50,7 @@ async function toggleAdminRole(formData: FormData) {
   revalidatePath('/admin');
 }
 
-// 💡 [새로 추가된 마법!] 블라인드 신고 횟수 컷트라인 저장 액션
+// 💡 블라인드 신고 횟수 컷트라인 저장 액션
 async function updateBlindThreshold(formData: FormData) {
   'use server';
   const newValue = formData.get('threshold') as string;
@@ -80,7 +80,6 @@ export default async function AdminDashboardPage(props: any) {
   let blindThreshold = 5; // 기본값 5
 
   try {
-    // 💡 [수술 완료] 페이지 뜰 때 DB에서 현재 블라인드 기준 숫자를 읽어옵니다.
     const { rows: settings } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
     if (settings.length > 0) blindThreshold = Number(settings[0].value) || 5;
 
@@ -134,6 +133,8 @@ export default async function AdminDashboardPage(props: any) {
             <li><Link href="/admin/posts" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>📝</span> 게시글 관리</Link></li>
             <li><Link href="/admin/comments" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>💬</span> 댓글 관리</Link></li>
             <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>⚙️</span> 설정/게시판 관리</Link></li>
+            {/* 💡 [미나 추가] 여기에 블라인드 관리 링크를 완벽하게 추가했습니다! */}
+            <li><Link href="/admin/blind" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>🚨</span> 블라인드 관리</Link></li>
           </ul>
         </nav>
       </aside>
@@ -152,7 +153,6 @@ export default async function AdminDashboardPage(props: any) {
             <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm flex items-center justify-between"><div><p className="text-[11px] font-bold text-gray-500 mb-1">현재 페이지</p><p className="text-xl font-black text-indigo-600">{currentPage} / {totalPages}</p></div></div>
           </div>
 
-          {/* 💡 [미나 추가] 자동 블라인드 컨트롤 패널! */}
           <div className="bg-white p-4 rounded-sm border border-rose-200 shadow-sm mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-rose-500"></div>
             <div>
