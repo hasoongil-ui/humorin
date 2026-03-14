@@ -50,7 +50,6 @@ async function toggleAdminRole(formData: FormData) {
   revalidatePath('/admin');
 }
 
-// 💡 블라인드 신고 횟수 컷트라인 저장 액션
 async function updateBlindThreshold(formData: FormData) {
   'use server';
   const newValue = formData.get('threshold') as string;
@@ -72,12 +71,14 @@ export default async function AdminDashboardPage(props: any) {
 
   const searchParams = await props.searchParams;
   const currentPage = Number(searchParams?.page) || 1;
+  const q = searchParams?.q || '';
+  const type = searchParams?.type || 'userid'; 
   const limit = 50;
   const offset = (currentPage - 1) * limit;
 
   let totalUsers = 0; let todayUsers = 0; let bannedUsers = 0;
   let userList: any[] = []; let totalPages = 1;
-  let blindThreshold = 5; // 기본값 5
+  let blindThreshold = 5; 
 
   try {
     const { rows: settings } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
@@ -94,22 +95,25 @@ export default async function AdminDashboardPage(props: any) {
     todayUsers = Number(stats[0]?.today) || 0;
     bannedUsers = Number(stats[0]?.banned) || 0;
     
-    totalPages = Math.ceil(totalUsers / limit) || 1;
+    let countResult;
+    let queryResult;
 
-    const { rows } = await sql`
-      SELECT 
-        u.id, u.user_id as userid, u.nickname, u.points,
-        COALESCE(u.ip, '알수없음') as ip, 
-        COALESCE(u.status, 'active') as status,
-        u.created_at, COALESCE(u.last_login, u.created_at) as last_login,
-        (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count,
-        COALESCE(u.is_admin, false) as is_admin
-      FROM users u
-      ORDER BY u.created_at DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
+    // 💡 IP 검색 옵션을 제거하고 아이디/닉네임 검색만 남겼습니다!
+    if (q && type === 'userid') {
+      countResult = await sql`SELECT COUNT(*) FROM users WHERE user_id ILIKE ${'%' + q + '%'}`;
+      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count FROM users u WHERE u.user_id ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+    } else if (q && type === 'nickname') {
+      countResult = await sql`SELECT COUNT(*) FROM users WHERE nickname ILIKE ${'%' + q + '%'}`;
+      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count FROM users u WHERE u.nickname ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+    } else {
+      countResult = await sql`SELECT COUNT(*) FROM users`;
+      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count FROM users u ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+    }
 
-    userList = rows.map(row => {
+    const currentSearchTotal = Number(countResult.rows[0].count);
+    totalPages = Math.ceil(currentSearchTotal / limit) || 1;
+
+    userList = queryResult.rows.map(row => {
       const formatDate = (date: any) => {
         if (!date) return '-';
         try {
@@ -117,12 +121,17 @@ export default async function AdminDashboardPage(props: any) {
           return `${d.getFullYear().toString().slice(2)}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         } catch(e) { return '-'; }
       };
-      return { ...row, created_at: formatDate(row.created_at), last_login: formatDate(row.last_login) };
+      return { 
+        ...row, 
+        userid: row.user_id,
+        created_at: formatDate(row.created_at), 
+        last_login: formatDate(row.last_login) 
+      };
     });
   } catch (e) {}
 
   return (
-    <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
+    <div suppressHydrationWarning className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <aside className="w-60 bg-[#2a3042] text-gray-300 flex flex-col shadow-xl z-20 flex-shrink-0">
         <div className="p-5 border-b border-gray-700/50 bg-[#1e2330]">
           <Link href="/" className="text-2xl font-black text-white tracking-tighter hover:text-indigo-400 transition-colors">OJEMI <span className="text-xs text-indigo-400 align-top">ADMIN</span></Link>
@@ -133,7 +142,6 @@ export default async function AdminDashboardPage(props: any) {
             <li><Link href="/admin/posts" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>📝</span> 게시글 관리</Link></li>
             <li><Link href="/admin/comments" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>💬</span> 댓글 관리</Link></li>
             <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>⚙️</span> 설정/게시판 관리</Link></li>
-            {/* 💡 [미나 추가] 여기에 블라인드 관리 링크를 완벽하게 추가했습니다! */}
             <li><Link href="/admin/blind" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>🚨</span> 블라인드 관리</Link></li>
           </ul>
         </nav>
@@ -153,7 +161,7 @@ export default async function AdminDashboardPage(props: any) {
             <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm flex items-center justify-between"><div><p className="text-[11px] font-bold text-gray-500 mb-1">현재 페이지</p><p className="text-xl font-black text-indigo-600">{currentPage} / {totalPages}</p></div></div>
           </div>
 
-          <div className="bg-white p-4 rounded-sm border border-rose-200 shadow-sm mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden">
+          <div className="bg-white p-4 rounded-sm border border-rose-200 shadow-sm mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-rose-500"></div>
             <div>
               <h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-rose-500">🚨</span> 자동 블라인드 기준 설정</h2>
@@ -168,13 +176,26 @@ export default async function AdminDashboardPage(props: any) {
             </form>
           </div>
 
+          <div className="bg-white p-3 rounded-sm border border-gray-200 shadow-sm mb-4 flex justify-between items-center">
+            <h2 className="text-sm font-black text-[#3b4890] flex items-center gap-1"><span>🔍</span> 악성 유저 추적 검색</h2>
+            <form method="GET" action="/admin" className="flex items-center gap-2">
+              <select name="type" defaultValue={type} className="text-xs font-bold border border-gray-300 p-1.5 rounded-sm outline-none bg-white text-gray-700">
+                <option value="userid">아이디</option>
+                <option value="nickname">닉네임</option>
+              </select>
+              <input type="text" name="q" defaultValue={q} placeholder="검색어 입력..." className="text-xs font-bold border border-gray-300 p-1.5 rounded-sm outline-none w-48 focus:border-[#3b4890]" />
+              <button type="submit" className="px-4 py-1.5 bg-[#414a66] text-white text-xs font-bold rounded-sm hover:bg-[#2a3042] shadow-sm">검색</button>
+              {q && <Link href="/admin" className="px-3 py-1.5 border border-gray-300 text-gray-600 text-xs font-bold rounded-sm hover:bg-gray-50">초기화</Link>}
+            </form>
+          </div>
+
           <div suppressHydrationWarning className="bg-white rounded-sm border border-gray-200 shadow-sm overflow-hidden flex flex-col">
             <div suppressHydrationWarning className="overflow-x-auto w-full">
               <table suppressHydrationWarning className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[1050px]">
-                <colgroup><col style={{ width: '5%' }} /><col style={{ width: '15%' }} /><col style={{ width: '15%' }} /><col style={{ width: '10%' }} /><col style={{ width: '8%' }} /><col style={{ width: '7%' }} /><col style={{ width: '40%' }} /></colgroup>
+                <colgroup><col style={{ width: '5%' }} /><col style={{ width: '15%' }} /><col style={{ width: '15%' }} /><col style={{ width: '15%' }} /><col style={{ width: '10%' }} /><col style={{ width: '40%' }} /></colgroup>
                 <thead suppressHydrationWarning>
                   <tr className="bg-white border-b border-gray-300 text-[11px] text-gray-500 font-black tracking-wider uppercase">
-                    <th className="px-3 py-2 text-center">No</th><th className="px-3 py-2">회원 정보</th><th className="px-3 py-2">가입/로그인</th><th className="px-3 py-2">IP 주소</th><th className="px-3 py-2 text-center">활동</th><th className="px-3 py-2 text-center">상태</th><th className="px-3 py-2 text-center border-l border-gray-100">관리 액션</th>
+                    <th className="px-3 py-2 text-center">No</th><th className="px-3 py-2">회원 정보</th><th className="px-3 py-2">가입/로그인</th><th className="px-3 py-2 text-center">활동</th><th className="px-3 py-2 text-center">상태</th><th className="px-3 py-2 text-center border-l border-gray-100">관리 액션</th>
                   </tr>
                 </thead>
                 <tbody suppressHydrationWarning>
@@ -192,7 +213,6 @@ export default async function AdminDashboardPage(props: any) {
                         <div className="mb-0.5"><span className="text-gray-400 w-6 inline-block">가입</span>{user.created_at}</div>
                         <div><span className="text-gray-400 w-6 inline-block">최근</span>{user.last_login}</div>
                       </td>
-                      <td className="px-3 py-1.5"><div className={`text-[11px] font-mono font-bold px-1.5 py-0.5 rounded-sm inline-block truncate max-w-full ${user.ip !== '알수없음' && user.ip.startsWith('211.55') ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-gray-100 text-gray-600'}`}>{user.ip}</div></td>
                       <td className="px-3 py-1.5 text-center">
                         <div className="text-[11px] font-bold text-gray-600 mb-0.5">글 {Number(user.post_count)}</div>
                         <div className="text-[11px] font-bold text-rose-500">{user.points || 0} P</div>
@@ -237,15 +257,16 @@ export default async function AdminDashboardPage(props: any) {
                       </td>
                     </tr>
                   ))}
+                  {userList.length === 0 && <tr><td colSpan={6} className="text-center py-10 text-gray-400 font-bold">조건에 맞는 회원이 없습니다.</td></tr>}
                 </tbody>
               </table>
             </div>
             
             <div suppressHydrationWarning className="p-3 border-t border-gray-200 bg-gray-50 flex justify-center flex-shrink-0">
                <div className="flex gap-2">
-                 <Link href={`/admin?page=${currentPage - 1}`} className={`px-3 py-1 border border-gray-300 bg-white text-gray-500 text-[11px] font-bold rounded-sm hover:bg-gray-50 ${currentPage <= 1 ? 'pointer-events-none opacity-40' : ''}`}>◀ 이전</Link>
+                 <Link href={`/admin?page=${currentPage - 1}${q ? `&q=${q}&type=${type}` : ''}`} className={`px-3 py-1 border border-gray-300 bg-white text-gray-500 text-[11px] font-bold rounded-sm hover:bg-gray-50 ${currentPage <= 1 ? 'pointer-events-none opacity-40' : ''}`}>◀ 이전</Link>
                  <div className="px-4 py-1 font-black text-gray-700 text-[12px]">{currentPage} <span className="text-gray-400 font-medium">/ {totalPages}</span></div>
-                 <Link href={`/admin?page=${currentPage + 1}`} className={`px-3 py-1 border border-gray-300 bg-white text-gray-500 text-[11px] font-bold rounded-sm hover:bg-gray-50 ${currentPage >= totalPages ? 'pointer-events-none opacity-40' : ''}`}>다음 ▶</Link>
+                 <Link href={`/admin?page=${currentPage + 1}${q ? `&q=${q}&type=${type}` : ''}`} className={`px-3 py-1 border border-gray-300 bg-white text-gray-500 text-[11px] font-bold rounded-sm hover:bg-gray-50 ${currentPage >= totalPages ? 'pointer-events-none opacity-40' : ''}`}>다음 ▶</Link>
                </div>
             </div>
           </div>

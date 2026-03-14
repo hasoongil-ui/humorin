@@ -36,7 +36,6 @@ function NavbarContent() {
   const [dynamicMenus, setDynamicMenus] = useState<any[]>([]); 
 
   useEffect(() => {
-    // 💡 에러 1 해결: (data: any) 라고 정체를 강제로 지정해서 컴퓨터의 의심을 없앱니다!
     getUserProfile().then((data: any) => {
       if (data) {
         setUser({
@@ -48,7 +47,6 @@ function NavbarContent() {
       }
     });
 
-    // 💡 여기도 (boards: any[]) 라고 확실하게 알려줍니다!
     getDynamicBoards().then((boards: any[]) => {
       if (boards && boards.length > 0) {
         const groupsMap: Record<string, any[]> = {};
@@ -84,13 +82,33 @@ function NavbarContent() {
 
   const menuGroups = [...staticGroups, ...dynamicMenus];
 
+  // 💡 [핵심] 모바일 전용으로 드롭다운을 모두 풀어서 '1차원 배열'로 만듭니다!
+  const mobileMenus = [
+    { name: '전체글 보기', link: '/board' },
+    { name: '🔥투데이', link: '/board?best=today' },
+    { name: '💯백베스트', link: '/board?best=100' },
+    { name: '👑천베스트', link: '/board?best=1000' },
+  ];
+  dynamicMenus.forEach(group => {
+    group.sub?.forEach((subItem: any) => {
+      mobileMenus.push(subItem);
+    });
+  });
+
   return (
     <>
-      <header className="bg-white p-4 border-b border-gray-200 shadow-sm relative z-20">
-        <div className="max-w-[1200px] mx-auto flex justify-between items-center">
-          <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter">OJEMI</Link>
+      {/* 💡 스크롤바 숨기기 마법의 CSS */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}} />
 
-          <div className="flex items-center gap-2 md:gap-4">
+      {/* 💡 높이를 h-[65px]로 꽉 고정하여 유저 로그인 시 발생하는 덜컹거림 원천 차단! */}
+      <header className="bg-white px-4 border-b border-gray-200 shadow-sm relative z-20 h-[65px] flex items-center">
+        <div className="w-full max-w-[1200px] mx-auto flex justify-between items-center">
+          <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter shrink-0">OJEMI</Link>
+
+          <div className="flex items-center gap-2 md:gap-4 h-[32px]">
             {user ? (
               <>
                 <div className="text-[13px] md:text-[14px] font-medium text-gray-700 hidden sm:flex items-center gap-1.5">
@@ -103,11 +121,11 @@ function NavbarContent() {
                   <span className="text-rose-500 font-bold text-[13px]">({user.points.toLocaleString()} P)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Link href="/profile" className="px-3 py-1.5 bg-[#ebedf5] text-[#3b4890] text-[11px] md:text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors shadow-sm">
+                  <Link href="/profile" className="px-3 py-1.5 bg-[#ebedf5] text-[#3b4890] text-[11px] md:text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors shadow-sm shrink-0">
                     내정보
                   </Link>
                   <form action={handleLogoutAction}>
-                    <button type="submit" className="px-3 py-1.5 bg-gray-100 text-gray-600 text-[11px] md:text-xs font-bold rounded-sm hover:bg-gray-200 transition-colors shadow-sm">
+                    <button type="submit" className="px-3 py-1.5 bg-gray-100 text-gray-600 text-[11px] md:text-xs font-bold rounded-sm hover:bg-gray-200 transition-colors shadow-sm shrink-0">
                       로그아웃
                     </button>
                   </form>
@@ -115,10 +133,10 @@ function NavbarContent() {
               </>
             ) : (
               <div className="flex items-center gap-1.5">
-                <Link href="/login" className="px-4 py-1.5 bg-[#ebedf5] text-[#3b4890] text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors">
+                <Link href="/login" className="px-4 py-1.5 bg-[#ebedf5] text-[#3b4890] text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors shrink-0">
                   로그인
                 </Link>
-                <Link href="/signup" className="px-4 py-1.5 bg-[#2a3042] text-white text-xs font-bold rounded-sm hover:bg-gray-900 transition-colors">
+                <Link href="/signup" className="px-4 py-1.5 bg-[#2a3042] text-white text-xs font-bold rounded-sm hover:bg-gray-900 transition-colors shrink-0">
                   회원가입
                 </Link>
               </div>
@@ -127,9 +145,40 @@ function NavbarContent() {
         </div>
       </header>
 
-      <nav className="bg-[#414a66] text-gray-200 shadow-md relative z-10">
-        <div className="max-w-[1200px] mx-auto flex flex-wrap items-center">
-          {menuGroups.map((group: any) => { // 💡 혹시 모를 에러 방지용 (group: any) 추가!
+      {/* 💡 메뉴바 역시 높이를 박아버립니다. (모바일 48px, PC 52px) */}
+      <nav className="bg-[#414a66] text-gray-200 shadow-md relative z-10 min-h-[48px] md:min-h-[52px]">
+        
+        {/* 📱 1. 모바일 전용: 유튜브식 가로 스크롤 메뉴 (줄바꿈 절대 불가, 높이 고정) */}
+        <div className="flex md:hidden items-center h-[48px] overflow-x-auto whitespace-nowrap hide-scrollbar px-2">
+          {mobileMenus.map((menu: any) => {
+            let isActive = false;
+            if (menu.name === '전체글 보기') isActive = currentCategory === 'all' && bestType === '';
+            else if (menu.name === '🔥투데이') isActive = bestType === 'today';
+            else if (menu.name === '💯백베스트') isActive = bestType === '100';
+            else if (menu.name === '👑천베스트') isActive = bestType === '1000';
+            else isActive = currentCategory === menu.name;
+
+            return (
+              <Link 
+                key={menu.name} 
+                href={menu.link} 
+                className={`shrink-0 px-4 py-1.5 text-[13px] font-bold rounded-full mx-1 transition-colors ${
+                  isActive 
+                    ? 'bg-white text-[#414a66]' 
+                    : menu.isSpecial 
+                      ? 'text-rose-400 hover:text-rose-300' 
+                      : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                {menu.name}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* 💻 2. PC 전용: 기존의 드롭다운 그룹핑 메뉴 */}
+        <div className="hidden md:flex max-w-[1200px] mx-auto flex-wrap items-center">
+          {menuGroups.map((group: any) => {
             if (group.isSingle) {
               let isActive = false;
               if (group.name === '전체글 보기') isActive = currentCategory === 'all' && bestType === '';
@@ -151,15 +200,10 @@ function NavbarContent() {
                 </button>
                 
                 <div className="absolute left-0 top-full hidden w-52 bg-white border border-gray-200 shadow-xl group-hover:block rounded-b-sm overflow-hidden z-50">
-                  {/* 💡 에러 2 해결: (subItem: any) 라고 정체를 알려줍니다! */}
                   {group.sub?.map((subItem: any) => { 
                     if (subItem.isSpecial) {
                       return (
-                        <Link 
-                          key={subItem.name} 
-                          href={subItem.link}
-                          className="w-full text-left block px-4 py-3 text-[13px] font-bold border-t-2 border-gray-100 transition-colors bg-rose-50 text-rose-500 hover:bg-rose-100"
-                        >
+                        <Link key={subItem.name} href={subItem.link} className="w-full text-left block px-4 py-3 text-[13px] font-bold border-t-2 border-gray-100 transition-colors bg-rose-50 text-rose-500 hover:bg-rose-100">
                           {subItem.name}
                         </Link>
                       );
@@ -167,11 +211,7 @@ function NavbarContent() {
 
                     const isActive = currentCategory === subItem.name;
                     return (
-                      <Link 
-                        key={subItem.name} 
-                        href={subItem.link || ''} 
-                        className={`block px-4 py-3 text-[13px] font-bold border-b border-gray-100 transition-colors last:border-0 ${isActive ? 'bg-indigo-50 text-[#3b4890]' : 'text-gray-700 hover:bg-gray-50 hover:text-[#3b4890]'}`}
-                      >
+                      <Link key={subItem.name} href={subItem.link || ''} className={`block px-4 py-3 text-[13px] font-bold border-b border-gray-100 transition-colors last:border-0 ${isActive ? 'bg-indigo-50 text-[#3b4890]' : 'text-gray-700 hover:bg-gray-50 hover:text-[#3b4890]'}`}>
                         {subItem.name}
                       </Link>
                     );
@@ -181,6 +221,7 @@ function NavbarContent() {
             );
           })}
         </div>
+
       </nav>
     </>
   );
@@ -188,7 +229,13 @@ function NavbarContent() {
 
 export default function Navbar() {
   return (
-    <Suspense fallback={<div className="h-24 bg-[#414a66] animate-pulse"></div>}>
+    // 💡 [완벽 방어] 로딩 중에도 껍데기(스켈레톤)의 높이를 정확히 똑같이 맞춰서 화면 덜컹거림 0% 달성!
+    <Suspense fallback={
+      <div className="w-full">
+        <div className="h-[65px] bg-white border-b border-gray-200 shadow-sm"></div>
+        <div className="h-[48px] md:h-[52px] bg-[#414a66]"></div>
+      </div>
+    }>
       <NavbarContent />
     </Suspense>
   );

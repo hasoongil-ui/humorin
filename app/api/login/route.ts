@@ -13,12 +13,18 @@ export async function POST(request: Request) {
     if (rows.length > 0) {
       const user = rows[0];
       
+      // 💡 IP 업데이트 기능은 빼고, 로그인 시간 갱신만 가볍게 남겨두었습니다!
+      await sql`
+        UPDATE users 
+        SET last_login = NOW() 
+        WHERE user_id = ${id}
+      `;
+
       const response = NextResponse.json(
         { success: true, message: '로그인 성공' }, 
         { status: 200 }
       );
       
-      // 1. 기존 쿠키 (화면 표시 및 게시글 작성용 '닉네임')
       response.cookies.set({
         name: 'ojemi_user',
         value: user.nickname || user.user_id,
@@ -27,11 +33,9 @@ export async function POST(request: Request) {
         maxAge: 60 * 60 * 24 * 7,
       });
 
-      // 2. 🚨 미나의 근본 수술: 절대 변하지 않는 '진짜 아이디(user_id)' 쿠키 추가 발급!
-      // (이 쿠키가 바로 관리자 'admin'을 증명하는 강력한 절대 신분증이 됩니다)
       response.cookies.set({
         name: 'ojemi_userid',
-        value: user.user_id, // 닉네임이 아닌 로그인할 때 친 진짜 영어 아이디!
+        value: user.user_id, 
         httpOnly: true,
         path: '/',
         maxAge: 60 * 60 * 24 * 7,
