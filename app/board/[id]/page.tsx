@@ -8,6 +8,29 @@ import { PostLikeButton, PostDislikeButton, CommentLikeButton, CommentDislikeBut
 import CommentForm from './CommentForm';
 import VideoVolumeFix from './VideoVolumeFix'; 
 
+// 💡 [미나의 SEO 마법] 구글 로봇이 읽어갈 국제 표준 시간(ISO 8601) - 로봇은 이 시간을 가장 좋아합니다!
+function getSeoDatetime(dateString: any) {
+  if (!dateString) return '';
+  try { return new Date(dateString).toISOString(); } catch(e) { return ''; }
+}
+
+// 💡 [미나의 KST 마법] 유저들 눈에 예쁘게 보일 "한국 표준시(+9시간)" 적용!
+function getDisplayDate(dateString: any) {
+  if (!dateString) return '';
+  try {
+    const dbDate = new Date(dateString);
+    // 서버(미국) 시간에 9시간(9 * 60분 * 60초 * 1000밀리초)을 더해서 한국 시간으로 강제 변환!
+    const kstDate = new Date(dbDate.getTime() + 9 * 60 * 60 * 1000);
+    
+    const yy = kstDate.getFullYear().toString().slice(2);
+    const mm = String(kstDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(kstDate.getDate()).padStart(2, '0');
+    const hh = String(kstDate.getHours()).padStart(2, '0');
+    const min = String(kstDate.getMinutes()).padStart(2, '0');
+    return `${yy}.${mm}.${dd} ${hh}:${min}`;
+  } catch(e) { return ''; }
+}
+
 function extractData(fullTitle: string) {
   if (!fullTitle) return { cat: '일반', cleanTitle: '' };
   const match = fullTitle.match(/^\[(.*?)\]\s*(.*)$/);
@@ -16,7 +39,9 @@ function extractData(fullTitle: string) {
 
 export default async function PostDetailPage(props: any) {
   const params = await props.params;
+  const searchParams = await props.searchParams; 
   const postId = params.id;
+  const fromLocation = searchParams?.from; 
 
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('ojemi_user');      
@@ -315,7 +340,7 @@ export default async function PostDetailPage(props: any) {
           <input type="checkbox" id={`edit-${node.id}`} className="hidden peer/edit" />
 
           <div className="flex justify-between items-start mb-2 mt-1">
-            <div className="font-bold text-[13.5px] flex items-center gap-2">
+            <div className="font-bold text-[13.5px] flex items-center gap-2 flex-wrap">
               {node.author_id ? (
                 <Link href={`/user/${node.author_id}`} className="hover:text-[#3b4890] hover:underline cursor-pointer transition-colors">
                   {node.author}
@@ -324,6 +349,11 @@ export default async function PostDetailPage(props: any) {
                 <span className={isDeleted ? 'text-gray-400 italic' : ''}>{node.author}</span>
               )}
               {badge}
+              {!isDeleted && (
+                <time dateTime={getSeoDatetime(node.created_at)} className="text-[11px] font-medium text-gray-400 tracking-tight ml-1">
+                  {getDisplayDate(node.created_at)}
+                </time>
+              )}
             </div>
             
             <div className="flex items-center gap-3">
@@ -421,9 +451,12 @@ export default async function PostDetailPage(props: any) {
     );
   }
 
-  // 💡 [핵심 수술] "목록으로" 버튼이 누를 곳을 계산합니다! 
-  // 게시판 카테고리가 '일반'이면 전체글보기로, 아니면 해당 카테고리로 돌아갑니다.
-  const backToListUrl = postData.cat === '일반' ? '/board' : `/board?category=${encodeURIComponent(postData.cat)}`;
+  let backToListUrl = '/board';
+  if (fromLocation === 'today') backToListUrl = '/board?best=today';
+  else if (fromLocation === '100') backToListUrl = '/board?best=100';
+  else if (fromLocation === '1000') backToListUrl = '/board?best=1000';
+  else if (fromLocation === 'all') backToListUrl = '/board';
+  else if (postData.cat !== '일반') backToListUrl = `/board?category=${encodeURIComponent(postData.cat)}`;
 
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
@@ -439,13 +472,35 @@ export default async function PostDetailPage(props: any) {
         
         <div className="border-b-2 border-gray-800 pb-4 mb-8">
           <h1 className="text-2xl md:text-3xl font-black mb-4"><span className="text-[#3b4890] mr-2">[{postData.cat}]</span>{postData.cleanTitle}</h1>
-          <div className="flex justify-between text-gray-500 text-sm font-bold">
+          <div className="flex justify-between items-center text-gray-500 text-sm font-bold flex-wrap gap-y-2">
+            
             <div className="flex items-center gap-2">
               {post.author_id ? (
-                <Link href={`/user/${post.author_id}`} className="hover:text-[#3b4890] hover:underline cursor-pointer transition-colors">{post.author}</Link>
-              ) : (<span>{post.author}</span>)}
+                <>
+                  <span className="md:hidden text-[14px]">{post.author}</span>
+                  <Link href={`/user/${post.author_id}`} className="hidden md:inline text-[14px] hover:text-[#3b4890] hover:underline cursor-pointer transition-colors">
+                    {post.author}
+                  </Link>
+                </>
+              ) : (<span className="text-[14px]">{post.author}</span>)}
+              
+              <span className="text-gray-300">|</span>
+              
+              <time dateTime={getSeoDatetime(post.date)} className="text-[12px] font-medium text-gray-400 tracking-tight">
+                {getDisplayDate(post.date)}
+              </time>
             </div>
-            <div className="text-rose-500">공감 {post.likes || 0}</div>
+            
+            <div className="flex items-center gap-3">
+              <div className="text-gray-400 text-[12px] font-medium flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                {post.views || 0}
+              </div>
+              <div className="text-rose-500 text-[13px] flex items-center gap-1">
+                공감 {post.likes || 0}
+              </div>
+            </div>
+
           </div>
         </div>
         
@@ -494,7 +549,6 @@ export default async function PostDetailPage(props: any) {
               <form action={deletePost}><button type="submit" className="px-6 py-2 bg-[#e06c75] text-white font-bold text-sm rounded-sm">삭제</button></form>
             )}
           </div>
-          {/* 💡 [핵심 수술] 사용자가 출발했던 게시판으로 정확하게 안내합니다! */}
           <Link href={backToListUrl} className="px-8 py-2 bg-[#414a66] text-white font-bold text-sm rounded-sm hover:bg-[#2a3042] transition-colors">목록으로</Link>
         </div>
 
