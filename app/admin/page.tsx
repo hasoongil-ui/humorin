@@ -98,7 +98,6 @@ export default async function AdminDashboardPage(props: any) {
     let countResult;
     let queryResult;
 
-    // 💡 IP 검색 옵션을 제거하고 아이디/닉네임 검색만 남겼습니다!
     if (q && type === 'userid') {
       countResult = await sql`SELECT COUNT(*) FROM users WHERE user_id ILIKE ${'%' + q + '%'}`;
       queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count FROM users u WHERE u.user_id ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
@@ -143,6 +142,14 @@ export default async function AdminDashboardPage(props: any) {
             <li><Link href="/admin/comments" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>💬</span> 댓글 관리</Link></li>
             <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>⚙️</span> 설정/게시판 관리</Link></li>
             <li><Link href="/admin/blind" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>🚨</span> 블라인드 관리</Link></li>
+            
+            {/* 💡 [수술] 좌측 메뉴 맨 아래에 눈에 확 띄는 관제센터 직통버튼 추가! */}
+            <li className="mt-4 border-t border-gray-700 pt-4">
+              <Link href="/admin/monitor" target="_blank" className="flex items-center justify-between px-6 py-3 font-black text-emerald-400 bg-slate-800 hover:bg-slate-700 transition-colors border-l-4 border-emerald-500 shadow-inner">
+                <div className="flex items-center gap-3"><span>🖥️</span> 서버 모니터링</div>
+                <span className="text-xs">↗</span>
+              </Link>
+            </li>
           </ul>
         </nav>
       </aside>
@@ -150,7 +157,16 @@ export default async function AdminDashboardPage(props: any) {
       <main className="flex-1 flex flex-col h-screen overflow-hidden bg-gray-50">
         <header className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center z-10 shadow-sm flex-shrink-0">
           <h1 className="text-xl font-black text-gray-800 tracking-tight">회원 관리</h1>
-          <div className="text-sm font-bold text-gray-500 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>서버 정상 가동중</div>
+          
+          {/* 💡 [수술] 우측 상단에도 클릭 한 번에 새 창으로 열리는 관제센터 직통버튼 추가! */}
+          <div className="flex items-center gap-6">
+            <Link href="/admin/monitor" target="_blank" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-slate-800 text-emerald-400 text-xs font-black rounded-sm hover:bg-slate-700 transition-colors shadow-sm border border-slate-600">
+              <span>🖥️</span> 종합 모니터링 관제센터 열기 ↗
+            </Link>
+            <div className="text-sm font-bold text-gray-500 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>서버 정상 가동중
+            </div>
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
