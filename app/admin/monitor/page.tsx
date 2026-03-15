@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { sql } from '@vercel/postgres';
-import { list } from '@vercel/blob'; 
-import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3'; 
+import { list, del } from '@vercel/blob'; 
+import { S3Client, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3'; 
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
@@ -43,7 +43,6 @@ export default async function MonitorControlCenter() {
     dbSizeBytes = Number(sizeRes.rows[0].size_bytes) || 0;
   } catch(e: any) { 
     dbError = `🚨 DB 연결 실패: ${e.message}`;
-    console.error("DB 용량 측정 실패", e); 
   }
 
   const dbSizeMB = (dbSizeBytes / 1024 / 1024).toFixed(2);
@@ -55,11 +54,10 @@ export default async function MonitorControlCenter() {
   // ==========================================
   let blobSize = 0;
   let blobCount = 0;
-  let blobError = null; // 💡 [수술] 에러 내용을 담을 변수 추가!
+  let blobError = null;
   
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    // 💡 [수술] 대충 숨기지 않고 정확히 뭐가 문제인지 짚어줍니다!
-    blobError = "🚨 BLOB_READ_WRITE_TOKEN 환경변수가 누락되었습니다. Vercel 대시보드에서 토큰을 확인해 주십시오.";
+    blobError = "🚨 BLOB_READ_WRITE_TOKEN 환경변수가 누락되었습니다.";
   } else {
     try {
       const { blobs } = await list();
@@ -67,7 +65,6 @@ export default async function MonitorControlCenter() {
       blobSize = blobs.reduce((acc, blob) => acc + blob.size, 0);
     } catch(e: any) { 
       blobError = `🚨 통신 에러 발생: ${e.message}`;
-      console.error("Blob 미디어 용량 측정 실패", e); 
     }
   }
 
@@ -83,7 +80,7 @@ export default async function MonitorControlCenter() {
   let r2Error = null;
 
   if (!process.env.R2_BUCKET_NAME || !process.env.R2_ENDPOINT) {
-    r2Error = "🚨 R2_BUCKET_NAME 등의 환경변수가 누락되었습니다. 설정 파일을 확인해 주십시오.";
+    r2Error = "🚨 R2_BUCKET_NAME 등의 환경변수가 누락되었습니다.";
   } else {
     try {
       const command = new ListObjectsV2Command({ Bucket: process.env.R2_BUCKET_NAME });
@@ -94,7 +91,6 @@ export default async function MonitorControlCenter() {
       }
     } catch(e: any) { 
       r2Error = `🚨 R2 통신 에러 발생: ${e.message}`;
-      console.error("R2 미디어 용량 측정 실패", e); 
     }
   }
 
@@ -116,8 +112,89 @@ export default async function MonitorControlCenter() {
   } catch (e) {}
 
   // ---------------------------------------------------------
-  // 🚨 [비상 버튼 동작 (서버 액션)] 
+  // 🚨 [비상 버튼 동작 (무한 확장 스케일업 로직 적용!)] 
   // ---------------------------------------------------------
+  
+  const cleanUpGhostFiles = async () => {
+    'use server';
+    try {
+      // 업로드 후 1시간 이상 방치된 파일만 타겟으로 잡습니다.
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+      // [1] 메인 창고 (Cloudflare R2) 완벽 청소
+      if (process.env.R2_BUCKET_NAME && process.env.NEXT_PUBLIC_R2_URL) {
+        const command = new ListObjectsV2Command({ Bucket: process.env.R2_BUCKET_NAME });
+        const { Contents } = await s3.send(command);
+        
+        if (Contents) {
+          const r2KeysToDelete = [];
+          // 타겟 대상만 추림 (1시간 이상 된 파일들)
+          const candidates = Contents.filter(item => item.LastModified && new Date(item.LastModified) < oneHourAgo);
+          
+          // 💡 [핵심 최적화] 한 번에 DB에 다 던지지 않고 50개씩 쪼개서 부하 원천 차단!
+          const chunkSize = 50;
+          for (let i = 0; i < candidates.length; i += chunkSize) {
+            const chunk = candidates.slice(i, i + chunkSize);
+
+            // 메모리로 글을 가져오지 않고 DB 엔진에게 직접 검색을 지시합니다!
+            await Promise.all(chunk.map(async (item) => {
+              if (!item.Key) return;
+              const fileUrl = `${process.env.NEXT_PUBLIC_R2_URL}/${item.Key}`;
+              
+              // DB야, 이 주소 쓰는 글 있어? (LIMIT 1 로 찾으면 즉시 검색 종료 -> 속도 극대화)
+              const { rows: postCheck } = await sql`SELECT id FROM posts WHERE content LIKE ${'%' + fileUrl + '%'} LIMIT 1`;
+              const { rows: commentCheck } = await sql`SELECT id FROM comments WHERE content LIKE ${'%' + fileUrl + '%'} OR image_data LIKE ${'%' + fileUrl + '%'} LIMIT 1`;
+
+              if (postCheck.length === 0 && commentCheck.length === 0) {
+                r2KeysToDelete.push({ Key: item.Key }); // 둘 다 없으면 사형 명단에 추가
+              }
+            }));
+          }
+
+          // 1000개 단위로 안전하게 삭제 전송
+          if (r2KeysToDelete.length > 0) {
+            for (let i = 0; i < r2KeysToDelete.length; i += 1000) {
+              const deleteChunk = r2KeysToDelete.slice(i, i + 1000);
+              const deleteCommand = new DeleteObjectsCommand({
+                Bucket: process.env.R2_BUCKET_NAME,
+                Delete: { Objects: deleteChunk }
+              });
+              await s3.send(deleteCommand);
+            }
+          }
+        }
+      }
+
+      // [2] 보조 창고 (Vercel Blob) 완벽 청소
+      if (process.env.BLOB_READ_WRITE_TOKEN) {
+        const { blobs } = await list();
+        const blobCandidates = blobs.filter(b => new Date(b.uploadedAt) < oneHourAgo);
+        const blobUrlsToDelete = [];
+
+        const chunkSize = 50;
+        for (let i = 0; i < blobCandidates.length; i += chunkSize) {
+          const chunk = blobCandidates.slice(i, i + chunkSize);
+          await Promise.all(chunk.map(async (b) => {
+            const { rows: postCheck } = await sql`SELECT id FROM posts WHERE content LIKE ${'%' + b.url + '%'} LIMIT 1`;
+            const { rows: commentCheck } = await sql`SELECT id FROM comments WHERE content LIKE ${'%' + b.url + '%'} OR image_data LIKE ${'%' + b.url + '%'} LIMIT 1`;
+            
+            if (postCheck.length === 0 && commentCheck.length === 0) {
+              blobUrlsToDelete.push(b.url);
+            }
+          }));
+        }
+
+        if (blobUrlsToDelete.length > 0) {
+          await del(blobUrlsToDelete);
+        }
+      }
+
+      revalidatePath('/admin/monitor');
+    } catch (error) {
+      console.error("유령 파일 청소 중 에러 발생:", error);
+    }
+  };
+
   const emergencyDeleteJunkPosts = async () => {
     'use server';
     try {
@@ -130,7 +207,7 @@ export default async function MonitorControlCenter() {
         )
       `;
       revalidatePath('/admin/monitor');
-    } catch(e) { console.error(e); }
+    } catch(e) {}
   };
 
   const clearBlindedPosts = async () => {
@@ -138,7 +215,7 @@ export default async function MonitorControlCenter() {
     try {
       await sql`DELETE FROM posts WHERE is_blinded = true`;
       revalidatePath('/admin/monitor');
-    } catch(e) { console.error(e); }
+    } catch(e) {}
   };
 
   return (
@@ -165,9 +242,7 @@ export default async function MonitorControlCenter() {
           <div className={`bg-slate-800 border ${dbError ? 'border-red-500 shadow-red-900/50' : 'border-slate-700'} p-6 rounded-md shadow-lg flex flex-col`}>
             <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">🗄️ 방명록 (게시글 DB)</h2>
             {dbError ? (
-              <div className="bg-red-900/50 border border-red-500/50 text-red-200 p-3 rounded-sm text-xs font-bold leading-relaxed">
-                {dbError}
-              </div>
+              <div className="bg-red-900/50 border border-red-500/50 text-red-200 p-3 rounded-sm text-xs font-bold leading-relaxed">{dbError}</div>
             ) : (
               <>
                 <div className="mb-2 flex justify-between text-sm font-bold">
@@ -185,13 +260,9 @@ export default async function MonitorControlCenter() {
 
           {/* [2] Vercel Blob */}
           <div className={`bg-slate-800 border ${blobError ? 'border-orange-500 shadow-orange-900/50' : 'border-slate-700'} p-6 rounded-md shadow-lg flex flex-col`}>
-            <h2 className={`text-lg font-bold mb-6 flex items-center gap-2 ${blobError ? 'text-orange-400' : 'text-indigo-400'}`}>
-              🧊 보조 미디어 (Vercel Blob)
-            </h2>
+            <h2 className={`text-lg font-bold mb-6 flex items-center gap-2 ${blobError ? 'text-orange-400' : 'text-indigo-400'}`}>🧊 보조 미디어 (Vercel Blob)</h2>
             {blobError ? (
-              <div className="bg-orange-900/20 border border-orange-500/30 text-orange-300 p-3 rounded-sm text-xs font-bold leading-relaxed whitespace-pre-wrap">
-                {blobError}
-              </div>
+              <div className="bg-orange-900/20 border border-orange-500/30 text-orange-300 p-3 rounded-sm text-xs font-bold leading-relaxed whitespace-pre-wrap">{blobError}</div>
             ) : (
               <>
                 <div className="mb-2 flex justify-between text-sm font-bold">
@@ -200,9 +271,7 @@ export default async function MonitorControlCenter() {
                 </div>
                 <div className="w-full bg-slate-900 rounded-full h-6 mb-2 overflow-hidden border border-slate-700 relative">
                   <div className="h-6 rounded-full bg-indigo-500 transition-all duration-1000" style={{ width: `${blobUsagePercent}%` }}></div>
-                  <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-white mix-blend-difference">
-                    {blobUsagePercent}% 사용 중
-                  </span>
+                  <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-white mix-blend-difference">{blobUsagePercent}% 사용 중</span>
                 </div>
               </>
             )}
@@ -211,13 +280,9 @@ export default async function MonitorControlCenter() {
 
           {/* [3] Cloudflare R2 */}
           <div className={`bg-slate-800 border ${r2Error ? 'border-red-500 shadow-red-900/50' : 'border-sky-500/50'} p-6 rounded-md shadow-lg flex flex-col`}>
-            <h2 className={`text-lg font-bold mb-6 flex items-center gap-2 ${r2Error ? 'text-red-400' : 'text-sky-400'}`}>
-              ☁️ 메인 미디어 (Cloudflare R2)
-            </h2>
+            <h2 className={`text-lg font-bold mb-6 flex items-center gap-2 ${r2Error ? 'text-red-400' : 'text-sky-400'}`}>☁️ 메인 미디어 (Cloudflare R2)</h2>
             {r2Error ? (
-              <div className="bg-red-900/20 border border-red-500/30 text-red-300 p-3 rounded-sm text-xs font-bold leading-relaxed whitespace-pre-wrap">
-                {r2Error}
-              </div>
+              <div className="bg-red-900/20 border border-red-500/30 text-red-300 p-3 rounded-sm text-xs font-bold leading-relaxed whitespace-pre-wrap">{r2Error}</div>
             ) : (
               <>
                 <div className="mb-2 flex justify-between text-sm font-bold">
@@ -243,16 +308,13 @@ export default async function MonitorControlCenter() {
             <h3 className="text-lg font-bold text-blue-300 mb-4">📈 현재 쌓인 데이터 현황</h3>
             <ul className="space-y-4 font-bold text-[15px]">
               <li className="flex justify-between items-center bg-slate-900 p-3 rounded border border-slate-700">
-                <span className="text-slate-300">📝 등록된 총 게시글 수</span>
-                <span className="text-white text-lg">{totalPosts} 개</span>
+                <span className="text-slate-300">📝 등록된 총 게시글 수</span><span className="text-white text-lg">{totalPosts} 개</span>
               </li>
               <li className="flex justify-between items-center bg-slate-900 p-3 rounded border border-slate-700">
-                <span className="text-slate-300">💬 등록된 총 댓글 수</span>
-                <span className="text-white text-lg">{totalComments} 개</span>
+                <span className="text-slate-300">💬 등록된 총 댓글 수</span><span className="text-white text-lg">{totalComments} 개</span>
               </li>
               <li className="flex justify-between items-center bg-slate-900 p-3 rounded border border-slate-700">
-                <span className="text-rose-400">🚨 블라인드(신고) 처리된 글</span>
-                <span className="text-rose-400 text-lg">{blindPosts} 개</span>
+                <span className="text-rose-400">🚨 블라인드(신고) 처리된 글</span><span className="text-rose-400 text-lg">{blindPosts} 개</span>
               </li>
             </ul>
           </div>
@@ -265,11 +327,20 @@ export default async function MonitorControlCenter() {
             </p>
             
             <div className="space-y-3">
+              <form action={cleanUpGhostFiles}>
+                <button type="submit" className="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 border border-sky-600/50 rounded text-left transition-colors group">
+                  <div>
+                    <div className="text-sky-400 font-black text-[14px]">🌀 미디어 창고 '유령 파일' 싹쓸이 청소</div>
+                    <div className="text-[11px] text-slate-400 mt-1 font-medium">게시물에 등록되지 않고 버려진 고아 파일을 DB엔진으로 찾아내 일괄 삭제합니다.<br/>(작성 중인 파일 보호를 위해 업로드 후 1시간이 지난 파일만 지웁니다)</div>
+                  </div>
+                  <span className="text-sky-400 group-hover:scale-110 transition-transform">▶</span>
+                </button>
+              </form>
+
               <form action={emergencyDeleteJunkPosts}>
                 <button type="submit" className="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-left transition-colors group">
                   <div>
-                    <div className="text-orange-400 font-black text-[14px]">🧹 유령 게시글 10개 영구 삭제</div>
-                    <div className="text-xs text-slate-400 mt-1 font-medium">조회수 50 미만, 공감 0, 댓글 0 인 쓰레기 글만 지웁니다.</div>
+                    <div className="text-orange-400 font-black text-[14px]">🧹 조회수 50 미만 유령 게시글 10개 삭제</div>
                   </div>
                   <span className="text-orange-400 group-hover:scale-110 transition-transform">▶</span>
                 </button>
@@ -279,7 +350,6 @@ export default async function MonitorControlCenter() {
                 <button type="submit" className="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-left transition-colors group">
                   <div>
                     <div className="text-rose-500 font-black text-[14px]">🔥 블라인드 게시글 전체 영구 삭제</div>
-                    <div className="text-xs text-slate-400 mt-1 font-medium">신고 누적으로 차단된 악성 글 {blindPosts}개를 일괄 삭제합니다.</div>
                   </div>
                   <span className="text-rose-500 group-hover:scale-110 transition-transform">▶</span>
                 </button>
