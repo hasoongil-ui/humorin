@@ -4,6 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "OJEMI - 오재미",
   description: "최고의 명품 청정 커뮤니티",
+  manifest: "/manifest.json", // 💡 [미나 수술] 고화질 앱 아이콘을 위한 매니페스트 연결 완료!
 };
 
 export default function RootLayout({
