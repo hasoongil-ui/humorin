@@ -74,7 +74,6 @@ export default async function HomePage() {
     console.error("메인 보드 불러오기 에러", e);
   }
 
-  // 💡 [핵심] 모든 SQL 쿼리에 is_blinded 컬럼을 추가했습니다!
   const bestQuery = sql`SELECT id, title, author, date, best_at, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 ORDER BY best_at DESC NULLS LAST, date DESC LIMIT 10`;
   const allPostsQuery = sql`SELECT id, title, author, date, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts ORDER BY date DESC LIMIT 10`;
   
@@ -106,7 +105,6 @@ export default async function HomePage() {
             <li key={`widget-${post.id}`} className="hover:bg-gray-50 transition-colors">
               <Link href={`/board/${post.id}`} className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center flex-1 min-w-0 pr-3">
-                  {/* 💡 [수술] 메인 위젯도 블라인드는 조용하게 숨깁니다! */}
                   {post.is_blinded ? (
                     <span className="text-[14px] text-gray-400 md:text-gray-500 truncate">블라인드 처리된 글입니다.</span>
                   ) : (
@@ -161,21 +159,21 @@ export default async function HomePage() {
                 <div className="text-gray-200 text-sm font-medium">
                   <span className="text-white font-black text-base">{currentUser}</span> 님, 환영합니다!
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-center md:justify-end gap-2 sm:gap-2">
                   {isAdmin && (
-                    <Link href="/admin" className="px-4 py-2 bg-red-600 text-white text-sm font-black rounded-sm hover:bg-red-700 transition-colors shadow-sm">
+                    <Link href="/admin" className="px-3 sm:px-4 py-2 bg-red-600 text-white text-sm font-black rounded-sm hover:bg-red-700 transition-colors shadow-sm whitespace-nowrap shrink-0">
                       ADMIN
                     </Link>
                   )}
-                  <Link href="/profile" className="px-4 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm">
+                  <Link href="/profile" className="px-3 sm:px-4 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap shrink-0">
                     내정보
                   </Link>
-                  <form action={handleLogout}>
-                    <button type="submit" className="px-4 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm">
+                  <form action={handleLogout} className="shrink-0">
+                    <button type="submit" className="px-3 sm:px-4 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap shrink-0">
                       로그아웃
                     </button>
                   </form>
-                  <Link href="/board/write" className="px-5 py-2 bg-[#ebedf5] text-[#3b4890] text-sm font-black rounded-sm shadow-md hover:bg-white transition-colors ml-1">
+                  <Link href="/board/write" className="px-4 sm:px-5 py-2 bg-[#ebedf5] text-[#3b4890] text-sm font-black rounded-sm shadow-md hover:bg-white transition-colors ml-0 sm:ml-1 whitespace-nowrap shrink-0">
                     ✏️ 글쓰기
                   </Link>
                 </div>
@@ -185,11 +183,11 @@ export default async function HomePage() {
                 <div className="text-gray-300 text-sm font-bold">
                   오재미를 더 편리하게 이용하세요.
                 </div>
-                <div className="flex items-center gap-2">
-                  <Link href="/login?redirect=/" className="px-8 py-2 bg-[#ebedf5] text-[#3b4890] text-sm font-black rounded-sm shadow-md hover:bg-white transition-colors">
+                <div className="flex flex-wrap items-center justify-center md:justify-end gap-2">
+                  <Link href="/login?redirect=/" className="px-6 sm:px-8 py-2 bg-[#ebedf5] text-[#3b4890] text-sm font-black rounded-sm shadow-md hover:bg-white transition-colors whitespace-nowrap shrink-0">
                     로그인
                   </Link>
-                  <Link href="/signup" className="px-6 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm">
+                  <Link href="/signup" className="px-4 sm:px-6 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap shrink-0">
                     회원가입
                   </Link>
                 </div>
