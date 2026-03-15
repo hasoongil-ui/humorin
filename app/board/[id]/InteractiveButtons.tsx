@@ -242,9 +242,9 @@ export function EditCommentForm({ commentId, initialContent, initialImage, editA
 // ---------------------------------------------------------
 export function PostShareButton({ title }: { title: string }) {
   const handleShare = async () => {
+    // 💡 [미나 수술] 노골적인 홍보 문구 삭제! 오직 제목과 링크만 깔끔하게 전달합니다.
     const shareData = {
       title: title,
-      text: '오재미 커뮤니티에서 이 글을 확인해보세요!',
       url: window.location.href, 
     };
 
@@ -258,7 +258,8 @@ export function PostShareButton({ title }: { title: string }) {
     else {
       try {
         await navigator.clipboard.writeText(window.location.href);
-        alert('🔗 게시글 링크가 복사되었습니다!\nSNS나 카톡, 블로그에 붙여넣기 해주세요.');
+        // PC 버전에 뜨는 알림창 문구도 거부감 없이 자연스럽게 수정했습니다.
+        alert('🔗 게시글 링크가 복사되었습니다!');
       } catch (error) {
         alert('링크 복사에 실패했습니다.');
       }
