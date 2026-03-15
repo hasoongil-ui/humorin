@@ -73,7 +73,6 @@ export default async function BoardPage(props: any) {
   const keyword = searchParams.q || ''; 
   const searchType = searchParams.searchType || 'title'; 
 
-  // 💡 [미나 수술 1] 꼬리표(fromQuery) 계산기 도입! 어디서 왔는지 추적합니다.
   let fromQuery = '';
   if (bestType === 'today') fromQuery = '?from=today';
   else if (bestType === '100') fromQuery = '?from=100';
@@ -267,7 +266,6 @@ export default async function BoardPage(props: any) {
               return (
                 <div className="flex flex-col md:flex-row border-b border-gray-200 py-3 bg-blue-50/50 hover:bg-gray-50 transition-colors items-center group">
                   <div className="hidden md:block w-12 text-center text-xs text-gray-500 font-bold shrink-0">장원</div>
-                  {/* 💡 [수술 2] 클릭 시 꼬리표(fromQuery)를 붙여서 이동합니다! */}
                   <Link href={`/board/${topPost.id}${fromQuery}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                     <CategoryIcon category={topData.cat} />
                     
@@ -320,7 +318,6 @@ export default async function BoardPage(props: any) {
                 return (
                   <div key={post.id} className="flex flex-col md:flex-row border-b border-gray-200 py-2.5 hover:bg-gray-50 transition-colors items-center group">
                     <div className="hidden md:block w-12 text-center text-[13px] text-gray-400 shrink-0">{post.id}</div>
-                    {/* 💡 [수술 2] 클릭 시 꼬리표(fromQuery)를 붙여서 이동합니다! */}
                     <Link href={`/board/${post.id}${fromQuery}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                       <CategoryIcon category={postData.cat} />
                       

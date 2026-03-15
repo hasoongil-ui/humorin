@@ -215,7 +215,6 @@ export function EditCommentForm({ commentId, initialContent, initialImage, editA
         </div>
       )}
 
-      {/* 💡 [핵심 수술 부위] 여기도 flex-wrap과 whitespace-nowrap을 모두 적용했습니다! */}
       <div className="bg-gray-50 border-t border-gray-100 px-2 sm:px-3 py-2 flex flex-wrap justify-between items-center gap-2">
         <div>
           <input type="file" ref={fileInputRef} id={`edit-image-${commentId}`} accept="image/*" className="hidden" onChange={handleFileChange} disabled={isSubmitting} />
@@ -235,5 +234,47 @@ export function EditCommentForm({ commentId, initialContent, initialImage, editA
         </div>
       </div>
     </form>
+  );
+}
+
+// ---------------------------------------------------------
+// 🟢 4. 최신 트렌드 Web Share API가 탑재된 공유 버튼!
+// ---------------------------------------------------------
+export function PostShareButton({ title }: { title: string }) {
+  const handleShare = async () => {
+    const shareData = {
+      title: title,
+      text: '오재미 커뮤니티에서 이 글을 확인해보세요!',
+      url: window.location.href, 
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (error) {
+        console.log('공유 취소됨');
+      }
+    } 
+    else {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        alert('🔗 게시글 링크가 복사되었습니다!\nSNS나 카톡, 블로그에 붙여넣기 해주세요.');
+      } catch (error) {
+        alert('링크 복사에 실패했습니다.');
+      }
+    }
+  };
+
+  return (
+    <button
+      onClick={handleShare}
+      className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 border border-gray-300 rounded-sm transition-colors shadow-sm"
+      title="게시글 공유하기"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
+      </svg>
+      공유
+    </button>
   );
 }

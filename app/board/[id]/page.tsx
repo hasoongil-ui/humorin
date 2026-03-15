@@ -4,24 +4,20 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import { PostLikeButton, PostDislikeButton, CommentLikeButton, CommentDislikeButton, PostScrapButton, PostReportButton, CommentReportButton, EditCommentForm } from './InteractiveButtons'; 
+import { PostLikeButton, PostDislikeButton, CommentLikeButton, CommentDislikeButton, PostScrapButton, PostReportButton, CommentReportButton, EditCommentForm, PostShareButton } from './InteractiveButtons'; 
 import CommentForm from './CommentForm';
 import VideoVolumeFix from './VideoVolumeFix'; 
 
-// 💡 [미나의 SEO 마법] 구글 로봇이 읽어갈 국제 표준 시간(ISO 8601) - 로봇은 이 시간을 가장 좋아합니다!
 function getSeoDatetime(dateString: any) {
   if (!dateString) return '';
   try { return new Date(dateString).toISOString(); } catch(e) { return ''; }
 }
 
-// 💡 [미나의 KST 마법] 유저들 눈에 예쁘게 보일 "한국 표준시(+9시간)" 적용!
 function getDisplayDate(dateString: any) {
   if (!dateString) return '';
   try {
     const dbDate = new Date(dateString);
-    // 서버(미국) 시간에 9시간(9 * 60분 * 60초 * 1000밀리초)을 더해서 한국 시간으로 강제 변환!
     const kstDate = new Date(dbDate.getTime() + 9 * 60 * 60 * 1000);
-    
     const yy = kstDate.getFullYear().toString().slice(2);
     const mm = String(kstDate.getMonth() + 1).padStart(2, '0');
     const dd = String(kstDate.getDate()).padStart(2, '0');
@@ -538,6 +534,7 @@ export default async function PostDetailPage(props: any) {
         </div>
 
         <div className="mt-8 flex justify-end items-center gap-2 px-2">
+          <PostShareButton title={postData.cleanTitle} />
           <PostScrapButton postId={postId} initialHasScrapped={hasScrapped} toggleScrapAction={toggleScrap} />
           <PostReportButton postId={postId} currentUserId={currentUserId} isAdmin={isAdmin} />
         </div>
