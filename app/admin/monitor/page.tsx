@@ -1,6 +1,5 @@
 // @ts-nocheck
 import { sql } from '@vercel/postgres';
-import { list, del } from '@vercel/blob'; 
 import { S3Client, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3'; 
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
@@ -50,30 +49,7 @@ export default async function MonitorControlCenter() {
   const dbUsagePercent = Math.min((parseFloat(dbSizeMB) / maxDbMB) * 100, 100).toFixed(1);
 
   // ==========================================
-  // 2. [제 2창고] Vercel Blob 용량 (보조 미디어)
-  // ==========================================
-  let blobSize = 0;
-  let blobCount = 0;
-  let blobError = null;
-  
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    blobError = "🚨 BLOB_READ_WRITE_TOKEN 환경변수가 누락되었습니다.";
-  } else {
-    try {
-      const { blobs } = await list();
-      blobCount = blobs.length;
-      blobSize = blobs.reduce((acc, blob) => acc + blob.size, 0);
-    } catch(e: any) { 
-      blobError = `🚨 통신 에러 발생: ${e.message}`;
-    }
-  }
-
-  const blobSizeMB = (blobSize / 1024 / 1024).toFixed(2);
-  const maxBlobMB = 250; 
-  const blobUsagePercent = Math.min((parseFloat(blobSizeMB) / maxBlobMB) * 100, 100).toFixed(1);
-
-  // ==========================================
-  // 3. [제 3창고] 진짜 미디어 메인 창고 (Cloudflare R2)
+  // 2. [제 2창고] 진짜 미디어 메인 창고 (Cloudflare R2)
   // ==========================================
   let r2Size = 0;
   let r2Count = 0;
@@ -99,7 +75,7 @@ export default async function MonitorControlCenter() {
   const r2UsagePercent = Math.min((parseFloat(r2SizeMB) / maxR2MB) * 100, 100).toFixed(1);
 
   // ==========================================
-  // 4. 현재 쌓인 데이터 통계
+  // 3. 현재 쌓인 데이터 통계
   // ==========================================
   let totalPosts = 0, totalComments = 0, blindPosts = 0;
   try {
@@ -118,40 +94,34 @@ export default async function MonitorControlCenter() {
   const cleanUpGhostFiles = async () => {
     'use server';
     try {
-      // 업로드 후 1시간 이상 방치된 파일만 타겟으로 잡습니다.
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-      // [1] 메인 창고 (Cloudflare R2) 완벽 청소
+      // Cloudflare R2 창고 완벽 청소
       if (process.env.R2_BUCKET_NAME && process.env.NEXT_PUBLIC_R2_URL) {
         const command = new ListObjectsV2Command({ Bucket: process.env.R2_BUCKET_NAME });
         const { Contents } = await s3.send(command);
         
         if (Contents) {
           const r2KeysToDelete = [];
-          // 타겟 대상만 추림 (1시간 이상 된 파일들)
           const candidates = Contents.filter(item => item.LastModified && new Date(item.LastModified) < oneHourAgo);
           
-          // 💡 [핵심 최적화] 한 번에 DB에 다 던지지 않고 50개씩 쪼개서 부하 원천 차단!
           const chunkSize = 50;
           for (let i = 0; i < candidates.length; i += chunkSize) {
             const chunk = candidates.slice(i, i + chunkSize);
 
-            // 메모리로 글을 가져오지 않고 DB 엔진에게 직접 검색을 지시합니다!
             await Promise.all(chunk.map(async (item) => {
               if (!item.Key) return;
               const fileUrl = `${process.env.NEXT_PUBLIC_R2_URL}/${item.Key}`;
               
-              // DB야, 이 주소 쓰는 글 있어? (LIMIT 1 로 찾으면 즉시 검색 종료 -> 속도 극대화)
               const { rows: postCheck } = await sql`SELECT id FROM posts WHERE content LIKE ${'%' + fileUrl + '%'} LIMIT 1`;
               const { rows: commentCheck } = await sql`SELECT id FROM comments WHERE content LIKE ${'%' + fileUrl + '%'} OR image_data LIKE ${'%' + fileUrl + '%'} LIMIT 1`;
 
               if (postCheck.length === 0 && commentCheck.length === 0) {
-                r2KeysToDelete.push({ Key: item.Key }); // 둘 다 없으면 사형 명단에 추가
+                r2KeysToDelete.push({ Key: item.Key }); 
               }
             }));
           }
 
-          // 1000개 단위로 안전하게 삭제 전송
           if (r2KeysToDelete.length > 0) {
             for (let i = 0; i < r2KeysToDelete.length; i += 1000) {
               const deleteChunk = r2KeysToDelete.slice(i, i + 1000);
@@ -162,30 +132,6 @@ export default async function MonitorControlCenter() {
               await s3.send(deleteCommand);
             }
           }
-        }
-      }
-
-      // [2] 보조 창고 (Vercel Blob) 완벽 청소
-      if (process.env.BLOB_READ_WRITE_TOKEN) {
-        const { blobs } = await list();
-        const blobCandidates = blobs.filter(b => new Date(b.uploadedAt) < oneHourAgo);
-        const blobUrlsToDelete = [];
-
-        const chunkSize = 50;
-        for (let i = 0; i < blobCandidates.length; i += chunkSize) {
-          const chunk = blobCandidates.slice(i, i + chunkSize);
-          await Promise.all(chunk.map(async (b) => {
-            const { rows: postCheck } = await sql`SELECT id FROM posts WHERE content LIKE ${'%' + b.url + '%'} LIMIT 1`;
-            const { rows: commentCheck } = await sql`SELECT id FROM comments WHERE content LIKE ${'%' + b.url + '%'} OR image_data LIKE ${'%' + b.url + '%'} LIMIT 1`;
-            
-            if (postCheck.length === 0 && commentCheck.length === 0) {
-              blobUrlsToDelete.push(b.url);
-            }
-          }));
-        }
-
-        if (blobUrlsToDelete.length > 0) {
-          await del(blobUrlsToDelete);
         }
       }
 
@@ -235,8 +181,8 @@ export default async function MonitorControlCenter() {
           </Link>
         </div>
 
-        {/* 1. 시스템 현황 패널 (트리플 모니터링) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* 1. 시스템 현황 패널 (DB & R2 듀얼 모니터링) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           
           {/* [1] 데이터베이스 */}
           <div className={`bg-slate-800 border ${dbError ? 'border-red-500 shadow-red-900/50' : 'border-slate-700'} p-6 rounded-md shadow-lg flex flex-col`}>
@@ -258,29 +204,9 @@ export default async function MonitorControlCenter() {
             <p className="text-[11px] text-slate-400 font-medium mt-auto pt-4">※ 텍스트만 저장되므로 천천히 증가합니다.</p>
           </div>
 
-          {/* [2] Vercel Blob */}
-          <div className={`bg-slate-800 border ${blobError ? 'border-orange-500 shadow-orange-900/50' : 'border-slate-700'} p-6 rounded-md shadow-lg flex flex-col`}>
-            <h2 className={`text-lg font-bold mb-6 flex items-center gap-2 ${blobError ? 'text-orange-400' : 'text-indigo-400'}`}>🧊 보조 미디어 (Vercel Blob)</h2>
-            {blobError ? (
-              <div className="bg-orange-900/20 border border-orange-500/30 text-orange-300 p-3 rounded-sm text-xs font-bold leading-relaxed whitespace-pre-wrap">{blobError}</div>
-            ) : (
-              <>
-                <div className="mb-2 flex justify-between text-sm font-bold">
-                  <span className="text-slate-300">사용량: <span className="text-white text-lg">{blobSizeMB} MB</span></span>
-                  <span className="text-slate-400">총 <span className="text-white">{blobCount}</span>개 파일</span>
-                </div>
-                <div className="w-full bg-slate-900 rounded-full h-6 mb-2 overflow-hidden border border-slate-700 relative">
-                  <div className="h-6 rounded-full bg-indigo-500 transition-all duration-1000" style={{ width: `${blobUsagePercent}%` }}></div>
-                  <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-white mix-blend-difference">{blobUsagePercent}% 사용 중</span>
-                </div>
-              </>
-            )}
-            <p className="text-[11px] text-slate-400 font-medium mt-auto pt-4">※ 만약의 경우를 대비한 보조 저장소입니다.</p>
-          </div>
-
-          {/* [3] Cloudflare R2 */}
+          {/* [2] Cloudflare R2 (유일한 미디어 창고) */}
           <div className={`bg-slate-800 border ${r2Error ? 'border-red-500 shadow-red-900/50' : 'border-sky-500/50'} p-6 rounded-md shadow-lg flex flex-col`}>
-            <h2 className={`text-lg font-bold mb-6 flex items-center gap-2 ${r2Error ? 'text-red-400' : 'text-sky-400'}`}>☁️ 메인 미디어 (Cloudflare R2)</h2>
+            <h2 className={`text-lg font-bold mb-6 flex items-center gap-2 ${r2Error ? 'text-red-400' : 'text-sky-400'}`}>☁️ 미디어 창고 (Cloudflare R2)</h2>
             {r2Error ? (
               <div className="bg-red-900/20 border border-red-500/30 text-red-300 p-3 rounded-sm text-xs font-bold leading-relaxed whitespace-pre-wrap">{r2Error}</div>
             ) : (
@@ -295,7 +221,7 @@ export default async function MonitorControlCenter() {
                 </div>
               </>
             )}
-            <p className="text-[11px] text-sky-200 font-medium mt-auto pt-4">※ (최대 10GB) 오재미의 초거대 메인 미디어 창고입니다.</p>
+            <p className="text-[11px] text-sky-200 font-medium mt-auto pt-4">※ (최대 10GB) 오재미의 유일하고 강력한 메인 미디어 창고입니다.</p>
           </div>
 
         </div>
