@@ -457,16 +457,9 @@ export default async function PostDetailPage(props: any) {
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
       <VideoVolumeFix />
-      {/* 💡 [핵심 수술 부위 2] 여기서도 유튜브와 일반 동영상(MP4)의 비율 규칙을 완벽하게 쪼갰습니다! */}
       <style>{`
         .ql-editor img { display: block; max-width: 100%; height: auto; border-radius: 8px; }
-        
-        /* 유튜브(iframe)는 16:9 고정! */
-        .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; border-radius: 8px; background-color: #000; }
-        
-        /* 일반 동영상(MP4)은 원본 비율 그대로(height: auto) 출력되며 찌그러지지 않습니다! */
-        .ql-editor video { display: block; width: 100%; height: auto; max-height: 80vh; border-radius: 8px; background-color: #000; margin: 10px auto; object-fit: contain; }
-        
+        .ql-editor iframe.ql-video, .ql-editor video { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; border-radius: 8px; background-color: #000; }
         .ql-editor p { min-height: 1.5em; }
         .ql-editor p br { display: block; }
       `}</style>

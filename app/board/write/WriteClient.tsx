@@ -53,53 +53,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         const Size = Quill.import('attributors/style/size');
         Size.whitelist = ['10px', '12px', '14px', '15px', '16px', '18px', '20px', '24px', '30px', '36px'];
         Quill.register(Size, true);
-
-        const BlockEmbed = Quill.import('blots/block/embed') as any;
         
-        class CustomVideo extends BlockEmbed {
-          static blotName = 'mp4Video';
-          static tagName = 'VIDEO';
-          static className = 'ojemi-mp4';
-          static create(value: any) {
-            let node = super.create();
-            node.setAttribute('controls', 'true');
-            node.setAttribute('src', value);
-            node.setAttribute('preload', 'metadata');
-            node.setAttribute('playsinline', 'true'); 
-            
-            node.style.display = 'block';
-            node.style.width = '100%';
-            node.style.maxWidth = '800px';
-            node.style.margin = '10px auto 30px auto'; 
-            node.style.borderRadius = '8px';
-            node.style.backgroundColor = '#000';
-            return node;
-          }
-          static value(node: any) { return node.getAttribute('src'); }
-        }
-        Quill.register(CustomVideo, true);
-
-        class YoutubeVideo extends BlockEmbed {
-          static blotName = 'youtubeVideo';
-          static tagName = 'IFRAME';
-          static className = 'ojemi-youtube';
-          static create(value: any) {
-            let node = super.create();
-            node.setAttribute('src', value);
-            node.setAttribute('frameborder', '0');
-            node.setAttribute('allowfullscreen', 'true');
-            node.style.display = 'block';
-            node.style.width = '100%';
-            node.style.maxWidth = '800px';
-            node.style.aspectRatio = '16/9';
-            node.style.margin = '10px auto 30px auto';
-            node.style.borderRadius = '8px';
-            return node;
-          }
-          static value(node: any) { return node.getAttribute('src'); }
-        }
-        Quill.register(YoutubeVideo, true);
-
         const icons = Quill.import('ui/icons') as any;
         icons['undo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="6 10 4 12 2 10 6 10"></polygon><path class="ql-stroke" d="M8.09,13.91A4.6,4.6,0,0,0,9,14,5,5,0,1,0,4,9"></path></svg>`;
         icons['redo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="12 10 14 12 16 10 12 10"></polygon><path class="ql-stroke" d="M9.91,13.91A4.6,4.6,0,0,1,9,14a5,5,0,1,1,5-5"></path></svg>`;
@@ -108,51 +62,15 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     });
   }, [isGlobalLocked, isAdmin, router]);
 
-  useEffect(() => {
-    if (!isEditorReady || !quillRef.current) return;
-    const editor = quillRef.current.getEditor();
-    
-    const handleTextChange = (delta: any, oldDelta: any, source: string) => {
-      if (source === 'user') {
-        setTimeout(() => {
-          const text = editor.getText();
-          const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:shorts\/|[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
-          const match = text.match(ytRegex);
-          
-          if (match && match.index !== undefined) {
-            const url = match[0];
-            const videoId = match[1];
-            const index = match.index;
-            const embedUrl = `https://www.youtube.com/embed/${videoId}`;
-            
-            editor.deleteText(index, url.length);
-            editor.insertEmbed(index, 'youtubeVideo', embedUrl);
-            editor.insertText(index + 1, '\n');
-            editor.setSelection(index + 2);
-          }
-        }, 100);
-      }
-    };
-    
-    editor.on('text-change', handleTextChange);
-    return () => editor.off('text-change', handleTextChange);
-  }, [isEditorReady]);
-
   const processAndUploadImages = async (fileArray: File[]) => {
     if (!quillRef.current) return;
-    
-    const editor = quillRef.current.getEditor();
-    const currentImageCount = editor.root.querySelectorAll('img').length;
-    if (currentImageCount + fileArray.length > 10) {
-      alert(`🚨 사진은 게시글당 최대 10장까지만 첨부할 수 있습니다.\n(현재 ${currentImageCount}장 포함됨)`);
-      return;
-    }
-
     setIsUploading(true);
+    const editor = quillRef.current.getEditor();
     
     for (let i = 0; i < fileArray.length; i++) {
       const file = fileArray[i];
       if (!file.type.startsWith('image/')) continue;
+      
       if (file.size > 10 * 1024 * 1024) {
         alert(`[${file.name}] 사진 용량이 너무 큽니다 (최대 10MB).`);
         continue; 
@@ -244,16 +162,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const file = input.files ? input.files[0] : null;
       if (!file) return;
 
-      const editor = quillRef.current.getEditor();
-      
-      const currentVideoCount = editor.root.querySelectorAll('video').length;
-      if (currentVideoCount >= 3) {
-        alert(`🚨 동영상은 게시글당 최대 3개까지만 첨부할 수 있습니다.`);
-        return;
-      }
-
       if (file.size > 10 * 1024 * 1024) {
-        alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).`);
+        alert(`[${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).`);
         return; 
       }
 
@@ -267,8 +177,9 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         const { uploadUrl, publicUrl } = await ticketRes.json();
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+          const editor = quillRef.current.getEditor();
           const range = editor.getSelection(true) || { index: editor.getLength() };
-          editor.insertEmbed(range.index, 'mp4Video', publicUrl);
+          editor.insertEmbed(range.index, 'video', publicUrl);
           editor.insertText(range.index + 1, '\n');
           editor.setSelection(range.index + 2);
         }
@@ -351,7 +262,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
-      {/* 💡 [핵심 수술 부위 1] 유튜브와 MP4 동영상의 CSS를 분리했습니다! */}
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Hahmlet:wght@400;700&family=Nanum+Gothic:wght@400;700&display=swap');
@@ -367,25 +277,28 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         .ql-snow .ql-picker.ql-font { width: 130px; }
         .ql-snow .ql-picker.ql-font .ql-picker-label::before, .ql-snow .ql-picker.ql-font .ql-picker-item::before { content: '나눔고딕'; font-family: 'Nanum Gothic'; }
         
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="pretendard"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="pretendard"]::before { content: '프리텐다드'; font-family: 'Pretendard'; }
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="notosanskr"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="notosanskr"]::before { content: '본고딕'; font-family: 'Noto Sans KR'; }
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="gowundodum"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="gowundodum"]::before { content: '고운돋움'; font-family: 'Gowun Dodum'; }
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="hahmlet"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="hahmlet"]::before { content: '함초롬체'; font-family: 'Hahmlet'; }
+
         .ql-snow .ql-picker.ql-size { width: 70px; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="10px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="10px"]::before { content: '10'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before { content: '12'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before { content: '14'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="15px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="15px"]::before { content: '15'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: '18'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before { content: '20'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: '24'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="30px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="30px"]::before { content: '30'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before { content: '36'; }
         .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16'; } 
 
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
+        .ql-editor iframe.ql-video { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; border-radius: 8px; background-color: #000; }
+        .ql-editor video { display: block; width: 100%; height: auto; max-height: 80vh; border-radius: 8px; background-color: #000; margin: 10px auto; }
         
-        /* 👇 유튜브는 16:9 고정! */
-        .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
-        
-        /* 👇 일반 동영상(MP4)은 원본 비율 유지 (세로 영상 찌그러짐 방지!) */
-        .ql-editor video.ojemi-mp4 { width: 100%; max-width: 800px; height: auto; max-height: 80vh; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
-        
-        @media (max-width: 768px) { 
-          .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; } 
-          .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; }
-        }
-        
-        .ql-toolbar.ql-snow { 
-          position: sticky; top: 0; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
-        }
+        .ql-toolbar.ql-snow { background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; }
       `}} />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
@@ -416,7 +329,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             </div>
           </div>
 
-          <div className="bg-white rounded-sm mt-4 border border-gray-300" ref={editorContainerRef}>
+          <div className="bg-white rounded-sm mt-4 border border-gray-300 overflow-hidden" ref={editorContainerRef}>
             {isEditorReady ? (
               <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={setContent} placeholder="내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다." />
             ) : (
