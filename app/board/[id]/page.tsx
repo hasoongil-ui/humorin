@@ -411,6 +411,7 @@ export default async function PostDetailPage(props: any) {
           )}
 
           <div className="peer-checked/edit:hidden">
+            {/* 💡 [수술] 에러가 났던 주석 위치를 안전한 밖으로 뺐습니다! (버튼 글씨 찌그러짐 원천 차단 마법) */}
             {!isDeleted && (
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-3 [&_button]:whitespace-nowrap [&_button]:shrink-0 [&_span]:whitespace-nowrap">
                 {!isCommentLocked && (
@@ -436,15 +437,13 @@ export default async function PostDetailPage(props: any) {
     );
   };
 
-  // 💡 [핵심 수술 2] 스마트폰 강제 잠금을 뚫어버리는 무적의 뱃지 세트 장착 완료!
   let finalContent = post.content || '';
   if (finalContent) {
     finalContent = finalContent.replace(
       /<video([^>]*)src="([^"]+)"([^>]*)>/gi,
       (match, beforeSrc, srcUrl, afterSrc) => {
         const newSrc = srcUrl.includes('#t=') ? srcUrl : `${srcUrl}#t=0.001`;
-        // 🔥 애플/구글도 어쩔 수 없는 정석 태그 (playsinline autoplay muted loop) 로 강제 덮어씌웁니다!
-        return `<video src="${newSrc}" controls playsinline autoplay muted loop preload="metadata" style="width:100%; max-width:800px; height:auto; aspect-ratio:16/9; border-radius:8px; background:#000; display:block; margin:10px auto;">`;
+        return `<video controls="true" preload="metadata" playsinline="true" muted="true" src="${newSrc}">`;
       }
     );
   }
@@ -473,6 +472,7 @@ export default async function PostDetailPage(props: any) {
           <div className="flex justify-between items-center text-gray-500 text-sm font-bold flex-wrap gap-y-2">
             
             <div className="flex items-center gap-2">
+              {/* 💡 [수술] 상세 화면 맨 위 작성자 링크도 모바일에서 정상 동작하도록 복구 완료! */}
               {post.author_id ? (
                 <Link href={`/user/${post.author_id}`} className="text-[14px] hover:text-[#3b4890] hover:underline cursor-pointer transition-colors">
                   {post.author}
