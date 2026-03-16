@@ -50,12 +50,10 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     import('react-quill-new').then((RQ) => {
       const Quill = RQ.Quill;
       if (Quill) {
-        // 💡 폰트 등록 (나눔고딕을 화이트리스트에서 빼고 기본으로 처리)
         const Font = Quill.import('formats/font');
         Font.whitelist = ['pretendard', 'notosanskr', 'gowundodum', 'hahmlet'];
         Quill.register(Font, true);
 
-        // 💡 숫자 사이즈 등록
         const Size = Quill.import('attributors/style/size');
         Size.whitelist = ['10px', '12px', '14px', '15px', '16px', '18px', '20px', '24px', '30px', '36px'];
         Quill.register(Size, true);
@@ -71,6 +69,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
             node.setAttribute('controls', 'true');
             node.setAttribute('src', value);
             node.setAttribute('preload', 'metadata');
+            node.setAttribute('playsinline', 'true'); 
             node.style.display = 'block';
             node.style.width = '100%';
             node.style.maxWidth = '800px';
@@ -112,15 +111,57 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     });
   }, [post, isGlobalLocked, isAdmin, router]);
 
+  // 💡 [이식 완료] 수정할 때도 유튜브 스마트폰 전천후 스캐너 작동!
+  useEffect(() => {
+    if (!isEditorReady || !quillRef.current) return;
+    const editor = quillRef.current.getEditor();
+    
+    const handleTextChange = (delta: any, oldDelta: any, source: string) => {
+      if (source === 'user') {
+        setTimeout(() => {
+          const text = editor.getText();
+          const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:shorts\/|[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+          const match = text.match(ytRegex);
+          
+          if (match && match.index !== undefined) {
+            const url = match[0];
+            const videoId = match[1];
+            const index = match.index;
+            const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+            
+            editor.deleteText(index, url.length);
+            editor.insertEmbed(index, 'youtubeVideo', embedUrl);
+            editor.insertText(index + 1, '\n');
+            editor.setSelection(index + 2);
+          }
+        }, 100);
+      }
+    };
+    
+    editor.on('text-change', handleTextChange);
+    return () => editor.off('text-change', handleTextChange);
+  }, [isEditorReady]);
+
   const processAndUploadImages = async (fileArray: File[]) => {
     if (!quillRef.current) return;
-    setIsUploading(true);
+    
     const editor = quillRef.current.getEditor();
+    const currentImageCount = editor.root.querySelectorAll('img').length;
+    // 💡 [이식 완료] 사진 최대 20장 제한!
+    if (currentImageCount + fileArray.length > 20) {
+      alert(`🚨 사진은 게시글당 최대 20장까지만 첨부할 수 있습니다.\n(현재 ${currentImageCount}장 포함됨)`);
+      return;
+    }
+
+    setIsUploading(true);
     
     for (let i = 0; i < fileArray.length; i++) {
       const file = fileArray[i];
       if (!file.type.startsWith('image/')) continue;
-      if (file.size > 10 * 1024 * 1024) continue; 
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`[${file.name}] 사진 용량이 너무 큽니다 (최대 10MB).`);
+        continue; 
+      }
       try {
         let fileToUpload = file;
         if (file.type !== 'image/gif' && file.type !== 'image/webp') {
@@ -130,7 +171,8 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
           const isLongImage = img.height > img.width * 2; 
           URL.revokeObjectURL(img.src);
           if (!isLongImage) {
-            const options = { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true };
+            // 💡 [이식 완료] 0.5MB(500KB) 극한 다이어트 마법 적용!
+            const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1280, useWebWorker: true };
             fileToUpload = await imageCompression(file, options);
           }
         }
@@ -225,6 +267,20 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     input.onchange = async () => {
       const file = input.files ? input.files[0] : null;
       if (!file) return;
+
+      const editor = quillRef.current.getEditor();
+      // 💡 [이식 완료] 동영상 최대 4개 제한!
+      const currentVideoCount = editor.root.querySelectorAll('video').length;
+      if (currentVideoCount >= 4) {
+        alert(`🚨 동영상은 게시글당 최대 4개까지만 첨부할 수 있습니다.`);
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`[${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).`);
+        return;
+      }
+
       setIsUploading(true);
       try {
         const ticketRes = await fetch('/api/upload', {
@@ -235,13 +291,13 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
         const { uploadUrl, publicUrl } = await ticketRes.json();
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-          const editor = quillRef.current.getEditor();
           const range = editor.getSelection(true) || { index: editor.getLength() };
           editor.insertEmbed(range.index, 'mp4Video', publicUrl);
           editor.insertText(range.index + 1, '\n');
           editor.setSelection(range.index + 2);
         }
       } catch (error) {
+        alert('동영상 업로드 중 오류가 발생했습니다.');
       } finally {
         setIsUploading(false);
       }
@@ -253,7 +309,6 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     toolbar: {
       container: [
         ['image', 'video', 'link'], 
-        // 💡 [나눔고딕 기본화] false 자리가 디폴트 폰트(나눔고딕)를 의미합니다!
         [{ 'font': [false, 'pretendard', 'notosanskr', 'gowundodum', 'hahmlet'] }],
         [{ 'size': ['10px', '12px', '14px', '15px', false, '18px', '20px', '24px', '30px', '36px'] }], 
         [{ 'header': [1, 2, 3, 4, false] }], 
@@ -322,20 +377,18 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-        @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Hahmlet:wght@400;700&family=Nanum+Gothic:wght@400;700&family=Noto+Sans+KR:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Hahmlet:wght@400;700&family=Nanum+Gothic:wght@400;700&display=swap');
 
         .ql-font-pretendard { font-family: 'Pretendard', sans-serif; }
         .ql-font-notosanskr { font-family: 'Noto Sans KR', sans-serif; }
         .ql-font-gowundodum { font-family: 'Gowun Dodum', sans-serif; }
         .ql-font-hahmlet { font-family: 'Hahmlet', serif; }
 
-        /* 💡 에디터 전체에 나눔고딕을 촥! 깔아줍니다 */
         .ql-container { font-family: 'Nanum Gothic', sans-serif; font-size: 16px; }
         .ql-editor { line-height: 1.8; min-height: 500px; }
         
         .ql-snow .ql-picker.ql-font { width: 130px; }
         
-        /* 💡 아무것도 안 골랐을 때(기본값) 툴바에 '나눔고딕' 표시 */
         .ql-snow .ql-picker.ql-font .ql-picker-label::before, .ql-snow .ql-picker.ql-font .ql-picker-item::before { content: '나눔고딕'; font-family: 'Nanum Gothic'; }
         
         .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="pretendard"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="pretendard"]::before { content: '프리텐다드'; font-family: 'Pretendard'; }
@@ -356,10 +409,18 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
         .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16'; } 
 
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
-        .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
-        @media (max-width: 768px) { .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; } }
         
-        .ql-toolbar.ql-snow { background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; }
+        /* 💡 [이식 완료] 수정 화면에서도 유튜브와 동영상 사이즈 완벽 분리! */
+        .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
+        .ql-editor video.ojemi-mp4 { width: 100%; max-width: 800px; height: auto; max-height: 70vh; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
+        
+        @media (max-width: 768px) { 
+          .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; } 
+          .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; }
+        }
+        
+        /* 💡 [이식 완료] 수정 화면에서도 메뉴판이 천장에 딱 붙어 유저를 따라다닙니다! */
+        .ql-toolbar.ql-snow { position: sticky; top: 0; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
       `}} />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
@@ -390,7 +451,8 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
             </div>
           </div>
 
-          <div className="bg-white rounded-sm mt-4 border border-gray-300 overflow-hidden" ref={editorContainerRef}>
+          {/* 💡 [이식 완료] Sticky 방해꾼인 overflow-hidden 속성을 제거했습니다! */}
+          <div className="bg-white rounded-sm mt-4 border border-gray-300" ref={editorContainerRef}>
             {isEditorReady ? (
               <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={setContent} placeholder="내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다." />
             ) : (

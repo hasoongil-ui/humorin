@@ -108,12 +108,21 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
   const processAndUploadImages = async (fileArray: File[]) => {
     if (!quillRef.current) return;
-    setIsUploading(true);
+    
     const editor = quillRef.current.getEditor();
+    const currentImageCount = editor.root.querySelectorAll('img').length;
+    // 💡 [제한 상향] 대표님 지시대로 사진 최대 20장으로 넉넉하게 상향!
+    if (currentImageCount + fileArray.length > 20) {
+      alert(`🚨 사진은 게시글당 최대 20장까지만 첨부할 수 있습니다.\n(현재 ${currentImageCount}장 포함됨)`);
+      return;
+    }
+
+    setIsUploading(true);
     
     for (let i = 0; i < fileArray.length; i++) {
       const file = fileArray[i];
       if (!file.type.startsWith('image/')) continue;
+      
       if (file.size > 10 * 1024 * 1024) {
         alert(`[${file.name}] 사진 용량이 너무 큽니다 (최대 10MB).`);
         continue; 
@@ -127,7 +136,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const isLongImage = img.height > img.width * 2; 
           URL.revokeObjectURL(img.src);
           if (!isLongImage) {
-            const options = { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true };
+            // 💡 [다이어트 유지] 20장 올라가도 거뜬하도록 0.5MB(500KB) 압축 유지!
+            const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1280, useWebWorker: true };
             fileToUpload = await imageCompression(file, options);
           }
         }
@@ -224,10 +234,20 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     input.onchange = async () => {
       const file = input.files ? input.files[0] : null;
       if (!file) return;
+      
+      const editor = quillRef.current.getEditor();
+      // 💡 [제한 상향] 대표님 지시대로 동영상 최대 4개로 넉넉하게 상향!
+      const currentVideoCount = editor.root.querySelectorAll('video').length;
+      if (currentVideoCount >= 4) {
+        alert(`🚨 동영상은 게시글당 최대 4개까지만 첨부할 수 있습니다.`);
+        return;
+      }
+
       if (file.size > 10 * 1024 * 1024) {
         alert(`[${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).`);
         return; 
       }
+
       setIsUploading(true);
       try {
         const ticketRes = await fetch('/api/upload', {
@@ -238,7 +258,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         const { uploadUrl, publicUrl } = await ticketRes.json();
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-          const editor = quillRef.current.getEditor();
           const range = editor.getSelection(true) || { index: editor.getLength() };
           editor.insertEmbed(range.index, 'mp4Video', publicUrl);
           editor.insertText(range.index + 1, '\n');
@@ -357,7 +376,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
         
-        /* 💡 [에디터 화면 분리 수정] 유튜브는 16:9 고정, 일반 비디오는 원본 비율! */
         .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
         .ql-editor video.ojemi-mp4 { width: 100%; max-width: 800px; height: auto; max-height: 70vh; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
         
