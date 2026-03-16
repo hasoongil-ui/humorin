@@ -410,7 +410,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
         @media (max-width: 768px) { .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; max-height: 70vh; } }
         
-        .ql-toolbar.ql-snow { background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; }
+        /* 💡 수정하기(EditClient)와 동일한 완벽한 스티키 코드로 교체! */
+        .ql-toolbar.ql-snow { position: sticky; top: 0; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
       `}} />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
@@ -441,7 +442,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             </div>
           </div>
 
-          <div className="bg-white rounded-sm mt-4 border border-gray-300 overflow-hidden" ref={editorContainerRef}>
+          {/* 💡 에디터를 가두고 있던 암세포(overflow-hidden)를 삭제한 깨끗한 껍데기! */}
+          <div className="bg-white rounded-sm mt-4 border border-gray-300" ref={editorContainerRef}>
             {isEditorReady ? (
               <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={setContent} placeholder="내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다." />
             ) : (
