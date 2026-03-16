@@ -130,12 +130,21 @@ export default async function PostDetailPage(props: any) {
     redirect('/board');
   };
 
+  // 💡 [핵심 수술 부위] 공감(좋아요) 버튼을 누를 때, 10개/100개/1000개를 돌파하면 그 즉시 현재 시간을 도장 찍습니다!
   const toggleLike = async () => {
     'use server';
     if (!currentUserId) redirect('/login');
     
     if (isAdmin) {
-      await sql`UPDATE posts SET likes = COALESCE(likes, 0) + 10 WHERE id = ${postId}`;
+      // 관리자 +10개 증가 시, 베스트 등극 시간 도장 쾅!
+      await sql`
+        UPDATE posts 
+        SET likes = COALESCE(likes, 0) + 10,
+            best_at = CASE WHEN COALESCE(likes, 0) + 10 >= 10 AND best_at IS NULL THEN NOW() ELSE best_at END,
+            best100_at = CASE WHEN COALESCE(likes, 0) + 10 >= 100 AND best100_at IS NULL THEN NOW() ELSE best100_at END,
+            best1000_at = CASE WHEN COALESCE(likes, 0) + 10 >= 1000 AND best1000_at IS NULL THEN NOW() ELSE best1000_at END
+        WHERE id = ${postId}
+      `;
       revalidatePath(`/board/${postId}`);
       return;
     }
@@ -146,7 +155,15 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE posts SET likes = GREATEST(COALESCE(likes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO likes (post_id, author, author_id) VALUES (${postId}, ${currentUser}, ${currentUserId})`;
-      await sql`UPDATE posts SET likes = COALESCE(likes, 0) + 1 WHERE id = ${postId}`;
+      // 일반 유저 +1개 증가 시, 베스트 등극 시간 도장 쾅!
+      await sql`
+        UPDATE posts 
+        SET likes = COALESCE(likes, 0) + 1,
+            best_at = CASE WHEN COALESCE(likes, 0) + 1 >= 10 AND best_at IS NULL THEN NOW() ELSE best_at END,
+            best100_at = CASE WHEN COALESCE(likes, 0) + 1 >= 100 AND best100_at IS NULL THEN NOW() ELSE best100_at END,
+            best1000_at = CASE WHEN COALESCE(likes, 0) + 1 >= 1000 AND best1000_at IS NULL THEN NOW() ELSE best1000_at END
+        WHERE id = ${postId}
+      `;
     }
     revalidatePath(`/board/${postId}`);
   };
@@ -457,16 +474,9 @@ export default async function PostDetailPage(props: any) {
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
       <VideoVolumeFix />
-      {/* 💡 [읽기 화면 분리 수정] 유튜브는 16:9 유지! 일반 동영상은 원본 비율 유지 (max-height 적용)! */}
       <style>{`
         .ql-editor img { display: block; max-width: 100%; height: auto; border-radius: 8px; }
-        
-        /* 유튜브(iframe)는 16:9 비율 유지 */
-        .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; border-radius: 8px; background-color: #000; }
-        
-        /* 일반 동영상(video)은 원본 비율로 나오되, 세로로 너무 길어지지 않게 max-height 제한 */
-        .ql-editor video { display: block; width: 100%; height: auto; max-height: 70vh; border-radius: 8px; background-color: #000; margin: 10px 0; object-fit: contain; }
-        
+        .ql-editor iframe.ql-video, .ql-editor video { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; border-radius: 8px; background-color: #000; }
         .ql-editor p { min-height: 1.5em; }
         .ql-editor p br { display: block; }
       `}</style>
