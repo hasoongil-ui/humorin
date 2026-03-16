@@ -46,7 +46,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     import('react-quill-new').then((RQ) => {
       const Quill = RQ.Quill;
       if (Quill) {
-        // 💡 [나눔고딕 기본화] 나눔고딕은 디폴트(false)로 빠지므로 화이트리스트에서 제외합니다!
         const Font = Quill.import('formats/font');
         Font.whitelist = ['pretendard', 'notosanskr', 'gowundodum', 'hahmlet'];
         Quill.register(Font, true);
@@ -258,7 +257,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     toolbar: {
       container: [
         ['image', 'video', 'link'], 
-        // 💡 [나눔고딕 기본화] false가 나눔고딕 역할을 합니다!
         [{ 'font': [false, 'pretendard', 'notosanskr', 'gowundodum', 'hahmlet'] }],
         [{ 'size': ['10px', '12px', '14px', '15px', false, '18px', '20px', '24px', '30px', '36px'] }], 
         [{ 'header': [1, 2, 3, 4, false] }], 
@@ -327,19 +325,17 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-        @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Hahmlet:wght@400;700&family=Nanum+Gothic:wght@400;700&family=Noto+Sans+KR:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Hahmlet:wght@400;700&family=Nanum+Gothic:wght@400;700&display=swap');
 
         .ql-font-pretendard { font-family: 'Pretendard', sans-serif; }
         .ql-font-notosanskr { font-family: 'Noto Sans KR', sans-serif; }
         .ql-font-gowundodum { font-family: 'Gowun Dodum', sans-serif; }
         .ql-font-hahmlet { font-family: 'Hahmlet', serif; }
 
-        /* 💡 [나눔고딕 기본화] 에디터 전체 뼈대를 나눔고딕으로 세팅! */
         .ql-container { font-family: 'Nanum Gothic', sans-serif; font-size: 16px; }
         .ql-editor { line-height: 1.8; min-height: 500px; }
         
         .ql-snow .ql-picker.ql-font { width: 130px; }
-        /* 💡 아무것도 안 골랐을 때(기본값) '나눔고딕'이라는 글씨가 뜨게 합니다! */
         .ql-snow .ql-picker.ql-font .ql-picker-label::before, .ql-snow .ql-picker.ql-font .ql-picker-item::before { content: '나눔고딕'; font-family: 'Nanum Gothic'; }
         
         .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="pretendard"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="pretendard"]::before { content: '프리텐다드'; font-family: 'Pretendard'; }
@@ -360,8 +356,15 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16'; } 
 
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
-        .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
-        @media (max-width: 768px) { .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; } }
+        
+        /* 💡 [에디터 화면 분리 수정] 유튜브는 16:9 고정, 일반 비디오는 원본 비율! */
+        .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
+        .ql-editor video.ojemi-mp4 { width: 100%; max-width: 800px; height: auto; max-height: 70vh; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
+        
+        @media (max-width: 768px) { 
+          .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; } 
+          .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; }
+        }
         
         .ql-toolbar.ql-snow { background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; }
       `}} />

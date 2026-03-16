@@ -411,7 +411,6 @@ export default async function PostDetailPage(props: any) {
           )}
 
           <div className="peer-checked/edit:hidden">
-            {/* 💡 [수술] 에러가 났던 주석 위치를 안전한 밖으로 뺐습니다! (버튼 글씨 찌그러짐 원천 차단 마법) */}
             {!isDeleted && (
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-3 [&_button]:whitespace-nowrap [&_button]:shrink-0 [&_span]:whitespace-nowrap">
                 {!isCommentLocked && (
@@ -458,9 +457,16 @@ export default async function PostDetailPage(props: any) {
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
       <VideoVolumeFix />
+      {/* 💡 [읽기 화면 분리 수정] 유튜브는 16:9 유지! 일반 동영상은 원본 비율 유지 (max-height 적용)! */}
       <style>{`
         .ql-editor img { display: block; max-width: 100%; height: auto; border-radius: 8px; }
-        .ql-editor iframe.ql-video, .ql-editor video { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; border-radius: 8px; background-color: #000; }
+        
+        /* 유튜브(iframe)는 16:9 비율 유지 */
+        .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; border-radius: 8px; background-color: #000; }
+        
+        /* 일반 동영상(video)은 원본 비율로 나오되, 세로로 너무 길어지지 않게 max-height 제한 */
+        .ql-editor video { display: block; width: 100%; height: auto; max-height: 70vh; border-radius: 8px; background-color: #000; margin: 10px 0; object-fit: contain; }
+        
         .ql-editor p { min-height: 1.5em; }
         .ql-editor p br { display: block; }
       `}</style>
@@ -472,7 +478,6 @@ export default async function PostDetailPage(props: any) {
           <div className="flex justify-between items-center text-gray-500 text-sm font-bold flex-wrap gap-y-2">
             
             <div className="flex items-center gap-2">
-              {/* 💡 [수술] 상세 화면 맨 위 작성자 링크도 모바일에서 정상 동작하도록 복구 완료! */}
               {post.author_id ? (
                 <Link href={`/user/${post.author_id}`} className="text-[14px] hover:text-[#3b4890] hover:underline cursor-pointer transition-colors">
                   {post.author}
