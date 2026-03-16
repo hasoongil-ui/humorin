@@ -46,7 +46,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     import('react-quill-new').then((RQ) => {
       const Quill = RQ.Quill;
       if (Quill) {
-        // 💡 [나눔고딕 기본화] 나눔고딕은 디폴트(false)로 빠지므로 화이트리스트에서 제외합니다!
         const Font = Quill.import('formats/font');
         Font.whitelist = ['pretendard', 'notosanskr', 'gowundodum', 'hahmlet'];
         Quill.register(Font, true);
@@ -63,9 +62,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           static className = 'ojemi-mp4';
           static create(value: any) {
             let node = super.create();
-            node.setAttribute('controls', 'true');
+            node.setAttribute('controls', '');
             node.setAttribute('src', value);
             node.setAttribute('preload', 'metadata');
+            node.setAttribute('playsinline', ''); 
+            node.muted = true; 
+            
             node.style.display = 'block';
             node.style.width = '100%';
             node.style.maxWidth = '800px';
@@ -106,6 +108,39 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       setIsEditorReady(true);
     });
   }, [isGlobalLocked, isAdmin, router]);
+
+  // 💡 [핵심 수술 1] 스마트폰에서 유튜브 주소를 타자 치거나 붙여넣으면 즉시 낚아채는 전천후 스캐너!
+  useEffect(() => {
+    if (!isEditorReady || !quillRef.current) return;
+    const editor = quillRef.current.getEditor();
+    
+    const handleTextChange = (delta: any, oldDelta: any, source: string) => {
+      if (source === 'user') {
+        setTimeout(() => {
+          const text = editor.getText();
+          // 유튜브 주소 패턴을 귀신같이 찾아냅니다.
+          const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:shorts\/|[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+          const match = text.match(ytRegex);
+          
+          if (match && match.index !== undefined) {
+            const url = match[0];
+            const videoId = match[1];
+            const index = match.index;
+            const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+            
+            // 텍스트를 지우고 영상으로 펑! 터뜨립니다.
+            editor.deleteText(index, url.length);
+            editor.insertEmbed(index, 'youtubeVideo', embedUrl);
+            editor.insertText(index + 1, '\n');
+            editor.setSelection(index + 2);
+          }
+        }, 100);
+      }
+    };
+    
+    editor.on('text-change', handleTextChange);
+    return () => editor.off('text-change', handleTextChange);
+  }, [isEditorReady]);
 
   const processAndUploadImages = async (fileArray: File[]) => {
     if (!quillRef.current) return;
@@ -163,26 +198,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const clipboardData = e.clipboardData;
       if (!clipboardData) return;
 
-      const text = clipboardData.getData('text/plain');
-      if (text) {
-        const ytRegex = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
-        const match = text.trim().match(ytRegex);
-        
-        if (match) {
-          e.preventDefault();
-          e.stopPropagation();
-          
-          const embedUrl = `https://www.youtube.com/embed/${match[1]}`;
-          const editor = quillRef.current.getEditor();
-          const range = editor.getSelection(true) || { index: editor.getLength() };
-          
-          editor.insertEmbed(range.index, 'youtubeVideo', embedUrl);
-          editor.insertText(range.index + 1, '\n');
-          editor.setSelection(range.index + 2);
-          return;
-        }
-      }
-
       const items = clipboardData.items;
       let hasImage = false;
       const imageFiles: File[] = [];
@@ -225,8 +240,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     input.onchange = async () => {
       const file = input.files ? input.files[0] : null;
       if (!file) return;
-      if (file.size > 10 * 1024 * 1024) {
-        alert(`[${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).`);
+      if (file.size > 20 * 1024 * 1024) {
+        alert(`[${file.name}] 동영상 용량이 초과되었습니다 (최대 20MB).`);
         return; 
       }
       setIsUploading(true);
@@ -258,7 +273,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     toolbar: {
       container: [
         ['image', 'video', 'link'], 
-        // 💡 [나눔고딕 기본화] false가 나눔고딕 역할을 합니다!
         [{ 'font': [false, 'pretendard', 'notosanskr', 'gowundodum', 'hahmlet'] }],
         [{ 'size': ['10px', '12px', '14px', '15px', false, '18px', '20px', '24px', '30px', '36px'] }], 
         [{ 'header': [1, 2, 3, 4, false] }], 
@@ -327,19 +341,17 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-        @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Hahmlet:wght@400;700&family=Nanum+Gothic:wght@400;700&family=Noto+Sans+KR:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Hahmlet:wght@400;700&family=Nanum+Gothic:wght@400;700&display=swap');
 
         .ql-font-pretendard { font-family: 'Pretendard', sans-serif; }
         .ql-font-notosanskr { font-family: 'Noto Sans KR', sans-serif; }
         .ql-font-gowundodum { font-family: 'Gowun Dodum', sans-serif; }
         .ql-font-hahmlet { font-family: 'Hahmlet', serif; }
 
-        /* 💡 [나눔고딕 기본화] 에디터 전체 뼈대를 나눔고딕으로 세팅! */
         .ql-container { font-family: 'Nanum Gothic', sans-serif; font-size: 16px; }
         .ql-editor { line-height: 1.8; min-height: 500px; }
         
         .ql-snow .ql-picker.ql-font { width: 130px; }
-        /* 💡 아무것도 안 골랐을 때(기본값) '나눔고딕'이라는 글씨가 뜨게 합니다! */
         .ql-snow .ql-picker.ql-font .ql-picker-label::before, .ql-snow .ql-picker.ql-font .ql-picker-item::before { content: '나눔고딕'; font-family: 'Nanum Gothic'; }
         
         .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="pretendard"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="pretendard"]::before { content: '프리텐다드'; font-family: 'Pretendard'; }
