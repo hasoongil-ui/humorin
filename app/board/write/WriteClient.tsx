@@ -62,11 +62,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           static className = 'ojemi-mp4';
           static create(value: any) {
             let node = super.create();
-            node.setAttribute('controls', '');
+            node.setAttribute('controls', 'true');
             node.setAttribute('src', value);
             node.setAttribute('preload', 'metadata');
-            node.setAttribute('playsinline', ''); 
-            node.muted = true; 
+            node.setAttribute('playsinline', 'true'); 
             
             node.style.display = 'block';
             node.style.width = '100%';
@@ -109,7 +108,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     });
   }, [isGlobalLocked, isAdmin, router]);
 
-  // 💡 [핵심 수술 1] 스마트폰에서 유튜브 주소를 타자 치거나 붙여넣으면 즉시 낚아채는 전천후 스캐너!
   useEffect(() => {
     if (!isEditorReady || !quillRef.current) return;
     const editor = quillRef.current.getEditor();
@@ -118,7 +116,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       if (source === 'user') {
         setTimeout(() => {
           const text = editor.getText();
-          // 유튜브 주소 패턴을 귀신같이 찾아냅니다.
           const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:shorts\/|[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
           const match = text.match(ytRegex);
           
@@ -128,7 +125,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             const index = match.index;
             const embedUrl = `https://www.youtube.com/embed/${videoId}`;
             
-            // 텍스트를 지우고 영상으로 펑! 터뜨립니다.
             editor.deleteText(index, url.length);
             editor.insertEmbed(index, 'youtubeVideo', embedUrl);
             editor.insertText(index + 1, '\n');
@@ -144,8 +140,15 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
   const processAndUploadImages = async (fileArray: File[]) => {
     if (!quillRef.current) return;
-    setIsUploading(true);
+    
     const editor = quillRef.current.getEditor();
+    const currentImageCount = editor.root.querySelectorAll('img').length;
+    if (currentImageCount + fileArray.length > 10) {
+      alert(`🚨 사진은 게시글당 최대 10장까지만 첨부할 수 있습니다.\n(현재 ${currentImageCount}장 포함됨)`);
+      return;
+    }
+
+    setIsUploading(true);
     
     for (let i = 0; i < fileArray.length; i++) {
       const file = fileArray[i];
@@ -240,10 +243,20 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     input.onchange = async () => {
       const file = input.files ? input.files[0] : null;
       if (!file) return;
-      if (file.size > 20 * 1024 * 1024) {
-        alert(`[${file.name}] 동영상 용량이 초과되었습니다 (최대 20MB).`);
+
+      const editor = quillRef.current.getEditor();
+      
+      const currentVideoCount = editor.root.querySelectorAll('video').length;
+      if (currentVideoCount >= 3) {
+        alert(`🚨 동영상은 게시글당 최대 3개까지만 첨부할 수 있습니다.`);
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).`);
         return; 
       }
+
       setIsUploading(true);
       try {
         const ticketRes = await fetch('/api/upload', {
@@ -254,7 +267,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         const { uploadUrl, publicUrl } = await ticketRes.json();
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-          const editor = quillRef.current.getEditor();
           const range = editor.getSelection(true) || { index: editor.getLength() };
           editor.insertEmbed(range.index, 'mp4Video', publicUrl);
           editor.insertText(range.index + 1, '\n');
@@ -375,7 +387,18 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
         @media (max-width: 768px) { .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; } }
         
-        .ql-toolbar.ql-snow { background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; }
+        /* 💡 [핵심 수술] 스마트폰에서 천장에 찰거머리처럼 딱 붙는 마법 (Sticky CSS) 적용! */
+        .ql-toolbar.ql-snow { 
+          position: sticky; 
+          top: 0; 
+          z-index: 50; 
+          background-color: #fdfdfd; 
+          padding: 12px 15px; 
+          border-radius: 6px 6px 0 0; 
+          border: 1px solid #d1d5db; 
+          border-bottom: 2px solid #414a66; 
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); /* 스크롤 될 때 약간 떠보이게 그림자 효과 추가 */
+        }
       `}} />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
@@ -406,7 +429,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             </div>
           </div>
 
-          <div className="bg-white rounded-sm mt-4 border border-gray-300 overflow-hidden" ref={editorContainerRef}>
+          {/* 💡 Sticky를 완벽하게 작동시키기 위해 부모 div의 overflow-hidden 속성을 제거했습니다! */}
+          <div className="bg-white rounded-sm mt-4 border border-gray-300" ref={editorContainerRef}>
             {isEditorReady ? (
               <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={setContent} placeholder="내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다." />
             ) : (
