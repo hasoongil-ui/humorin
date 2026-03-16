@@ -351,6 +351,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
+      {/* 💡 [핵심 수술 부위 1] 유튜브와 MP4 동영상의 CSS를 분리했습니다! */}
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Hahmlet:wght@400;700&family=Nanum+Gothic:wght@400;700&display=swap');
@@ -366,38 +367,24 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         .ql-snow .ql-picker.ql-font { width: 130px; }
         .ql-snow .ql-picker.ql-font .ql-picker-label::before, .ql-snow .ql-picker.ql-font .ql-picker-item::before { content: '나눔고딕'; font-family: 'Nanum Gothic'; }
         
-        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="pretendard"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="pretendard"]::before { content: '프리텐다드'; font-family: 'Pretendard'; }
-        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="notosanskr"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="notosanskr"]::before { content: '본고딕'; font-family: 'Noto Sans KR'; }
-        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="gowundodum"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="gowundodum"]::before { content: '고운돋움'; font-family: 'Gowun Dodum'; }
-        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="hahmlet"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="hahmlet"]::before { content: '함초롬체'; font-family: 'Hahmlet'; }
-
         .ql-snow .ql-picker.ql-size { width: 70px; }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="10px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="10px"]::before { content: '10'; }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before { content: '12'; }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before { content: '14'; }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="15px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="15px"]::before { content: '15'; }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: '18'; }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before { content: '20'; }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: '24'; }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="30px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="30px"]::before { content: '30'; }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before { content: '36'; }
         .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16'; } 
 
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
-        .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
-        @media (max-width: 768px) { .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; } }
         
-        /* 💡 [핵심 수술] 스마트폰에서 천장에 찰거머리처럼 딱 붙는 마법 (Sticky CSS) 적용! */
+        /* 👇 유튜브는 16:9 고정! */
+        .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
+        
+        /* 👇 일반 동영상(MP4)은 원본 비율 유지 (세로 영상 찌그러짐 방지!) */
+        .ql-editor video.ojemi-mp4 { width: 100%; max-width: 800px; height: auto; max-height: 80vh; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
+        
+        @media (max-width: 768px) { 
+          .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; } 
+          .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; }
+        }
+        
         .ql-toolbar.ql-snow { 
-          position: sticky; 
-          top: 0; 
-          z-index: 50; 
-          background-color: #fdfdfd; 
-          padding: 12px 15px; 
-          border-radius: 6px 6px 0 0; 
-          border: 1px solid #d1d5db; 
-          border-bottom: 2px solid #414a66; 
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); /* 스크롤 될 때 약간 떠보이게 그림자 효과 추가 */
+          position: sticky; top: 0; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
         }
       `}} />
 
@@ -429,7 +416,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             </div>
           </div>
 
-          {/* 💡 Sticky를 완벽하게 작동시키기 위해 부모 div의 overflow-hidden 속성을 제거했습니다! */}
           <div className="bg-white rounded-sm mt-4 border border-gray-300" ref={editorContainerRef}>
             {isEditorReady ? (
               <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={setContent} placeholder="내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다." />
