@@ -163,13 +163,11 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
       try {
         let fileToUpload = file;
         
-        // 💡 [수술 핵심] 다이어트(압축)를 시킬지 말지 결정하는 변수!
         let shouldCompress = true;
 
         if (file.type === 'image/gif') {
-          shouldCompress = false; // GIF는 무조건 다이어트 면제!
+          shouldCompress = false; 
         } else if (file.type === 'image/webp') {
-          // 💡 [WebP DNA 스캐너 작동!] 
           const isAnimated = await new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -186,11 +184,10 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
           });
 
           if (isAnimated) {
-            shouldCompress = false; // 움직이는 WebP면 다이어트 면제!
+            shouldCompress = false; 
           }
         }
 
-        // 압축이 필요한 파일(JPG, PNG, 정지된 WebP 등)만 다이어트 실행!
         if (shouldCompress) {
           const img = new Image();
           img.src = URL.createObjectURL(file);
@@ -444,7 +441,8 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
           .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; }
         }
         
-        .ql-toolbar.ql-snow { position: sticky; top: 0; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        /* 💡 상단 메뉴판 찰거머리 고정(Sticky) 코드 추가 완료! */
+        .ql-toolbar.ql-snow { position: sticky; top: 65px; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
       `}} />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">

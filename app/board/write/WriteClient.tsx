@@ -130,20 +130,16 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       try {
         let fileToUpload = file;
         
-        // 💡 [수술 핵심] 다이어트(압축)를 시킬지 말지 결정하는 변수!
         let shouldCompress = true;
 
         if (file.type === 'image/gif') {
-          shouldCompress = false; // GIF는 태생이 움짤이므로 무조건 다이어트 면제!
+          shouldCompress = false; 
         } else if (file.type === 'image/webp') {
-          // 💡 [WebP DNA 스캐너 작동!] 
-          // 앞부분 1024바이트를 스캔해서 'ANIM'(움짤) 마크가 있는지 찾습니다.
           const isAnimated = await new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) => {
               const arr = new Uint8Array(e.target.result as ArrayBuffer);
               let found = false;
-              // A(65), N(78), I(73), M(77) 글자 찾기
               for (let i = 0; i < arr.length - 3; i++) {
                 if (arr[i] === 65 && arr[i+1] === 78 && arr[i+2] === 73 && arr[i+3] === 77) {
                   found = true; break;
@@ -151,16 +147,14 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
               }
               resolve(found);
             };
-            reader.readAsArrayBuffer(file.slice(0, 1024)); // 0.001초 만에 앞부분만 읽기
+            reader.readAsArrayBuffer(file.slice(0, 1024)); 
           });
 
           if (isAnimated) {
-            shouldCompress = false; // 움직이는 WebP면 다이어트 면제!
+            shouldCompress = false; 
           }
-          // 애니메이션이 없는 정지 WebP면 shouldCompress가 true로 유지되어 압축기로 들어갑니다!
         }
 
-        // 압축이 필요한 파일(JPG, PNG, 정지된 WebP 등)만 다이어트 실행!
         if (shouldCompress) {
           const img = new Image();
           img.src = URL.createObjectURL(file);
@@ -168,7 +162,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const isLongImage = img.height > img.width * 2; 
           URL.revokeObjectURL(img.src);
           if (!isLongImage) {
-            // 0.5MB(500KB) 극한 다이어트 마법 적용! (정지 WebP도 이제 압축됩니다!)
             const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1280, useWebWorker: true };
             fileToUpload = await imageCompression(file, options);
           }
@@ -407,10 +400,17 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16'; } 
 
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
-        .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
-        @media (max-width: 768px) { .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; max-height: 70vh; } }
         
-        .ql-toolbar.ql-snow { background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; }
+        .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
+        .ql-editor video.ojemi-mp4 { width: 100%; max-width: 800px; height: auto; max-height: 70vh; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
+        
+        @media (max-width: 768px) { 
+          .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; } 
+          .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; }
+        }
+        
+        /* 💡 상단 메뉴판 찰거머리 고정(Sticky) 코드 추가 완료! */
+        .ql-toolbar.ql-snow { position: sticky; top: 0; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
       `}} />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
