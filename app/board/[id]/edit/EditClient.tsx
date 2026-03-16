@@ -111,7 +111,6 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     });
   }, [post, isGlobalLocked, isAdmin, router]);
 
-  // 💡 [이식 완료] 수정할 때도 유튜브 스마트폰 전천후 스캐너 작동!
   useEffect(() => {
     if (!isEditorReady || !quillRef.current) return;
     const editor = quillRef.current.getEditor();
@@ -147,7 +146,6 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     
     const editor = quillRef.current.getEditor();
     const currentImageCount = editor.root.querySelectorAll('img').length;
-    // 💡 [이식 완료] 사진 최대 20장 제한!
     if (currentImageCount + fileArray.length > 20) {
       alert(`🚨 사진은 게시글당 최대 20장까지만 첨부할 수 있습니다.\n(현재 ${currentImageCount}장 포함됨)`);
       return;
@@ -164,18 +162,47 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
       }
       try {
         let fileToUpload = file;
-        if (file.type !== 'image/gif' && file.type !== 'image/webp') {
+        
+        // 💡 [수술 핵심] 다이어트(압축)를 시킬지 말지 결정하는 변수!
+        let shouldCompress = true;
+
+        if (file.type === 'image/gif') {
+          shouldCompress = false; // GIF는 무조건 다이어트 면제!
+        } else if (file.type === 'image/webp') {
+          // 💡 [WebP DNA 스캐너 작동!] 
+          const isAnimated = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const arr = new Uint8Array(e.target.result as ArrayBuffer);
+              let found = false;
+              for (let i = 0; i < arr.length - 3; i++) {
+                if (arr[i] === 65 && arr[i+1] === 78 && arr[i+2] === 73 && arr[i+3] === 77) {
+                  found = true; break;
+                }
+              }
+              resolve(found);
+            };
+            reader.readAsArrayBuffer(file.slice(0, 1024)); 
+          });
+
+          if (isAnimated) {
+            shouldCompress = false; // 움직이는 WebP면 다이어트 면제!
+          }
+        }
+
+        // 압축이 필요한 파일(JPG, PNG, 정지된 WebP 등)만 다이어트 실행!
+        if (shouldCompress) {
           const img = new Image();
           img.src = URL.createObjectURL(file);
           await new Promise((resolve) => { img.onload = resolve; });
           const isLongImage = img.height > img.width * 2; 
           URL.revokeObjectURL(img.src);
           if (!isLongImage) {
-            // 💡 [이식 완료] 0.5MB(500KB) 극한 다이어트 마법 적용!
             const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1280, useWebWorker: true };
             fileToUpload = await imageCompression(file, options);
           }
         }
+
         const ticketRes = await fetch('/api/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -269,7 +296,6 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
       if (!file) return;
 
       const editor = quillRef.current.getEditor();
-      // 💡 [이식 완료] 동영상 최대 4개 제한!
       const currentVideoCount = editor.root.querySelectorAll('video').length;
       if (currentVideoCount >= 4) {
         alert(`🚨 동영상은 게시글당 최대 4개까지만 첨부할 수 있습니다.`);
@@ -410,7 +436,6 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
 
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
         
-        /* 💡 [이식 완료] 수정 화면에서도 유튜브와 동영상 사이즈 완벽 분리! */
         .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
         .ql-editor video.ojemi-mp4 { width: 100%; max-width: 800px; height: auto; max-height: 70vh; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
         
@@ -419,7 +444,6 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
           .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; }
         }
         
-        /* 💡 [이식 완료] 수정 화면에서도 메뉴판이 천장에 딱 붙어 유저를 따라다닙니다! */
         .ql-toolbar.ql-snow { position: sticky; top: 0; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
       `}} />
 
@@ -451,7 +475,6 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
             </div>
           </div>
 
-          {/* 💡 [이식 완료] Sticky 방해꾼인 overflow-hidden 속성을 제거했습니다! */}
           <div className="bg-white rounded-sm mt-4 border border-gray-300" ref={editorContainerRef}>
             {isEditorReady ? (
               <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={setContent} placeholder="내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다." />

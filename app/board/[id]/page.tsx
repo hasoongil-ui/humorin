@@ -130,13 +130,11 @@ export default async function PostDetailPage(props: any) {
     redirect('/board');
   };
 
-  // 💡 [핵심 수술 부위] 공감(좋아요) 버튼을 누를 때, 10개/100개/1000개를 돌파하면 그 즉시 현재 시간을 도장 찍습니다!
   const toggleLike = async () => {
     'use server';
     if (!currentUserId) redirect('/login');
     
     if (isAdmin) {
-      // 관리자 +10개 증가 시, 베스트 등극 시간 도장 쾅!
       await sql`
         UPDATE posts 
         SET likes = COALESCE(likes, 0) + 10,
@@ -155,7 +153,6 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE posts SET likes = GREATEST(COALESCE(likes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO likes (post_id, author, author_id) VALUES (${postId}, ${currentUser}, ${currentUserId})`;
-      // 일반 유저 +1개 증가 시, 베스트 등극 시간 도장 쾅!
       await sql`
         UPDATE posts 
         SET likes = COALESCE(likes, 0) + 1,
@@ -453,13 +450,14 @@ export default async function PostDetailPage(props: any) {
     );
   };
 
+  // 💡 [수술 핵심 1] 렌더링 시, 클래스(class="ojemi-mp4")를 강제로 박아주어 황금비율 CSS가 무조건 먹히게 보호합니다!
   let finalContent = post.content || '';
   if (finalContent) {
     finalContent = finalContent.replace(
       /<video([^>]*)src="([^"]+)"([^>]*)>/gi,
       (match, beforeSrc, srcUrl, afterSrc) => {
         const newSrc = srcUrl.includes('#t=') ? srcUrl : `${srcUrl}#t=0.001`;
-        return `<video controls="true" preload="metadata" playsinline="true" muted="true" src="${newSrc}">`;
+        return `<video controls="true" preload="metadata" playsinline="true" muted="true" class="ojemi-mp4" src="${newSrc}">`;
       }
     );
   }
@@ -476,7 +474,17 @@ export default async function PostDetailPage(props: any) {
       <VideoVolumeFix />
       <style>{`
         .ql-editor img { display: block; max-width: 100%; height: auto; border-radius: 8px; }
-        .ql-editor iframe.ql-video, .ql-editor video { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; border-radius: 8px; background-color: #000; }
+        
+        /* 💡 [수술 핵심 2] 독약 제거! 유튜브는 16:9 유지하고 세로 동영상은 원본 비율로 70%까지 길어지게 복구! */
+        .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube { display: block; width: 100%; max-width: 800px; aspect-ratio: 16 / 9; height: auto; margin: 10px auto 30px auto; border-radius: 8px; background-color: #000; border: none; }
+        
+        .ql-editor video, .ql-editor video.ojemi-mp4 { display: block; width: 100%; max-width: 800px; height: auto; max-height: 70vh; margin: 10px auto 30px auto; border-radius: 8px; background-color: #000; border: none; object-fit: contain; aspect-ratio: auto; }
+        
+        @media (max-width: 768px) {
+          .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16 / 9; height: auto; }
+          .ql-editor video, .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; aspect-ratio: auto; }
+        }
+
         .ql-editor p { min-height: 1.5em; }
         .ql-editor p br { display: block; }
       `}</style>
@@ -527,7 +535,7 @@ export default async function PostDetailPage(props: any) {
                     <span>🚨</span> [관리자 알림] 신고가 누적되어 블라인드 처리된 글입니다.
                   </p>
                   <p className="text-red-500 text-[12px] font-bold mt-1.5 pl-6">
-                    복구 버튼을 누르면 신고 횟수가 0으로 초기화되고 다시 정상 노출됩니다.
+                    복구 버튼을 누르면 신고 횟াস্থ가 0으로 초기화되고 다시 정상 노출됩니다.
                   </p>
                 </div>
                 <form action={grantPostImmunity} className="w-full sm:w-auto text-right">
