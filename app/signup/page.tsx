@@ -70,8 +70,22 @@ export default function SignupPage() {
 
   const handleSubmit = async (formData: FormData) => {
     setSubmitError('');
+    
     if (idError || nickError || !idOk || !nickOk) {
       setSubmitError('빨간색으로 표시된 항목을 올바르게 수정해 주세요.');
+      return;
+    }
+
+    const pwd = formData.get('password') as string;
+    const confirmPwd = formData.get('confirm_password') as string;
+
+    if (pwd.length < 8) {
+      setSubmitError('보안을 위해 비밀번호는 최소 8자 이상이어야 합니다.');
+      return;
+    }
+    
+    if (pwd !== confirmPwd) {
+      setSubmitError('비밀번호가 서로 일치하지 않습니다.');
       return;
     }
     
@@ -111,9 +125,17 @@ export default function SignupPage() {
               placeholder="영문, 숫자 4~12자" 
               value={id}
               onChange={(e) => {
-                // 💡 [미나 마법] 키보드를 치는 순간 기존 에러와 성공 메시지를 즉시 날려버립니다!
-                setId(e.target.value.replace(/[^a-zA-Z0-9]/g, ''));
-                setIdError(''); 
+                const rawValue = e.target.value;
+                
+                // 💡 [핵심 UX 개선] 유저가 한글을 입력하는 순간 바로 알아채고 친절하게 알려줍니다!
+                if (/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(rawValue)) {
+                  setIdError('❌ 아이디는 영문과 숫자만 입력해 주세요. (한글 입력 불가)');
+                } else {
+                  setIdError(''); 
+                }
+                
+                // 화면의 값은 영문과 숫자만 남기도록 깔끔하게 필터링합니다.
+                setId(rawValue.replace(/[^a-zA-Z0-9]/g, ''));
                 setIdOk(false); 
               }} 
               onBlur={handleIdBlur} 
@@ -125,12 +147,26 @@ export default function SignupPage() {
           
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">비밀번호</label>
-            <input type="password" name="password" required placeholder="비밀번호 입력" className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" />
+            <input 
+              type="password" 
+              name="password" 
+              required 
+              minLength={8} 
+              placeholder="최소 8자 이상 입력" 
+              className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" 
+            />
           </div>
 
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">비밀번호 확인</label>
-            <input type="password" name="confirm_password" required placeholder="비밀번호 한 번 더 입력" className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" />
+            <input 
+              type="password" 
+              name="confirm_password" 
+              required 
+              minLength={8} 
+              placeholder="비밀번호 한 번 더 입력" 
+              className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" 
+            />
           </div>
 
           <div>
@@ -141,7 +177,6 @@ export default function SignupPage() {
               placeholder="한글, 영문, 숫자 2~8자 (특수문자 불가)" 
               value={nickname}
               onChange={(e) => {
-                // 💡 [미나 마법] 키보드를 치는 순간 기존 에러와 성공 메시지를 즉시 날려버립니다!
                 setNickname(e.target.value);
                 setNickError('');
                 setNickOk(false);

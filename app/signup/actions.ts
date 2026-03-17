@@ -3,6 +3,7 @@
 import { sql } from '@vercel/postgres';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import bcrypt from 'bcryptjs'; // 🛡️ [추가] 최고 등급 암호화 라이브러리
 
 const FORBIDDEN_WORDS = ['admin', '관리자', '운영자', '오재미', 'ojemi', '스탭', '매니저', '마스터', '시스템'];
 
@@ -47,10 +48,12 @@ export async function registerUserAction(formData: FormData) {
   if (nickStatus !== 'ok') return { error: nickStatus === 'forbidden' ? 'nick_forbidden' : 'nick_exists' };
 
   try {
-    // 💡 IP 수집 기능을 제거하고 원래대로 가볍게 돌렸습니다!
+    // 🛡️ [핵심 수술] 유저의 비밀번호를 도저히 풀 수 없는 강력한 해시 기호로 갈아버립니다!
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     await sql`
       INSERT INTO users (user_id, password, nickname, email)
-      VALUES (${userId}, ${password}, ${nickname}, ${email})
+      VALUES (${userId}, ${hashedPassword}, ${nickname}, ${email})
     `;
     
     const cookieStore = await cookies();

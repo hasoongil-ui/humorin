@@ -206,7 +206,7 @@ export default async function BoardPage(props: any) {
                 </Link>
                 <div className="flex justify-between text-xs font-bold text-gray-500 px-1">
                   <Link href="/signup" className="hover:text-gray-900">회원가입</Link>
-                  <Link href="#" className="hover:text-gray-900">아이디/비번 찾기</Link>
+                  <Link href="/find-account" className="hover:text-gray-900">아이디/비번 찾기</Link>
                 </div>
               </div>
             )}

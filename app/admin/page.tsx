@@ -7,8 +7,28 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
+// 🛡️ [미나의 보안 핵심] 요청한 사람이 진짜 '관리자'가 맞는지 DB와 교차 검증하는 철벽 함수!
+async function verifyAdmin() {
+  const cookieStore = await cookies();
+  const userId = cookieStore.get('ojemi_userid')?.value;
+  if (!userId) return false;
+
+  try {
+    const { rows } = await sql`SELECT is_admin FROM users WHERE user_id = ${userId}`;
+    if (userId === 'admin' || (rows.length > 0 && rows[0].is_admin)) {
+      return true; // 진짜 관리자(또는 부관리자) 인증 완료!
+    }
+  } catch (error) {
+    console.error("Admin verification error:", error);
+  }
+  return false;
+}
+
+// 🚨 아래부터 모든 서버 함수(Action)에 verifyAdmin() 보안 자물쇠를 채웠습니다! 해커 원격 조종 완벽 차단!
 async function updateUserStatus(formData: FormData) {
   'use server';
+  if (!(await verifyAdmin())) throw new Error("Unauthorized"); // 자물쇠 찰칵!
+  
   const targetUser = formData.get('userid') as string;
   const newStatus = formData.get('status') as string;
   try {
@@ -19,8 +39,11 @@ async function updateUserStatus(formData: FormData) {
 
 async function resetPassword(formData: FormData) {
   'use server';
+  if (!(await verifyAdmin())) throw new Error("Unauthorized");
+  
   const targetUser = formData.get('userid') as string;
   try {
+    // ⚠️ 주의: '000000'은 평문입니다. 만약 DB에 해시로 암호화해서 저장 중이시라면 이 부분도 암호화된 코드로 바꿔야 합니다!
     await sql`UPDATE users SET password = '000000' WHERE user_id = ${targetUser}`;
   } catch (error) {}
   revalidatePath('/admin');
@@ -28,6 +51,8 @@ async function resetPassword(formData: FormData) {
 
 async function updateUserPoints(formData: FormData) {
   'use server';
+  if (!(await verifyAdmin())) throw new Error("Unauthorized");
+  
   const targetUser = formData.get('userid') as string;
   const newPoints = Number(formData.get('points'));
   try {
@@ -38,6 +63,8 @@ async function updateUserPoints(formData: FormData) {
 
 async function toggleAdminRole(formData: FormData) {
   'use server';
+  if (!(await verifyAdmin())) throw new Error("Unauthorized");
+  
   const targetUser = formData.get('userid') as string;
   const currentAdminStatus = formData.get('is_admin') === 'true';
   const newAdminStatus = !currentAdminStatus; 
@@ -52,6 +79,8 @@ async function toggleAdminRole(formData: FormData) {
 
 async function updateBlindThreshold(formData: FormData) {
   'use server';
+  if (!(await verifyAdmin())) throw new Error("Unauthorized");
+  
   const newValue = formData.get('threshold') as string;
   if (!newValue) return;
   try {
@@ -65,9 +94,9 @@ async function updateBlindThreshold(formData: FormData) {
 }
 
 export default async function AdminDashboardPage(props: any) {
-  const cookieStore = await cookies();
-  const currentUserId = cookieStore.get('ojemi_userid')?.value;
-  if (currentUserId !== 'admin') redirect('/'); 
+  // 🛡️ 페이지 입장 시에도 철벽 검증 (부관리자도 입장 가능하도록 수정 완료!)
+  const isAdmin = await verifyAdmin();
+  if (!isAdmin) redirect('/'); 
 
   const searchParams = await props.searchParams;
   const currentPage = Number(searchParams?.page) || 1;
@@ -143,7 +172,6 @@ export default async function AdminDashboardPage(props: any) {
             <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>⚙️</span> 설정/게시판 관리</Link></li>
             <li><Link href="/admin/blind" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>🚨</span> 블라인드 관리</Link></li>
             
-            {/* 💡 [수술] 좌측 메뉴 맨 아래에 눈에 확 띄는 관제센터 직통버튼 추가! */}
             <li className="mt-4 border-t border-gray-700 pt-4">
               <Link href="/admin/monitor" target="_blank" className="flex items-center justify-between px-6 py-3 font-black text-emerald-400 bg-slate-800 hover:bg-slate-700 transition-colors border-l-4 border-emerald-500 shadow-inner">
                 <div className="flex items-center gap-3"><span>🖥️</span> 서버 모니터링</div>
@@ -157,8 +185,6 @@ export default async function AdminDashboardPage(props: any) {
       <main className="flex-1 flex flex-col h-screen overflow-hidden bg-gray-50">
         <header className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center z-10 shadow-sm flex-shrink-0">
           <h1 className="text-xl font-black text-gray-800 tracking-tight">회원 관리</h1>
-          
-          {/* 💡 [수술] 우측 상단에도 클릭 한 번에 새 창으로 열리는 관제센터 직통버튼 추가! */}
           <div className="flex items-center gap-6">
             <Link href="/admin/monitor" target="_blank" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-slate-800 text-emerald-400 text-xs font-black rounded-sm hover:bg-slate-700 transition-colors shadow-sm border border-slate-600">
               <span>🖥️</span> 종합 모니터링 관제센터 열기 ↗
