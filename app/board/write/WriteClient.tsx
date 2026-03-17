@@ -29,6 +29,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   
   const quillRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  // 💡 [수술 핵심 1] 폼 전체를 직접 조종하기 위한 리모컨(formRef) 장착!
+  const formRef = useRef<HTMLFormElement>(null); 
 
   useEffect(() => {
     if (isGlobalLocked && !isAdmin) {
@@ -130,20 +132,16 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       try {
         let fileToUpload = file;
         
-        // 💡 [수술 핵심] 다이어트(압축)를 시킬지 말지 결정하는 변수!
         let shouldCompress = true;
 
         if (file.type === 'image/gif') {
-          shouldCompress = false; // GIF는 태생이 움짤이므로 무조건 다이어트 면제!
+          shouldCompress = false; 
         } else if (file.type === 'image/webp') {
-          // 💡 [WebP DNA 스캐너 작동!] 
-          // 앞부분 1024바이트를 스캔해서 'ANIM'(움짤) 마크가 있는지 찾습니다.
           const isAnimated = await new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) => {
               const arr = new Uint8Array(e.target.result as ArrayBuffer);
               let found = false;
-              // A(65), N(78), I(73), M(77) 글자 찾기
               for (let i = 0; i < arr.length - 3; i++) {
                 if (arr[i] === 65 && arr[i+1] === 78 && arr[i+2] === 73 && arr[i+3] === 77) {
                   found = true; break;
@@ -151,16 +149,14 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
               }
               resolve(found);
             };
-            reader.readAsArrayBuffer(file.slice(0, 1024)); // 0.001초 만에 앞부분만 읽기
+            reader.readAsArrayBuffer(file.slice(0, 1024)); 
           });
 
           if (isAnimated) {
-            shouldCompress = false; // 움직이는 WebP면 다이어트 면제!
+            shouldCompress = false; 
           }
-          // 애니메이션이 없는 정지 WebP면 shouldCompress가 true로 유지되어 압축기로 들어갑니다!
         }
 
-        // 압축이 필요한 파일(JPG, PNG, 정지된 WebP 등)만 다이어트 실행!
         if (shouldCompress) {
           const img = new Image();
           img.src = URL.createObjectURL(file);
@@ -168,7 +164,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const isLongImage = img.height > img.width * 2; 
           URL.revokeObjectURL(img.src);
           if (!isLongImage) {
-            // 0.5MB(500KB) 극한 다이어트 마법 적용! (정지 WebP도 이제 압축됩니다!)
             const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1280, useWebWorker: true };
             fileToUpload = await imageCompression(file, options);
           }
@@ -410,7 +405,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
         @media (max-width: 768px) { .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; max-height: 70vh; } }
         
-        /* 💡 수정하기(EditClient)와 동일한 완벽한 스티키 코드로 교체! */
         .ql-toolbar.ql-snow { position: sticky; top: 0; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
       `}} />
 
@@ -419,7 +413,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           글쓰기 {isUploading && <span className="text-sm font-medium text-gray-500 ml-4">(업로드 처리 중...)</span>}
         </h1>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* 💡 [수술 2] form 태그에 리모컨(ref)을 연결합니다. */}
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
             <select value={category} onChange={(e) => setCategory(e.target.value)} className="p-3 border border-gray-300 rounded-sm outline-none font-bold bg-white text-gray-700 w-full md:w-56 shadow-sm">
               {Object.keys(groupedBoards).length > 0 ? (
@@ -442,7 +437,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             </div>
           </div>
 
-          {/* 💡 에디터를 가두고 있던 암세포(overflow-hidden)를 삭제한 깨끗한 껍데기! */}
           <div className="bg-white rounded-sm mt-4 border border-gray-300" ref={editorContainerRef}>
             {isEditorReady ? (
               <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={setContent} placeholder="내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다." />
@@ -461,7 +455,19 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
           <div className="flex justify-center gap-2 pt-6 border-t border-gray-100 mt-4">
             <button type="button" onClick={() => router.back()} disabled={isSubmitting} className="px-8 py-3 bg-white border border-gray-300 text-gray-700 rounded-sm font-bold hover:bg-gray-50 disabled:opacity-50 transition-colors">취소</button>
-            <button type="submit" disabled={isUploading || isSubmitting || !isEditorReady} className="px-12 py-3 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-all disabled:bg-gray-400 flex items-center justify-center gap-2">
+            
+            {/* 💡 [수술 3] 튕김 방지와 즉시 폼 제출의 완벽한 콤보! (기존의 type="submit" 유지) */}
+            <button 
+              type="submit" 
+              onMouseDown={(e) => {
+                e.preventDefault(); // 화면 위로 튕기는 멱살잡이 방어
+                if (formRef.current) {
+                  formRef.current.requestSubmit(); // 튕기기 전에 강제로 폼 등록(HTML5 검증 포함) 발사!
+                }
+              }}
+              disabled={isUploading || isSubmitting || !isEditorReady} 
+              className="px-12 py-3 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-all disabled:bg-gray-400 flex items-center justify-center gap-2"
+            >
               {isSubmitting && <Loader2 className="animate-spin" size={18} />}
               {isSubmitting ? '등록 중...' : isUploading ? '파일 대기...' : '등록'}
             </button>

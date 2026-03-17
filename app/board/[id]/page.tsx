@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { sql } from '@vercel/postgres';
-import sanitizeHtml from 'sanitize-html'; // 🛡️ [수술 1] Vercel 전용 초경량 백신 등장!
+import sanitizeHtml from 'sanitize-html'; 
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
@@ -169,7 +169,25 @@ export default async function PostDetailPage(props: any) {
   const toggleDislike = async () => {
     'use server';
     if (!currentUserId) redirect('/login');
-    if (isAdmin) return; 
+    
+    // 💡 [핵심 복원] 통제실에서 차단 기준(예: 10개)을 가져옵니다.
+    let blindThreshold = 5;
+    try {
+      const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
+      if (rows.length > 0) blindThreshold = Number(rows[0].value) || 5;
+    } catch(e) {}
+
+    // 💡 [수술 완료] 관리자가 비공감을 누르면 +10 반영과 동시에 차단 기준을 넘어가는지 검사하여 즉시 블라인드!
+    if (isAdmin) {
+      await sql`
+        UPDATE posts 
+        SET dislikes = COALESCE(dislikes, 0) + 10,
+            is_blinded = CASE WHEN COALESCE(dislikes, 0) + 10 >= ${blindThreshold} THEN true ELSE is_blinded END
+        WHERE id = ${postId}
+      `;
+      revalidatePath(`/board/${postId}`);
+      return;
+    }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
@@ -177,7 +195,13 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE posts SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO post_dislikes (post_id, author_id) VALUES (${postId}, ${currentUserId})`;
-      await sql`UPDATE posts SET dislikes = COALESCE(dislikes, 0) + 1 WHERE id = ${postId}`;
+      // 💡 일반 유저도 비공감을 눌러 기준치를 넘으면 즉시 블라인드 처리되도록 복원!
+      await sql`
+        UPDATE posts 
+        SET dislikes = COALESCE(dislikes, 0) + 1,
+            is_blinded = CASE WHEN COALESCE(dislikes, 0) + 1 >= ${blindThreshold} THEN true ELSE is_blinded END
+        WHERE id = ${postId}
+      `;
     }
     revalidatePath(`/board/${postId}`);
   };
@@ -289,8 +313,26 @@ export default async function PostDetailPage(props: any) {
   const toggleCommentDislike = async (formData: FormData) => {
     'use server';
     if (!currentUserId) return;
-    if (isAdmin) return;
     const commentId = formData.get('commentId') as string;
+
+    // 💡 [핵심 복원] 통제실에서 차단 기준을 가져옵니다.
+    let blindThreshold = 5;
+    try {
+      const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
+      if (rows.length > 0) blindThreshold = Number(rows[0].value) || 5;
+    } catch(e) {}
+
+    // 💡 [수술 완료] 댓글 비공감도 관리자가 누르면 +10 반영과 동시에 즉시 블라인드 처리 복원!
+    if (isAdmin) {
+      await sql`
+        UPDATE comments 
+        SET dislikes = COALESCE(dislikes, 0) + 10,
+            is_blinded = CASE WHEN COALESCE(dislikes, 0) + 10 >= ${blindThreshold} THEN true ELSE is_blinded END
+        WHERE id = ${commentId}
+      `;
+      revalidatePath(`/board/${postId}`);
+      return;
+    }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_dislikes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
@@ -298,7 +340,12 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE comments SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${commentId}`;
     } else {
       await sql`INSERT INTO comment_dislikes (comment_id, author_id) VALUES (${commentId}, ${currentUserId})`;
-      await sql`UPDATE comments SET dislikes = COALESCE(dislikes, 0) + 1 WHERE id = ${commentId}`;
+      await sql`
+        UPDATE comments 
+        SET dislikes = COALESCE(dislikes, 0) + 1,
+            is_blinded = CASE WHEN COALESCE(dislikes, 0) + 1 >= ${blindThreshold} THEN true ELSE is_blinded END
+        WHERE id = ${commentId}
+      `;
     }
     revalidatePath(`/board/${postId}`);
   };
@@ -462,17 +509,16 @@ export default async function PostDetailPage(props: any) {
     );
   }
 
-  // 🛡️ [수술 2] 서버리스 환경에서 10000% 터지지 않는 초경량 보안 필터 가동!
   const cleanContent = sanitizeHtml(finalContent, {
     allowedTags: ['p', 'br', 'b', 'i', 'em', 'strong', 'a', 'img', 'video', 'iframe', 'u', 's', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'blockquote', 'pre', 'span'],
     allowedAttributes: {
-      '*': ['class', 'style'], // 에디터 서식 유지
+      '*': ['class', 'style'], 
       'a': ['href', 'target', 'rel'],
       'img': ['src', 'alt', 'width', 'height'],
       'video': ['src', 'controls', 'preload', 'playsinline', 'muted', 'width', 'height'],
       'iframe': ['src', 'frameborder', 'allowfullscreen', 'width', 'height']
     },
-    allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'youtu.be'] // 유튜브만 허용 (보안 극대화)
+    allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'youtu.be'] 
   });
 
   let backToListUrl = '/board';
@@ -558,7 +604,6 @@ export default async function PostDetailPage(props: any) {
               </div>
             )}
             
-            {/* 🛡️ [수술 3] 최종 소독된 안전한 코드를 화면에 뿌립니다! */}
             <div className="min-h-[300px] text-[17px] whitespace-pre-wrap leading-relaxed ql-editor" dangerouslySetInnerHTML={{ __html: cleanContent }} />
           </div>
         )}

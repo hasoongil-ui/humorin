@@ -53,7 +53,7 @@ export function PostScrapButton({ postId, initialHasScrapped, toggleScrapAction 
 export function PostReportButton({ postId, currentUserId, isAdmin }: any) {
   const handleReport = async () => {
     if (!currentUserId) return alert('로그인이 필요합니다.');
-    if (isAdmin) return alert('관리자는 신고할 수 없습니다.');
+    // 💡 [수술 1] 관리자 튕겨내는 알림창 삭제 완료!
     if (confirm('이 게시글을 신고하시겠습니까?\n허위 신고 시 불이익을 받을 수 있습니다.')) {
       try {
         const res = await fetch(`/api/report/post`, { method: 'POST', body: JSON.stringify({ postId }) });
@@ -100,7 +100,7 @@ export function CommentDislikeButton({ commentId, initialDislikes, initialHasDis
 export function CommentReportButton({ commentId, currentUserId, isAdmin }: any) {
   const handleReport = async () => {
     if (!currentUserId) return alert('로그인이 필요합니다.');
-    if (isAdmin) return alert('관리자는 신고할 수 없습니다.');
+    // 💡 [수술 2] 관리자 튕겨내는 알림창 삭제 완료!
     if (confirm('이 댓글을 신고하시겠습니까?')) {
       try {
         const res = await fetch(`/api/report/comment`, { method: 'POST', body: JSON.stringify({ commentId }) });
