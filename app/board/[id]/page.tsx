@@ -1,6 +1,5 @@
 // @ts-nocheck
 import { sql } from '@vercel/postgres';
-import DOMPurify from 'isomorphic-dompurify'; // 🛡️ [수술 1] 오재미 전용 백신 등판!
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
@@ -536,7 +535,7 @@ export default async function PostDetailPage(props: any) {
                     <span>🚨</span> [관리자 알림] 신고가 누적되어 블라인드 처리된 글입니다.
                   </p>
                   <p className="text-red-500 text-[12px] font-bold mt-1.5 pl-6">
-                    복구 버튼을 누르면 신고 횟수가 0으로 초기화되고 다시 정상 노출됩니다.
+                    복구 버튼을 누르면 신고 횟াস্থ가 0으로 초기화되고 다시 정상 노출됩니다.
                   </p>
                 </div>
                 <form action={grantPostImmunity} className="w-full sm:w-auto text-right">
@@ -547,14 +546,7 @@ export default async function PostDetailPage(props: any) {
               </div>
             )}
             
-            {/* 🛡️ [수술 2] 방어막 전개! 유튜브, MP4 기능은 100% 살리고 해킹 스크립트만 박살냅니다! */}
-            <div className="min-h-[300px] text-[17px] whitespace-pre-wrap leading-relaxed ql-editor" dangerouslySetInnerHTML={{ 
-              __html: DOMPurify.sanitize(finalContent, {
-                ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'em', 'strong', 'a', 'img', 'video', 'iframe', 'u', 's', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'blockquote', 'pre', 'span'],
-                ALLOWED_ATTR: ['href', 'src', 'target', 'rel', 'class', 'style', 'controls', 'preload', 'playsinline', 'muted', 'frameborder', 'allowfullscreen', 'width', 'height'],
-                ADD_TAGS: ['iframe', 'video']
-              }) 
-            }} />
+            <div className="min-h-[300px] text-[17px] whitespace-pre-wrap leading-relaxed ql-editor" dangerouslySetInnerHTML={{ __html: finalContent }} />
           </div>
         )}
         
