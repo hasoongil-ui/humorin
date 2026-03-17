@@ -93,6 +93,23 @@ async function updateBlindThreshold(formData: FormData) {
   revalidatePath('/admin');
 }
 
+// 💡 [수술 1] 에디터 안내 문구를 통제실(DB)에 저장하는 새로운 백엔드 스위치 추가!
+async function updateEditorPlaceholder(formData: FormData) {
+  'use server';
+  if (!(await verifyAdmin())) throw new Error("Unauthorized");
+  
+  const newValue = formData.get('placeholder') as string;
+  if (!newValue) return;
+  try {
+    await sql`
+      INSERT INTO site_settings (key, value) 
+      VALUES ('editor_placeholder', ${newValue})
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+    `;
+  } catch (error) {}
+  revalidatePath('/admin');
+}
+
 export default async function AdminDashboardPage(props: any) {
   // 🛡️ 페이지 입장 시에도 철벽 검증 (부관리자도 입장 가능하도록 수정 완료!)
   const isAdmin = await verifyAdmin();
@@ -108,10 +125,16 @@ export default async function AdminDashboardPage(props: any) {
   let totalUsers = 0; let todayUsers = 0; let bannedUsers = 0;
   let userList: any[] = []; let totalPages = 1;
   let blindThreshold = 5; 
+  // 💡 [수술 2] 안내 문구 기본값을 잡아줍니다.
+  let editorPlaceholder = '내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다.';
 
   try {
-    const { rows: settings } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
-    if (settings.length > 0) blindThreshold = Number(settings[0].value) || 5;
+    // 💡 [수술 3] 블라인드 횟수와 에디터 문구를 DB에서 한 번에 가져와 장전합니다!
+    const { rows: settings } = await sql`SELECT key, value FROM site_settings WHERE key IN ('report_blind_threshold', 'editor_placeholder')`;
+    settings.forEach(setting => {
+      if (setting.key === 'report_blind_threshold') blindThreshold = Number(setting.value) || 5;
+      if (setting.key === 'editor_placeholder' && setting.value) editorPlaceholder = setting.value;
+    });
 
     const { rows: stats } = await sql`
       SELECT 
@@ -213,6 +236,21 @@ export default async function AdminDashboardPage(props: any) {
               <input type="number" name="threshold" defaultValue={blindThreshold} min="1" max="999" className="w-16 px-2 py-1 border border-gray-300 rounded-sm text-[13px] font-black text-rose-600 text-center outline-none focus:border-rose-400" />
               <span className="text-[12px] font-bold text-gray-600">회 누적 시 숨김</span>
               <button type="submit" className="px-4 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm ml-2">
+                적용하기
+              </button>
+            </form>
+          </div>
+
+          {/* 💡 [수술 4] 대망의 에디터 안내 문구 설정 UI 추가 완료! */}
+          <div className="bg-white p-4 rounded-sm border border-indigo-200 shadow-sm mb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4 relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
+            <div className="flex-1">
+              <h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-indigo-500">📝</span> 에디터 안내 문구 설정</h2>
+              <p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">게시판 글쓰기 창에 기본으로 보여지는 흐린 안내 문구를 자유롭게 수정할 수 있습니다.</p>
+            </div>
+            <form action={updateEditorPlaceholder} className="flex items-center gap-2 bg-gray-50 p-2 rounded-sm border border-gray-200 w-full xl:w-auto">
+              <input type="text" name="placeholder" defaultValue={editorPlaceholder} className="w-full xl:w-[400px] px-2 py-1.5 border border-gray-300 rounded-sm text-[12px] font-bold text-gray-700 outline-none focus:border-indigo-400" placeholder="안내 문구를 입력하세요..." />
+              <button type="submit" className="px-4 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap">
                 적용하기
               </button>
             </form>

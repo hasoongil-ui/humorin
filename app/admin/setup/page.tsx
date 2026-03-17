@@ -23,6 +23,9 @@ export default async function AdminSetupPage(props: any) {
       // 기본값 세팅 (처음엔 잠금 해제 상태)
       await sql`INSERT INTO site_settings (key, value) VALUES ('global_write_lock', 'false') ON CONFLICT DO NOTHING;`;
       await sql`INSERT INTO site_settings (key, value) VALUES ('global_comment_lock', 'false') ON CONFLICT DO NOTHING;`;
+      
+      // 💡 [수술 1] 안내 문구를 보관할 DB 공간과 기본값을 세팅합니다!
+      await sql`INSERT INTO site_settings (key, value) VALUES ('editor_placeholder', '내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다.') ON CONFLICT DO NOTHING;`;
 
       // 2. 게시판(Boards) 통합 관리 테이블 생성
       await sql`

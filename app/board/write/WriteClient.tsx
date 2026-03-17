@@ -18,7 +18,7 @@ const ReactQuillWrapper = dynamic(
 );
 import 'react-quill-new/dist/quill.snow.css';
 
-export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boards }: { currentUser: string, isAdmin: boolean, isGlobalLocked: boolean, boards: any[] }) {
+export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boards, editorPlaceholder }: { currentUser: string, isAdmin: boolean, isGlobalLocked: boolean, boards: any[], editorPlaceholder?: string }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState(boards && boards.length > 0 ? boards[0].name : '흥미로운 이야기'); 
@@ -29,7 +29,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   
   const quillRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
-  // 💡 [수술 핵심 1] 폼 전체를 직접 조종하기 위한 리모컨(formRef) 장착!
   const formRef = useRef<HTMLFormElement>(null); 
 
   useEffect(() => {
@@ -131,7 +130,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       }
       try {
         let fileToUpload = file;
-        
         let shouldCompress = true;
 
         if (file.type === 'image/gif') {
@@ -371,7 +369,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-        @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Hahmlet:wght@400;700&family=Nanum+Gothic:wght@400;700&family=Noto+Sans+KR:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Hahmlet:wght@400;700&family=Nanum+Gothic:wght@400;700&display=swap');
 
         .ql-font-pretendard { font-family: 'Pretendard', sans-serif; }
         .ql-font-notosanskr { font-family: 'Noto Sans KR', sans-serif; }
@@ -413,7 +411,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           글쓰기 {isUploading && <span className="text-sm font-medium text-gray-500 ml-4">(업로드 처리 중...)</span>}
         </h1>
         
-        {/* 💡 [수술 2] form 태그에 리모컨(ref)을 연결합니다. */}
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
             <select value={category} onChange={(e) => setCategory(e.target.value)} className="p-3 border border-gray-300 rounded-sm outline-none font-bold bg-white text-gray-700 w-full md:w-56 shadow-sm">
@@ -439,7 +436,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
           <div className="bg-white rounded-sm mt-4 border border-gray-300" ref={editorContainerRef}>
             {isEditorReady ? (
-              <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={setContent} placeholder="내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다." />
+              <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={setContent} placeholder={editorPlaceholder || "내용을 작성해 주십시오..."} />
             ) : (
               <div className="h-[600px] flex items-center justify-center bg-gray-50 text-gray-400 font-bold text-lg animate-pulse">
                 에디터 엔진 준비 중...
@@ -456,13 +453,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           <div className="flex justify-center gap-2 pt-6 border-t border-gray-100 mt-4">
             <button type="button" onClick={() => router.back()} disabled={isSubmitting} className="px-8 py-3 bg-white border border-gray-300 text-gray-700 rounded-sm font-bold hover:bg-gray-50 disabled:opacity-50 transition-colors">취소</button>
             
-            {/* 💡 [수술 3] 튕김 방지와 즉시 폼 제출의 완벽한 콤보! (기존의 type="submit" 유지) */}
             <button 
               type="submit" 
               onMouseDown={(e) => {
-                e.preventDefault(); // 화면 위로 튕기는 멱살잡이 방어
+                e.preventDefault(); 
                 if (formRef.current) {
-                  formRef.current.requestSubmit(); // 튕기기 전에 강제로 폼 등록(HTML5 검증 포함) 발사!
+                  formRef.current.requestSubmit(); 
                 }
               }}
               disabled={isUploading || isSubmitting || !isEditorReady} 
