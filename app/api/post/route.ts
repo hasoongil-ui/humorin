@@ -3,13 +3,13 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 export async function POST(request: Request) {
-  const { title, content, category, author } = await request.json();
+  // 💡 [수술 1] 프론트엔드에서 날아온 is_notice(공지사항 여부)를 받습니다!
+  const { title, content, category, author, is_notice } = await request.json(); 
   
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('ojemi_user');
   const userIdCookie = cookieStore.get('ojemi_userid');
   
-  // 💡 닉네임과 아이디를 둘 다 가져옵니다!
   const currentUser = userCookie ? userCookie.value : null;
   const currentUserId = userIdCookie ? userIdCookie.value : null;
 
@@ -20,13 +20,21 @@ export async function POST(request: Request) {
   try {
     const titleWithCategory = `[${category}] ${title}`;
 
-    // 💡 [핵심 대공사] 글을 저장할 때, 화면 표시용 닉네임(author)과 추적용 아이디(author_id)를 같이 저장합니다!
+    // 🛡️ [수술 2: 이중 보안 자물쇠] 공지로 등록하려 할 때, 진짜 관리자가 맞는지 DB에서 한 번 더 깐깐하게 검사합니다.
+    let finalIsNotice = false;
+    if (is_notice && currentUserId) {
+      const { rows } = await client.sql`SELECT is_admin FROM users WHERE user_id = ${currentUserId}`;
+      if (currentUserId === 'admin' || (rows.length > 0 && rows[0].is_admin)) {
+        finalIsNotice = true; // 진짜 관리자만 공지 권한 획득!
+      }
+    }
+
+    // 💡 [수술 3] 검증이 끝난 공지사항 꼬리표(finalIsNotice)를 함께 저장합니다!
     await client.sql`
-      INSERT INTO posts (title, content, author, author_id)
-      VALUES (${titleWithCategory}, ${content}, ${finalAuthor}, ${currentUserId});
+      INSERT INTO posts (title, content, author, author_id, is_notice)
+      VALUES (${titleWithCategory}, ${content}, ${finalAuthor}, ${currentUserId}, ${finalIsNotice});
     `;
     
-    // 💡 [완벽한 포인트 시스템] 이제 닉네임이 아닌 '변하지 않는 아이디'를 추적하여 10점을 꽂습니다!
     if (currentUserId) {
       await client.sql`
         UPDATE users 

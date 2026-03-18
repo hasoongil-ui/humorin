@@ -25,6 +25,10 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const [isEditorReady, setIsEditorReady] = useState(false);
+  
+  // 💡 [수술 1] 기존 글이 공지사항이었다면 스위치를 'ON' 상태로 불러옵니다!
+  const [isNotice, setIsNotice] = useState(post?.is_notice || false);
+
   const router = useRouter();
   
   const quillRef = useRef<any>(null);
@@ -163,13 +167,11 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
       try {
         let fileToUpload = file;
         
-        // 💡 [수술 핵심] 다이어트(압축)를 시킬지 말지 결정하는 변수!
         let shouldCompress = true;
 
         if (file.type === 'image/gif') {
-          shouldCompress = false; // GIF는 무조건 다이어트 면제!
+          shouldCompress = false; 
         } else if (file.type === 'image/webp') {
-          // 💡 [WebP DNA 스캐너 작동!] 
           const isAnimated = await new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -186,11 +188,10 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
           });
 
           if (isAnimated) {
-            shouldCompress = false; // 움직이는 WebP면 다이어트 면제!
+            shouldCompress = false; 
           }
         }
 
-        // 압축이 필요한 파일(JPG, PNG, 정지된 WebP 등)만 다이어트 실행!
         if (shouldCompress) {
           const img = new Image();
           img.src = URL.createObjectURL(file);
@@ -234,7 +235,8 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
 
       const text = clipboardData.getData('text/plain');
       if (text) {
-        const ytRegex = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+        // 💡 [수술 2] 수정 화면에서도 붙여넣기 시 쇼츠(Shorts) 주소 완벽 인식!
+        const ytRegex = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
         
         if (match) {
@@ -355,12 +357,18 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     }
   }), []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // 💡 [수술 3] 수정 화면에도 스크롤 튕김 완벽 차단(수동 발사) 로직 적용!
+  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) e.preventDefault();
     
     const targetBoard = boards?.find((b: any) => b.name === category);
     if (targetBoard?.is_write_locked && !isAdmin) {
       alert(`🚨 해당 [${category}] 게시판은 현재 관리자에 의해 수정이 잠겨있습니다.`); return;
+    }
+
+    if (!title.trim()) {
+      alert('제목을 입력하세요.'); 
+      return;
     }
 
     if (!content || content === '<p><br></p>') {
@@ -377,6 +385,9 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
       formData.append('title', title);
       formData.append('content', content);
       formData.append('category', category);
+      
+      // 💡 [수술 4] 변경된 공지사항 스위치(ON/OFF) 상태를 백엔드로 보냅니다.
+      formData.append('is_notice', isNotice ? 'true' : 'false');
 
       const res = await updateAction(formData);
       
@@ -475,6 +486,22 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
             </div>
           </div>
 
+          {/* 💡 [수술 5] 수정 화면에서도 관리자에게만 보이는 공지사항 스위치 장착 완료! */}
+          {isAdmin && (
+            <div className="flex items-center gap-2 px-1 py-2 bg-indigo-50 border border-indigo-100 rounded-sm mt-1">
+              <input 
+                type="checkbox" 
+                id="edit_is_notice" 
+                checked={isNotice} 
+                onChange={(e) => setIsNotice(e.target.checked)}
+                className="w-4 h-4 ml-2 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-600 cursor-pointer"
+              />
+              <label htmlFor="edit_is_notice" className="text-[13px] font-black text-indigo-700 cursor-pointer flex items-center gap-1.5 select-none">
+                <span className="text-base">📢</span> 이 글을 모든 게시판 최상단에 강제 고정합니다 (공지사항)
+              </label>
+            </div>
+          )}
+
           <div className="bg-white rounded-sm mt-4 border border-gray-300" ref={editorContainerRef}>
             {isEditorReady ? (
               <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={setContent} placeholder="내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다." />
@@ -487,7 +514,17 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
 
           <div className="flex justify-center gap-2 pt-6 border-t border-gray-100 mt-4">
             <button type="button" onClick={() => router.back()} disabled={isSubmitting} className="px-8 py-3 bg-white border border-gray-300 text-gray-700 rounded-sm font-bold hover:bg-gray-50 disabled:opacity-50 transition-colors">취소</button>
-            <button type="submit" disabled={isUploading || isSubmitting || !isEditorReady} className="px-12 py-3 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-all disabled:bg-gray-400 flex items-center justify-center gap-2">
+            
+            <button 
+              type="button" 
+              onMouseDown={(e) => {
+                e.preventDefault(); 
+                handleSubmit(e); 
+              }}
+              onClick={(e) => handleSubmit(e)}
+              disabled={isUploading || isSubmitting || !isEditorReady} 
+              className="px-12 py-3 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-all disabled:bg-gray-400 flex items-center justify-center gap-2"
+            >
               {isSubmitting && <Loader2 className="animate-spin" size={18} />}
               {isSubmitting ? '수정 중...' : isUploading ? '파일 대기...' : '수정 완료'}
             </button>

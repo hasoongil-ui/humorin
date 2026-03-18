@@ -25,11 +25,14 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const [isEditorReady, setIsEditorReady] = useState(false);
+  
+  // 💡 [수술 1] 공지사항 체크박스 상태값 추가!
+  const [isNotice, setIsNotice] = useState(false);
+  
   const router = useRouter();
   
   const quillRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
-  // 💡 [수술 1] 에러를 유발하던 formRef 리모컨은 아예 폐기했습니다.
 
   useEffect(() => {
     if (isGlobalLocked && !isAdmin) {
@@ -200,6 +203,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       const text = clipboardData.getData('text/plain');
       if (text) {
+        // 💡 [수술 2] 쇼츠(Shorts) 주소도 완벽하게 영상으로 인식하도록 정규식 업데이트 완료!
         const ytRegex = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
         
@@ -321,7 +325,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     }
   }), []);
 
-  // 💡 [수술 2] 직접 제출 함수에서 제목 누락 여부를 완벽하게 수동 검사합니다!
+  // 💡 [수술 3] 튕김 방어막(수동 발사 로직) 10000% 유지 중!
   const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
     if (e) e.preventDefault();
 
@@ -333,7 +337,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       alert(`🚨 해당 [${category}] 게시판은 현재 관리자에 의해 글쓰기가 잠겨있습니다.`); return;
     }
 
-    // 💡 브라우저 검사를 끄는 대신 여기서 철통 방어! (먹통 방지)
     if (!title.trim()) {
       alert('제목을 입력하세요.'); 
       return;
@@ -352,7 +355,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const res = await fetch('/api/post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title, content: content, author: currentUser, category: category }), 
+        // 💡 [수술 4] 서버로 전송할 때 공지사항 여부(is_notice)도 같이 태워서 보냅니다!
+        body: JSON.stringify({ title: title, content: content, author: currentUser, category: category, is_notice: isNotice }), 
       });
       if (res.ok) {
         router.push(`/board?category=${category}`);
@@ -438,10 +442,26 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
               )}
             </select>
             <input placeholder="제목을 입력하세요." className="flex-1 p-3 border border-gray-300 rounded-sm font-bold text-gray-900" value={title} onChange={(e) => setTitle(e.target.value)} required />
-            <div className="w-full md:w-48 p-3 border border-gray-200 bg-gray-50 rounded-sm flex items-center font-bold text-gray-600">
-              {currentUser} {isAdmin && <span className="text-xs text-red-500 ml-1">(Admin)</span>}
+            <div className="w-full md:w-48 p-3 border border-gray-200 bg-gray-50 rounded-sm flex items-center justify-between font-bold text-gray-600">
+              <div>{currentUser} {isAdmin && <span className="text-xs text-red-500 ml-1">(Admin)</span>}</div>
             </div>
           </div>
+
+          {/* 💡 [수술 5] 대망의 📢 전체 공지 스위치! 오직 최고 존엄 관리자(isAdmin)에게만 보입니다. */}
+          {isAdmin && (
+            <div className="flex items-center gap-2 px-1 py-2 bg-indigo-50 border border-indigo-100 rounded-sm mt-1">
+              <input 
+                type="checkbox" 
+                id="is_notice" 
+                checked={isNotice} 
+                onChange={(e) => setIsNotice(e.target.checked)}
+                className="w-4 h-4 ml-2 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-600 cursor-pointer"
+              />
+              <label htmlFor="is_notice" className="text-[13px] font-black text-indigo-700 cursor-pointer flex items-center gap-1.5 select-none">
+                <span className="text-base">📢</span> 이 글을 모든 게시판 최상단에 강제 고정합니다 (공지사항)
+              </label>
+            </div>
+          )}
 
           <div className="bg-white rounded-sm mt-4 border border-gray-300" ref={editorContainerRef}>
             {isEditorReady ? (
@@ -462,7 +482,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           <div className="flex justify-center gap-2 pt-6 border-t border-gray-100 mt-4">
             <button type="button" onClick={() => router.back()} disabled={isSubmitting} className="px-8 py-3 bg-white border border-gray-300 text-gray-700 rounded-sm font-bold hover:bg-gray-50 disabled:opacity-50 transition-colors">취소</button>
             
-            {/* 💡 [수술 3] 브라우저 간섭 0%! 버튼에서 포커스를 지켜내고, 수동으로 제출합니다! */}
             <button 
               type="button" 
               onMouseDown={(e) => {

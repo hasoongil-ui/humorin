@@ -16,7 +16,17 @@ export default async function EditPage(props: any) {
   const currentUserId = cookieStore.get('ojemi_userid')?.value;
   
   if (!currentUser) redirect('/login');
-  const isAdmin = currentUserId === 'admin';
+
+  // 💡 [보안 강화] 'admin' 아이디뿐만 아니라, DB에 등록된 부관리자 권한(is_admin)까지 완벽하게 검사합니다!
+  let isAdmin = currentUserId === 'admin';
+  try {
+    if (!isAdmin && currentUserId) {
+      const { rows: adminRows } = await sql`SELECT is_admin FROM users WHERE user_id = ${currentUserId}`;
+      if (adminRows.length > 0 && adminRows[0].is_admin) {
+        isAdmin = true;
+      }
+    }
+  } catch(e) {}
 
   // 1. 기존 게시글 가져오기
   const { rows } = await sql`SELECT * FROM posts WHERE id = ${postId}`;
@@ -48,12 +58,22 @@ export default async function EditPage(props: any) {
     const content = formData.get('content') as string;
     const category = formData.get('category') as string;
     
+    // 💡 [수술 1] EditClient에서 넘겨준 공지사항 스위치(ON/OFF) 값을 받습니다.
+    const isNoticeRaw = formData.get('is_notice') as string;
+    let finalIsNotice = false;
+
+    // 🛡️ [수술 2: 이중 보안] 뚫리지 않는 방패! 진짜 관리자일 때만 공지사항을 등록/해제할 수 있게 통제합니다.
+    if (isNoticeRaw === 'true' && isAdmin) {
+      finalIsNotice = true;
+    }
+
     try {
       // 제목에 [카테고리] 꼬리표 다시 예쁘게 달아주기
       const cleanTitle = title.replace(/^\[.*?\]\s*/, '');
       const newTitle = `[${category}] ${cleanTitle}`;
       
-      await sql`UPDATE posts SET title = ${newTitle}, content = ${content} WHERE id = ${postId}`;
+      // 💡 [수술 3] DB 업데이트 쿼리에 is_notice = ${finalIsNotice} 추가 장착 완료!
+      await sql`UPDATE posts SET title = ${newTitle}, content = ${content}, is_notice = ${finalIsNotice} WHERE id = ${postId}`;
       
       revalidatePath(`/board`);
       revalidatePath(`/board/${postId}`);
