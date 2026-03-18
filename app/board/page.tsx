@@ -81,19 +81,36 @@ export default async function BoardPage(props: any) {
 
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('ojemi_user');
+  const userIdCookie = cookieStore.get('ojemi_userid'); // 💡 유저 고유 ID도 가져옵니다.
+  
   const currentUser = userCookie ? userCookie.value : null;
+  const currentUserId = userIdCookie ? userIdCookie.value : null;
+
+  // 💡 [수술 1] 사이드바에 띄워줄 로그인 유저의 프로필 사진을 DB에서 꺼내옵니다.
+  let currentUserProfileImage = null;
+  if (currentUserId) {
+    try {
+      const { rows } = await sql`SELECT profile_image FROM users WHERE user_id = ${currentUserId}`;
+      if (rows.length > 0) {
+        currentUserProfileImage = rows[0].profile_image;
+      }
+    } catch (e) {
+      console.error("사이드바 프로필 이미지 가져오기 실패");
+    }
+  }
 
   const handleLogout = async () => {
     'use server';
     const store = await cookies();
     store.delete('ojemi_user');
+    store.delete('ojemi_userid'); // 로그아웃 시 ID 쿠키도 같이 지워줍니다.
   };
   
   const limit = 20; 
   const offset = (page - 1) * limit; 
 
   let posts = [];
-  let noticePosts: any[] = []; // 💡 [수술 1] 공지사항을 담을 특수 바구니 준비
+  let noticePosts: any[] = []; 
   let totalCount = 0; 
   let topPost = null;
 
@@ -105,7 +122,6 @@ export default async function BoardPage(props: any) {
     console.error("사이드바 게시판 불러오기 실패");
   }
 
-  // 💡 [수술 2] 1페이지이고 검색 중이 아닐 때, 공지사항을 먼저 찾아냅니다!
   if (page === 1 && !keyword) {
     try {
       const { rows } = await sql`
@@ -116,7 +132,6 @@ export default async function BoardPage(props: any) {
       `;
       noticePosts = rows;
     } catch (e) {
-      // ⚠️ 만약 관리자가 아직 Vercel DB에서 ALTER TABLE 명령어를 실행하지 않았더라도 화면이 터지지 않도록 방어막을 칩니다.
       console.log("공지사항 컬럼이 아직 없습니다.");
     }
   }
@@ -178,12 +193,9 @@ export default async function BoardPage(props: any) {
   }
 
   const totalPages = Math.ceil(totalCount / limit) || 1;
-  
-  // 💡 [수술 3] 공지사항과 일반 게시물이 중복되어 나오는 것을 방지합니다.
   const noticeIds = new Set(noticePosts.map(p => p.id));
   const renderPosts = posts.filter((p: any) => !noticeIds.has(p.id) && (!topPost || p.id !== topPost.id));
   const renderTopPost = topPost && !noticeIds.has(topPost.id) ? topPost : null;
-  
   const canWrite = bestType === ''; 
 
   return (
@@ -195,14 +207,19 @@ export default async function BoardPage(props: any) {
             {currentUser ? (
               <div>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-gray-100 border border-gray-200 rounded-full flex items-center justify-center text-gray-500 shadow-inner">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
+                  {/* 💡 [수술 2] 사이드바의 밋밋한 아바타를 영롱한 '내 프사'로 교체했습니다! */}
+                  <div className="w-12 h-12 bg-gray-100 border border-gray-200 rounded-full flex items-center justify-center text-gray-500 shadow-inner overflow-hidden shrink-0">
+                    {currentUserProfileImage ? (
+                      <img src={currentUserProfileImage} alt={`${currentUser}님의 프로필`} className="w-full h-full object-cover" />
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
+                    )}
                   </div>
-                  <div>
-                    <div className="font-black text-gray-800 text-sm">
+                  <div className="min-w-0">
+                    <div className="font-black text-gray-800 text-sm truncate">
                       <span className="text-[#3b4890]">{currentUser}</span>님
                     </div>
-                    <div className="text-[11px] text-gray-400 font-bold mt-0.5">커뮤니티 오재미</div>
+                    <div className="text-[11px] text-gray-400 font-bold mt-0.5 truncate">커뮤니티 오재미</div>
                   </div>
                 </div>
                 
@@ -283,7 +300,6 @@ export default async function BoardPage(props: any) {
               <div className="w-12 text-center text-rose-500 shrink-0">공감</div>
             </div>
 
-            {/* 💡 [수술 4] 대망의 📢 공지사항 렌더링 영역입니다. (연한 남색 배경 적용) */}
             {noticePosts.map((post: any) => {
               const postData = extractData(post.title);
               return (
