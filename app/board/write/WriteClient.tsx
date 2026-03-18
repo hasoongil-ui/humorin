@@ -29,7 +29,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   
   const quillRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
-  const formRef = useRef<HTMLFormElement>(null); 
+  // 💡 [수술 1] 에러를 유발하던 formRef 리모컨은 아예 폐기했습니다.
 
   useEffect(() => {
     if (isGlobalLocked && !isAdmin) {
@@ -321,14 +321,22 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     }
   }), []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // 💡 [수술 2] 직접 제출 함수에서 제목 누락 여부를 완벽하게 수동 검사합니다!
+  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) e.preventDefault();
+
     if (isGlobalLocked && !isAdmin) {
       alert('🚨 현재 관리자에 의해 글쓰기가 전면 차단되었습니다.'); return;
     }
     const targetBoard = boards?.find((b: any) => b.name === category);
     if (targetBoard?.is_write_locked && !isAdmin) {
       alert(`🚨 해당 [${category}] 게시판은 현재 관리자에 의해 글쓰기가 잠겨있습니다.`); return;
+    }
+
+    // 💡 브라우저 검사를 끄는 대신 여기서 철통 방어! (먹통 방지)
+    if (!title.trim()) {
+      alert('제목을 입력하세요.'); 
+      return;
     }
 
     if (!content || content === '<p><br></p>') {
@@ -353,6 +361,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         alert('글 등록에 실패했습니다.'); setIsSubmitting(false);
       }
     } catch (error) {
+      alert('서버 오류가 발생했습니다.');
       setIsSubmitting(false);
     }
   };
@@ -411,7 +420,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           글쓰기 {isUploading && <span className="text-sm font-medium text-gray-500 ml-4">(업로드 처리 중...)</span>}
         </h1>
         
-        <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
             <select value={category} onChange={(e) => setCategory(e.target.value)} className="p-3 border border-gray-300 rounded-sm outline-none font-bold bg-white text-gray-700 w-full md:w-56 shadow-sm">
               {Object.keys(groupedBoards).length > 0 ? (
@@ -453,14 +462,14 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           <div className="flex justify-center gap-2 pt-6 border-t border-gray-100 mt-4">
             <button type="button" onClick={() => router.back()} disabled={isSubmitting} className="px-8 py-3 bg-white border border-gray-300 text-gray-700 rounded-sm font-bold hover:bg-gray-50 disabled:opacity-50 transition-colors">취소</button>
             
+            {/* 💡 [수술 3] 브라우저 간섭 0%! 버튼에서 포커스를 지켜내고, 수동으로 제출합니다! */}
             <button 
-              type="submit" 
+              type="button" 
               onMouseDown={(e) => {
                 e.preventDefault(); 
-                if (formRef.current) {
-                  formRef.current.requestSubmit(); 
-                }
+                handleSubmit(e); 
               }}
+              onClick={(e) => handleSubmit(e)}
               disabled={isUploading || isSubmitting || !isEditorReady} 
               className="px-12 py-3 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-all disabled:bg-gray-400 flex items-center justify-center gap-2"
             >
