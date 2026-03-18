@@ -12,10 +12,12 @@ function isForbidden(text: string) {
   return FORBIDDEN_WORDS.some(word => lowerText.includes(word));
 }
 
-export async function checkDuplicate(type: 'id' | 'nickname', value: string) {
+// 💡 [수술 1] 이메일(email) 타입도 검사할 수 있도록 파라미터 추가!
+export async function checkDuplicate(type: 'id' | 'nickname' | 'email', value: string) {
   if (!value) return 'empty';
   
-  if (isForbidden(value)) return 'forbidden';
+  // 이메일은 금칙어 검사를 하지 않습니다.
+  if (type !== 'email' && isForbidden(value)) return 'forbidden';
   
   if (type === 'id') {
     const { rows } = await sql`SELECT user_id FROM users WHERE user_id = ${value}`;
@@ -24,6 +26,12 @@ export async function checkDuplicate(type: 'id' | 'nickname', value: string) {
   
   if (type === 'nickname') {
     const { rows } = await sql`SELECT nickname FROM users WHERE nickname = ${value}`;
+    if (rows.length > 0) return 'duplicate';
+  }
+
+  // 💡 [수술 2] 이메일 중복 스캔 로직 추가!
+  if (type === 'email') {
+    const { rows } = await sql`SELECT email FROM users WHERE email = ${value}`;
     if (rows.length > 0) return 'duplicate';
   }
   
@@ -46,6 +54,10 @@ export async function registerUserAction(formData: FormData) {
 
   const nickStatus = await checkDuplicate('nickname', nickname);
   if (nickStatus !== 'ok') return { error: nickStatus === 'forbidden' ? 'nick_forbidden' : 'nick_exists' };
+
+  // 💡 [수술 3] DB에 꽂아 넣기 직전, 이메일이 이미 존재하는지 최종 확인!
+  const emailStatus = await checkDuplicate('email', email);
+  if (emailStatus !== 'ok') return { error: 'email_exists' };
 
   try {
     // 🛡️ [핵심 수술] 유저의 비밀번호를 도저히 풀 수 없는 강력한 해시 기호로 갈아버립니다!
