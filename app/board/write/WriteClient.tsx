@@ -18,7 +18,6 @@ const ReactQuillWrapper = dynamic(
 );
 import 'react-quill-new/dist/quill.snow.css';
 
-// 🛡️ [수술 1] 게시글 최대 글자 수 제한 (65,000자 = 넉넉한 혜자 세팅)
 const MAX_CONTENT_LENGTH = 65000;
 
 export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boards, editorPlaceholder }: { currentUser: string, isAdmin: boolean, isGlobalLocked: boolean, boards: any[], editorPlaceholder?: string }) {
@@ -28,6 +27,9 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const [isEditorReady, setIsEditorReady] = useState(false);
+  
+  // 🛡️ [방어막 1단계] 스팸 봇을 낚기 위한 '투명 함정' 상태값
+  const [botTrap, setBotTrap] = useState('');
   
   const [isNotice, setIsNotice] = useState(false);
   const router = useRouter();
@@ -325,14 +327,11 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     }
   }), []);
 
-  // 🛡️ [수술 2] 글자 수 감시 및 차단 함수 (65,000자 초과 시 경고 후 잘라냄)
   const handleContentChange = (newContent: string) => {
-    // 순수 텍스트 길이만 계산하기 위해 HTML 태그를 임시로 제거합니다.
     const textOnly = newContent.replace(/<[^>]*>?/gm, ''); 
     
     if (textOnly.length > MAX_CONTENT_LENGTH) {
       alert(`🚨 게시글은 최대 ${MAX_CONTENT_LENGTH.toLocaleString()}자까지만 작성할 수 있습니다.\n현재 초과된 분량은 자동으로 삭제됩니다.`);
-      // 에디터의 실행 취소(undo) 기능을 강제로 호출해서 초과 입력을 무효화시킵니다!
       if (quillRef.current) {
         const editor = quillRef.current.getEditor();
         editor.history.undo();
@@ -342,11 +341,15 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     setContent(newContent);
   };
 
-  // 🛡️ [수술 3] 카운터를 위해 현재 글자 수 계산 (HTML 태그 제외 순수 글자만)
   const currentLength = content.replace(/<[^>]*>?/gm, '').length;
 
   const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
     if (e) e.preventDefault();
+
+    // 💡 [수술 완료] 에디터 튕김 방지! 등록 버튼을 누르는 순간 커서를 강제로 해제합니다.
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
 
     if (isGlobalLocked && !isAdmin) {
       alert('🚨 현재 관리자에 의해 글쓰기가 전면 차단되었습니다.'); return;
@@ -369,7 +372,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     }
     if (isUploading || isSubmitting) return;
     
-    // 🛡️ [수술 4] 서버 전송 직전 마지막으로 글자 수 더블 체크! (해커 원천 차단)
     if (currentLength > MAX_CONTENT_LENGTH) {
       alert(`게시글 글자 수 제한(${MAX_CONTENT_LENGTH.toLocaleString()}자)을 초과했습니다.`); return;
     }
@@ -380,13 +382,22 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const res = await fetch('/api/post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title, content: content, author: currentUser, category: category, is_notice: isNotice }), 
+        // 🛡️ [방어막 2단계] 서버에 함정(bot_trap) 데이터를 함께 몰래 보냅니다!
+        body: JSON.stringify({ title: title, content: content, author: currentUser, category: category, is_notice: isNotice, bot_trap: botTrap }), 
       });
+
       if (res.ok) {
         router.push(`/board?category=${category}`);
         router.refresh();
       } else {
-        alert('글 등록에 실패했습니다.'); setIsSubmitting(false);
+        // 🛡️ [방어막 3단계] 서버에서 금칙어가 걸렸다고 알려주면, 유저에게 경고창을 띄웁니다.
+        const errorData = await res.json().catch(() => null);
+        if (errorData?.error === 'forbidden_word') {
+          alert(`🚨 작성하신 글에 금지된 단어 [ ${errorData.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
+        } else {
+          alert('글 등록에 실패했습니다.');
+        }
+        setIsSubmitting(false);
       }
     } catch (error) {
       alert('서버 오류가 발생했습니다.');
@@ -449,6 +460,21 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         </h1>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          
+          {/* 🛡️ [방어막 4단계] 봇을 유인하는 시크릿 함정 (Honeypot) - 화면에는 안 보이지만 로봇은 이걸 채웁니다! */}
+          <div className="absolute opacity-0 -z-50 h-0 w-0 overflow-hidden" aria-hidden="true">
+            <label htmlFor="ojemi_secret_trap">웹사이트 주소 (사람은 비워두세요)</label>
+            <input 
+              type="text" 
+              id="ojemi_secret_trap" 
+              name="ojemi_secret_trap" 
+              value={botTrap} 
+              onChange={(e) => setBotTrap(e.target.value)} 
+              tabIndex={-1} 
+              autoComplete="off" 
+            />
+          </div>
+
           <div className="flex flex-col md:flex-row gap-3">
             <select value={category} onChange={(e) => setCategory(e.target.value)} className="p-3 border border-gray-300 rounded-sm outline-none font-bold bg-white text-gray-700 w-full md:w-56 shadow-sm">
               {Object.keys(groupedBoards).length > 0 ? (
@@ -488,7 +514,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
           <div className="bg-white rounded-sm mt-4 border border-gray-300" ref={editorContainerRef}>
             {isEditorReady ? (
-              // 🛡️ [수술 5] setContent 대신 handleContentChange 방어막 함수를 연결합니다.
               <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={handleContentChange} placeholder={editorPlaceholder || "내용을 작성해 주십시오..."} />
             ) : (
               <div className="h-[600px] flex items-center justify-center bg-gray-50 text-gray-400 font-bold text-lg animate-pulse">
@@ -497,7 +522,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             )}
           </div>
           
-          {/* 🛡️ [수술 6] 에디터 바로 아래에 우측 정렬로 세련된 글자 수 카운터 배치! */}
           <div className="flex justify-end mt-2 px-1">
             <span className={`text-[11px] sm:text-[12px] font-black tracking-tighter ${currentLength >= MAX_CONTENT_LENGTH ? 'text-rose-500' : 'text-gray-400'}`}>
               {currentLength.toLocaleString()} / {MAX_CONTENT_LENGTH.toLocaleString()}자
