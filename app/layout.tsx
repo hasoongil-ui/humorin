@@ -2,15 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link"; // 💡 [추가] 하단 메뉴 이동을 위한 Link 컴포넌트 불러오기
 import "./globals.css";
 
-// 💡 [SEO 수술 완벽 적용] 타이틀, 설명, 그리고 대망의 '네이버 소유확인 명찰'까지 완벽 장착!
+// 💡 [SEO 수술 완벽 적용] 타이틀, 설명, 그리고 '구글 & 네이버 소유확인 명찰' 완벽 장착!
 export const metadata: Metadata = {
   title: "오재미 (OJEMI)",
   description: "유머, 감동, 지식, 일상이 살아 숨 쉬는 커뮤니티 오재미입니다.",
   keywords: ["오재미", "오제미", "ojemi", "커뮤니티", "유머", "감동", "포럼"],
   manifest: "/manifest.json", // 고화질 앱 아이콘을 위한 매니페스트 연결 완료!
   
-  // 🛡️ 네이버 검색 로봇 전용 소유확인 명찰 (이걸 달아야 네이버가 오재미를 등록해 줍니다!)
+  // 🛡️ 구글 & 네이버 검색 로봇 전용 소유확인 쌍끌이 명찰
   verification: {
+    google: "3aIk8mNr5N-uh1qZIVo9F6PUpio0bAh9tsDIMQiTG3o", // 💡 [추가] 구글 명찰
     other: {
       "naver-site-verification": "8c8cd4db2f2b39e98404ffa41a05e2aea08cb455",
     },
