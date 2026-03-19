@@ -8,7 +8,7 @@ import { cookies } from 'next/headers';
 import { PostLikeButton, PostDislikeButton, CommentLikeButton, CommentDislikeButton, PostScrapButton, PostReportButton, CommentReportButton, EditCommentForm, PostShareButton } from './InteractiveButtons'; 
 import CommentForm from './CommentForm';
 import VideoVolumeFix from './VideoVolumeFix'; 
-import { Metadata } from 'next'; // 💡 메타데이터 타입 추가
+import { Metadata } from 'next';
 
 function getSeoDatetime(dateString: any) {
   if (!dateString) return '';
@@ -35,7 +35,7 @@ function extractData(fullTitle: string) {
   return match ? { cat: match[1], cleanTitle: match[2] } : { cat: '일반', cleanTitle: fullTitle };
 }
 
-// 💡 [수술 1: 스마트 명함 자판기 장착!] 네이버/카카오톡 공유 시 완벽한 미리보기를 생성합니다.
+// 💡 메타데이터 생성 로직 (유치한 문구 삭제 및 유튜브 썸네일 자동 추출 추가)
 export async function generateMetadata(props: any): Promise<Metadata> {
   const params = await props.params;
   const postId = params.id;
@@ -45,38 +45,58 @@ export async function generateMetadata(props: any): Promise<Metadata> {
     const post = rows[0];
 
     if (!post) {
-      return { title: '게시글을 찾을 수 없습니다 - 오재미' };
+      return { title: '오재미' };
     }
 
     const { cleanTitle } = extractData(post.title);
+    const postContent = post.content || '';
 
-    // 본문에서 HTML 태그를 모두 걷어내고 순수 텍스트만 80자 추출 (미리보기 요약용)
-    const plainText = (post.content || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
-    const description = plainText.length > 80 ? plainText.substring(0, 80) + '...' : plainText;
+    // 1. 순수 텍스트 추출 및 요약 (기본 문구 완전히 삭제)
+    const plainText = postContent.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    const description = plainText.length > 0 
+      ? (plainText.length > 80 ? plainText.substring(0, 80) + '...' : plainText) 
+      : cleanTitle; // 내용이 없으면 제목을 그대로 사용
 
-    // 본문 내용 중 첫 번째 이미지 태그를 찾아 썸네일 주소로 사용!
-    const imgMatch = (post.content || '').match(/<img[^>]+src="([^">]+)"/);
-    const imageUrl = imgMatch ? imgMatch[1] : null;
+    // 2. 썸네일 이미지 추출 로직
+    let imageUrl = null;
+
+    // A. 본문에 이미지 태그가 있는지 가장 먼저 확인
+    const imgMatch = postContent.match(/<img[^>]*src=["']([^"'>]+)["']/i);
+    if (imgMatch && imgMatch[1]) {
+      imageUrl = imgMatch[1];
+    } 
+    // B. 이미지가 없고 유튜브 영상이 있다면, 유튜브 썸네일을 강제로 낚아챔
+    else {
+      const ytMatch = postContent.match(/<iframe[^>]*src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube\.com\/embed\/|youtu\.be\/)([^"'>?]+)/i);
+      if (ytMatch && ytMatch[1]) {
+        imageUrl = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+      }
+    }
+
+    // C. mp4 비디오 태그 감지 시 네이버 봇에게 '비디오가 있음'을 알리는 태그용
+    const videoMatch = postContent.match(/<video[^>]*src=["']([^"'>]+)["']/i);
+    const videoUrl = videoMatch ? videoMatch[1] : null;
 
     return {
       title: `${cleanTitle} - 오재미`,
-      description: description || '오재미(OJEMI)에서 이 게시글을 확인해보세요!',
+      description: description,
       openGraph: {
         title: cleanTitle,
-        description: description || '오재미(OJEMI)에서 이 게시글을 확인해보세요!',
-        siteName: '오재미 (OJEMI)',
-        images: imageUrl ? [{ url: imageUrl }] : [], // 썸네일이 있으면 세팅!
+        description: description,
+        siteName: '오재미',
+        images: imageUrl ? [{ url: imageUrl }] : [],
+        videos: videoUrl ? [{ url: videoUrl }] : [],
         type: 'article',
       },
       twitter: {
         card: 'summary_large_image',
         title: cleanTitle,
-        description: description || '오재미(OJEMI)에서 이 게시글을 확인해보세요!',
+        description: description,
         images: imageUrl ? [imageUrl] : [],
       }
     };
   } catch (error) {
-    return { title: '오재미 (OJEMI)' };
+    return { title: '오재미' };
   }
 }
 
