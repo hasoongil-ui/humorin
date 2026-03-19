@@ -279,3 +279,39 @@ export function PostShareButton({ title }: { title: string }) {
     </button>
   );
 }
+
+// ---------------------------------------------------------
+// 🟢 5. 주소 복사 박스 (PC/모바일 공용 직관적 UI)
+// ---------------------------------------------------------
+export function CopyLinkBox({ postId }: { postId: string }) {
+  const [copied, setCopied] = useState(false);
+  const url = `https://www.ojemi.kr/board/${postId}`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      alert('복사에 실패했습니다.');
+    }
+  };
+
+  return (
+    <div className="flex justify-end mb-6">
+      <div className="flex items-center bg-gray-50 border border-gray-200 rounded-sm shadow-sm overflow-hidden">
+        <span className="px-3 py-1.5 text-[12px] text-gray-500 font-mono truncate max-w-[200px] sm:max-w-[300px] select-all">
+          {url}
+        </span>
+        <button
+          onClick={handleCopy}
+          className={`px-3 py-1.5 border-l border-gray-200 text-[12px] font-bold transition-colors ${
+            copied ? 'bg-green-50 text-green-600' : 'bg-white text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          {copied ? '✅ 복사완료' : '🔗 주소복사'}
+        </button>
+      </div>
+    </div>
+  );
+}

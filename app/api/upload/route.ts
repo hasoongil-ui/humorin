@@ -15,20 +15,26 @@ export async function POST(request: NextRequest) {
   try {
     const { filename, contentType } = await request.json();
 
+    // 💡 [CCTV 가동] 브라우저가 도대체 어떤 이름표를 달고 보내는지 터미널에 기록합니다.
+    console.log(`[업로드 요청] 파일명: ${filename}, 타입: ${contentType}`);
+
     if (!filename || !contentType) {
       return NextResponse.json({ error: '파일 정보가 없습니다.' }, { status: 400 });
     }
 
-    // 🛡️ [보안 수술 1] 이미지 파일만 통과시키는 철통 검문소! (바이러스, 악성스크립트 원천 차단)
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    // 🛡️ [정석 보안 화이트리스트] 바이러스는 막고, 정상적인 이미지/동영상만 통과시킵니다.
+    const allowedTypes = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'video/mp4', 'video/webm', 'video/quicktime'
+    ];
+    
     if (!allowedTypes.includes(contentType)) {
-      return NextResponse.json({ error: '❌ 이미지 파일(JPG, PNG, GIF, WEBP)만 업로드할 수 있습니다.' }, { status: 400 });
+      console.error(`❌ 업로드 차단됨: 명단에 없는 이상한 파일 타입 (${contentType})`);
+      return NextResponse.json({ error: '❌ 이미지 또는 동영상 파일만 업로드할 수 있습니다.' }, { status: 400 });
     }
 
-    // 🛡️ [보안 수술 2] 한글/띄어쓰기로 인한 URL 깨짐 방지를 위해 파일명 강제 세탁!
-    // 원본 파일에서 확장자(jpg, png 등)만 쏙 빼냅니다.
-    const extension = filename.split('.').pop()?.toLowerCase() || 'jpg';
-    // 타임스탬프 + 8자리 무작위 알파벳/숫자 조합으로 절대 안 깨지는 이름 생성
+    // 한글/띄어쓰기로 인한 URL 깨짐 방지를 위해 파일명 강제 세탁
+    const extension = filename.split('.').pop()?.toLowerCase() || 'bin';
     const safeRandomName = Math.random().toString(36).substring(2, 10);
     const uniqueFileName = `${Date.now()}-${safeRandomName}.${extension}`;
 
@@ -38,10 +44,8 @@ export async function POST(request: NextRequest) {
       ContentType: contentType,
     });
 
-    // 🎟️ 마법의 황금 티켓(Presigned URL) 발급! (유효기간 60초)
+    // 마법의 황금 티켓(Presigned URL) 발급
     const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 60 });
-    
-    // 유저가 볼 수 있는 전시관 주소
     const publicUrl = `${process.env.NEXT_PUBLIC_R2_URL}/${uniqueFileName}`;
 
     return NextResponse.json({ uploadUrl, publicUrl });

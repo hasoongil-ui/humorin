@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import { PostLikeButton, PostDislikeButton, CommentLikeButton, CommentDislikeButton, PostScrapButton, PostReportButton, CommentReportButton, EditCommentForm, PostShareButton } from './InteractiveButtons'; 
+import { PostLikeButton, PostDislikeButton, CommentLikeButton, CommentDislikeButton, PostScrapButton, PostReportButton, CommentReportButton, EditCommentForm, PostShareButton, CopyLinkBox } from './InteractiveButtons'; 
 import CommentForm from './CommentForm';
 import VideoVolumeFix from './VideoVolumeFix'; 
 import { Metadata } from 'next';
@@ -612,7 +612,7 @@ export default async function PostDetailPage(props: any) {
 
       <main className="max-w-[1000px] mx-auto p-5 md:p-8 mt-4 mb-20 overflow-hidden">
         
-        <div className="border-b-2 border-gray-800 pb-4 mb-8">
+        <div className="border-b-2 border-gray-800 pb-4 mb-4">
           <h1 className="text-2xl md:text-3xl font-black mb-4"><span className="text-[#3b4890] mr-2">[{postData.cat}]</span>{postData.cleanTitle}</h1>
           <div className="flex justify-between items-center text-gray-500 text-sm font-bold flex-wrap gap-y-2">
             
@@ -642,6 +642,8 @@ export default async function PostDetailPage(props: any) {
 
           </div>
         </div>
+        
+        <CopyLinkBox postId={postId} />
         
         {post.is_blinded && !isAdmin ? (
           <div className="bg-gray-100 p-12 text-center rounded-lg border border-gray-300 my-10 shadow-inner">
