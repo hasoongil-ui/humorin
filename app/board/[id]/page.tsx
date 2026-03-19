@@ -35,6 +35,14 @@ function extractData(fullTitle: string) {
   return match ? { cat: match[1], cleanTitle: match[2] } : { cat: '일반', cleanTitle: fullTitle };
 }
 
+// 🛡️ [수술 1] 금칙어 리스트 및 스마트 엑스레이 필터 함수 탑재!
+const FORBIDDEN_WORDS = ['도박', '카지노', '토토', '바카라', '릴게임', '비아그라', '성인용품'];
+
+const extractTextOnly = (htmlText: string) => {
+  const noHtml = htmlText.replace(/<[^>]*>?/gm, ''); 
+  return noHtml.replace(/[^\uAC00-\uD7A3a-zA-Z0-9]/g, '').toLowerCase(); 
+};
+
 // 💡 메타데이터 생성 로직 (유치한 문구 삭제 및 유튜브 썸네일 자동 추출 추가)
 export async function generateMetadata(props: any): Promise<Metadata> {
   const params = await props.params;
@@ -51,21 +59,17 @@ export async function generateMetadata(props: any): Promise<Metadata> {
     const { cleanTitle } = extractData(post.title);
     const postContent = post.content || '';
 
-    // 1. 순수 텍스트 추출 및 요약 (기본 문구 완전히 삭제)
     const plainText = postContent.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
     const description = plainText.length > 0 
       ? (plainText.length > 80 ? plainText.substring(0, 80) + '...' : plainText) 
-      : cleanTitle; // 내용이 없으면 제목을 그대로 사용
+      : cleanTitle; 
 
-    // 2. 썸네일 이미지 추출 로직
     let imageUrl = null;
 
-    // A. 본문에 이미지 태그가 있는지 가장 먼저 확인
     const imgMatch = postContent.match(/<img[^>]*src=["']([^"'>]+)["']/i);
     if (imgMatch && imgMatch[1]) {
       imageUrl = imgMatch[1];
     } 
-    // B. 이미지가 없고 유튜브 영상이 있다면, 유튜브 썸네일을 강제로 낚아챔
     else {
       const ytMatch = postContent.match(/<iframe[^>]*src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube\.com\/embed\/|youtu\.be\/)([^"'>?]+)/i);
       if (ytMatch && ytMatch[1]) {
@@ -73,7 +77,6 @@ export async function generateMetadata(props: any): Promise<Metadata> {
       }
     }
 
-    // C. mp4 비디오 태그 감지 시 네이버 봇에게 '비디오가 있음'을 알리는 태그용
     const videoMatch = postContent.match(/<video[^>]*src=["']([^"'>]+)["']/i);
     const videoUrl = videoMatch ? videoMatch[1] : null;
 
@@ -283,6 +286,7 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
+  // 🛡️ [수술 2] 댓글 등록 서버 액션에 방어막 씌우기
   const addComment = async (formData: FormData) => {
     'use server';
     if (!currentUserId) return;
@@ -301,7 +305,23 @@ export default async function PostDetailPage(props: any) {
     const content = (formData.get('content') as string) || ''; 
     const parentId = formData.get('parentId') as string;
     const imageUrl = (formData.get('imageUrl') || formData.get('image_data') || formData.get('image')) as string;
+    const botTrap = formData.get('bot_trap') as string; // 프론트에서 보낸 함정 데이터 확인
     
+    // 🛡️ [방어 1] 기계가 함정을 건드렸다면? 그냥 '성공'이라고 뻥치고 종료!
+    if (botTrap) {
+      console.log('🚨 [스팸 봇 차단 완료] 댓글 허니팟 함정에 걸려들었습니다.');
+      return { success: true };
+    }
+
+    // 🛡️ [방어 2] 스마트 금칙어 엑스레이 감지기
+    const cleanContent = extractTextOnly(content);
+    for (const word of FORBIDDEN_WORDS) {
+      if (cleanContent.includes(word)) {
+        console.log(`🚨 [금칙어 차단] 차단된 단어: ${word}`);
+        return { error: 'forbidden_word', word: word }; // 프론트엔드로 에러 반환!
+      }
+    }
+
     if (!content.trim() && !imageUrl) return; 
 
     if (parentId) {
@@ -313,12 +333,22 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
+  // 🛡️ [수술 3] 댓글 수정 시에도 엑스레이 필터 작동 (나중에 꼼수로 광고 넣는 행위 차단)
   const editComment = async (formData: FormData) => {
     'use server';
     if (!currentUserId) return;
     const commentId = formData.get('commentId') as string;
     const content = formData.get('content') as string;
     const imageUrl = formData.get('imageUrl') as string;
+
+    // 🛡️ [방어 3] 수정 시에도 금칙어 검사!
+    const cleanContent = extractTextOnly(content || '');
+    for (const word of FORBIDDEN_WORDS) {
+      if (cleanContent.includes(word)) {
+        console.log(`🚨 [금칙어 차단] 수정 우회 시도 차단됨: ${word}`);
+        return { error: 'forbidden_word', word: word }; 
+      }
+    }
 
     if (!content.trim() && !imageUrl) return;
 

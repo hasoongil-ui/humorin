@@ -8,6 +8,10 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // 🛡️ [수술 1] 봇을 낚기 위한 '투명 함정' 상태값 추가
+    const [botTrap, setBotTrap] = useState('');
+    
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const uniqueId = parentId ? `image-${parentId}` : 'image-main';
@@ -60,8 +64,19 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
         formData.append('content', content);
         if (parentId) formData.append('parentId', parentId);
         formData.append('imageUrl', finalImageUrl);
+        
+        // 🛡️ [수술 2] 서버로 몰래 투명 함정 데이터 보내기
+        formData.append('bot_trap', botTrap);
 
-        await submitAction(formData);
+        // 🛡️ [수술 3] 서버에서 금칙어 검사를 통과했는지 결과값 받기
+        const result = await submitAction(formData);
+
+        // 만약 금칙어에 걸렸다면 경고창 띄우고 중단!
+        if (result && result.error === 'forbidden_word') {
+            alert(`🚨 작성하신 댓글에 금지된 단어 [ ${result.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
+            setIsSubmitting(false);
+            return;
+        }
 
         setContent('');
         setImageFile(null);
@@ -77,6 +92,21 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
 
     return (
         <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden flex flex-col mt-2">
+            
+            {/* 🛡️ [수술 4] 봇을 유인하는 시크릿 함정 (Honeypot) - 화면에는 안 보이지만 봇은 이걸 채웁니다! */}
+            <div className="absolute opacity-0 -z-50 h-0 w-0 overflow-hidden" aria-hidden="true">
+                <label htmlFor={`ojemi_secret_trap_${uniqueId}`}>웹사이트 주소</label>
+                <input 
+                    type="text" 
+                    id={`ojemi_secret_trap_${uniqueId}`} 
+                    name="ojemi_secret_trap" 
+                    value={botTrap} 
+                    onChange={(e) => setBotTrap(e.target.value)} 
+                    tabIndex={-1} 
+                    autoComplete="off" 
+                />
+            </div>
+
             {actionType === 'reply' && author && (
                 <div className="px-3 pt-2 text-[12px] font-bold text-[#3b4890]">
                     ↳ @{author} 님에게 답글 작성 중...
@@ -86,7 +116,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
             <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                maxLength={1500} // 🛡️ [수술 완료] 1,500자 스크롤 테러 원천 차단!
+                maxLength={1500} 
                 rows={3}
                 disabled={isSubmitting}
                 className="w-full p-3 text-[14px] outline-none resize-y"
@@ -117,7 +147,6 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
                     </label>
                 </div>
                 
-                {/* 💡 [수술 완료] 모바일 레이아웃 안 깨지게 글자 수 카운터 예쁘게 삽입! */}
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <span className={`text-[10px] sm:text-[11px] font-black tracking-tighter ${content.length >= 1500 ? 'text-rose-500' : 'text-gray-400'}`}>
                         {content.length.toLocaleString()} / 1,500
