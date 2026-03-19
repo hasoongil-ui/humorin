@@ -86,6 +86,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
             <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
+                maxLength={1500} // 🛡️ [수술 완료] 1,500자 스크롤 테러 원천 차단!
                 rows={3}
                 disabled={isSubmitting}
                 className="w-full p-3 text-[14px] outline-none resize-y"
@@ -107,7 +108,6 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
                 </div>
             )}
 
-            {/* 💡 [핵심 수술 부위] flex-wrap 추가 및 버튼 크기, 패딩을 모바일에 최적화했습니다! */}
             <div className="bg-gray-50 border-t border-gray-100 px-2 sm:px-3 py-2 flex flex-wrap justify-between items-center gap-2">
                 <div>
                     <input type="file" ref={fileInputRef} id={uniqueId} accept="image/*" className="hidden" onChange={handleFileChange} disabled={isSubmitting} />
@@ -117,16 +117,22 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
                     </label>
                 </div>
                 
-                <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                    {actionType === 'reply' && (
-                        <label htmlFor={`reply-${parentId}`} className="cursor-pointer px-3 sm:px-4 py-1.5 bg-white border border-gray-300 text-gray-600 text-[11px] sm:text-[12px] font-bold rounded-sm hover:bg-gray-100 shadow-sm flex items-center justify-center whitespace-nowrap flex-shrink-0">
-                            취소
-                        </label>
-                    )}
-                    <button type="submit" disabled={isSubmitting} className="px-3 sm:px-5 py-1.5 bg-[#414a66] text-white text-[11px] sm:text-[13px] font-bold rounded-sm hover:bg-[#2a3042] shadow-sm disabled:bg-gray-400 flex items-center justify-center gap-1 whitespace-nowrap flex-shrink-0">
-                        {isSubmitting && <Loader2 className="w-3 h-3 animate-spin" />}
-                        {isSubmitting ? '등록 중...' : '댓글 등록'}
-                    </button>
+                {/* 💡 [수술 완료] 모바일 레이아웃 안 깨지게 글자 수 카운터 예쁘게 삽입! */}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <span className={`text-[10px] sm:text-[11px] font-black tracking-tighter ${content.length >= 1500 ? 'text-rose-500' : 'text-gray-400'}`}>
+                        {content.length.toLocaleString()} / 1,500
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                        {actionType === 'reply' && (
+                            <label htmlFor={`reply-${parentId}`} className="cursor-pointer px-3 sm:px-4 py-1.5 bg-white border border-gray-300 text-gray-600 text-[11px] sm:text-[12px] font-bold rounded-sm hover:bg-gray-100 shadow-sm flex items-center justify-center whitespace-nowrap flex-shrink-0">
+                                취소
+                            </label>
+                        )}
+                        <button type="submit" disabled={isSubmitting} className="px-3 sm:px-5 py-1.5 bg-[#414a66] text-white text-[11px] sm:text-[13px] font-bold rounded-sm hover:bg-[#2a3042] shadow-sm disabled:bg-gray-400 flex items-center justify-center gap-1 whitespace-nowrap flex-shrink-0">
+                            {isSubmitting && <Loader2 className="w-3 h-3 animate-spin" />}
+                            {isSubmitting ? '등록 중...' : '댓글 등록'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </form>

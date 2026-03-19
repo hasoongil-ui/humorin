@@ -18,6 +18,9 @@ const ReactQuillWrapper = dynamic(
 );
 import 'react-quill-new/dist/quill.snow.css';
 
+// 🛡️ [수술 1] 게시글 최대 글자 수 제한 (65,000자 = 넉넉한 혜자 세팅)
+const MAX_CONTENT_LENGTH = 65000;
+
 export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boards, editorPlaceholder }: { currentUser: string, isAdmin: boolean, isGlobalLocked: boolean, boards: any[], editorPlaceholder?: string }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -26,9 +29,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const [isEditorReady, setIsEditorReady] = useState(false);
   
-  // 💡 [수술 1] 공지사항 체크박스 상태값 추가!
   const [isNotice, setIsNotice] = useState(false);
-  
   const router = useRouter();
   
   const quillRef = useRef<any>(null);
@@ -203,7 +204,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       const text = clipboardData.getData('text/plain');
       if (text) {
-        // 💡 [수술 2] 쇼츠(Shorts) 주소도 완벽하게 영상으로 인식하도록 정규식 업데이트 완료!
         const ytRegex = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
         
@@ -325,7 +325,26 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     }
   }), []);
 
-  // 💡 [수술 3] 튕김 방어막(수동 발사 로직) 10000% 유지 중!
+  // 🛡️ [수술 2] 글자 수 감시 및 차단 함수 (65,000자 초과 시 경고 후 잘라냄)
+  const handleContentChange = (newContent: string) => {
+    // 순수 텍스트 길이만 계산하기 위해 HTML 태그를 임시로 제거합니다.
+    const textOnly = newContent.replace(/<[^>]*>?/gm, ''); 
+    
+    if (textOnly.length > MAX_CONTENT_LENGTH) {
+      alert(`🚨 게시글은 최대 ${MAX_CONTENT_LENGTH.toLocaleString()}자까지만 작성할 수 있습니다.\n현재 초과된 분량은 자동으로 삭제됩니다.`);
+      // 에디터의 실행 취소(undo) 기능을 강제로 호출해서 초과 입력을 무효화시킵니다!
+      if (quillRef.current) {
+        const editor = quillRef.current.getEditor();
+        editor.history.undo();
+      }
+      return;
+    }
+    setContent(newContent);
+  };
+
+  // 🛡️ [수술 3] 카운터를 위해 현재 글자 수 계산 (HTML 태그 제외 순수 글자만)
+  const currentLength = content.replace(/<[^>]*>?/gm, '').length;
+
   const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
     if (e) e.preventDefault();
 
@@ -349,13 +368,18 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       alert('게시글에 용량을 초과하는 텍스트 이미지(Base64)가 포함되어 있습니다.\n해당 이미지를 삭제하신 후 다시 첨부해 주십시오.'); return;
     }
     if (isUploading || isSubmitting) return;
+    
+    // 🛡️ [수술 4] 서버 전송 직전 마지막으로 글자 수 더블 체크! (해커 원천 차단)
+    if (currentLength > MAX_CONTENT_LENGTH) {
+      alert(`게시글 글자 수 제한(${MAX_CONTENT_LENGTH.toLocaleString()}자)을 초과했습니다.`); return;
+    }
+
     setIsSubmitting(true); 
 
     try {
       const res = await fetch('/api/post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // 💡 [수술 4] 서버로 전송할 때 공지사항 여부(is_notice)도 같이 태워서 보냅니다!
         body: JSON.stringify({ title: title, content: content, author: currentUser, category: category, is_notice: isNotice }), 
       });
       if (res.ok) {
@@ -447,7 +471,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             </div>
           </div>
 
-          {/* 💡 [수술 5] 대망의 📢 전체 공지 스위치! 오직 최고 존엄 관리자(isAdmin)에게만 보입니다. */}
           {isAdmin && (
             <div className="flex items-center gap-2 px-1 py-2 bg-indigo-50 border border-indigo-100 rounded-sm mt-1">
               <input 
@@ -465,12 +488,20 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
           <div className="bg-white rounded-sm mt-4 border border-gray-300" ref={editorContainerRef}>
             {isEditorReady ? (
-              <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={setContent} placeholder={editorPlaceholder || "내용을 작성해 주십시오..."} />
+              // 🛡️ [수술 5] setContent 대신 handleContentChange 방어막 함수를 연결합니다.
+              <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={handleContentChange} placeholder={editorPlaceholder || "내용을 작성해 주십시오..."} />
             ) : (
               <div className="h-[600px] flex items-center justify-center bg-gray-50 text-gray-400 font-bold text-lg animate-pulse">
                 에디터 엔진 준비 중...
               </div>
             )}
+          </div>
+          
+          {/* 🛡️ [수술 6] 에디터 바로 아래에 우측 정렬로 세련된 글자 수 카운터 배치! */}
+          <div className="flex justify-end mt-2 px-1">
+            <span className={`text-[11px] sm:text-[12px] font-black tracking-tighter ${currentLength >= MAX_CONTENT_LENGTH ? 'text-rose-500' : 'text-gray-400'}`}>
+              {currentLength.toLocaleString()} / {MAX_CONTENT_LENGTH.toLocaleString()}자
+            </span>
           </div>
 
           <div className="mt-3 text-center bg-gray-50 border border-gray-200 p-3 rounded-sm">
