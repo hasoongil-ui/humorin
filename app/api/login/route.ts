@@ -1,12 +1,15 @@
 import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs'; // 🛡️ [추가] 최고 등급 암호화 라이브러리
+import bcrypt from 'bcryptjs'; 
+import crypto from 'crypto'; // 🛡️ [추가] 서명 생성을 위한 내장 암호화 모듈
+
+// 🛡️ [핵심] 오재미 서버만 아는 절대 비밀키 (환경변수가 없으면 임시 튼튼한 키 사용)
+const SECRET_KEY = process.env.AUTH_SECRET || 'ojemi-super-secret-key-2026-very-safe';
 
 export async function POST(request: Request) {
   try {
     const { id, password } = await request.json();
 
-    // 🛡️ [수술 1] 이전처럼 비밀번호를 같이 묶어서 찾지 않고, 일단 '아이디'만으로 유저를 검색합니다.
     const { rows } = await sql`
       SELECT * FROM users 
       WHERE user_id = ${id}
@@ -15,14 +18,9 @@ export async function POST(request: Request) {
     if (rows.length > 0) {
       const user = rows[0];
       
-      // 🛡️ [수술 2] 유저가 입력한 비밀번호와 DB에 있는 '암호문'이 서로 일치하는지 안전하게 비교합니다!
       const isPasswordMatch = await bcrypt.compare(password, user.password);
-      
-      // 💡 [초강력 센스] 아직 암호화되지 않은 대표님의 옛날 테스트 계정(admin)들이 
-      // 로그인이 막히는 것을 방지하기 위해, 예전 방식(평문)도 임시로 통과시켜주는 비상 통로입니다!
       const isLegacyLogin = password === user.password;
 
-      // 둘 중 하나라도 맞으면 로그인 성공!
       if (isPasswordMatch || isLegacyLogin) {
         
         await sql`
@@ -36,6 +34,7 @@ export async function POST(request: Request) {
           { status: 200 }
         );
         
+        // 1. 기존 화면용 쿠키 (에디터/화면 깨짐 방지를 위해 그대로 유지)
         response.cookies.set({
           name: 'ojemi_user',
           value: user.nickname || user.user_id,
@@ -52,16 +51,25 @@ export async function POST(request: Request) {
           maxAge: 60 * 60 * 24 * 7,
         });
 
+        // 2. 🛡️ [수술 완료] 해커 위조 방지용 '비밀 암호 도장' 쿠키 추가 발급!
+        // 서버만 아는 SECRET_KEY로 유저 아이디를 암호화해서 도장을 만듭니다.
+        const signature = crypto.createHmac('sha256', SECRET_KEY).update(user.user_id).digest('hex');
+        response.cookies.set({
+          name: 'ojemi_signature',
+          value: signature,
+          httpOnly: true,
+          path: '/',
+          maxAge: 60 * 60 * 24 * 7,
+        });
+
         return response;
       } else {
-        // 비밀번호가 틀린 경우
         return NextResponse.json(
           { success: false, message: '아이디 또는 비밀번호가 틀렸습니다.' }, 
           { status: 401 }
         );
       }
     } else {
-      // 아이디가 없는 경우
       return NextResponse.json(
         { success: false, message: '아이디 또는 비밀번호가 틀렸습니다.' }, 
         { status: 401 }

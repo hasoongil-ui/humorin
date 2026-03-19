@@ -4,14 +4,26 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
+import crypto from 'crypto'; // 🛡️ [추가] 서명 검증 모듈
 
 export const dynamic = 'force-dynamic';
 
-// 🛡️ [미나의 보안 핵심] 요청한 사람이 진짜 '관리자'가 맞는지 DB와 교차 검증하는 철벽 함수!
+const SECRET_KEY = process.env.AUTH_SECRET || 'ojemi-super-secret-key-2026-very-safe';
+
+// 🛡️ [미나의 보안 핵심] 요청한 사람이 진짜 '관리자'가 맞는지 DB 검증 + 위조 도장 검증!
 async function verifyAdmin() {
   const cookieStore = await cookies();
   const userId = cookieStore.get('ojemi_userid')?.value;
-  if (!userId) return false;
+  const signature = cookieStore.get('ojemi_signature')?.value; // 비밀 도장 가져오기
+  
+  if (!userId || !signature) return false;
+
+  // 🛡️ [수술 1] 해커가 userid를 조작했는지 '비밀 도장'의 공식으로 검사합니다.
+  const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(userId).digest('hex');
+  if (signature !== expectedSignature) {
+    console.error(`🚨 [보안 경고] 위조된 관리자 사칭 시도 감지! - 시도된 ID: ${userId}`);
+    return false; // 도장이 다르면 가짜 신분증이므로 즉시 쫓아냅니다!
+  }
 
   try {
     const { rows } = await sql`SELECT is_admin FROM users WHERE user_id = ${userId}`;
