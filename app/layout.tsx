@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link"; // 💡 [추가] 하단 메뉴 이동을 위한 Link 컴포넌트 불러오기
 import "./globals.css";
 
-// 💡 [SEO 수술 완벽 적용] '오재미' 한글 우선 배치 및 '오제미' 오타 유입까지 노리는 마법의 메타데이터!
+// 💡 [SEO 수술 완벽 적용] '명품 청정' 문구 완전 삭제! 가장 직관적이고 깔끔한 타이틀로 롤백 전 복구!
 export const metadata: Metadata = {
-  title: "오재미 (OJEMI) - 명품 청정 커뮤니티",
-  description: "오재미(오제미)는 유머, 감동, 지식, 일상이 살아 숨 쉬는 최고의 명품 청정 커뮤니티입니다.",
+  title: "오재미 (OJEMI)",
+  description: "유머, 감동, 지식, 일상이 살아 숨 쉬는 커뮤니티 오재미입니다.",
   keywords: ["오재미", "오제미", "ojemi", "커뮤니티", "유머", "감동", "포럼"],
   manifest: "/manifest.json", // 고화질 앱 아이콘을 위한 매니페스트 연결 완료!
 };

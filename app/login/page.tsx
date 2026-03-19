@@ -25,8 +25,8 @@ function LoginForm() {
       });
 
       if (res.ok) {
-        // 🚨 핵심 수술: 꼬리표(redirectUrl)가 있으면 그곳으로, 없으면 기본 게시판(/board)으로 이동!
-        router.push(redirectUrl || '/board');
+        // 🚨 핵심 수술: 꼬리표가 있으면 그곳으로 가고, 없으면 무조건 '메인 홈(/)'으로 이동!
+        router.push(redirectUrl || '/');
         router.refresh();
       } else {
         alert('아이디 또는 비밀번호를 확인해주세요.');
@@ -86,7 +86,7 @@ export default function LoginPage() {
         
         {/* 상단 로고 및 타이틀 */}
         <div className="text-center mb-8">
-          <Link href="/board" className="text-4xl font-black text-[#3b4890] tracking-tighter inline-block mb-3">
+          <Link href="/" className="text-4xl font-black text-[#3b4890] tracking-tighter inline-block mb-3">
             OJEMI
           </Link>
           <h2 className="text-xl font-bold text-gray-800">로그인</h2>

@@ -26,7 +26,7 @@ export async function handleLogoutAction() {
   const cookieStore = await cookies();
   cookieStore.delete('ojemi_user');
   cookieStore.delete('ojemi_userid');
-  redirect('/board');
+  redirect('/');
 }
 
 // 💡 3. [게시판 배달 요원] 통제실(DB)에서 게시판 목록을 실시간으로 긁어옵니다.
