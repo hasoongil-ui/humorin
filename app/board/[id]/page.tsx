@@ -8,6 +8,7 @@ import { cookies } from 'next/headers';
 import { PostLikeButton, PostDislikeButton, CommentLikeButton, CommentDislikeButton, PostScrapButton, PostReportButton, CommentReportButton, EditCommentForm, PostShareButton } from './InteractiveButtons'; 
 import CommentForm from './CommentForm';
 import VideoVolumeFix from './VideoVolumeFix'; 
+import { Metadata } from 'next'; // 💡 메타데이터 타입 추가
 
 function getSeoDatetime(dateString: any) {
   if (!dateString) return '';
@@ -33,6 +34,53 @@ function extractData(fullTitle: string) {
   const match = fullTitle.match(/^\[(.*?)\]\s*(.*)$/);
   return match ? { cat: match[1], cleanTitle: match[2] } : { cat: '일반', cleanTitle: fullTitle };
 }
+
+// 💡 [수술 1: 스마트 명함 자판기 장착!] 네이버/카카오톡 공유 시 완벽한 미리보기를 생성합니다.
+export async function generateMetadata(props: any): Promise<Metadata> {
+  const params = await props.params;
+  const postId = params.id;
+
+  try {
+    const { rows } = await sql`SELECT title, content FROM posts WHERE id = ${postId}`;
+    const post = rows[0];
+
+    if (!post) {
+      return { title: '게시글을 찾을 수 없습니다 - 오재미' };
+    }
+
+    const { cleanTitle } = extractData(post.title);
+
+    // 본문에서 HTML 태그를 모두 걷어내고 순수 텍스트만 80자 추출 (미리보기 요약용)
+    const plainText = (post.content || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+    const description = plainText.length > 80 ? plainText.substring(0, 80) + '...' : plainText;
+
+    // 본문 내용 중 첫 번째 이미지 태그를 찾아 썸네일 주소로 사용!
+    const imgMatch = (post.content || '').match(/<img[^>]+src="([^">]+)"/);
+    const imageUrl = imgMatch ? imgMatch[1] : null;
+
+    return {
+      title: `${cleanTitle} - 오재미`,
+      description: description || '오재미(OJEMI)에서 이 게시글을 확인해보세요!',
+      openGraph: {
+        title: cleanTitle,
+        description: description || '오재미(OJEMI)에서 이 게시글을 확인해보세요!',
+        siteName: '오재미 (OJEMI)',
+        images: imageUrl ? [{ url: imageUrl }] : [], // 썸네일이 있으면 세팅!
+        type: 'article',
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: cleanTitle,
+        description: description || '오재미(OJEMI)에서 이 게시글을 확인해보세요!',
+        images: imageUrl ? [imageUrl] : [],
+      }
+    };
+  } catch (error) {
+    return { title: '오재미 (OJEMI)' };
+  }
+}
+
+// --------------------------------------------------------------------------------
 
 export default async function PostDetailPage(props: any) {
   const params = await props.params;
@@ -170,14 +218,12 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!currentUserId) redirect('/login');
     
-    // 💡 [핵심 복원] 통제실에서 차단 기준(예: 10개)을 가져옵니다.
     let blindThreshold = 5;
     try {
       const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
       if (rows.length > 0) blindThreshold = Number(rows[0].value) || 5;
     } catch(e) {}
 
-    // 💡 [수술 완료] 관리자가 비공감을 누르면 +10 반영과 동시에 차단 기준을 넘어가는지 검사하여 즉시 블라인드!
     if (isAdmin) {
       await sql`
         UPDATE posts 
@@ -195,7 +241,6 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE posts SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO post_dislikes (post_id, author_id) VALUES (${postId}, ${currentUserId})`;
-      // 💡 일반 유저도 비공감을 눌러 기준치를 넘으면 즉시 블라인드 처리되도록 복원!
       await sql`
         UPDATE posts 
         SET dislikes = COALESCE(dislikes, 0) + 1,
@@ -315,14 +360,12 @@ export default async function PostDetailPage(props: any) {
     if (!currentUserId) return;
     const commentId = formData.get('commentId') as string;
 
-    // 💡 [핵심 복원] 통제실에서 차단 기준을 가져옵니다.
     let blindThreshold = 5;
     try {
       const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
       if (rows.length > 0) blindThreshold = Number(rows[0].value) || 5;
     } catch(e) {}
 
-    // 💡 [수술 완료] 댓글 비공감도 관리자가 누르면 +10 반영과 동시에 즉시 블라인드 처리 복원!
     if (isAdmin) {
       await sql`
         UPDATE comments 
