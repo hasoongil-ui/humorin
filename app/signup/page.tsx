@@ -7,10 +7,13 @@ import { checkDuplicate, registerUserAction } from './actions';
 
 export default function SignupPage() {
   const [id, setId] = useState('');
+  const [password, setPassword] = useState(''); // 💡 [수술 1] 비밀번호 상태 추가
+  const [confirmPassword, setConfirmPassword] = useState(''); // 💡 [수술 1] 비밀번호 확인 상태 추가
   const [nickname, setNickname] = useState('');
   const [email, setEmail] = useState('');
   
   const [idError, setIdError] = useState('');
+  const [pwdError, setPwdError] = useState(''); // 💡 [수술 1] 비밀번호 에러 상태 추가
   const [nickError, setNickError] = useState('');
   const [emailError, setEmailError] = useState(''); 
   
@@ -23,15 +26,11 @@ export default function SignupPage() {
 
   const idRegex = /^[a-zA-Z0-9]{4,12}$/; 
   const nickRegex = /^[가-힣a-zA-Z0-9\s]{2,8}$/; 
-  
-  // 💡 [수술 1] 이메일 정규식을 국제 표준(조금 더 깐깐한 버전)으로 업그레이드!
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/; 
 
   const handleIdBlur = async () => {
     const val = id.trim();
-    if (!val) {
-      setIdError(''); setIdOk(false); return;
-    }
+    if (!val) { setIdError(''); setIdOk(false); return; }
     
     if (!idRegex.test(val)) {
       setIdError('❌ 아이디는 영문, 숫자 조합 4~12자로 입력해 주세요.');
@@ -40,22 +39,28 @@ export default function SignupPage() {
 
     const status = await checkDuplicate('id', val);
     if (status === 'forbidden') {
-      setIdError('❌ 사용할 수 없는 단어가 포함되어 있습니다.');
-      setIdOk(false);
+      setIdError('❌ 사용할 수 없는 단어가 포함되어 있습니다.'); setIdOk(false);
     } else if (status === 'duplicate') {
-      setIdError('❌ 이미 사용 중인 아이디입니다.');
-      setIdOk(false);
+      setIdError('❌ 이미 사용 중인 아이디입니다.'); setIdOk(false);
     } else {
-      setIdError('');
-      setIdOk(true);
+      setIdError(''); setIdOk(true);
+    }
+  };
+
+  // 🛡️ [수술 2] 비밀번호 확인 검사기 장착! (다음 칸으로 넘어갈 때 찌릅니다)
+  const handlePwdBlur = () => {
+    if (confirmPassword && password !== confirmPassword) {
+      setPwdError('❌ 비밀번호가 서로 일치하지 않습니다.');
+    } else if (confirmPassword && password.length < 8) {
+      setPwdError('❌ 비밀번호는 최소 8자 이상이어야 합니다.');
+    } else {
+      setPwdError('');
     }
   };
 
   const handleNickBlur = async () => {
     const val = nickname.trim();
-    if (!val) {
-      setNickError(''); setNickOk(false); return;
-    }
+    if (!val) { setNickError(''); setNickOk(false); return; }
 
     const cleanVal = val.replace(/\s{2,}/g, ' '); 
     if (!nickRegex.test(cleanVal)) {
@@ -65,51 +70,43 @@ export default function SignupPage() {
 
     const status = await checkDuplicate('nickname', cleanVal);
     if (status === 'forbidden') {
-      setNickError('❌ 관리자 사칭 방지를 위해 사용할 수 없는 단어입니다.');
-      setNickOk(false);
+      setNickError('❌ 관리자 사칭 방지를 위해 사용할 수 없는 단어입니다.'); setNickOk(false);
     } else if (status === 'duplicate') {
-      setNickError('❌ 이미 사용 중인 닉네임입니다.');
-      setNickOk(false);
+      setNickError('❌ 이미 사용 중인 닉네임입니다.'); setNickOk(false);
     } else {
-      setNickError('');
-      setNickOk(true);
+      setNickError(''); setNickOk(true);
     }
   };
 
+  // 🛡️ [수술 3] 짜증 났던 0.5초 타이머 삭제! 다 치고 버튼 누르거나 넘어갈 때만 검사!
   const handleEmailBlur = async () => {
     const val = email.trim();
-    if (!val) {
-      setEmailError(''); setEmailOk(false); return;
-    }
+    if (!val) { setEmailError(''); setEmailOk(false); return; }
 
-    // 1. 기본 국제 표준 형식 검사
     if (!emailRegex.test(val)) {
       setEmailError('❌ 올바른 이메일 형식이 아닙니다. (예: ojemi@naver.com)');
       setEmailOk(false); return;
     }
 
-    // 💡 [수술 2: 스마트 오타 판독기] 한국 유저들의 단골 실수(.co, .ne)를 귀신같이 잡아냅니다!
     const lowerVal = val.toLowerCase();
     if (lowerVal.endsWith('@naver.co') || lowerVal.endsWith('@gmail.co') || lowerVal.endsWith('@daum.ne') || lowerVal.endsWith('@hanmail.ne')) {
       setEmailError('❌ 이메일 끝부분(.com, .net 등)에 오타가 없는지 다시 확인해 주세요.');
       setEmailOk(false); return;
     }
 
-    // 3. DB 중복 검사
     const status = await checkDuplicate('email', val);
     if (status === 'duplicate') {
-      setEmailError('❌ 이미 다른 계정으로 가입된 이메일입니다.');
-      setEmailOk(false);
+      setEmailError('❌ 이미 다른 계정으로 가입된 이메일입니다.'); setEmailOk(false);
     } else {
-      setEmailError('');
-      setEmailOk(true);
+      setEmailError(''); setEmailOk(true);
     }
   };
 
   const handleSubmit = async (formData: FormData) => {
     setSubmitError('');
     
-    if (idError || nickError || emailError || !idOk || !nickOk || !emailOk) {
+    // 🛡️ [수술 4] 가입 버튼을 눌렀을 때, 하나라도 빨간색 에러가 켜져 있으면 빠꾸!
+    if (idError || nickError || emailError || pwdError) {
       setSubmitError('빨간색으로 표시된 항목을 올바르게 수정해 주세요.');
       return;
     }
@@ -118,13 +115,10 @@ export default function SignupPage() {
     const confirmPwd = formData.get('confirm_password') as string;
 
     if (pwd.length < 8) {
-      setSubmitError('보안을 위해 비밀번호는 최소 8자 이상이어야 합니다.');
-      return;
+      setPwdError('❌ 보안을 위해 비밀번호는 최소 8자 이상이어야 합니다.'); return;
     }
-    
     if (pwd !== confirmPwd) {
-      setSubmitError('비밀번호가 서로 일치하지 않습니다.');
-      return;
+      setPwdError('❌ 비밀번호가 서로 일치하지 않습니다.'); return;
     }
     
     setIsSubmitting(true);
@@ -132,10 +126,10 @@ export default function SignupPage() {
     
     if (result?.error) {
       setIsSubmitting(false);
-      if (result.error === 'mismatch') setSubmitError('비밀번호가 서로 일치하지 않습니다.');
-      else if (result.error === 'id_exists') setSubmitError('이미 사용 중인 아이디입니다.');
-      else if (result.error === 'nick_exists') setSubmitError('이미 사용 중인 닉네임입니다.');
-      else if (result.error === 'email_exists') setSubmitError('이미 가입된 이메일입니다.'); 
+      if (result.error === 'mismatch') setPwdError('❌ 비밀번호가 서로 일치하지 않습니다.');
+      else if (result.error === 'id_exists') setIdError('❌ 이미 사용 중인 아이디입니다.');
+      else if (result.error === 'nick_exists') setNickError('❌ 이미 사용 중인 닉네임입니다.');
+      else if (result.error === 'email_exists') setEmailError('❌ 이미 가입된 이메일입니다.'); 
       else if (result.error === 'id_forbidden' || result.error === 'nick_forbidden') setSubmitError('사용할 수 없는 금칙어가 포함되어 있습니다.');
       else setSubmitError('회원 가입 처리 중 오류가 발생했습니다.');
     }
@@ -159,19 +153,13 @@ export default function SignupPage() {
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">아이디</label>
             <input 
-              name="user_id" 
-              required 
-              placeholder="영문, 숫자 4~12자" 
+              name="user_id" required placeholder="영문, 숫자 4~12자" 
               value={id}
               onChange={(e) => {
                 const rawValue = e.target.value;
-                
                 if (/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(rawValue)) {
                   setIdError('❌ 아이디는 영문과 숫자만 입력해 주세요. (한글 입력 불가)');
-                } else {
-                  setIdError(''); 
-                }
-                
+                } else { setIdError(''); }
                 setId(rawValue.replace(/[^a-zA-Z0-9]/g, ''));
                 setIdOk(false); 
               }} 
@@ -179,78 +167,65 @@ export default function SignupPage() {
               className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${idError ? 'border-red-500 focus:border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
             />
             {idError && <p className="text-red-500 text-[12px] font-bold mt-1.5">{idError}</p>}
-            {idOk && <p className="text-green-600 text-[12px] font-bold mt-1.5">✅ 멋진 아이디네요! (사용 가능)</p>}
+            {idOk && !idError && <p className="text-green-600 text-[12px] font-bold mt-1.5">✅ 멋진 아이디네요! (사용 가능)</p>}
           </div>
           
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">비밀번호</label>
             <input 
-              type="password" 
-              name="password" 
-              required 
-              minLength={8} 
-              placeholder="최소 8자 이상 입력" 
-              className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" 
+              type="password" name="password" required minLength={8} placeholder="최소 8자 이상 입력" 
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setPwdError(''); }}
+              onBlur={handlePwdBlur}
+              className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${pwdError ? 'border-red-500 focus:border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
             />
           </div>
 
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">비밀번호 확인</label>
             <input 
-              type="password" 
-              name="confirm_password" 
-              required 
-              minLength={8} 
-              placeholder="비밀번호 한 번 더 입력" 
-              className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" 
+              type="password" name="confirm_password" required minLength={8} placeholder="비밀번호 한 번 더 입력" 
+              value={confirmPassword}
+              onChange={(e) => { setConfirmPassword(e.target.value); setPwdError(''); }}
+              onBlur={handlePwdBlur}
+              className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${pwdError ? 'border-red-500 focus:border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
             />
+            {pwdError && <p className="text-red-500 text-[12px] font-bold mt-1.5">{pwdError}</p>}
           </div>
 
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">게시판 닉네임</label>
             <input 
-              name="nickname" 
-              required 
-              placeholder="한글, 영문, 숫자 2~8자 (특수문자 불가)" 
+              name="nickname" required placeholder="한글, 영문, 숫자 2~8자 (특수문자 불가)" 
               value={nickname}
-              onChange={(e) => {
-                setNickname(e.target.value);
-                setNickError('');
-                setNickOk(false);
-              }}
+              onChange={(e) => { setNickname(e.target.value); setNickError(''); setNickOk(false); }}
               onBlur={handleNickBlur} 
               className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${nickError ? 'border-red-500 focus:border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
             />
             {nickError && <p className="text-red-500 text-[12px] font-bold mt-1.5">{nickError}</p>}
-            {nickOk && <p className="text-green-600 text-[12px] font-bold mt-1.5">✅ 멋진 닉네임이네요! (사용 가능)</p>}
+            {nickOk && !nickError && <p className="text-green-600 text-[12px] font-bold mt-1.5">✅ 멋진 닉네임이네요! (사용 가능)</p>}
           </div>
 
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">이메일 (비밀번호 재설정용)</label>
             <input 
-              type="email" 
-              name="email" 
-              required 
-              placeholder="이메일 주소 입력" 
+              type="email" name="email" required placeholder="이메일 주소 입력" 
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setEmailError('');
-                setEmailOk(false);
-              }}
+              onChange={(e) => { setEmail(e.target.value); setEmailError(''); setEmailOk(false); }}
               onBlur={handleEmailBlur}
               className={`w-full p-3 border rounded-sm focus:outline-none font-medium mb-1.5 ${emailError ? 'border-red-500 focus:border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
             />
             {emailError && <p className="text-red-500 text-[12px] font-bold mt-0.5 mb-2">{emailError}</p>}
-            {emailOk && <p className="text-green-600 text-[12px] font-bold mt-0.5 mb-2">✅ 사용 가능한 이메일입니다!</p>}
+            {emailOk && !emailError && <p className="text-green-600 text-[12px] font-bold mt-0.5 mb-2">✅ 사용 가능한 이메일입니다!</p>}
             <p className="text-[11px] text-gray-500 leading-tight">
               * 입력하신 이메일은 비밀번호 분실 시 본인 확인 및 재설정 용도로만 보관됩니다.
             </p>
           </div>
 
+          {/* 🛡️ [수술 5] 버튼 무조건 활성화! 누르면 알아서 에러 찾아줍니다. */}
           <button 
             type="submit" 
-            disabled={isSubmitting || !!idError || !!nickError || !!emailError || !idOk || !nickOk || !emailOk} 
+            disabled={isSubmitting} 
             className="w-full py-3.5 bg-[#2a3042] text-white rounded-sm font-bold text-lg hover:bg-[#1e2335] shadow-sm mt-6 transition-colors disabled:bg-gray-400 flex items-center justify-center gap-2"
           >
             {isSubmitting && <Loader2 className="animate-spin" size={18} />}
