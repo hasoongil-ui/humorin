@@ -5,53 +5,52 @@ import crypto from 'crypto';
 
 const SECRET_KEY = process.env.AUTH_SECRET || 'ojemi-super-secret-key-2026-very-safe';
 
-// 🛡️ [수술 1] 금칙어 리스트 (대장님이 원하시는 단어를 계속 추가하시면 됩니다!)
-const FORBIDDEN_WORDS = ['도박', '카지노', '토토', '바카라', '릴게임', '비아그라', '성인용품'];
-
-// 🛡️ [수술 2] 스마트 엑스레이 함수: 한글, 영문, 숫자만 남기고 띄어쓰기/특수문자는 뼈와 살을 분리해버립니다.
+// 🛡️ [수술 1] 뼈대 발라내는 스마트 엑스레이 함수 (그대로 유지)
 const extractTextOnly = (htmlText: string) => {
-  const noHtml = htmlText.replace(/<[^>]*>?/gm, ''); // 1차: HTML 태그 날리기
-  return noHtml.replace(/[^\uAC00-\uD7A3a-zA-Z0-9]/g, '').toLowerCase(); // 2차: 특수문자, 띄어쓰기 전부 날리고 소문자로 통일
+  const noHtml = htmlText.replace(/<[^>]*>?/gm, ''); 
+  return noHtml.replace(/[^\uAC00-\uD7A3a-zA-Z0-9]/g, '').toLowerCase(); 
 };
 
 export async function POST(request: Request) {
-  // 💡 프론트엔드에서 날아온 데이터 + 함정(bot_trap)까지 모두 받습니다!
   const { title, content, category, author, is_notice, bot_trap } = await request.json(); 
   
-  // 🛡️ [방어막 1: 허니팟 함정 발동]
-  // 로봇이 함정 칸을 몰래 채워서 보냈다면? 저장 안 하고 그냥 "성공"이라고 뻥을 쳐서 돌려보냅니다.
   if (bot_trap) {
     console.log('🚨 [스팸 봇 차단 완료] 허니팟 함정에 걸려들었습니다.');
     return NextResponse.json({ message: 'Success' }, { status: 200 });
   }
 
-  // 🛡️ [방어막 2: 스마트 금칙어 엑스레이 발동]
-  // 봇이 아니라 악질 알바생이 "도@박", "카 지 노" 라고 써도 뼈대만 남겨서 다 잡아냅니다.
-  const cleanContent = extractTextOnly(content);
-  const cleanTitle = extractTextOnly(title);
-
-  for (const word of FORBIDDEN_WORDS) {
-    if (cleanContent.includes(word) || cleanTitle.includes(word)) {
-      console.log(`🚨 [금칙어 차단] 차단된 단어: ${word}`);
-      // 프론트엔드에 걸린 단어가 뭔지 알려줘서 경고창을 띄우게 만듭니다.
-      return NextResponse.json({ error: 'forbidden_word', word: word }, { status: 400 }); 
-    }
-  }
-  
-  const cookieStore = await cookies();
-  const userCookie = cookieStore.get('ojemi_user');
-  const userIdCookie = cookieStore.get('ojemi_userid');
-  const signatureCookie = cookieStore.get('ojemi_signature'); 
-  
-  const currentUser = userCookie ? userCookie.value : null;
-  const currentUserId = userIdCookie ? userIdCookie.value : null;
-  const signature = signatureCookie ? signatureCookie.value : null;
-
-  const finalAuthor = currentUser || author || '익명';
-
   const client = await db.connect();
   
   try {
+    // 🛡️ [수술 2] 하드코딩 삭제! DB(site_settings)에서 실시간으로 금칙어 명단을 가져옵니다!
+    const { rows: settings } = await client.sql`SELECT value FROM site_settings WHERE key = 'forbidden_words'`;
+    let forbiddenWords: string[] = [];
+    if (settings.length > 0 && settings[0].value) {
+      forbiddenWords = settings[0].value.split(',').map((w: string) => w.trim()).filter((w: string) => w !== '');
+    }
+
+    // 🛡️ [수술 3] 불러온 최신 명단으로 제목과 본문을 검사합니다.
+    const cleanContent = extractTextOnly(content);
+    const cleanTitle = extractTextOnly(title);
+
+    for (const word of forbiddenWords) {
+      if (cleanContent.includes(word) || cleanTitle.includes(word)) {
+        console.log(`🚨 [금칙어 차단] 차단된 단어: ${word}`);
+        return NextResponse.json({ error: 'forbidden_word', word: word }, { status: 400 }); 
+      }
+    }
+    
+    // --- 여기서부터는 기존 게시글 저장 로직 (완벽 보존) ---
+    const cookieStore = await cookies();
+    const userCookie = cookieStore.get('ojemi_user');
+    const userIdCookie = cookieStore.get('ojemi_userid');
+    const signatureCookie = cookieStore.get('ojemi_signature'); 
+    
+    const currentUser = userCookie ? userCookie.value : null;
+    const currentUserId = userIdCookie ? userIdCookie.value : null;
+    const signature = signatureCookie ? signatureCookie.value : null;
+
+    const finalAuthor = currentUser || author || '익명';
     const titleWithCategory = `[${category}] ${title}`;
 
     let finalIsNotice = false;

@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
-import SafeButton from '../SafeButton'; // 💡 만능 버튼 조립 완료!
+import SafeButton from '../SafeButton'; 
 
 async function toggleGlobalLock(formData: FormData) {
   'use server';
@@ -64,6 +64,53 @@ async function deleteBoard(formData: FormData) {
   revalidatePath('/admin/boards');
 }
 
+// 🛡️ [수술 1] 금칙어 추가/삭제 서버 액션을 이사시켰습니다.
+async function addForbiddenWord(formData: FormData) {
+  'use server';
+  const newWord = formData.get('newWord')?.toString().trim();
+  if (!newWord) return;
+
+  try {
+    const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'forbidden_words'`;
+    let currentWords = rows.length > 0 ? rows[0].value : '';
+    
+    const wordsArray = currentWords ? currentWords.split(',').map((w: string) => w.trim()) : [];
+    if (!wordsArray.includes(newWord)) {
+      wordsArray.push(newWord);
+      const newString = wordsArray.join(',');
+      await sql`
+        INSERT INTO site_settings (key, value) 
+        VALUES ('forbidden_words', ${newString}) 
+        ON CONFLICT (key) DO UPDATE SET value = ${newString};
+      `;
+    }
+    revalidatePath('/admin/boards'); 
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function removeForbiddenWord(formData: FormData) {
+  'use server';
+  const wordToRemove = formData.get('wordToRemove')?.toString().trim();
+  if (!wordToRemove) return;
+
+  try {
+    const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'forbidden_words'`;
+    if (rows.length === 0) return;
+
+    let currentWords = rows[0].value;
+    let wordsArray = currentWords.split(',').map((w: string) => w.trim());
+    wordsArray = wordsArray.filter((w: string) => w !== wordToRemove); 
+    const newString = wordsArray.join(',');
+
+    await sql`UPDATE site_settings SET value = ${newString} WHERE key = 'forbidden_words'`;
+    revalidatePath('/admin/boards'); 
+  } catch (e) {
+    console.error(e);
+  }
+}
+
 export default async function AdminBoardsPage() {
   const cookieStore = await cookies();
   const currentUserId = cookieStore.get('ojemi_userid')?.value;
@@ -72,12 +119,17 @@ export default async function AdminBoardsPage() {
   let globalWriteLock = 'false';
   let globalCommentLock = 'false';
   let boardList = [];
+  let forbiddenWordsList: string[] = []; // 🛡️ 금칙어 목록 저장용 변수
 
   try {
     const { rows: settings } = await sql`SELECT * FROM site_settings`;
     settings.forEach(s => {
       if (s.key === 'global_write_lock') globalWriteLock = s.value;
       if (s.key === 'global_comment_lock') globalCommentLock = s.value;
+      // 🛡️ [수술 2] DB에서 금칙어 목록 가져오기!
+      if (s.key === 'forbidden_words' && s.value) {
+        forbiddenWordsList = s.value.split(',').map((w: string) => w.trim()).filter((w: string) => w !== '');
+      }
     });
 
     const { rows: boards } = await sql`SELECT * FROM boards ORDER BY sort_order ASC, id ASC`;
@@ -107,6 +159,7 @@ export default async function AdminBoardsPage() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+          
           <div className="bg-white p-6 rounded-sm shadow-sm border border-red-200">
             <h2 className="text-lg font-black text-red-600 mb-4 flex items-center gap-2">🚨 전체 셧다운 (긴급 상황)</h2>
             <div className="flex gap-4">
@@ -135,6 +188,52 @@ export default async function AdminBoardsPage() {
               </form>
             </div>
           </div>
+
+          {/* ==================================================== */}
+          {/* 🛡️ [수술 3] 셧다운과 게시판 리스트 사이에 금칙어 창을 넣었습니다! */}
+          {/* ==================================================== */}
+          <div className="bg-white p-6 rounded-sm shadow-sm border border-indigo-200 relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
+            <h2 className="text-lg font-black text-gray-800 mb-2 flex items-center gap-2">
+              <span className="text-indigo-500">🛡️</span> 스마트 금칙어 관리
+            </h2>
+            <p className="text-sm text-gray-500 mb-6 font-bold leading-relaxed">
+              이곳에 단어를 등록해 두면, 글이나 댓글을 쓸 때 특수문자나 띄어쓰기를 섞어 써도(예: 도.박, ㅋr지노) 봇이 자동으로 뼈대를 발라내서 차단합니다.
+            </p>
+
+            <div className="flex flex-wrap gap-2 mb-6 bg-gray-50 p-4 border border-gray-200 rounded-sm min-h-[100px] items-start">
+              {forbiddenWordsList.length > 0 ? (
+                forbiddenWordsList.map((word, index) => (
+                  <div key={index} className="flex items-center gap-1 bg-white border border-rose-300 text-rose-600 px-3 py-1.5 rounded-full shadow-sm text-[13px] font-black tracking-tight">
+                    <span>{word}</span>
+                    <form action={removeForbiddenWord}>
+                      <input type="hidden" name="wordToRemove" value={word} />
+                      <button type="submit" className="w-4 h-4 flex items-center justify-center bg-rose-100 hover:bg-rose-500 hover:text-white rounded-full text-[10px] ml-1 transition-colors" title="삭제">
+                        ✕
+                      </button>
+                    </form>
+                  </div>
+                ))
+              ) : (
+                <span className="text-gray-400 text-sm font-bold mt-2 mx-auto">등록된 금칙어가 없습니다.</span>
+              )}
+            </div>
+
+            <form action={addForbiddenWord} className="flex gap-2">
+              <input 
+                type="text" 
+                name="newWord" 
+                required 
+                placeholder="추가할 금칙어 입력 (예: 불법도박)" 
+                className="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-sm outline-none focus:border-[#3b4890] font-bold text-[14px] shadow-sm"
+              />
+              <button type="submit" className="px-6 py-3 bg-[#414a66] text-white font-black text-[14px] rounded-sm hover:bg-[#2a3042] transition-colors shadow-sm whitespace-nowrap">
+                단어 추가
+              </button>
+            </form>
+          </div>
+
+          {/* ==================================================== */}
 
           <div className="bg-white p-6 rounded-sm shadow-sm border border-gray-200">
             <h2 className="text-lg font-black text-[#3b4890] mb-4">✨ 새 게시판 만들기</h2>
@@ -196,7 +295,6 @@ export default async function AdminBoardsPage() {
                         <div className="text-[#3b4890] font-black text-sm truncate">{board.name}</div>
                       </td>
                       
-                      {/* 💡 [에러 해결!] 5칸을 하나로 묶은 합법적인 td 안에, 비율이 완벽하게 맞춰진 Grid 폼을 넣었습니다! */}
                       <td colSpan={5} className="p-0 h-full">
                         <form action={updateBoard} className="grid w-full h-full" style={{ gridTemplateColumns: '15fr 15fr 15fr 10fr 20fr' }}>
                           <input type="hidden" name="id" value={board.id} />

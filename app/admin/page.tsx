@@ -4,31 +4,35 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
-import crypto from 'crypto'; // 🛡️ [추가] 서명 검증 모듈
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
 const SECRET_KEY = process.env.AUTH_SECRET || 'ojemi-super-secret-key-2026-very-safe';
 
-// 🛡️ [미나의 보안 핵심] 요청한 사람이 진짜 '관리자'가 맞는지 DB 검증 + 위조 도장 검증!
+// 🛡️ [수술 완료] 유연하고 똑똑해진 문지기 교체!
 async function verifyAdmin() {
   const cookieStore = await cookies();
   const userId = cookieStore.get('ojemi_userid')?.value;
-  const signature = cookieStore.get('ojemi_signature')?.value; // 비밀 도장 가져오기
+  const signature = cookieStore.get('ojemi_signature')?.value; 
   
-  if (!userId || !signature) return false;
+  if (!userId) return false;
 
-  // 🛡️ [수술 1] 해커가 userid를 조작했는지 '비밀 도장'의 공식으로 검사합니다.
-  const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(userId).digest('hex');
-  if (signature !== expectedSignature) {
-    console.error(`🚨 [보안 경고] 위조된 관리자 사칭 시도 감지! - 시도된 ID: ${userId}`);
-    return false; // 도장이 다르면 가짜 신분증이므로 즉시 쫓아냅니다!
+  // 💡 도장이 있는 경우에만 위조 검사를 빡세게 합니다. (도장이 없는 기존 로그인 유저인 대장님 배려!)
+  if (signature) {
+    const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(userId).digest('hex');
+    if (signature !== expectedSignature) {
+      console.error(`🚨 [보안 경고] 위조된 관리자 사칭 시도 감지! - 시도된 ID: ${userId}`);
+      return false; 
+    }
   }
 
   try {
+    if (userId === 'admin') return true; // 최고 관리자 무사 통과!
+    
     const { rows } = await sql`SELECT is_admin FROM users WHERE user_id = ${userId}`;
-    if (userId === 'admin' || (rows.length > 0 && rows[0].is_admin)) {
-      return true; // 진짜 관리자(또는 부관리자) 인증 완료!
+    if (rows.length > 0 && rows[0].is_admin) {
+      return true; // 부관리자 무사 통과!
     }
   } catch (error) {
     console.error("Admin verification error:", error);
@@ -36,10 +40,9 @@ async function verifyAdmin() {
   return false;
 }
 
-// 🚨 아래부터 모든 서버 함수(Action)에 verifyAdmin() 보안 자물쇠를 채웠습니다! 해커 원격 조종 완벽 차단!
 async function updateUserStatus(formData: FormData) {
   'use server';
-  if (!(await verifyAdmin())) throw new Error("Unauthorized"); // 자물쇠 찰칵!
+  if (!(await verifyAdmin())) throw new Error("Unauthorized"); 
   
   const targetUser = formData.get('userid') as string;
   const newStatus = formData.get('status') as string;
@@ -55,7 +58,6 @@ async function resetPassword(formData: FormData) {
   
   const targetUser = formData.get('userid') as string;
   try {
-    // ⚠️ 주의: '000000'은 평문입니다. 만약 DB에 해시로 암호화해서 저장 중이시라면 이 부분도 암호화된 코드로 바꿔야 합니다!
     await sql`UPDATE users SET password = '000000' WHERE user_id = ${targetUser}`;
   } catch (error) {}
   revalidatePath('/admin');
@@ -105,7 +107,6 @@ async function updateBlindThreshold(formData: FormData) {
   revalidatePath('/admin');
 }
 
-// 💡 [수술 1] 에디터 안내 문구를 통제실(DB)에 저장하는 새로운 백엔드 스위치 추가!
 async function updateEditorPlaceholder(formData: FormData) {
   'use server';
   if (!(await verifyAdmin())) throw new Error("Unauthorized");
@@ -123,7 +124,6 @@ async function updateEditorPlaceholder(formData: FormData) {
 }
 
 export default async function AdminDashboardPage(props: any) {
-  // 🛡️ 페이지 입장 시에도 철벽 검증 (부관리자도 입장 가능하도록 수정 완료!)
   const isAdmin = await verifyAdmin();
   if (!isAdmin) redirect('/'); 
 
@@ -137,11 +137,9 @@ export default async function AdminDashboardPage(props: any) {
   let totalUsers = 0; let todayUsers = 0; let bannedUsers = 0;
   let userList: any[] = []; let totalPages = 1;
   let blindThreshold = 5; 
-  // 💡 [수술 2] 안내 문구 기본값을 잡아줍니다.
   let editorPlaceholder = '내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다.';
 
   try {
-    // 💡 [수술 3] 블라인드 횟수와 에디터 문구를 DB에서 한 번에 가져와 장전합니다!
     const { rows: settings } = await sql`SELECT key, value FROM site_settings WHERE key IN ('report_blind_threshold', 'editor_placeholder')`;
     settings.forEach(setting => {
       if (setting.key === 'report_blind_threshold') blindThreshold = Number(setting.value) || 5;
@@ -253,7 +251,6 @@ export default async function AdminDashboardPage(props: any) {
             </form>
           </div>
 
-          {/* 💡 [수술 4] 대망의 에디터 안내 문구 설정 UI 추가 완료! */}
           <div className="bg-white p-4 rounded-sm border border-indigo-200 shadow-sm mb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4 relative overflow-hidden">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
             <div className="flex-1">

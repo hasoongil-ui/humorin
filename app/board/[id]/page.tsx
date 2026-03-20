@@ -35,9 +35,7 @@ function extractData(fullTitle: string) {
   return match ? { cat: match[1], cleanTitle: match[2] } : { cat: '일반', cleanTitle: fullTitle };
 }
 
-// 🛡️ [수술 1] 금칙어 리스트 및 스마트 엑스레이 필터 함수 탑재!
-const FORBIDDEN_WORDS = ['도박', '카지노', '토토', '바카라', '릴게임', '비아그라', '성인용품'];
-
+// 🛡️ [수술 1] 하드코딩된 금칙어 배열 삭제. 뼈대 발라내는 스마트 엑스레이 함수만 남겨둡니다.
 const extractTextOnly = (htmlText: string) => {
   const noHtml = htmlText.replace(/<[^>]*>?/gm, ''); 
   return noHtml.replace(/[^\uAC00-\uD7A3a-zA-Z0-9]/g, '').toLowerCase(); 
@@ -286,7 +284,7 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 🛡️ [수술 2] 댓글 등록 서버 액션에 방어막 씌우기
+  // 🛡️ 댓글 등록(addComment) 서버 액션
   const addComment = async (formData: FormData) => {
     'use server';
     if (!currentUserId) return;
@@ -305,20 +303,28 @@ export default async function PostDetailPage(props: any) {
     const content = (formData.get('content') as string) || ''; 
     const parentId = formData.get('parentId') as string;
     const imageUrl = (formData.get('imageUrl') || formData.get('image_data') || formData.get('image')) as string;
-    const botTrap = formData.get('bot_trap') as string; // 프론트에서 보낸 함정 데이터 확인
+    const botTrap = formData.get('bot_trap') as string; 
     
-    // 🛡️ [방어 1] 기계가 함정을 건드렸다면? 그냥 '성공'이라고 뻥치고 종료!
     if (botTrap) {
       console.log('🚨 [스팸 봇 차단 완료] 댓글 허니팟 함정에 걸려들었습니다.');
       return { success: true };
     }
 
-    // 🛡️ [방어 2] 스마트 금칙어 엑스레이 감지기
+    // 🛡️ [수술 2] 관리자 페이지 DB에서 최신 금칙어 명단을 실시간으로 가져옵니다!
+    let forbiddenWords: string[] = [];
+    try {
+      const { rows: fwRows } = await sql`SELECT value FROM site_settings WHERE key = 'forbidden_words'`;
+      if (fwRows.length > 0 && fwRows[0].value) {
+        forbiddenWords = fwRows[0].value.split(',').map((w: string) => w.trim()).filter((w: string) => w !== '');
+      }
+    } catch (e) {}
+
+    // 🛡️ [수술 3] 최신 DB 명단으로 댓글을 검사합니다.
     const cleanContent = extractTextOnly(content);
-    for (const word of FORBIDDEN_WORDS) {
+    for (const word of forbiddenWords) {
       if (cleanContent.includes(word)) {
         console.log(`🚨 [금칙어 차단] 차단된 단어: ${word}`);
-        return { error: 'forbidden_word', word: word }; // 프론트엔드로 에러 반환!
+        return { error: 'forbidden_word', word: word }; 
       }
     }
 
@@ -333,7 +339,7 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 🛡️ [수술 3] 댓글 수정 시에도 엑스레이 필터 작동 (나중에 꼼수로 광고 넣는 행위 차단)
+  // 🛡️ 댓글 수정(editComment) 서버 액션
   const editComment = async (formData: FormData) => {
     'use server';
     if (!currentUserId) return;
@@ -341,9 +347,17 @@ export default async function PostDetailPage(props: any) {
     const content = formData.get('content') as string;
     const imageUrl = formData.get('imageUrl') as string;
 
-    // 🛡️ [방어 3] 수정 시에도 금칙어 검사!
+    // 🛡️ [수술 4] 수정 시에도 DB에서 최신 금칙어를 가져와서 꼼수를 완벽 차단합니다!
+    let forbiddenWords: string[] = [];
+    try {
+      const { rows: fwRows } = await sql`SELECT value FROM site_settings WHERE key = 'forbidden_words'`;
+      if (fwRows.length > 0 && fwRows[0].value) {
+        forbiddenWords = fwRows[0].value.split(',').map((w: string) => w.trim()).filter((w: string) => w !== '');
+      }
+    } catch (e) {}
+
     const cleanContent = extractTextOnly(content || '');
-    for (const word of FORBIDDEN_WORDS) {
+    for (const word of forbiddenWords) {
       if (cleanContent.includes(word)) {
         console.log(`🚨 [금칙어 차단] 수정 우회 시도 차단됨: ${word}`);
         return { error: 'forbidden_word', word: word }; 
