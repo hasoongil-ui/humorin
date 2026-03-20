@@ -4,13 +4,11 @@ import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-// 💡 미나의 핵심: 폼 영역만 따로 분리하여 Next.js 에러를 방지하는 고급 기술!
 function LoginForm() {
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
   
-  // 💡 미나의 스마트 리다이렉트 엔진: 주소창에 달린 꼬리표(redirect)를 찾아냅니다!
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect');
 
@@ -25,7 +23,6 @@ function LoginForm() {
       });
 
       if (res.ok) {
-        // 🚨 핵심 수술: 꼬리표가 있으면 그곳으로 가고, 없으면 무조건 '메인 홈(/)'으로 이동!
         router.push(redirectUrl || '/');
         router.refresh();
       } else {
@@ -37,45 +34,72 @@ function LoginForm() {
     }
   };
 
+  // 💡 [봉인 해제!] 네이버 로그인 창으로 보내주는 함수입니다.
+  const handleNaverLogin = () => {
+    // 혹시 로그인 후 돌아갈 주소가 있다면 챙겨서 갑니다.
+    const callbackUrl = redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : '';
+    window.location.href = `/api/auth/naver${callbackUrl}`;
+  };
+
   return (
-    <form onSubmit={handleLogin} className="space-y-5">
-      <div>
-        <label className="block text-sm font-bold text-gray-700 mb-2">아이디</label>
-        <input
-          type="text"
-          placeholder="아이디 입력"
-          className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium"
-          value={id}
-          onChange={(e) => setId(e.target.value)}
-          required
-        />
-      </div>
+    <div className="space-y-6">
+      <form onSubmit={handleLogin} className="space-y-5">
+        <div>
+          <label className="block text-sm font-bold text-gray-700 mb-2">아이디</label>
+          <input
+            type="text"
+            placeholder="아이디 입력"
+            className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium"
+            value={id}
+            onChange={(e) => setId(e.target.value)}
+            required
+          />
+        </div>
 
-      <div>
-        <label className="block text-sm font-bold text-gray-700 mb-2">비밀번호</label>
-        <input
-          type="password"
-          placeholder="비밀번호 입력"
-          className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-      </div>
+        <div>
+          <label className="block text-sm font-bold text-gray-700 mb-2">비밀번호</label>
+          <input
+            type="password"
+            placeholder="비밀번호 입력"
+            className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
 
-      <div className="flex justify-end mt-1 mb-2">
-        <Link href="/find-account" className="text-[12px] text-gray-500 font-bold hover:text-[#3b4890] transition-colors underline underline-offset-2">
-          아이디 / 비밀번호 찾기
-        </Link>
+        <div className="flex justify-end mt-1 mb-2">
+          <Link href="/find-account" className="text-[12px] text-gray-500 font-bold hover:text-[#3b4890] transition-colors underline underline-offset-2">
+            아이디 / 비밀번호 찾기
+          </Link>
+        </div>
+
+        <button
+          type="submit"
+          className="w-full py-3.5 mt-2 bg-[#2a3042] hover:bg-[#1e2335] text-white font-bold rounded-sm text-lg transition-colors flex justify-center items-center gap-2"
+        >
+          오재미 계정으로 로그인
+        </button>
+      </form>
+
+      {/* 💡 [봉인 해제!] 네이버 간편 로그인 버튼 등장! */}
+      <div className="relative flex items-center py-2">
+        <div className="flex-grow border-t border-gray-200"></div>
+        <span className="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold">또는 간편하게</span>
+        <div className="flex-grow border-t border-gray-200"></div>
       </div>
 
       <button
-        type="submit"
-        className="w-full py-3.5 mt-2 bg-[#2a3042] hover:bg-[#1e2335] text-white font-bold rounded-sm text-lg transition-colors flex justify-center items-center gap-2"
+        type="button"
+        onClick={handleNaverLogin}
+        className="w-full py-3.5 bg-[#03C75A] hover:bg-[#02b351] text-white font-bold rounded-sm text-[16px] transition-colors flex justify-center items-center gap-2 shadow-sm"
       >
-        로그인하기
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16.0732 11.206L7.90483 0H0V24H7.92683V12.794L16.0952 24H24V0H16.0732V11.206Z" fill="white"/>
+        </svg>
+        네이버로 1초 만에 시작하기
       </button>
-    </form>
+    </div>
   );
 }
 
@@ -84,7 +108,6 @@ export default function LoginPage() {
     <div className="min-h-[80vh] flex items-center justify-center bg-gray-50 px-4">
       <div className="bg-white p-8 md:p-10 rounded-sm shadow-sm border border-gray-200 w-full max-w-[400px]">
         
-        {/* 상단 로고 및 타이틀 */}
         <div className="text-center mb-8">
           <Link href="/" className="text-4xl font-black text-[#3b4890] tracking-tighter inline-block mb-3">
             OJEMI
@@ -92,7 +115,6 @@ export default function LoginPage() {
           <h2 className="text-xl font-bold text-gray-800">로그인</h2>
         </div>
 
-        {/* 💡 Next.js 최신 규격(Suspense)에 맞춰 폼을 안전하게 감싸줍니다 */}
         <Suspense fallback={<div className="text-center py-4 text-gray-500 font-bold">로딩 중...</div>}>
           <LoginForm />
         </Suspense>

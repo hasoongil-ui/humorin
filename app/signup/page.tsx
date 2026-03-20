@@ -7,13 +7,13 @@ import { checkDuplicate, registerUserAction } from './actions';
 
 export default function SignupPage() {
   const [id, setId] = useState('');
-  const [password, setPassword] = useState(''); // 💡 [수술 1] 비밀번호 상태 추가
-  const [confirmPassword, setConfirmPassword] = useState(''); // 💡 [수술 1] 비밀번호 확인 상태 추가
+  const [password, setPassword] = useState(''); 
+  const [confirmPassword, setConfirmPassword] = useState(''); 
   const [nickname, setNickname] = useState('');
   const [email, setEmail] = useState('');
   
   const [idError, setIdError] = useState('');
-  const [pwdError, setPwdError] = useState(''); // 💡 [수술 1] 비밀번호 에러 상태 추가
+  const [pwdError, setPwdError] = useState(''); 
   const [nickError, setNickError] = useState('');
   const [emailError, setEmailError] = useState(''); 
   
@@ -47,7 +47,6 @@ export default function SignupPage() {
     }
   };
 
-  // 🛡️ [수술 2] 비밀번호 확인 검사기 장착! (다음 칸으로 넘어갈 때 찌릅니다)
   const handlePwdBlur = () => {
     if (confirmPassword && password !== confirmPassword) {
       setPwdError('❌ 비밀번호가 서로 일치하지 않습니다.');
@@ -78,7 +77,6 @@ export default function SignupPage() {
     }
   };
 
-  // 🛡️ [수술 3] 짜증 났던 0.5초 타이머 삭제! 다 치고 버튼 누르거나 넘어갈 때만 검사!
   const handleEmailBlur = async () => {
     const val = email.trim();
     if (!val) { setEmailError(''); setEmailOk(false); return; }
@@ -105,7 +103,6 @@ export default function SignupPage() {
   const handleSubmit = async (formData: FormData) => {
     setSubmitError('');
     
-    // 🛡️ [수술 4] 가입 버튼을 눌렀을 때, 하나라도 빨간색 에러가 켜져 있으면 빠꾸!
     if (idError || nickError || emailError || pwdError) {
       setSubmitError('빨간색으로 표시된 항목을 올바르게 수정해 주세요.');
       return;
@@ -135,12 +132,35 @@ export default function SignupPage() {
     }
   };
 
+  // 💡 [봉인 해제!] 네이버 로그인 창으로 보내주는 함수입니다.
+  const handleNaverLogin = () => {
+    window.location.href = `/api/auth/naver`;
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center font-sans">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center font-sans py-10">
       <div className="bg-white p-8 rounded-sm shadow-sm border border-gray-200 w-full max-w-[400px]">
         <div className="text-center mb-8">
           <Link href="/" className="text-4xl font-black text-[#3b4890] tracking-tighter inline-block mb-2">OJEMI</Link>
           <h2 className="text-xl font-bold text-gray-800 mt-2">회원 가입</h2>
+        </div>
+
+        {/* 💡 [봉인 해제!] 회원가입 화면에도 네이버 간편 가입 버튼을 가장 위에 띄웁니다! */}
+        <button
+          type="button"
+          onClick={handleNaverLogin}
+          className="w-full py-3.5 mb-6 bg-[#03C75A] hover:bg-[#02b351] text-white font-bold rounded-sm text-[16px] transition-colors flex justify-center items-center gap-2 shadow-sm"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16.0732 11.206L7.90483 0H0V24H7.92683V12.794L16.0952 24H24V0H16.0732V11.206Z" fill="white"/>
+          </svg>
+          네이버 아이디로 1초 만에 가입하기
+        </button>
+
+        <div className="relative flex items-center py-2 mb-6">
+          <div className="flex-grow border-t border-gray-200"></div>
+          <span className="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold">또는 이메일로 가입</span>
+          <div className="flex-grow border-t border-gray-200"></div>
         </div>
 
         {submitError && (
@@ -222,14 +242,13 @@ export default function SignupPage() {
             </p>
           </div>
 
-          {/* 🛡️ [수술 5] 버튼 무조건 활성화! 누르면 알아서 에러 찾아줍니다. */}
           <button 
             type="submit" 
             disabled={isSubmitting} 
-            className="w-full py-3.5 bg-[#2a3042] text-white rounded-sm font-bold text-lg hover:bg-[#1e2335] shadow-sm mt-6 transition-colors disabled:bg-gray-400 flex items-center justify-center gap-2"
+            className="w-full py-3.5 bg-[#2a3042] text-white rounded-sm font-bold text-[16px] hover:bg-[#1e2335] shadow-sm mt-6 transition-colors disabled:bg-gray-400 flex items-center justify-center gap-2"
           >
             {isSubmitting && <Loader2 className="animate-spin" size={18} />}
-            {isSubmitting ? '가입 처리 중...' : '오재미 가입하기'}
+            {isSubmitting ? '가입 처리 중...' : '이메일로 가입하기'}
           </button>
         </form>
 
