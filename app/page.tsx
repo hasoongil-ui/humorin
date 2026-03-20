@@ -57,13 +57,27 @@ export default async function HomePage() {
   const currentUser = userCookie ? userCookie.value : null;
 
   const userIdCookie = cookieStore.get('ojemi_userid');
-  const isAdmin = userIdCookie?.value === 'admin';
+  const currentUserId = userIdCookie ? userIdCookie.value : null;
+
+  // 💡 [수술 핵심 1] 무식한 하드코딩 삭제하고 DB에서 직접 관리자 여부 확인!
+  let isAdmin = false;
+  if (currentUserId) {
+    try {
+      const { rows } = await sql`SELECT is_admin FROM users WHERE user_id = ${currentUserId}`;
+      if (rows.length > 0 && rows[0].is_admin === true) {
+        isAdmin = true;
+      }
+    } catch (e) {
+      console.error("관리자 권한 확인 에러:", e);
+    }
+  }
 
   const handleLogout = async () => {
     'use server';
     const store = await cookies();
     store.delete('ojemi_user');
     store.delete('ojemi_userid');
+    store.delete('ojemi_signature'); // 💡 기왕 하는 거 서명 쿠키도 같이 삭제
   };
 
   let mainBoards: any[] = [];
