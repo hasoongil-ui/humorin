@@ -30,9 +30,12 @@ async function addBoard(formData: FormData) {
   revalidatePath('/admin/boards');
 }
 
+// 🛡️ [수술 1] 게시판 업데이트 액션에 '그룹명'과 '게시판명'도 수정 가능하게 파라미터 추가!
 async function updateBoard(formData: FormData) {
   'use server';
   const id = formData.get('id') as string;
+  const group_name = formData.get('group_name') as string;
+  const name = formData.get('name') as string;
   const is_write_locked = formData.get('is_write_locked') === 'on';
   const is_comment_locked = formData.get('is_comment_locked') === 'on';
   const sort_order = Number(formData.get('sort_order')) || 999;
@@ -44,6 +47,8 @@ async function updateBoard(formData: FormData) {
     await sql`
       UPDATE boards 
       SET 
+        group_name = ${group_name},
+        name = ${name},
         is_write_locked = ${is_write_locked}, 
         is_comment_locked = ${is_comment_locked}, 
         sort_order = ${sort_order},
@@ -64,7 +69,6 @@ async function deleteBoard(formData: FormData) {
   revalidatePath('/admin/boards');
 }
 
-// 🛡️ [수술 1] 금칙어 추가/삭제 서버 액션을 이사시켰습니다.
 async function addForbiddenWord(formData: FormData) {
   'use server';
   const newWord = formData.get('newWord')?.toString().trim();
@@ -119,14 +123,13 @@ export default async function AdminBoardsPage() {
   let globalWriteLock = 'false';
   let globalCommentLock = 'false';
   let boardList = [];
-  let forbiddenWordsList: string[] = []; // 🛡️ 금칙어 목록 저장용 변수
+  let forbiddenWordsList: string[] = []; 
 
   try {
     const { rows: settings } = await sql`SELECT * FROM site_settings`;
     settings.forEach(s => {
       if (s.key === 'global_write_lock') globalWriteLock = s.value;
       if (s.key === 'global_comment_lock') globalCommentLock = s.value;
-      // 🛡️ [수술 2] DB에서 금칙어 목록 가져오기!
       if (s.key === 'forbidden_words' && s.value) {
         forbiddenWordsList = s.value.split(',').map((w: string) => w.trim()).filter((w: string) => w !== '');
       }
@@ -189,9 +192,6 @@ export default async function AdminBoardsPage() {
             </div>
           </div>
 
-          {/* ==================================================== */}
-          {/* 🛡️ [수술 3] 셧다운과 게시판 리스트 사이에 금칙어 창을 넣었습니다! */}
-          {/* ==================================================== */}
           <div className="bg-white p-6 rounded-sm shadow-sm border border-indigo-200 relative overflow-hidden">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
             <h2 className="text-lg font-black text-gray-800 mb-2 flex items-center gap-2">
@@ -233,8 +233,6 @@ export default async function AdminBoardsPage() {
             </form>
           </div>
 
-          {/* ==================================================== */}
-
           <div className="bg-white p-6 rounded-sm shadow-sm border border-gray-200">
             <h2 className="text-lg font-black text-[#3b4890] mb-4">✨ 새 게시판 만들기</h2>
             <form action={addBoard} className="flex items-end gap-3">
@@ -260,7 +258,7 @@ export default async function AdminBoardsPage() {
             <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-end">
               <div>
                 <h2 className="text-sm font-black text-gray-800">운영 중인 게시판 목록 ({boardList.length}개)</h2>
-                <p className="text-xs text-gray-500 mt-1">숫자가 낮을수록 앞쪽에 표시됩니다. 메인 노출을 켜면 홈 화면 위젯으로 등장합니다.</p>
+                <p className="text-xs text-gray-500 mt-1">이곳에서 그룹명(대분류)과 게시판 이름을 자유롭게 수정할 수 있습니다.</p>
               </div>
             </div>
             
@@ -268,39 +266,44 @@ export default async function AdminBoardsPage() {
               <table className="w-full text-left border-collapse whitespace-nowrap table-fixed">
                 <colgroup>
                   <col style={{ width: '5%' }} />
-                  <col style={{ width: '20%' }} />
-                  <col style={{ width: '15%' }} />
-                  <col style={{ width: '15%' }} />
-                  <col style={{ width: '15%' }} />
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '95%' }} />
                 </colgroup>
                 <thead>
                   <tr className="bg-white border-b border-gray-300 text-[11px] text-gray-500 font-black tracking-wider uppercase">
                     <th className="px-3 py-3 text-center">ID</th>
-                    <th className="px-3 py-3">그룹 / 게시판명</th>
-                    <th className="px-2 py-3 text-center bg-gray-50 border-x border-gray-200">메뉴 순서</th>
-                    <th className="px-2 py-3 text-center bg-gray-50 border-r border-gray-200 text-red-500">글/댓글 잠금</th>
-                    <th className="px-2 py-3 text-center bg-indigo-50 border-r border-indigo-100 text-[#3b4890]">메인 노출</th>
-                    <th className="px-2 py-3 text-center bg-indigo-50 border-r border-indigo-100 text-[#3b4890]">메인 순서</th>
-                    <th className="px-3 py-3 text-center">관리 액션</th>
+                    <th className="px-0 py-0">
+                      <div className="grid w-full h-full" style={{ gridTemplateColumns: '15fr 15fr 10fr 10fr 10fr 10fr 15fr' }}>
+                        <div className="px-2 py-3 border-r border-gray-200">그룹명 (대분류)</div>
+                        <div className="px-2 py-3 border-r border-gray-200">게시판 이름</div>
+                        <div className="px-2 py-3 text-center bg-gray-50 border-r border-gray-200">메뉴 순서</div>
+                        <div className="px-2 py-3 text-center bg-gray-50 border-r border-gray-200 text-red-500">글/댓글 잠금</div>
+                        <div className="px-2 py-3 text-center bg-indigo-50 border-r border-indigo-100 text-[#3b4890]">메인 노출</div>
+                        <div className="px-2 py-3 text-center bg-indigo-50 border-r border-indigo-100 text-[#3b4890]">메인 순서</div>
+                        <div className="px-3 py-3 text-center">관리 액션</div>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {boardList.map((board: any) => (
                     <tr key={board.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="px-3 py-2 text-center text-gray-400 font-bold text-xs">{board.id}</td>
-                      <td className="px-3 py-2">
-                        <div className="text-[10px] text-gray-400 font-bold">{board.group_name}</div>
-                        <div className="text-[#3b4890] font-black text-sm truncate">{board.name}</div>
-                      </td>
                       
-                      <td colSpan={5} className="p-0 h-full">
-                        <form action={updateBoard} className="grid w-full h-full" style={{ gridTemplateColumns: '15fr 15fr 15fr 10fr 20fr' }}>
+                      {/* 🛡️ [수술 2] 그룹명과 게시판 이름을 텍스트박스(input)로 뚫었습니다! */}
+                      <td className="p-0 h-full">
+                        <form action={updateBoard} className="grid w-full h-full" style={{ gridTemplateColumns: '15fr 15fr 10fr 10fr 10fr 10fr 15fr' }}>
                           <input type="hidden" name="id" value={board.id} />
                           
-                          <div className="flex flex-col items-center justify-center border-x border-gray-100 px-2 py-2 h-full bg-gray-50/30">
-                            <input type="number" name="sort_order" defaultValue={board.sort_order} className="w-14 border p-1 text-xs font-bold text-center rounded-sm outline-none" />
+                          <div className="flex flex-col justify-center border-r border-gray-100 px-2 py-2 h-full">
+                            <input type="text" name="group_name" defaultValue={board.group_name} className="w-full border border-gray-300 p-1 text-[11px] font-bold rounded-sm outline-none focus:border-[#3b4890]" />
+                          </div>
+                          
+                          <div className="flex flex-col justify-center border-r border-gray-100 px-2 py-2 h-full">
+                            <input type="text" name="name" defaultValue={board.name} className="w-full border border-gray-300 p-1 text-[13px] font-black text-[#3b4890] rounded-sm outline-none focus:border-[#3b4890]" />
+                          </div>
+                          
+                          <div className="flex flex-col items-center justify-center border-r border-gray-100 px-2 py-2 h-full bg-gray-50/30">
+                            <input type="number" name="sort_order" defaultValue={board.sort_order} className="w-14 border border-gray-300 p-1 text-xs font-bold text-center rounded-sm outline-none" />
                           </div>
                           
                           <div className="flex flex-col gap-1 items-center justify-center border-r border-gray-100 px-2 py-2 h-full bg-gray-50/30">
@@ -315,14 +318,14 @@ export default async function AdminBoardsPage() {
                           </div>
                           
                           <div className="flex items-center justify-center border-r border-indigo-50 px-2 py-2 h-full bg-indigo-50/30">
-                            <input type="number" name="main_sort_order" defaultValue={board.main_sort_order} className="w-14 border border-indigo-200 p-1 text-xs font-bold text-center rounded-sm outline-none text-indigo-900" />
+                            <input type="number" name="main_sort_order" defaultValue={board.main_sort_order} className="w-14 border border-indigo-300 p-1 text-xs font-bold text-center rounded-sm outline-none text-indigo-900" />
                           </div>
                           
                           <div className="flex justify-center items-center gap-1 px-3 py-2 h-full">
-                            <button type="submit" className="px-3 py-1.5 bg-indigo-600 text-white text-[11px] font-bold rounded-sm shadow-sm hover:bg-indigo-700">수정적용</button>
+                            <button type="submit" className="px-3 py-1.5 bg-indigo-600 text-white text-[11px] font-bold rounded-sm shadow-sm hover:bg-indigo-700 whitespace-nowrap">수정적용</button>
                             <SafeButton 
                               label="삭제" 
-                              confirmMessage="정말 이 게시판을 삭제하시겠습니까?\n(게시판만 삭제되며 글은 보존됩니다)" 
+                              confirmMessage="정말 이 게시판을 삭제하시겠습니까?\n(게시판만 삭제되며 작성된 글은 삭제되지 않습니다)" 
                               formAction={deleteBoard} 
                               className="px-3 py-1.5 bg-white border border-gray-300 text-red-500 text-[11px] font-bold rounded-sm shadow-sm hover:bg-red-50 hover:border-red-200" 
                             />
