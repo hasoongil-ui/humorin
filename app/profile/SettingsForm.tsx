@@ -6,7 +6,16 @@ import { Loader2 } from 'lucide-react';
 import { checkDuplicate } from '../signup/actions';
 import { updateProfileAction } from './actions';
 
-export default function SettingsForm({ currentUserId, currentNickname }: { currentUserId: string, currentNickname: string }) {
+// 💡 [수술 핵심 1] 껍데기에서 보내준 'isNaverUser' 안테나 장착!
+export default function SettingsForm({ 
+  currentUserId, 
+  currentNickname, 
+  isNaverUser 
+}: { 
+  currentUserId: string, 
+  currentNickname: string, 
+  isNaverUser?: boolean 
+}) {
   const [nickname, setNickname] = useState('');
   const [nickError, setNickError] = useState('');
   const [nickOk, setNickOk] = useState(false);
@@ -81,10 +90,21 @@ export default function SettingsForm({ currentUserId, currentNickname }: { curre
         {nickOk && nickname !== currentNickname && <p className="text-green-600 text-[12px] font-bold mt-1.5">✅ 멋진 닉네임이네요! 변경 가능합니다.</p>}
       </div>
       
-      <div>
-        <label className="block text-sm font-bold text-gray-700 mb-2">새 비밀번호</label>
-        <input type="password" name="newPassword" placeholder="변경할 비밀번호 입력 (선택)" className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" />
-      </div>
+      {/* 💡 [수술 핵심 2] 네이버 유저면 친절한 안내문을, 일반 유저면 비밀번호 변경 칸을 보여줍니다! */}
+      {isNaverUser ? (
+        <div className="bg-green-50 p-4 border border-green-200 rounded-sm">
+          <label className="block text-sm font-bold text-green-800 mb-1">비밀번호 변경 안내</label>
+          <p className="text-xs text-green-700 font-medium leading-relaxed">
+            네이버로 간편 가입하신 회원님은 오재미에서 비밀번호를 변경하실 수 없습니다.<br/>
+            계정 보안 및 비밀번호 관리는 <b>네이버 홈페이지</b>를 이용해 주세요!
+          </p>
+        </div>
+      ) : (
+        <div>
+          <label className="block text-sm font-bold text-gray-700 mb-2">새 비밀번호</label>
+          <input type="password" name="newPassword" placeholder="변경할 비밀번호 입력 (선택)" className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" />
+        </div>
+      )}
       
       <button 
         type="submit" 

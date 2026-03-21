@@ -223,7 +223,12 @@ export default async function ProfilePage(props: any) {
 
           {currentTab === 'settings' && (
             <div className="max-w-[400px] mx-auto py-4">
-              <SettingsForm currentUserId={currentUserId!} currentNickname={currentUser} />
+              {/* 💡 [방어막 1단계] 네이버 유저(n_ 시작)인지 판독해서 SettingsForm에 알려주기! */}
+              <SettingsForm 
+                currentUserId={currentUserId!} 
+                currentNickname={currentUser} 
+                isNaverUser={currentUserId?.startsWith('n_')} 
+              />
             </div>
           )}
 
