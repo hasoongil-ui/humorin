@@ -279,17 +279,19 @@ export default async function AdminDashboardPage(props: any) {
           </div>
 
           <div suppressHydrationWarning className="bg-white rounded-sm border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-            <div suppressHydrationWarning className="overflow-x-auto w-full">
+            {/* 💡 [수술 핵심 1] 표를 감싸는 박스에 'max-h-[65vh]' 를 주어 세로 길이를 모니터 화면 크기만큼 제한합니다! (이렇게 하면 가로 스크롤이 표 밑에 예쁘게 뜹니다) */}
+            <div suppressHydrationWarning className="overflow-auto w-full max-h-[65vh]">
               <table suppressHydrationWarning className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[1050px]">
                 <colgroup><col style={{ width: '5%' }} /><col style={{ width: '15%' }} /><col style={{ width: '15%' }} /><col style={{ width: '15%' }} /><col style={{ width: '10%' }} /><col style={{ width: '40%' }} /></colgroup>
-                <thead suppressHydrationWarning>
-                  <tr className="bg-white border-b border-gray-300 text-[11px] text-gray-500 font-black tracking-wider uppercase">
-                    <th className="px-3 py-2 text-center">No</th><th className="px-3 py-2">회원 정보</th><th className="px-3 py-2">가입/로그인</th><th className="px-3 py-2 text-center">활동</th><th className="px-3 py-2 text-center">상태</th><th className="px-3 py-2 text-center border-l border-gray-100">관리 액션</th>
+                {/* 💡 [수술 핵심 2] thead에 'sticky top-0 z-10' 을 추가해서 스크롤을 내려도 제목줄이 엑셀처럼 찰싹 고정되게 만듭니다! */}
+                <thead suppressHydrationWarning className="sticky top-0 z-10">
+                  <tr className="bg-gray-50 border-b-2 border-gray-300 text-[11px] text-gray-600 font-black tracking-wider uppercase shadow-sm">
+                    <th className="px-3 py-2.5 text-center">No</th><th className="px-3 py-2.5">회원 정보</th><th className="px-3 py-2.5">가입/로그인</th><th className="px-3 py-2.5 text-center">활동</th><th className="px-3 py-2.5 text-center">상태</th><th className="px-3 py-2.5 text-center border-l border-gray-200">관리 액션</th>
                   </tr>
                 </thead>
                 <tbody suppressHydrationWarning>
                   {userList.map((user, index) => (
-                    <tr key={user.id} suppressHydrationWarning className="border-b border-gray-100 hover:bg-indigo-50/50 transition-colors">
+                    <tr key={user.id} suppressHydrationWarning className="border-b border-gray-100 hover:bg-indigo-50/50 transition-colors bg-white">
                       <td className="px-3 py-1.5 text-center text-gray-400 font-medium text-[11px]">{offset + index + 1}</td>
                       <td className="px-3 py-1.5 whitespace-normal break-words">
                         <div className="font-bold text-[#3b4890] text-[12px] truncate flex items-center gap-1.5" title={user.userid}>
