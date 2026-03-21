@@ -1,9 +1,9 @@
 'use server';
 
 import { sql } from '@vercel/postgres';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import bcrypt from 'bcryptjs'; // 🛡️ [추가] 최고 등급 암호화 라이브러리
+import bcrypt from 'bcryptjs';
 
 const FORBIDDEN_WORDS = ['admin', '관리자', '운영자', '오재미', 'ojemi', '스탭', '매니저', '마스터', '시스템'];
 
@@ -12,29 +12,22 @@ function isForbidden(text: string) {
   return FORBIDDEN_WORDS.some(word => lowerText.includes(word));
 }
 
-// 💡 [수술 1] 이메일(email) 타입도 검사할 수 있도록 파라미터 추가!
 export async function checkDuplicate(type: 'id' | 'nickname' | 'email', value: string) {
   if (!value) return 'empty';
-  
-  // 이메일은 금칙어 검사를 하지 않습니다.
   if (type !== 'email' && isForbidden(value)) return 'forbidden';
   
   if (type === 'id') {
     const { rows } = await sql`SELECT user_id FROM users WHERE user_id = ${value}`;
     if (rows.length > 0) return 'duplicate';
   }
-  
   if (type === 'nickname') {
     const { rows } = await sql`SELECT nickname FROM users WHERE nickname = ${value}`;
     if (rows.length > 0) return 'duplicate';
   }
-
-  // 💡 [수술 2] 이메일 중복 스캔 로직 추가!
   if (type === 'email') {
     const { rows } = await sql`SELECT email FROM users WHERE email = ${value}`;
     if (rows.length > 0) return 'duplicate';
   }
-  
   return 'ok'; 
 }
 
@@ -45,9 +38,7 @@ export async function registerUserAction(formData: FormData) {
   const nickname = formData.get('nickname') as string;
   const email = formData.get('email') as string;
 
-  if (password !== confirmPassword) {
-    return { error: 'mismatch' };
-  }
+  if (password !== confirmPassword) return { error: 'mismatch' };
 
   const idStatus = await checkDuplicate('id', userId);
   if (idStatus !== 'ok') return { error: idStatus === 'forbidden' ? 'id_forbidden' : 'id_exists' };
@@ -55,17 +46,30 @@ export async function registerUserAction(formData: FormData) {
   const nickStatus = await checkDuplicate('nickname', nickname);
   if (nickStatus !== 'ok') return { error: nickStatus === 'forbidden' ? 'nick_forbidden' : 'nick_exists' };
 
-  // 💡 [수술 3] DB에 꽂아 넣기 직전, 이메일이 이미 존재하는지 최종 확인!
   const emailStatus = await checkDuplicate('email', email);
   if (emailStatus !== 'ok') return { error: 'email_exists' };
 
   try {
-    // 🛡️ [핵심 수술] 유저의 비밀번호를 도저히 풀 수 없는 강력한 해시 기호로 갈아버립니다!
+    // 💡 [수술 1] 아까 만든 문지기(proxy)가 달아준 '진짜 IP' 명찰을 여기서 읽어옵니다!
+    const headersList = await headers();
+    const userIp = headersList.get('x-user-ip') || '알수없음';
+
+    // 🛡️ [수술 2] 관리자가 차단한 IP(블랙리스트)인지 가입 전에 미리 검사합니다!
+    const { rows: settings } = await sql`SELECT value FROM site_settings WHERE key = 'banned_ips'`;
+    if (settings.length > 0 && settings[0].value) {
+      const bannedIps = settings[0].value.split(',');
+      if (bannedIps.includes(userIp)) {
+        console.error(`🚨 [차단된 IP 가입 시도 감지] IP: ${userIp}`);
+        return { error: 'db_error' }; // 해커에게는 가짜로 DB 에러라고 뻥칩니다.
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // 💡 [수술 3] DB에 유저 정보 넣을 때 추출한 IP(userIp)도 함께 밀어 넣습니다!
     await sql`
-      INSERT INTO users (user_id, password, nickname, email)
-      VALUES (${userId}, ${hashedPassword}, ${nickname}, ${email})
+      INSERT INTO users (user_id, password, nickname, email, ip)
+      VALUES (${userId}, ${hashedPassword}, ${nickname}, ${email}, ${userIp})
     `;
     
     const cookieStore = await cookies();

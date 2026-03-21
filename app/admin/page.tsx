@@ -5,12 +5,12 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
 import crypto from 'crypto';
+import BanButton from './BanButton'; // 💡 [수술 1] 방금 만든 에러 없는 클라이언트 버튼을 모셔옵니다!
 
 export const dynamic = 'force-dynamic';
 
 const SECRET_KEY = process.env.AUTH_SECRET || 'ojemi-super-secret-key-2026-very-safe';
 
-// 🛡️ [수술 완료] 유연하고 똑똑해진 문지기 교체!
 async function verifyAdmin() {
   const cookieStore = await cookies();
   const userId = cookieStore.get('ojemi_userid')?.value;
@@ -18,7 +18,6 @@ async function verifyAdmin() {
   
   if (!userId) return false;
 
-  // 💡 도장이 있는 경우에만 위조 검사를 빡세게 합니다. (도장이 없는 기존 로그인 유저인 대장님 배려!)
   if (signature) {
     const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(userId).digest('hex');
     if (signature !== expectedSignature) {
@@ -28,79 +27,58 @@ async function verifyAdmin() {
   }
 
   try {
-    if (userId === 'admin') return true; // 최고 관리자 무사 통과!
-    
+    if (userId === 'admin') return true; 
     const { rows } = await sql`SELECT is_admin FROM users WHERE user_id = ${userId}`;
-    if (rows.length > 0 && rows[0].is_admin) {
-      return true; // 부관리자 무사 통과!
-    }
-  } catch (error) {
-    console.error("Admin verification error:", error);
-  }
+    if (rows.length > 0 && rows[0].is_admin) return true; 
+  } catch (error) {}
   return false;
 }
 
 async function updateUserStatus(formData: FormData) {
   'use server';
   if (!(await verifyAdmin())) throw new Error("Unauthorized"); 
-  
   const targetUser = formData.get('userid') as string;
   const newStatus = formData.get('status') as string;
-  try {
-    await sql`UPDATE users SET status = ${newStatus} WHERE user_id = ${targetUser}`;
-  } catch (error) {}
+  try { await sql`UPDATE users SET status = ${newStatus} WHERE user_id = ${targetUser}`; } catch (error) {}
   revalidatePath('/admin');
 }
 
 async function resetPassword(formData: FormData) {
   'use server';
   if (!(await verifyAdmin())) throw new Error("Unauthorized");
-  
   const targetUser = formData.get('userid') as string;
-  try {
-    await sql`UPDATE users SET password = '000000' WHERE user_id = ${targetUser}`;
-  } catch (error) {}
+  try { await sql`UPDATE users SET password = '000000' WHERE user_id = ${targetUser}`; } catch (error) {}
   revalidatePath('/admin');
 }
 
 async function updateUserPoints(formData: FormData) {
   'use server';
   if (!(await verifyAdmin())) throw new Error("Unauthorized");
-  
   const targetUser = formData.get('userid') as string;
   const newPoints = Number(formData.get('points'));
-  try {
-    await sql`UPDATE users SET points = ${newPoints} WHERE user_id = ${targetUser}`;
-  } catch (error) {}
+  try { await sql`UPDATE users SET points = ${newPoints} WHERE user_id = ${targetUser}`; } catch (error) {}
   revalidatePath('/admin');
 }
 
 async function toggleAdminRole(formData: FormData) {
   'use server';
   if (!(await verifyAdmin())) throw new Error("Unauthorized");
-  
   const targetUser = formData.get('userid') as string;
   const currentAdminStatus = formData.get('is_admin') === 'true';
   const newAdminStatus = !currentAdminStatus; 
-  
   if (targetUser === 'admin') return; 
-
-  try {
-    await sql`UPDATE users SET is_admin = ${newAdminStatus} WHERE user_id = ${targetUser}`;
-  } catch (error) {}
+  try { await sql`UPDATE users SET is_admin = ${newAdminStatus} WHERE user_id = ${targetUser}`; } catch (error) {}
   revalidatePath('/admin');
 }
 
 async function updateBlindThreshold(formData: FormData) {
   'use server';
   if (!(await verifyAdmin())) throw new Error("Unauthorized");
-  
   const newValue = formData.get('threshold') as string;
   if (!newValue) return;
   try {
     await sql`
-      INSERT INTO site_settings (key, value) 
-      VALUES ('report_blind_threshold', ${newValue})
+      INSERT INTO site_settings (key, value) VALUES ('report_blind_threshold', ${newValue})
       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
     `;
   } catch (error) {}
@@ -110,15 +88,36 @@ async function updateBlindThreshold(formData: FormData) {
 async function updateEditorPlaceholder(formData: FormData) {
   'use server';
   if (!(await verifyAdmin())) throw new Error("Unauthorized");
-  
   const newValue = formData.get('placeholder') as string;
   if (!newValue) return;
   try {
     await sql`
-      INSERT INTO site_settings (key, value) 
-      VALUES ('editor_placeholder', ${newValue})
+      INSERT INTO site_settings (key, value) VALUES ('editor_placeholder', ${newValue})
       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
     `;
+  } catch (error) {}
+  revalidatePath('/admin');
+}
+
+async function banIpAddress(formData: FormData) {
+  'use server';
+  if (!(await verifyAdmin())) throw new Error("Unauthorized");
+  const targetIp = formData.get('ip') as string;
+  if (!targetIp || targetIp === '알수없음' || targetIp === '::1') return;
+
+  try {
+    const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'banned_ips'`;
+    let currentBanned = rows.length > 0 && rows[0].value ? rows[0].value : '';
+    let bannedArray = currentBanned ? currentBanned.split(',') : [];
+
+    if (!bannedArray.includes(targetIp)) {
+      bannedArray.push(targetIp);
+      const newBannedStr = bannedArray.join(',');
+      await sql`
+        INSERT INTO site_settings (key, value) VALUES ('banned_ips', ${newBannedStr})
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+      `;
+    }
   } catch (error) {}
   revalidatePath('/admin');
 }
@@ -138,12 +137,14 @@ export default async function AdminDashboardPage(props: any) {
   let userList: any[] = []; let totalPages = 1;
   let blindThreshold = 5; 
   let editorPlaceholder = '내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다.';
+  let bannedIpsString = ''; 
 
   try {
-    const { rows: settings } = await sql`SELECT key, value FROM site_settings WHERE key IN ('report_blind_threshold', 'editor_placeholder')`;
+    const { rows: settings } = await sql`SELECT key, value FROM site_settings WHERE key IN ('report_blind_threshold', 'editor_placeholder', 'banned_ips')`;
     settings.forEach(setting => {
       if (setting.key === 'report_blind_threshold') blindThreshold = Number(setting.value) || 5;
       if (setting.key === 'editor_placeholder' && setting.value) editorPlaceholder = setting.value;
+      if (setting.key === 'banned_ips' && setting.value) bannedIpsString = setting.value;
     });
 
     const { rows: stats } = await sql`
@@ -186,10 +187,13 @@ export default async function AdminDashboardPage(props: any) {
         ...row, 
         userid: row.user_id,
         created_at: formatDate(row.created_at), 
-        last_login: formatDate(row.last_login) 
+        last_login: formatDate(row.last_login),
+        ip: row.ip 
       };
     });
   } catch (e) {}
+
+  const bannedIpsArray = bannedIpsString ? bannedIpsString.split(',') : [];
 
   return (
     <div suppressHydrationWarning className="flex h-screen bg-gray-100 font-sans overflow-hidden">
@@ -204,7 +208,6 @@ export default async function AdminDashboardPage(props: any) {
             <li><Link href="/admin/comments" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>💬</span> 댓글 관리</Link></li>
             <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>⚙️</span> 설정/게시판 관리</Link></li>
             <li><Link href="/admin/blind" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>🚨</span> 블라인드 관리</Link></li>
-            
             <li className="mt-4 border-t border-gray-700 pt-4">
               <Link href="/admin/monitor" target="_blank" className="flex items-center justify-between px-6 py-3 font-black text-emerald-400 bg-slate-800 hover:bg-slate-700 transition-colors border-l-4 border-emerald-500 shadow-inner">
                 <div className="flex items-center gap-3"><span>🖥️</span> 서버 모니터링</div>
@@ -245,9 +248,7 @@ export default async function AdminDashboardPage(props: any) {
             <form action={updateBlindThreshold} className="flex items-center gap-2 bg-gray-50 p-2 rounded-sm border border-gray-200">
               <input type="number" name="threshold" defaultValue={blindThreshold} min="1" max="999" className="w-16 px-2 py-1 border border-gray-300 rounded-sm text-[13px] font-black text-rose-600 text-center outline-none focus:border-rose-400" />
               <span className="text-[12px] font-bold text-gray-600">회 누적 시 숨김</span>
-              <button type="submit" className="px-4 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm ml-2">
-                적용하기
-              </button>
+              <button type="submit" className="px-4 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm ml-2">적용하기</button>
             </form>
           </div>
 
@@ -259,9 +260,7 @@ export default async function AdminDashboardPage(props: any) {
             </div>
             <form action={updateEditorPlaceholder} className="flex items-center gap-2 bg-gray-50 p-2 rounded-sm border border-gray-200 w-full xl:w-auto">
               <input type="text" name="placeholder" defaultValue={editorPlaceholder} className="w-full xl:w-[400px] px-2 py-1.5 border border-gray-300 rounded-sm text-[12px] font-bold text-gray-700 outline-none focus:border-indigo-400" placeholder="안내 문구를 입력하세요..." />
-              <button type="submit" className="px-4 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap">
-                적용하기
-              </button>
+              <button type="submit" className="px-4 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap">적용하기</button>
             </form>
           </div>
 
@@ -279,76 +278,88 @@ export default async function AdminDashboardPage(props: any) {
           </div>
 
           <div suppressHydrationWarning className="bg-white rounded-sm border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-            {/* 💡 [수술 핵심 1] 표를 감싸는 박스에 'max-h-[65vh]' 를 주어 세로 길이를 모니터 화면 크기만큼 제한합니다! (이렇게 하면 가로 스크롤이 표 밑에 예쁘게 뜹니다) */}
             <div suppressHydrationWarning className="overflow-auto w-full max-h-[65vh]">
-              <table suppressHydrationWarning className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[1050px]">
-                <colgroup><col style={{ width: '5%' }} /><col style={{ width: '15%' }} /><col style={{ width: '15%' }} /><col style={{ width: '15%' }} /><col style={{ width: '10%' }} /><col style={{ width: '40%' }} /></colgroup>
-                {/* 💡 [수술 핵심 2] thead에 'sticky top-0 z-10' 을 추가해서 스크롤을 내려도 제목줄이 엑셀처럼 찰싹 고정되게 만듭니다! */}
+              <table suppressHydrationWarning className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[1150px]">
+                <colgroup><col style={{ width: '5%' }} /><col style={{ width: '13%' }} /><col style={{ width: '14%' }} /><col style={{ width: '10%' }} /><col style={{ width: '8%' }} /><col style={{ width: '8%' }} /><col style={{ width: '42%' }} /></colgroup>
                 <thead suppressHydrationWarning className="sticky top-0 z-10">
                   <tr className="bg-gray-50 border-b-2 border-gray-300 text-[11px] text-gray-600 font-black tracking-wider uppercase shadow-sm">
-                    <th className="px-3 py-2.5 text-center">No</th><th className="px-3 py-2.5">회원 정보</th><th className="px-3 py-2.5">가입/로그인</th><th className="px-3 py-2.5 text-center">활동</th><th className="px-3 py-2.5 text-center">상태</th><th className="px-3 py-2.5 text-center border-l border-gray-200">관리 액션</th>
+                    <th className="px-3 py-2.5 text-center">No</th><th className="px-3 py-2.5">회원 정보</th><th className="px-3 py-2.5">가입/로그인</th><th className="px-3 py-2.5 text-center text-red-600">접속 IP</th><th className="px-3 py-2.5 text-center">활동</th><th className="px-3 py-2.5 text-center">상태</th><th className="px-3 py-2.5 text-center border-l border-gray-200">관리 액션</th>
                   </tr>
                 </thead>
                 <tbody suppressHydrationWarning>
-                  {userList.map((user, index) => (
-                    <tr key={user.id} suppressHydrationWarning className="border-b border-gray-100 hover:bg-indigo-50/50 transition-colors bg-white">
-                      <td className="px-3 py-1.5 text-center text-gray-400 font-medium text-[11px]">{offset + index + 1}</td>
-                      <td className="px-3 py-1.5 whitespace-normal break-words">
-                        <div className="font-bold text-[#3b4890] text-[12px] truncate flex items-center gap-1.5" title={user.userid}>
-                          {user.userid}
-                          {user.is_admin && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 border border-purple-200 text-[9px] rounded-sm font-black tracking-tighter">ADMIN</span>}
-                        </div>
-                        <div className="text-gray-500 text-[11px] mt-0.5 leading-tight line-clamp-2" title={user.nickname}>{user.nickname}</div>
-                      </td>
-                      <td className="px-3 py-1.5 text-[11px] text-gray-500">
-                        <div className="mb-0.5"><span className="text-gray-400 w-6 inline-block">가입</span>{user.created_at}</div>
-                        <div><span className="text-gray-400 w-6 inline-block">최근</span>{user.last_login}</div>
-                      </td>
-                      <td className="px-3 py-1.5 text-center">
-                        <div className="text-[11px] font-bold text-gray-600 mb-0.5">글 {Number(user.post_count)}</div>
-                        <div className="text-[11px] font-bold text-rose-500">{user.points || 0} P</div>
-                      </td>
-                      <td className="px-3 py-1.5 text-center">
-                        {user.status === 'active' && <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-sm border border-emerald-100">정상</span>}
-                        {user.status === 'banned' && <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm border border-rose-100">정지</span>}
-                        {user.status === 'shadow_banned' && <span className="text-[10px] font-black text-gray-600 bg-gray-100 px-2 py-0.5 rounded-sm border border-gray-200">그림자</span>}
-                      </td>
-                      <td className="px-3 py-1.5 border-l border-gray-100">
-                        <div className="flex justify-center items-center gap-1.5 flex-wrap">
-                          <form action={updateUserStatus} className="flex items-center gap-1">
-                            <input type="hidden" name="userid" value={user.userid} />
-                            <select name="status" defaultValue={user.status} className="text-[11px] font-bold px-1 py-1 rounded-sm border outline-none cursor-pointer w-14 text-gray-600">
-                              <option value="active">정상</option><option value="shadow_banned">그림자</option><option value="banned">정지</option>
-                            </select>
-                            <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-white border border-gray-300 rounded-sm hover:bg-gray-50 text-gray-700">변경</button>
-                          </form>
-                          <form action={updateUserPoints} className="flex items-center gap-1 border-l pl-1.5">
-                            <input type="hidden" name="userid" value={user.userid} />
-                            <input type="number" name="points" defaultValue={user.points || 0} className="text-[11px] font-bold px-1 py-1 rounded-sm border outline-none w-14 text-gray-800" />
-                            <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-blue-50 border border-blue-200 rounded-sm hover:bg-blue-100 text-blue-700">P수정</button>
-                          </form>
-                          <form action={resetPassword} className="border-l pl-1.5">
-                            <input type="hidden" name="userid" value={user.userid} />
-                            <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-amber-50 border border-amber-300 rounded-sm hover:bg-amber-100 text-amber-700">비번 리셋</button>
-                          </form>
-                          {user.userid !== 'admin' && (
-                            <form action={toggleAdminRole} className="border-l pl-1.5">
+                  {userList.map((user, index) => {
+                    const isBannedIp = bannedIpsArray.includes(user.ip);
+                    return (
+                      <tr key={user.userid} suppressHydrationWarning className={`border-b border-gray-100 transition-colors ${isBannedIp ? 'bg-red-50/50' : 'hover:bg-indigo-50/50 bg-white'}`}>
+                        <td className="px-3 py-1.5 text-center text-gray-400 font-medium text-[11px]">{offset + index + 1}</td>
+                        <td className="px-3 py-1.5 whitespace-normal break-words">
+                          <div className="font-bold text-[#3b4890] text-[12px] truncate flex items-center gap-1.5" title={user.userid}>
+                            {user.userid}
+                            {user.is_admin && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 border border-purple-200 text-[9px] rounded-sm font-black tracking-tighter">ADMIN</span>}
+                          </div>
+                          <div className="text-gray-500 text-[11px] mt-0.5 leading-tight line-clamp-2" title={user.nickname}>{user.nickname}</div>
+                        </td>
+                        <td className="px-3 py-1.5 text-[11px] text-gray-500">
+                          <div className="mb-0.5"><span className="text-gray-400 w-6 inline-block">가입</span>{user.created_at}</div>
+                          <div><span className="text-gray-400 w-6 inline-block">최근</span>{user.last_login}</div>
+                        </td>
+                        <td className="px-3 py-1.5 text-center text-[11px] font-black tracking-tighter text-red-500">
+                          {user.ip || '알수없음'}
+                          {isBannedIp && <div className="text-[9px] text-red-600 mt-0.5 border border-red-200 bg-red-100 rounded-sm inline-block px-1">차단됨</div>}
+                        </td>
+                        <td className="px-3 py-1.5 text-center">
+                          <div className="text-[11px] font-bold text-gray-600 mb-0.5">글 {Number(user.post_count)}</div>
+                          <div className="text-[11px] font-bold text-rose-500">{user.points || 0} P</div>
+                        </td>
+                        <td className="px-3 py-1.5 text-center">
+                          {user.status === 'active' && <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-sm border border-emerald-100">정상</span>}
+                          {user.status === 'banned' && <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm border border-rose-100">정지</span>}
+                          {user.status === 'shadow_banned' && <span className="text-[10px] font-black text-gray-600 bg-gray-100 px-2 py-0.5 rounded-sm border border-gray-200">그림자</span>}
+                        </td>
+                        <td className="px-3 py-1.5 border-l border-gray-100">
+                          <div className="flex justify-center items-center gap-1.5 flex-wrap">
+                            <form action={updateUserStatus} className="flex items-center gap-1">
                               <input type="hidden" name="userid" value={user.userid} />
-                              <input type="hidden" name="is_admin" value={user.is_admin ? 'true' : 'false'} />
-                              <button type="submit" className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-colors shadow-sm ${
-                                user.is_admin 
-                                  ? 'bg-purple-100 border border-purple-300 text-purple-700 hover:bg-purple-200' 
-                                  : 'bg-gray-800 border border-gray-900 text-white hover:bg-gray-700'
-                              }`}>
-                                {user.is_admin ? '권한 회수' : '👑 부관리자 임명'}
-                              </button>
+                              <select name="status" defaultValue={user.status} className="text-[11px] font-bold px-1 py-1 rounded-sm border outline-none cursor-pointer w-14 text-gray-600">
+                                <option value="active">정상</option><option value="shadow_banned">그림자</option><option value="banned">정지</option>
+                              </select>
+                              <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-white border border-gray-300 rounded-sm hover:bg-gray-50 text-gray-700">상태변경</button>
                             </form>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {userList.length === 0 && <tr><td colSpan={6} className="text-center py-10 text-gray-400 font-bold">조건에 맞는 회원이 없습니다.</td></tr>}
+                            <form action={updateUserPoints} className="flex items-center gap-1 border-l pl-1.5">
+                              <input type="hidden" name="userid" value={user.userid} />
+                              <input type="number" name="points" defaultValue={user.points || 0} className="text-[11px] font-bold px-1 py-1 rounded-sm border outline-none w-14 text-gray-800" />
+                              <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-blue-50 border border-blue-200 rounded-sm hover:bg-blue-100 text-blue-700">P수정</button>
+                            </form>
+                            <form action={resetPassword} className="border-l pl-1.5">
+                              <input type="hidden" name="userid" value={user.userid} />
+                              <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-amber-50 border border-amber-300 rounded-sm hover:bg-amber-100 text-amber-700">비번리셋</button>
+                            </form>
+
+                            {/* 💡 [수술 2] 방금 만든 클라이언트 버튼을 여기에 장착합니다! 에러 박멸! */}
+                            <form action={banIpAddress} className="border-l pl-1.5">
+                              <input type="hidden" name="ip" value={user.ip} />
+                              <BanButton ip={user.ip} isBannedIp={isBannedIp} />
+                            </form>
+
+                            {user.userid !== 'admin' && (
+                              <form action={toggleAdminRole} className="border-l pl-1.5">
+                                <input type="hidden" name="userid" value={user.userid} />
+                                <input type="hidden" name="is_admin" value={user.is_admin ? 'true' : 'false'} />
+                                <button type="submit" className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-colors shadow-sm ${
+                                  user.is_admin 
+                                    ? 'bg-purple-100 border border-purple-300 text-purple-700 hover:bg-purple-200' 
+                                    : 'bg-gray-800 border border-gray-900 text-white hover:bg-gray-700'
+                                }`}>
+                                  {user.is_admin ? '권한 회수' : '👑 부관리자 임명'}
+                                </button>
+                              </form>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {userList.length === 0 && <tr><td colSpan={7} className="text-center py-10 text-gray-400 font-bold">조건에 맞는 회원이 없습니다.</td></tr>}
                 </tbody>
               </table>
             </div>
