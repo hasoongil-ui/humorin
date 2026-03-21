@@ -1,9 +1,9 @@
+import { headers } from 'next/headers';
 import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs'; 
-import crypto from 'crypto'; // 🛡️ [추가] 서명 생성을 위한 내장 암호화 모듈
+import crypto from 'crypto'; 
 
-// 🛡️ [핵심] 오재미 서버만 아는 절대 비밀키 (환경변수가 없으면 임시 튼튼한 키 사용)
 const SECRET_KEY = process.env.AUTH_SECRET || 'ojemi-super-secret-key-2026-very-safe';
 
 export async function POST(request: Request) {
@@ -23,18 +23,39 @@ export async function POST(request: Request) {
 
       if (isPasswordMatch || isLegacyLogin) {
         
+        // 1. 마지막 로그인 시간 업데이트
         await sql`
           UPDATE users 
           SET last_login = NOW() 
           WHERE user_id = ${id}
         `;
 
+        // 🛡️ [추가] 90일 물레방아 IP 기록 시스템 작동!
+        try {
+          const headersList = await headers();
+          // 문지기(middleware/proxy)가 넘겨준 진짜 IP를 가져옵니다.
+          const currentIp = headersList.get('x-user-ip') || '알수없음';
+
+          // 로그 기록장에 저장
+          await sql`
+            INSERT INTO access_logs (user_id, action_type, ip_address) 
+            VALUES (${user.user_id}, 'LOGIN', ${currentIp})
+          `;
+
+          // ♻️ 90일 지난 낡은 데이터 자동 삭제 (서버 용량 방어)
+          await sql`
+            DELETE FROM access_logs WHERE created_at < NOW() - INTERVAL '90 days'
+          `;
+        } catch (logError) {
+          console.error('로그 기록 중 오류 (무시하고 진행):', logError);
+        }
+
         const response = NextResponse.json(
           { success: true, message: '로그인 성공' }, 
           { status: 200 }
         );
         
-        // 1. 기존 화면용 쿠키 (에디터/화면 깨짐 방지를 위해 그대로 유지)
+        // 쿠키 설정
         response.cookies.set({
           name: 'ojemi_user',
           value: user.nickname || user.user_id,
@@ -51,8 +72,6 @@ export async function POST(request: Request) {
           maxAge: 60 * 60 * 24 * 7,
         });
 
-        // 2. 🛡️ [수술 완료] 해커 위조 방지용 '비밀 암호 도장' 쿠키 추가 발급!
-        // 서버만 아는 SECRET_KEY로 유저 아이디를 암호화해서 도장을 만듭니다.
         const signature = crypto.createHmac('sha256', SECRET_KEY).update(user.user_id).digest('hex');
         response.cookies.set({
           name: 'ojemi_signature',

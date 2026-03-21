@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
 import crypto from 'crypto';
-import BanButton from './BanButton'; // 💡 [수술 1] 방금 만든 에러 없는 클라이언트 버튼을 모셔옵니다!
+import BanButton from './BanButton'; 
 
 export const dynamic = 'force-dynamic';
 
@@ -20,10 +20,7 @@ async function verifyAdmin() {
 
   if (signature) {
     const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(userId).digest('hex');
-    if (signature !== expectedSignature) {
-      console.error(`🚨 [보안 경고] 위조된 관리자 사칭 시도 감지! - 시도된 ID: ${userId}`);
-      return false; 
-    }
+    if (signature !== expectedSignature) return false; 
   }
 
   try {
@@ -196,7 +193,7 @@ export default async function AdminDashboardPage(props: any) {
   const bannedIpsArray = bannedIpsString ? bannedIpsString.split(',') : [];
 
   return (
-    <div suppressHydrationWarning className="flex h-screen bg-gray-100 font-sans overflow-hidden">
+    <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <aside className="w-60 bg-[#2a3042] text-gray-300 flex flex-col shadow-xl z-20 flex-shrink-0">
         <div className="p-5 border-b border-gray-700/50 bg-[#1e2330]">
           <Link href="/" className="text-2xl font-black text-white tracking-tighter hover:text-indigo-400 transition-colors">OJEMI <span className="text-xs text-indigo-400 align-top">ADMIN</span></Link>
@@ -204,6 +201,7 @@ export default async function AdminDashboardPage(props: any) {
         <nav className="flex-1 py-4 overflow-y-auto">
           <ul className="space-y-1">
             <li><Link href="/admin" className="flex items-center gap-3 px-6 py-3 bg-[#3b4890] text-white font-bold border-l-4 border-indigo-300"><span>👥</span> 회원 관리</Link></li>
+            <li><Link href="/admin/logs" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100 text-gray-300"><span>📜</span> 로그 관리</Link></li>
             <li><Link href="/admin/posts" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>📝</span> 게시글 관리</Link></li>
             <li><Link href="/admin/comments" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>💬</span> 댓글 관리</Link></li>
             <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>⚙️</span> 설정/게시판 관리</Link></li>
@@ -277,20 +275,20 @@ export default async function AdminDashboardPage(props: any) {
             </form>
           </div>
 
-          <div suppressHydrationWarning className="bg-white rounded-sm border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-            <div suppressHydrationWarning className="overflow-auto w-full max-h-[65vh]">
-              <table suppressHydrationWarning className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[1150px]">
+          <div className="bg-white rounded-sm border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+            <div className="overflow-auto w-full max-h-[65vh]">
+              <table className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[1150px]">
                 <colgroup><col style={{ width: '5%' }} /><col style={{ width: '13%' }} /><col style={{ width: '14%' }} /><col style={{ width: '10%' }} /><col style={{ width: '8%' }} /><col style={{ width: '8%' }} /><col style={{ width: '42%' }} /></colgroup>
-                <thead suppressHydrationWarning className="sticky top-0 z-10">
+                <thead className="sticky top-0 z-10">
                   <tr className="bg-gray-50 border-b-2 border-gray-300 text-[11px] text-gray-600 font-black tracking-wider uppercase shadow-sm">
                     <th className="px-3 py-2.5 text-center">No</th><th className="px-3 py-2.5">회원 정보</th><th className="px-3 py-2.5">가입/로그인</th><th className="px-3 py-2.5 text-center text-red-600">접속 IP</th><th className="px-3 py-2.5 text-center">활동</th><th className="px-3 py-2.5 text-center">상태</th><th className="px-3 py-2.5 text-center border-l border-gray-200">관리 액션</th>
                   </tr>
                 </thead>
-                <tbody suppressHydrationWarning>
+                <tbody>
                   {userList.map((user, index) => {
                     const isBannedIp = bannedIpsArray.includes(user.ip);
                     return (
-                      <tr key={user.userid} suppressHydrationWarning className={`border-b border-gray-100 transition-colors ${isBannedIp ? 'bg-red-50/50' : 'hover:bg-indigo-50/50 bg-white'}`}>
+                      <tr key={user.userid} className={`border-b border-gray-100 transition-colors ${isBannedIp ? 'bg-red-50/50' : 'hover:bg-indigo-50/50 bg-white'}`}>
                         <td className="px-3 py-1.5 text-center text-gray-400 font-medium text-[11px]">{offset + index + 1}</td>
                         <td className="px-3 py-1.5 whitespace-normal break-words">
                           <div className="font-bold text-[#3b4890] text-[12px] truncate flex items-center gap-1.5" title={user.userid}>
@@ -335,7 +333,6 @@ export default async function AdminDashboardPage(props: any) {
                               <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-amber-50 border border-amber-300 rounded-sm hover:bg-amber-100 text-amber-700">비번리셋</button>
                             </form>
 
-                            {/* 💡 [수술 2] 방금 만든 클라이언트 버튼을 여기에 장착합니다! 에러 박멸! */}
                             <form action={banIpAddress} className="border-l pl-1.5">
                               <input type="hidden" name="ip" value={user.ip} />
                               <BanButton ip={user.ip} isBannedIp={isBannedIp} />
@@ -364,7 +361,7 @@ export default async function AdminDashboardPage(props: any) {
               </table>
             </div>
             
-            <div suppressHydrationWarning className="p-3 border-t border-gray-200 bg-gray-50 flex justify-center flex-shrink-0">
+            <div className="p-3 border-t border-gray-200 bg-gray-50 flex justify-center flex-shrink-0">
                <div className="flex gap-2">
                  <Link href={`/admin?page=${currentPage - 1}${q ? `&q=${q}&type=${type}` : ''}`} className={`px-3 py-1 border border-gray-300 bg-white text-gray-500 text-[11px] font-bold rounded-sm hover:bg-gray-50 ${currentPage <= 1 ? 'pointer-events-none opacity-40' : ''}`}>◀ 이전</Link>
                  <div className="px-4 py-1 font-black text-gray-700 text-[12px]">{currentPage} <span className="text-gray-400 font-medium">/ {totalPages}</span></div>
