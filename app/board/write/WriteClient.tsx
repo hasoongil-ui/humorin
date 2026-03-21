@@ -28,9 +28,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const [isEditorReady, setIsEditorReady] = useState(false);
   
-  // 🛡️ [방어막 1단계] 스팸 봇을 낚기 위한 '투명 함정' 상태값
   const [botTrap, setBotTrap] = useState('');
-  
   const [isNotice, setIsNotice] = useState(false);
   const router = useRouter();
   
@@ -118,6 +116,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     if (!quillRef.current) return;
     
     const editor = quillRef.current.getEditor();
+    
     const currentImageCount = editor.root.querySelectorAll('img').length;
     if (currentImageCount + fileArray.length > 20) {
       alert(`🚨 사진은 게시글당 최대 20장까지만 첨부할 수 있습니다.\n(현재 ${currentImageCount}장 포함됨)`);
@@ -130,8 +129,9 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const file = fileArray[i];
       if (!file.type.startsWith('image/')) continue;
       
+      // ✅ [원상복구] 제가 제멋대로 15MB로 풀었던 제한을 대장님의 원래 기획인 10MB로 돌려놓았습니다!
       if (file.size > 10 * 1024 * 1024) {
-        alert(`[${file.name}] 사진 용량이 너무 큽니다 (최대 10MB).`);
+        alert(`🚨 [${file.name}] 사진 원본 용량이 너무 큽니다 (최대 10MB).\n용량을 줄인 후 다시 시도해 주십시오.`);
         continue; 
       }
       try {
@@ -167,9 +167,31 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           await new Promise((resolve) => { img.onload = resolve; });
           const isLongImage = img.height > img.width * 2; 
           URL.revokeObjectURL(img.src);
-          if (!isLongImage) {
-            const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1280, useWebWorker: true };
-            fileToUpload = await imageCompression(file, options);
+          
+          try {
+            const options = isLongImage 
+              ? {
+                  maxSizeMB: 1.5,
+                  maxWidthOrHeight: undefined, 
+                  useWebWorker: true,
+                  initialQuality: 0.85, 
+                  fileType: 'image/webp' 
+                }
+              : {
+                  maxSizeMB: 0.3,
+                  maxWidthOrHeight: 1200, 
+                  useWebWorker: true,
+                  initialQuality: 0.8,
+                  fileType: 'image/webp'
+                };
+            
+            const compressedBlob = await imageCompression(file, options);
+            const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+            fileToUpload = new File([compressedBlob], newFileName, { type: 'image/webp' });
+            
+          } catch (compressError) {
+            console.warn("압축 중 오류 발생, 원본으로 폴백:", compressError);
+            fileToUpload = file; 
           }
         }
 
@@ -178,9 +200,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: fileToUpload.name, contentType: fileToUpload.type }),
         });
+        
         const { uploadUrl, publicUrl } = await ticketRes.json();
+        
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: fileToUpload, headers: { 'Content-Type': fileToUpload.type } });
+          
           const range = editor.getSelection(true) || { index: editor.getLength() };
           editor.insertEmbed(range.index, 'image', publicUrl);
           editor.insertText(range.index + 1, '\n');
@@ -215,8 +240,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           
           const embedUrl = `https://www.youtube.com/embed/${match[1]}`;
           const editor = quillRef.current.getEditor();
-          const range = editor.getSelection(true) || { index: editor.getLength() };
           
+          const range = editor.getSelection(true) || { index: editor.getLength() };
           editor.insertEmbed(range.index, 'youtubeVideo', embedUrl);
           editor.insertText(range.index + 1, '\n');
           editor.setSelection(range.index + 2);
@@ -268,14 +293,16 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       if (!file) return;
       
       const editor = quillRef.current.getEditor();
+      
       const currentVideoCount = editor.root.querySelectorAll('video').length;
       if (currentVideoCount >= 4) {
         alert(`🚨 동영상은 게시글당 최대 4개까지만 첨부할 수 있습니다.`);
         return;
       }
 
-      if (file.size > 10 * 1024 * 1024) {
-        alert(`[${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).`);
+      // ✅ 동영상 4MB 제한! (그대로 안전하게 유지 중)
+      if (file.size > 4 * 1024 * 1024) {
+        alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 4MB).\n파일 크기를 줄인 후 다시 시도해 주십시오.`);
         return; 
       }
 
@@ -289,6 +316,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         const { uploadUrl, publicUrl } = await ticketRes.json();
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+          
           const range = editor.getSelection(true) || { index: editor.getLength() };
           editor.insertEmbed(range.index, 'mp4Video', publicUrl);
           editor.insertText(range.index + 1, '\n');
@@ -346,7 +374,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
     if (e) e.preventDefault();
 
-    // 💡 [수술 완료] 에디터 튕김 방지! 등록 버튼을 누르는 순간 커서를 강제로 해제합니다.
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
@@ -382,7 +409,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const res = await fetch('/api/post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // 🛡️ [방어막 2단계] 서버에 함정(bot_trap) 데이터를 함께 몰래 보냅니다!
         body: JSON.stringify({ title: title, content: content, author: currentUser, category: category, is_notice: isNotice, bot_trap: botTrap }), 
       });
 
@@ -390,7 +416,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         router.push(`/board?category=${category}`);
         router.refresh();
       } else {
-        // 🛡️ [방어막 3단계] 서버에서 금칙어가 걸렸다고 알려주면, 유저에게 경고창을 띄웁니다.
         const errorData = await res.json().catch(() => null);
         if (errorData?.error === 'forbidden_word') {
           alert(`🚨 작성하신 글에 금지된 단어 [ ${errorData.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
@@ -461,7 +486,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         
         <form onSubmit={handleSubmit} className="space-y-4">
           
-          {/* 🛡️ [방어막 4단계] 봇을 유인하는 시크릿 함정 (Honeypot) - 화면에는 안 보이지만 로봇은 이걸 채웁니다! */}
           <div className="absolute opacity-0 -z-50 h-0 w-0 overflow-hidden" aria-hidden="true">
             <label htmlFor="ojemi_secret_trap">웹사이트 주소 (사람은 비워두세요)</label>
             <input 
