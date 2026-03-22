@@ -112,7 +112,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     });
   }, [isGlobalLocked, isAdmin, router]);
 
-  const processAndUploadImages = async (fileArray: File[]) => {
+  // 💡 [튕김 방지 수술 1] processAndUploadImages 함수가 'forcedIndex(외워둔 커서 위치)'를 받도록 수정!
+  const processAndUploadImages = async (fileArray: File[], forcedIndex?: number) => {
     if (!quillRef.current) return;
     
     const editor = quillRef.current.getEditor();
@@ -122,9 +123,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       return;
     }
 
-    // 💡 [튕김 방지] 업로드 시작 전 커서 위치 저장!
-    let currentSelection = editor.getSelection();
-    let insertIndex = currentSelection ? currentSelection.index : editor.getLength();
+    // 파일 창이 열리기 전의 커서 위치를 쓰거나, 없으면 맨 끝에 붙입니다.
+    let insertIndex = forcedIndex !== undefined ? forcedIndex : (editor.getSelection()?.index || editor.getLength());
 
     setIsUploading(true);
     
@@ -176,7 +176,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           continue; 
         }
 
-        // 💡 [압축 로직 100% 보존] 화질 0.8 / 0.85, 해상도 1200 등 대장님 설정 완벽 유지!
         if (shouldCompress) {
           const img = new Image();
           img.src = URL.createObjectURL(file);
@@ -186,20 +185,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           
           try {
             const options = isLongImage 
-              ? {
-                  maxSizeMB: 1.5,
-                  maxWidthOrHeight: undefined, 
-                  useWebWorker: true,
-                  initialQuality: 0.85, 
-                  fileType: 'image/webp' 
-                }
-              : {
-                  maxSizeMB: 0.3,
-                  maxWidthOrHeight: 1200, 
-                  useWebWorker: true,
-                  initialQuality: 0.8,
-                  fileType: 'image/webp'
-                };
+              ? { maxSizeMB: 1.5, maxWidthOrHeight: undefined, useWebWorker: true, initialQuality: 0.85, fileType: 'image/webp' }
+              : { maxSizeMB: 0.3, maxWidthOrHeight: 1200, useWebWorker: true, initialQuality: 0.8, fileType: 'image/webp' };
             
             const compressedBlob = await imageCompression(file, options);
             const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
@@ -222,11 +209,18 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: fileToUpload, headers: { 'Content-Type': fileToUpload.type } });
           
-          // 💡 [튕김 방지] 업로드가 완료되면 아까 외워둔 위치(insertIndex)에 얌전히 꽂아 넣습니다!
+          // 💡 [튕김 방지 수술 2: 스크롤 멱살 잡기!] 
+          // 사진을 박아 넣기 직전의 화면 스크롤 위치를 기억합니다.
+          const currentScrollY = window.scrollY; 
+          
           editor.insertEmbed(insertIndex, 'image', publicUrl);
           editor.insertText(insertIndex + 1, '\n');
           insertIndex += 2; 
-          editor.setSelection(insertIndex); 
+          
+          // 커서를 옮길 때 브라우저가 화면을 튕기지 않도록 조용히('silent') 처리하고, 
+          // 만약 튕겼더라도 즉시 원래 스크롤 위치로 강제 고정시켜 버립니다!!
+          editor.setSelection(insertIndex, 0, 'silent'); 
+          window.scrollTo(0, currentScrollY); 
         }
       } catch (error) {
         alert('이미지 업로드 중 오류가 발생했습니다.');
@@ -246,9 +240,13 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const clipboardData = e.clipboardData;
       if (!clipboardData) return;
 
+      const editor = quillRef.current.getEditor();
+      let currentSelection = editor.getSelection();
+      let pasteIndex = currentSelection ? currentSelection.index : editor.getLength();
+
       const text = clipboardData.getData('text/plain');
       if (text) {
-        // 💡 [모바일 유튜브 해결 수술] 맨 앞의 '^' 기호를 제거해서, 스마트폰에서 주소 앞에 쓸데없는 글씨가 붙어와도 귀신같이 유튜브 주소만 뽑아냅니다!
+        // 모바일 유튜브 주소 복붙 완벽 인식 (맨 앞 ^ 기호 삭제됨)
         const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
         
@@ -257,15 +255,13 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           e.stopPropagation();
           
           const embedUrl = `https://www.youtube.com/embed/${match[1]}`;
-          const editor = quillRef.current.getEditor();
           
-          // 복붙할 때 유튜브 영상도 커서 튕김 방지 적용!
-          let currentSelection = editor.getSelection();
-          let insertIndex = currentSelection ? currentSelection.index : editor.getLength();
-          
-          editor.insertEmbed(insertIndex, 'youtubeVideo', embedUrl);
-          editor.insertText(insertIndex + 1, '\n');
-          editor.setSelection(insertIndex + 2);
+          // 💡 유튜브 복붙 튕김 방지!
+          const currentScrollY = window.scrollY;
+          editor.insertEmbed(pasteIndex, 'youtubeVideo', embedUrl);
+          editor.insertText(pasteIndex + 1, '\n');
+          editor.setSelection(pasteIndex + 2, 0, 'silent');
+          window.scrollTo(0, currentScrollY);
           return;
         }
       }
@@ -283,7 +279,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       if (hasImage && imageFiles.length > 0) {
         e.preventDefault(); 
         e.stopPropagation();
-        uploadImagesRef.current(imageFiles); 
+        uploadImagesRef.current(imageFiles, pasteIndex); // 복붙한 위치를 전달!
       }
     };
 
@@ -292,6 +288,11 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   }, []);
 
   const imageHandler = () => {
+    const editor = quillRef.current.getEditor();
+    // 💡 [튕김 방지 수술 3] 파일 선택 창이 열려서 포커스를 잃어버리기 "직전"에 커서 위치를 외워둡니다!
+    const range = editor.getSelection();
+    const startIndex = range ? range.index : editor.getLength();
+
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
     input.setAttribute('accept', 'image/*');
@@ -300,11 +301,17 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     input.onchange = async () => {
       const files = input.files;
       if (!files || files.length === 0) return;
-      await processAndUploadImages(Array.from(files));
+      // 외워둔 커서 위치(startIndex)를 업로드 함수로 전달!
+      await processAndUploadImages(Array.from(files), startIndex);
     };
   };
 
   const videoFileHandler = () => {
+    const editor = quillRef.current.getEditor();
+    // 💡 [튕김 방지 수술 4] 동영상도 파일 창이 열리기 "직전"에 커서 위치를 외워둡니다!
+    const range = editor.getSelection();
+    let insertIndex = range ? range.index : editor.getLength();
+
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
     input.setAttribute('accept', 'video/mp4,video/webm'); 
@@ -312,8 +319,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     input.onchange = async () => {
       const file = input.files ? input.files[0] : null;
       if (!file) return;
-      
-      const editor = quillRef.current.getEditor();
       
       const currentVideoCount = editor.root.querySelectorAll('video').length;
       if (currentVideoCount >= 4) {
@@ -326,10 +331,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         return; 
       }
 
-      // 💡 [동영상 튕김 방지 수술] 동영상도 업로드 직전에 커서 위치 미리 저장!
-      let currentSelection = editor.getSelection();
-      let insertIndex = currentSelection ? currentSelection.index : editor.getLength();
-
       setIsUploading(true);
       try {
         const ticketRes = await fetch('/api/upload', {
@@ -341,9 +342,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
           
+          // 💡 [동영상 튕김 방지 스크롤 고정!]
+          const currentScrollY = window.scrollY; 
           editor.insertEmbed(insertIndex, 'mp4Video', publicUrl);
           editor.insertText(insertIndex + 1, '\n');
-          editor.setSelection(insertIndex + 2);
+          editor.setSelection(insertIndex + 2, 0, 'silent');
+          window.scrollTo(0, currentScrollY);
         }
       } catch (error) {
         alert('동영상 업로드 중 오류가 발생했습니다.');
