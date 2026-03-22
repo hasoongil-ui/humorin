@@ -54,14 +54,16 @@ export default function RootLayout({
               <span className="text-gray-300">|</span>
               <Link href="/youth" className="hover:text-[#3b4890] hover:underline transition-colors">청소년보호정책</Link>
               <span className="text-gray-300">|</span>
-              <a href="mailto:ruffian71@naver.com" className="hover:text-[#3b4890] hover:underline transition-colors">버그신고 및 문의</a>
+              {/* 💡 [수술 완료] mailto를 없애고 안전한 안내 페이지(/contact)로 연결! */}
+              <Link href="/contact" className="hover:text-[#3b4890] hover:underline transition-colors">버그신고 및 문의</Link>
             </div>
 
             {/* 법적 책임 고지 및 카피라이트 */}
             <div className="text-[12px] text-gray-500 font-medium leading-relaxed text-center md:text-left">
               <p className="mb-2">
                 본 사이트(오재미)는 유저가 작성한 게시물에 대한 법적 책임을 지지 않습니다. 모든 게시물의 저작권과 책임은 작성자 본인에게 있습니다.<br className="hidden md:block" />
-                권리 침해나 불법 게시물을 발견하셨을 경우, 관리자 메일(<a href="mailto:ruffian71@naver.com" className="font-bold hover:underline">ruffian71@naver.com</a>)로 연락 주시면 신속히 조치하겠습니다.
+                {/* 💡 [수술 완료] 여기 있는 이메일 텍스트도 누르면 렉 없이 문의 페이지(/contact)로 가도록 안전망 장착! */}
+                권리 침해나 불법 게시물을 발견하셨을 경우, 관리자 메일(<Link href="/contact" className="font-bold hover:underline">ruffian71@naver.com</Link>)로 연락 주시면 신속히 조치하겠습니다.
               </p>
               <p className="font-bold text-gray-400">
                 © {new Date().getFullYear()} OJEMI. All Rights Reserved.
