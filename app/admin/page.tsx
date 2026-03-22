@@ -192,6 +192,14 @@ export default async function AdminDashboardPage(props: any) {
 
   const bannedIpsArray = bannedIpsString ? bannedIpsString.split(',') : [];
 
+  // 💡 [엑셀 다운로드 백엔드 로직] 현재 화면에 보이는 유저 목록을 CSV 형식으로 즉시 변환!
+  const csvHeader = "No,아이디,닉네임,가입일,최근로그인,IP,게시글수,포인트,상태,관리자여부\n";
+  const csvRows = userList.map((user, idx) => {
+    return `${offset + idx + 1},"${user.userid}","${user.nickname || ''}","${user.created_at}","${user.last_login}","${user.ip || '알수없음'}","${user.post_count || 0}","${user.points || 0}","${user.status}","${user.is_admin ? 'O' : 'X'}"`;
+  }).join('\n');
+  const csvString = '\uFEFF' + csvHeader + csvRows; // 한글 깨짐 방지용 \uFEFF 추가
+  const csvDataUri = "data:text/csv;charset=utf-8," + encodeURIComponent(csvString);
+
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <aside className="w-60 bg-[#2a3042] text-gray-300 flex flex-col shadow-xl z-20 flex-shrink-0">
@@ -262,17 +270,28 @@ export default async function AdminDashboardPage(props: any) {
             </form>
           </div>
 
-          <div className="bg-white p-3 rounded-sm border border-gray-200 shadow-sm mb-4 flex justify-between items-center">
+          <div className="bg-white p-3 rounded-sm border border-gray-200 shadow-sm mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h2 className="text-sm font-black text-[#3b4890] flex items-center gap-1"><span>🔍</span> 악성 유저 추적 검색</h2>
-            <form method="GET" action="/admin" className="flex items-center gap-2">
-              <select name="type" defaultValue={type} className="text-xs font-bold border border-gray-300 p-1.5 rounded-sm outline-none bg-white text-gray-700">
-                <option value="userid">아이디</option>
-                <option value="nickname">닉네임</option>
-              </select>
-              <input type="text" name="q" defaultValue={q} placeholder="검색어 입력..." className="text-xs font-bold border border-gray-300 p-1.5 rounded-sm outline-none w-48 focus:border-[#3b4890]" />
-              <button type="submit" className="px-4 py-1.5 bg-[#414a66] text-white text-xs font-bold rounded-sm hover:bg-[#2a3042] shadow-sm">검색</button>
-              {q && <Link href="/admin" className="px-3 py-1.5 border border-gray-300 text-gray-600 text-xs font-bold rounded-sm hover:bg-gray-50">초기화</Link>}
-            </form>
+            <div className="flex items-center gap-4 flex-wrap">
+              <form method="GET" action="/admin" className="flex items-center gap-2">
+                <select name="type" defaultValue={type} className="text-xs font-bold border border-gray-300 p-1.5 rounded-sm outline-none bg-white text-gray-700">
+                  <option value="userid">아이디</option>
+                  <option value="nickname">닉네임</option>
+                </select>
+                <input type="text" name="q" defaultValue={q} placeholder="검색어 입력..." className="text-xs font-bold border border-gray-300 p-1.5 rounded-sm outline-none w-48 focus:border-[#3b4890]" />
+                <button type="submit" className="px-4 py-1.5 bg-[#414a66] text-white text-xs font-bold rounded-sm hover:bg-[#2a3042] shadow-sm">검색</button>
+                {q && <Link href="/admin" className="px-3 py-1.5 border border-gray-300 text-gray-600 text-xs font-bold rounded-sm hover:bg-gray-50">초기화</Link>}
+              </form>
+
+              {/* 💡 [엑셀 다운로드 버튼] 서버 부하 없이 현재 화면 리스트 즉시 다운로드! */}
+              <a 
+                href={csvDataUri} 
+                download={`오재미_회원관리_${new Date().toISOString().slice(0,10)}.csv`}
+                className="px-4 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 text-xs font-black rounded-sm flex items-center gap-1 transition-colors shadow-sm whitespace-nowrap"
+              >
+                📥 현재 목록 엑셀 저장
+              </a>
+            </div>
           </div>
 
           <div className="bg-white rounded-sm border border-gray-200 shadow-sm overflow-hidden flex flex-col">

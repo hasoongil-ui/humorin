@@ -54,9 +54,22 @@ export default async function AdminLogsPage(props: any) {
     logs = logRes.rows;
   } catch (e) { console.error(e); }
 
+  // 💡 [엑셀 다운로드 백엔드 로직] 서버 부하 없이 현재 불러온 'logs' 배열을 CSV 문자열로 즉시 변환!
+  const csvHeader = "No,활동 일시,아이디,IP 주소,활동 내용\n";
+  const csvRows = logs.map((log, idx) => {
+    // 엑셀에서 쉼표(,) 때문에 칸이 밀리지 않도록 안전하게 따옴표로 감싸줍니다.
+    const dateStr = log.created_at ? new Date(log.created_at).toLocaleString('ko-KR') : '';
+    return `${offset + idx + 1},"${dateStr}","${log.user_id || ''}","${log.ip_address || ''}","${log.action_type || ''}"`;
+  }).join('\n');
+  
+  // \uFEFF 는 엑셀에서 한글이 깨지지 않게 해주는 마법의 BOM 문자입니다.
+  const csvString = '\uFEFF' + csvHeader + csvRows;
+  // 클릭 시 브라우저가 즉시 다운로드 창을 띄우게 하는 Data URI 방식!
+  const csvDataUri = "data:text/csv;charset=utf-8," + encodeURIComponent(csvString);
+
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
-      {/* 사이드바 (기존과 동일하되 메뉴 추가) */}
+      {/* 사이드바 */}
       <aside className="w-60 bg-[#2a3042] text-gray-300 flex flex-col shadow-xl z-20">
         <div className="p-5 border-b border-gray-700/50 bg-[#1e2330]">
           <Link href="/" className="text-2xl font-black text-white tracking-tighter">OJEMI <span className="text-xs text-indigo-400 align-top">ADMIN</span></Link>
@@ -80,14 +93,26 @@ export default async function AdminLogsPage(props: any) {
         </header>
 
         <div className="p-8 overflow-y-auto">
-          {/* 검색바 */}
+          {/* 검색바 & 엑셀 다운로드 버튼 영역 */}
           <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm mb-4 flex justify-between items-center">
             <h2 className="text-sm font-black text-[#3b4890]">🔍 특정 유저/IP 추적</h2>
-            <form method="GET" action="/admin/logs" className="flex gap-2">
-              <input type="text" name="q" defaultValue={q} placeholder="아이디 또는 IP 입력..." className="text-xs font-bold border border-gray-300 p-2 rounded-sm w-60 outline-none focus:border-indigo-500" />
-              <button type="submit" className="px-4 py-2 bg-[#414a66] text-white text-xs font-bold rounded-sm">추적</button>
-              {q && <Link href="/admin/logs" className="px-3 py-2 border border-gray-300 text-gray-600 text-xs font-bold rounded-sm bg-white">초기화</Link>}
-            </form>
+            
+            <div className="flex items-center gap-4">
+              <form method="GET" action="/admin/logs" className="flex gap-2">
+                <input type="text" name="q" defaultValue={q} placeholder="아이디 또는 IP 입력..." className="text-xs font-bold border border-gray-300 p-2 rounded-sm w-60 outline-none focus:border-indigo-500" />
+                <button type="submit" className="px-4 py-2 bg-[#414a66] text-white text-xs font-bold rounded-sm hover:bg-[#2a3042] transition-colors">추적</button>
+                {q && <Link href="/admin/logs" className="px-3 py-2 border border-gray-300 text-gray-600 text-xs font-bold rounded-sm bg-white hover:bg-gray-50">초기화</Link>}
+              </form>
+              
+              {/* 💡 [엑셀 다운로드 버튼] 서버 통신 없이 즉시 다운로드! */}
+              <a 
+                href={csvDataUri} 
+                download={`오재미_로그_${new Date().toISOString().slice(0,10)}.csv`}
+                className="px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 text-xs font-black rounded-sm flex items-center gap-1 transition-colors shadow-sm"
+              >
+                📥 현재 목록 엑셀 저장
+              </a>
+            </div>
           </div>
 
           {/* 로그 테이블 */}
