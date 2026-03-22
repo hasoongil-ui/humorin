@@ -116,12 +116,15 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     if (!quillRef.current) return;
     
     const editor = quillRef.current.getEditor();
-    
     const currentImageCount = editor.root.querySelectorAll('img').length;
     if (currentImageCount + fileArray.length > 20) {
       alert(`🚨 사진은 게시글당 최대 20장까지만 첨부할 수 있습니다.\n(현재 ${currentImageCount}장 포함됨)`);
       return;
     }
+
+    // 💡 [튕김 방지] 업로드 시작 전 커서 위치 저장!
+    let currentSelection = editor.getSelection();
+    let insertIndex = currentSelection ? currentSelection.index : editor.getLength();
 
     setIsUploading(true);
     
@@ -129,38 +132,51 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const file = fileArray[i];
       if (!file.type.startsWith('image/')) continue;
       
-      // ✅ [원상복구] 제가 제멋대로 15MB로 풀었던 제한을 대장님의 원래 기획인 10MB로 돌려놓았습니다!
-      if (file.size > 10 * 1024 * 1024) {
-        alert(`🚨 [${file.name}] 사진 원본 용량이 너무 큽니다 (최대 10MB).\n용량을 줄인 후 다시 시도해 주십시오.`);
-        continue; 
-      }
       try {
         let fileToUpload = file;
         let shouldCompress = true;
+        let isUncompressibleAnim = false; 
 
+        // 💡 [움짤 X-ray 판독기] GIF/WebP 파일 속 프레임 개수 세기!
         if (file.type === 'image/gif') {
-          shouldCompress = false; 
-        } else if (file.type === 'image/webp') {
-          const isAnimated = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              const arr = new Uint8Array(e.target.result as ArrayBuffer);
-              let found = false;
-              for (let i = 0; i < arr.length - 3; i++) {
-                if (arr[i] === 65 && arr[i+1] === 78 && arr[i+2] === 73 && arr[i+3] === 77) {
-                  found = true; break;
-                }
+          const buffer = await file.arrayBuffer();
+          const arr = new Uint8Array(buffer);
+          let frames = 0;
+          for (let j = 0; j < arr.length - 2; j++) {
+            if (arr[j] === 0x21 && arr[j + 1] === 0xF9 && arr[j + 2] === 0x04) {
+              frames++;
+              if (frames > 1) { 
+                isUncompressibleAnim = true;
+                shouldCompress = false; 
+                break;
               }
-              resolve(found);
-            };
-            reader.readAsArrayBuffer(file.slice(0, 1024)); 
-          });
-
-          if (isAnimated) {
-            shouldCompress = false; 
+            }
+          }
+        } else if (file.type === 'image/webp') {
+          const buffer = await file.arrayBuffer();
+          const arr = new Uint8Array(buffer);
+          for (let j = 0; j < arr.length - 3; j++) {
+            if (arr[j] === 65 && arr[j+1] === 78 && arr[j+2] === 73 && arr[j+3] === 77) { 
+              isUncompressibleAnim = true;
+              shouldCompress = false; 
+              break;
+            }
           }
         }
 
+        // 🛡️ [용량 철벽 방어막] 진짜 움짤은 5MB 컷! / 일반 사진은 10MB 컷!
+        const MAX_ANIM_SIZE = 5 * 1024 * 1024; 
+        const MAX_IMAGE_SIZE = 10 * 1024 * 1024; 
+
+        if (isUncompressibleAnim && file.size > MAX_ANIM_SIZE) {
+          alert(`🚨 [${file.name}] 움직이는 움짤(GIF/WebP)은 서버 용량 보호를 위해 최대 5MB까지만 올릴 수 있습니다.\n용량을 줄이거나 MP4 동영상 파일로 첨부해 주십시오.`);
+          continue; 
+        } else if (!isUncompressibleAnim && file.size > MAX_IMAGE_SIZE) {
+          alert(`🚨 [${file.name}] 사진 원본 용량이 너무 큽니다 (최대 10MB).\n용량을 줄인 후 다시 시도해 주십시오.`);
+          continue; 
+        }
+
+        // 💡 [압축 로직 100% 보존] 화질 0.8 / 0.85, 해상도 1200 등 대장님 설정 완벽 유지!
         if (shouldCompress) {
           const img = new Image();
           img.src = URL.createObjectURL(file);
@@ -206,10 +222,11 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: fileToUpload, headers: { 'Content-Type': fileToUpload.type } });
           
-          const range = editor.getSelection(true) || { index: editor.getLength() };
-          editor.insertEmbed(range.index, 'image', publicUrl);
-          editor.insertText(range.index + 1, '\n');
-          editor.setSelection(range.index + 2); 
+          // 💡 [튕김 방지] 업로드가 완료되면 아까 외워둔 위치(insertIndex)에 얌전히 꽂아 넣습니다!
+          editor.insertEmbed(insertIndex, 'image', publicUrl);
+          editor.insertText(insertIndex + 1, '\n');
+          insertIndex += 2; 
+          editor.setSelection(insertIndex); 
         }
       } catch (error) {
         alert('이미지 업로드 중 오류가 발생했습니다.');
@@ -231,7 +248,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       const text = clipboardData.getData('text/plain');
       if (text) {
-        const ytRegex = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i;
+        // 💡 [모바일 유튜브 해결 수술] 맨 앞의 '^' 기호를 제거해서, 스마트폰에서 주소 앞에 쓸데없는 글씨가 붙어와도 귀신같이 유튜브 주소만 뽑아냅니다!
+        const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
         
         if (match) {
@@ -241,10 +259,13 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const embedUrl = `https://www.youtube.com/embed/${match[1]}`;
           const editor = quillRef.current.getEditor();
           
-          const range = editor.getSelection(true) || { index: editor.getLength() };
-          editor.insertEmbed(range.index, 'youtubeVideo', embedUrl);
-          editor.insertText(range.index + 1, '\n');
-          editor.setSelection(range.index + 2);
+          // 복붙할 때 유튜브 영상도 커서 튕김 방지 적용!
+          let currentSelection = editor.getSelection();
+          let insertIndex = currentSelection ? currentSelection.index : editor.getLength();
+          
+          editor.insertEmbed(insertIndex, 'youtubeVideo', embedUrl);
+          editor.insertText(insertIndex + 1, '\n');
+          editor.setSelection(insertIndex + 2);
           return;
         }
       }
@@ -300,11 +321,14 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         return;
       }
 
-      // ✅ 동영상 4MB 제한! (그대로 안전하게 유지 중)
       if (file.size > 4 * 1024 * 1024) {
         alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 4MB).\n파일 크기를 줄인 후 다시 시도해 주십시오.`);
         return; 
       }
+
+      // 💡 [동영상 튕김 방지 수술] 동영상도 업로드 직전에 커서 위치 미리 저장!
+      let currentSelection = editor.getSelection();
+      let insertIndex = currentSelection ? currentSelection.index : editor.getLength();
 
       setIsUploading(true);
       try {
@@ -317,10 +341,9 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
           
-          const range = editor.getSelection(true) || { index: editor.getLength() };
-          editor.insertEmbed(range.index, 'mp4Video', publicUrl);
-          editor.insertText(range.index + 1, '\n');
-          editor.setSelection(range.index + 2);
+          editor.insertEmbed(insertIndex, 'mp4Video', publicUrl);
+          editor.insertText(insertIndex + 1, '\n');
+          editor.setSelection(insertIndex + 2);
         }
       } catch (error) {
         alert('동영상 업로드 중 오류가 발생했습니다.');
