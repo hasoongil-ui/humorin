@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link"; // 💡 [추가] 하단 메뉴 이동을 위한 Link 컴포넌트 불러오기
 import "./globals.css";
+import CopyProtection from "./components/CopyProtection"; // 💡 [추가] 불펌 방지 (클립보드 납치) 감시 카메라
 
 // 💡 [SEO 수술 완벽 적용] 타이틀, 설명, 그리고 '구글 & 네이버 소유확인 명찰' 완벽 장착!
 export const metadata: Metadata = {
@@ -26,6 +27,9 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="bg-gray-100 font-sans flex flex-col min-h-screen">
+        
+        {/* 🛡️ [추가] 복사 닌자(클립보드 납치) 가동! 화면엔 안 보이고 백그라운드에서 감시합니다. */}
+        <CopyProtection />
         
         {/* 💰 [미래를 위한 투명 구조] 상단 광고 자리 (지금은 높이가 0이라 유저 눈에 절대 안 보입니다) */}
         <div id="ad-space-top" className="w-full"></div>
