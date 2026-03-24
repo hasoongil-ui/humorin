@@ -82,7 +82,7 @@ function LoginForm() {
         </button>
       </form>
 
-      {/* 💡 [봉인 해제!] 네이버 간편 로그인 버튼 등장! */}
+      {/* 💡 [네이버 심사 지옥 탈출!] 당분간 네이버 버튼 숨김 처리 시작 
       <div className="relative flex items-center py-2">
         <div className="flex-grow border-t border-gray-200"></div>
         <span className="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold">또는 간편하게</span>
@@ -99,6 +99,7 @@ function LoginForm() {
         </svg>
         네이버로 1초 만에 시작하기
       </button>
+      네이버 버튼 숨김 처리 끝 */}
     </div>
   );
 }

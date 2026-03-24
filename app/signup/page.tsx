@@ -132,7 +132,6 @@ export default function SignupPage() {
     }
   };
 
-  // 💡 [봉인 해제!] 네이버 로그인 창으로 보내주는 함수입니다.
   const handleNaverLogin = () => {
     window.location.href = `/api/auth/naver`;
   };
@@ -145,7 +144,7 @@ export default function SignupPage() {
           <h2 className="text-xl font-bold text-gray-800 mt-2">회원 가입</h2>
         </div>
 
-        {/* 💡 [봉인 해제!] 회원가입 화면에도 네이버 간편 가입 버튼을 가장 위에 띄웁니다! */}
+        {/* 💡 [네이버 심사 지옥 탈출!] 회원가입 화면의 네이버 버튼 숨김 처리 시작 
         <button
           type="button"
           onClick={handleNaverLogin}
@@ -162,6 +161,7 @@ export default function SignupPage() {
           <span className="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold">또는 이메일로 가입</span>
           <div className="flex-grow border-t border-gray-200"></div>
         </div>
+        네이버 버튼 숨김 처리 끝 */}
 
         {submitError && (
           <div className="mb-6 p-3 bg-red-50 text-red-600 text-sm font-bold text-center rounded-sm border border-red-200">
