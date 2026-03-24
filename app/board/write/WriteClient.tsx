@@ -161,14 +161,15 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           }
         }
 
-        const MAX_ANIM_SIZE = 5 * 1024 * 1024; 
-        const MAX_IMAGE_SIZE = 10 * 1024 * 1024; 
+        // 💡 [수술 1] 움짤(GIF) 업로드 허용치 10MB로 시원하게 상향!
+        const MAX_ANIM_SIZE = 10 * 1024 * 1024; 
+        const MAX_IMAGE_SIZE = 15 * 1024 * 1024; // 원본 허용치도 15MB로 넉넉하게
 
         if (isUncompressibleAnim && file.size > MAX_ANIM_SIZE) {
-          alert(`🚨 [${file.name}] 움직이는 움짤(GIF/WebP)은 서버 용량 보호를 위해 최대 5MB까지만 올릴 수 있습니다.\n용량을 줄이거나 MP4 동영상 파일로 첨부해 주십시오.`);
+          alert(`🚨 [${file.name}] 움직이는 움짤(GIF/WebP)은 서버 용량 보호를 위해 최대 10MB까지만 올릴 수 있습니다.\n용량을 줄이거나 MP4 동영상 파일로 첨부해 주십시오.`);
           continue; 
         } else if (!isUncompressibleAnim && file.size > MAX_IMAGE_SIZE) {
-          alert(`🚨 [${file.name}] 사진 원본 용량이 너무 큽니다 (최대 10MB).\n용량을 줄인 후 다시 시도해 주십시오.`);
+          alert(`🚨 [${file.name}] 사진 원본 용량이 너무 큽니다 (최대 15MB).\n용량을 줄인 후 다시 시도해 주십시오.`);
           continue; 
         }
 
@@ -180,9 +181,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           URL.revokeObjectURL(img.src);
           
           try {
+            // 💡 [수술 2] 네이버 블로그급 고화질 압축 비율 (최대 1.5MB ~ 3MB)
             const options = isLongImage 
-              ? { maxSizeMB: 1.5, maxWidthOrHeight: undefined, useWebWorker: true, initialQuality: 0.85, fileType: 'image/webp' }
-              : { maxSizeMB: 0.3, maxWidthOrHeight: 1200, useWebWorker: true, initialQuality: 0.8, fileType: 'image/webp' };
+              ? { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: true, initialQuality: 0.95, fileType: 'image/webp' }
+              : { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.92, fileType: 'image/webp' };
             
             const compressedBlob = await imageCompression(file, options);
             const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
@@ -205,7 +207,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: fileToUpload, headers: { 'Content-Type': fileToUpload.type } });
           
-          // 💡 [에러 0개 튕김 방지] 타입스크립트 에러 안 나게 정석적인 문법만 사용!
           const currentScrollY = window.scrollY; 
           
           editor.insertEmbed(insertIndex, 'image', publicUrl);
@@ -238,7 +239,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const text = clipboardData.getData('text/plain');
       
       if (text) {
-        // 💡 [스마트폰 유튜브 에러 해결] 맨 앞의 ^ 기호를 없애서 쓰레기 텍스트가 섞여도 무조건 찾아냅니다!
         const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
         
@@ -323,8 +323,9 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         return;
       }
 
-      if (file.size > 4 * 1024 * 1024) {
-        alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 4MB).\n파일 크기를 줄인 후 다시 시도해 주십시오.`);
+      // 💡 [수술 3] 동영상 업로드 용량 제한을 10MB로 화끈하게 상향!
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).\n파일 크기를 줄인 후 다시 시도해 주십시오.`);
         return; 
       }
 
@@ -339,7 +340,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
           
-          // 💡 [에러 0개 튕김 방지] 
           const currentScrollY = window.scrollY; 
           editor.insertEmbed(insertIndex, 'mp4Video', publicUrl);
           editor.insertText(insertIndex + 1, '\n');

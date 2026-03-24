@@ -35,13 +35,11 @@ function extractData(fullTitle: string) {
   return match ? { cat: match[1], cleanTitle: match[2] } : { cat: '일반', cleanTitle: fullTitle };
 }
 
-// 🛡️ [수술 1] 하드코딩된 금칙어 배열 삭제. 뼈대 발라내는 스마트 엑스레이 함수만 남겨둡니다.
 const extractTextOnly = (htmlText: string) => {
   const noHtml = htmlText.replace(/<[^>]*>?/gm, ''); 
   return noHtml.replace(/[^\uAC00-\uD7A3a-zA-Z0-9]/g, '').toLowerCase(); 
 };
 
-// 💡 메타데이터 생성 로직 (유치한 문구 삭제 및 유튜브 썸네일 자동 추출 추가)
 export async function generateMetadata(props: any): Promise<Metadata> {
   const params = await props.params;
   const postId = params.id;
@@ -284,7 +282,6 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 🛡️ 댓글 등록(addComment) 서버 액션
   const addComment = async (formData: FormData) => {
     'use server';
     if (!currentUserId) return;
@@ -310,7 +307,6 @@ export default async function PostDetailPage(props: any) {
       return { success: true };
     }
 
-    // 🛡️ [수술 2] 관리자 페이지 DB에서 최신 금칙어 명단을 실시간으로 가져옵니다!
     let forbiddenWords: string[] = [];
     try {
       const { rows: fwRows } = await sql`SELECT value FROM site_settings WHERE key = 'forbidden_words'`;
@@ -319,7 +315,6 @@ export default async function PostDetailPage(props: any) {
       }
     } catch (e) {}
 
-    // 🛡️ [수술 3] 최신 DB 명단으로 댓글을 검사합니다.
     const cleanContent = extractTextOnly(content);
     for (const word of forbiddenWords) {
       if (cleanContent.includes(word)) {
@@ -339,7 +334,6 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 🛡️ 댓글 수정(editComment) 서버 액션
   const editComment = async (formData: FormData) => {
     'use server';
     if (!currentUserId) return;
@@ -347,7 +341,6 @@ export default async function PostDetailPage(props: any) {
     const content = formData.get('content') as string;
     const imageUrl = formData.get('imageUrl') as string;
 
-    // 🛡️ [수술 4] 수정 시에도 DB에서 최신 금칙어를 가져와서 꼼수를 완벽 차단합니다!
     let forbiddenWords: string[] = [];
     try {
       const { rows: fwRows } = await sql`SELECT value FROM site_settings WHERE key = 'forbidden_words'`;
@@ -638,16 +631,41 @@ export default async function PostDetailPage(props: any) {
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
       <VideoVolumeFix />
+      
+      {/* 💡 [수술 완료] 스마트 리사이징 & 선명도 마법 CSS 적용 완료 */}
       <style>{`
-        .ql-editor img { display: block; max-width: 100%; height: auto; border-radius: 8px; }
+        /* 1. 이미지: 웹툰/만화 가독성을 위한 '스마트 리사이징' */
+        .ql-editor img {
+          display: block;
+          max-width: 720px !important; 
+          width: 100%; 
+          height: auto;
+          margin: 0 auto 15px auto;
+          border-radius: 8px;
+          image-rendering: crisp-edges; /* 네이버처럼 선명한 텍스트 유지 */
+          -ms-interpolation-mode: nearest-neighbor;
+        }
+
+        /* 2. 동영상/유튜브: 기존 황금비율 650px 유지하여 깨짐 방지 */
+        .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube,
+        .ql-editor video, .ql-editor video.ojemi-mp4 {
+          display: block;
+          width: 100%;
+          max-width: 650px; 
+          margin: 10px auto 30px auto;
+          border-radius: 8px;
+          background-color: #000;
+          border: none;
+        }
         
-        .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube { display: block; width: 100%; max-width: 800px; aspect-ratio: 16 / 9; height: auto; margin: 10px auto 30px auto; border-radius: 8px; background-color: #000; border: none; }
-        
-        .ql-editor video, .ql-editor video.ojemi-mp4 { display: block; width: 100%; max-width: 800px; height: auto; max-height: 70vh; margin: 10px auto 30px auto; border-radius: 8px; background-color: #000; border: none; object-fit: contain; aspect-ratio: auto; }
-        
+        .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16 / 9; height: auto; }
+        .ql-editor video, .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; object-fit: contain; aspect-ratio: auto; }
+
+        /* 3. 스마트폰 모드: 100% 가득 채움 */
         @media (max-width: 768px) {
-          .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16 / 9; height: auto; }
-          .ql-editor video, .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; aspect-ratio: auto; }
+          .ql-editor img, .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube, .ql-editor video, .ql-editor video.ojemi-mp4 {
+            max-width: 100% !important;
+          }
         }
 
         .ql-editor p { min-height: 1.5em; }
