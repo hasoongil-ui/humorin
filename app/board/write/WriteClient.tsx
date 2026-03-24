@@ -161,9 +161,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           }
         }
 
-        // 💡 [수술 1] 움짤(GIF) 업로드 허용치 10MB로 시원하게 상향!
         const MAX_ANIM_SIZE = 10 * 1024 * 1024; 
-        const MAX_IMAGE_SIZE = 15 * 1024 * 1024; // 원본 허용치도 15MB로 넉넉하게
+        const MAX_IMAGE_SIZE = 15 * 1024 * 1024; 
 
         if (isUncompressibleAnim && file.size > MAX_ANIM_SIZE) {
           alert(`🚨 [${file.name}] 움직이는 움짤(GIF/WebP)은 서버 용량 보호를 위해 최대 10MB까지만 올릴 수 있습니다.\n용량을 줄이거나 MP4 동영상 파일로 첨부해 주십시오.`);
@@ -181,7 +180,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           URL.revokeObjectURL(img.src);
           
           try {
-            // 💡 [수술 2] 네이버 블로그급 고화질 압축 비율 (최대 1.5MB ~ 3MB)
             const options = isLongImage 
               ? { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: true, initialQuality: 0.95, fileType: 'image/webp' }
               : { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.92, fileType: 'image/webp' };
@@ -237,7 +235,9 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       if (!clipboardData) return;
 
       const text = clipboardData.getData('text/plain');
+      const html = clipboardData.getData('text/html');
       
+      // 1. 유튜브 자동 변환 로직
       if (text) {
         const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
@@ -263,6 +263,75 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         }
       }
 
+      // 💡 [수술 핵심: DOMParser로 네이버 영혼까지 털어오기]
+      let hasExternalMedia = false;
+      let extractedHtml = html;
+
+      if (html) {
+        try {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          // img 태그뿐만 아니라 외부 사이트의 비디오 태그까지 싹 다 검사합니다!
+          const medias = doc.querySelectorAll('img, video, iframe');
+
+          medias.forEach(el => {
+            // 네이버가 주소를 data-src 등에 숨겨둬도 귀신같이 찾아냅니다.
+            const realSrc = el.getAttribute('src') || el.getAttribute('data-src') || el.getAttribute('data-original');
+            if (realSrc && realSrc.startsWith('http')) {
+              hasExternalMedia = true;
+              el.setAttribute('src', realSrc); // 진짜 주소로 강제 셋팅!
+              el.removeAttribute('data-src');
+              el.removeAttribute('data-original');
+            }
+          });
+
+          if (hasExternalMedia) {
+            extractedHtml = doc.body.innerHTML; // 세탁된 깔끔한 HTML을 준비합니다.
+          }
+        } catch (err) {
+          console.error("HTML Parser error", err);
+        }
+      }
+
+      // 만약 이미지 복사 주소만 덩그러니 복사해서 붙여넣었을 경우 (우클릭 -> 이미지 주소 복사)
+      if (!hasExternalMedia && text) {
+        const imgUrlMatch = text.trim().match(/^https?:\/\/.*\.(gif|jpe?g|png|webp|bmp)(?:\?.*)?$/i);
+        if (imgUrlMatch) {
+          e.preventDefault();
+          e.stopPropagation();
+          const editor = quillRef.current.getEditor();
+          let pasteIndex = editor.getSelection()?.index || editor.getLength();
+          const currentScrollY = window.scrollY;
+
+          editor.insertEmbed(pasteIndex, 'image', text.trim());
+          editor.insertText(pasteIndex + 1, '\n');
+          editor.setSelection(pasteIndex + 2);
+
+          setTimeout(() => window.scrollTo(0, currentScrollY), 50);
+          return;
+        }
+      }
+
+      // 외부 웹사이트(네이버 등)에서 이미지가 감지되었다면? -> 우리 서버 업로드 강제 차단!!!
+      if (hasExternalMedia) {
+        e.preventDefault(); 
+        e.stopPropagation();
+        
+        const editor = quillRef.current.getEditor();
+        const range = editor.getSelection();
+        const pasteIndex = range ? range.index : editor.getLength();
+        const currentScrollY = window.scrollY;
+
+        // 세탁된 원본 HTML(외부 서버 이미지 주소)을 에디터에 다이렉트로 꽂아 넣습니다. (서버비 0원)
+        editor.clipboard.dangerouslyPasteHTML(pasteIndex, extractedHtml);
+        
+        setTimeout(() => {
+          window.scrollTo(0, currentScrollY);
+        }, 50);
+        return;
+      }
+
+      // 2. 외부 사이트 복사가 아닌, 내 컴퓨터 폴더나 카톡 등에서 순수하게 사진 파일만 복사한 경우 (R2 정상 업로드)
       const items = clipboardData.items;
       let hasImage = false;
       const imageFiles: File[] = [];
@@ -273,6 +342,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           if (file) imageFiles.push(file);
         }
       }
+
       if (hasImage && imageFiles.length > 0) {
         e.preventDefault(); 
         e.stopPropagation();
@@ -323,7 +393,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         return;
       }
 
-      // 💡 [수술 3] 동영상 업로드 용량 제한을 10MB로 화끈하게 상향!
       if (file.size > 10 * 1024 * 1024) {
         alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).\n파일 크기를 줄인 후 다시 시도해 주십시오.`);
         return; 
