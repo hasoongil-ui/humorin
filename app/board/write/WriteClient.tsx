@@ -161,11 +161,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           }
         }
 
-        const MAX_ANIM_SIZE = 10 * 1024 * 1024; 
+        // 💡 [수술 완료] 움짤 제한을 10MB -> 5MB로 원상 복구!
+        const MAX_ANIM_SIZE = 5 * 1024 * 1024; 
         const MAX_IMAGE_SIZE = 15 * 1024 * 1024; 
 
         if (isUncompressibleAnim && file.size > MAX_ANIM_SIZE) {
-          alert(`🚨 [${file.name}] 움직이는 움짤(GIF/WebP)은 서버 용량 보호를 위해 최대 10MB까지만 올릴 수 있습니다.\n용량을 줄이거나 MP4 동영상 파일로 첨부해 주십시오.`);
+          alert(`🚨 [${file.name}] 움직이는 움짤(GIF/WebP)은 모바일 최적화를 위해 최대 5MB까지만 올릴 수 있습니다.\n용량을 줄이거나 MP4 동영상 파일로 첨부해 주십시오.`);
           continue; 
         } else if (!isUncompressibleAnim && file.size > MAX_IMAGE_SIZE) {
           alert(`🚨 [${file.name}] 사진 원본 용량이 너무 큽니다 (최대 15MB).\n용량을 줄인 후 다시 시도해 주십시오.`);
@@ -263,7 +264,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         }
       }
 
-      // 💡 [수술 핵심: DOMParser로 네이버 영혼까지 털어오기]
+      // 💡 [수술 보호] DOMParser로 네이버 영혼까지 털어오는 마법 100% 보존!
       let hasExternalMedia = false;
       let extractedHtml = html;
 
@@ -271,29 +272,26 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         try {
           const parser = new DOMParser();
           const doc = parser.parseFromString(html, 'text/html');
-          // img 태그뿐만 아니라 외부 사이트의 비디오 태그까지 싹 다 검사합니다!
           const medias = doc.querySelectorAll('img, video, iframe');
 
           medias.forEach(el => {
-            // 네이버가 주소를 data-src 등에 숨겨둬도 귀신같이 찾아냅니다.
             const realSrc = el.getAttribute('src') || el.getAttribute('data-src') || el.getAttribute('data-original');
             if (realSrc && realSrc.startsWith('http')) {
               hasExternalMedia = true;
-              el.setAttribute('src', realSrc); // 진짜 주소로 강제 셋팅!
+              el.setAttribute('src', realSrc); 
               el.removeAttribute('data-src');
               el.removeAttribute('data-original');
             }
           });
 
           if (hasExternalMedia) {
-            extractedHtml = doc.body.innerHTML; // 세탁된 깔끔한 HTML을 준비합니다.
+            extractedHtml = doc.body.innerHTML; 
           }
         } catch (err) {
           console.error("HTML Parser error", err);
         }
       }
 
-      // 만약 이미지 복사 주소만 덩그러니 복사해서 붙여넣었을 경우 (우클릭 -> 이미지 주소 복사)
       if (!hasExternalMedia && text) {
         const imgUrlMatch = text.trim().match(/^https?:\/\/.*\.(gif|jpe?g|png|webp|bmp)(?:\?.*)?$/i);
         if (imgUrlMatch) {
@@ -312,7 +310,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         }
       }
 
-      // 외부 웹사이트(네이버 등)에서 이미지가 감지되었다면? -> 우리 서버 업로드 강제 차단!!!
       if (hasExternalMedia) {
         e.preventDefault(); 
         e.stopPropagation();
@@ -322,7 +319,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         const pasteIndex = range ? range.index : editor.getLength();
         const currentScrollY = window.scrollY;
 
-        // 세탁된 원본 HTML(외부 서버 이미지 주소)을 에디터에 다이렉트로 꽂아 넣습니다. (서버비 0원)
         editor.clipboard.dangerouslyPasteHTML(pasteIndex, extractedHtml);
         
         setTimeout(() => {
@@ -331,7 +327,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         return;
       }
 
-      // 2. 외부 사이트 복사가 아닌, 내 컴퓨터 폴더나 카톡 등에서 순수하게 사진 파일만 복사한 경우 (R2 정상 업로드)
+      // 2. 외부 사이트 복사가 아닌 경우 정상 업로드
       const items = clipboardData.items;
       let hasImage = false;
       const imageFiles: File[] = [];
@@ -393,8 +389,9 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         return;
       }
 
-      if (file.size > 10 * 1024 * 1024) {
-        alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).\n파일 크기를 줄인 후 다시 시도해 주십시오.`);
+      // 💡 [수술 완료] 동영상 제한을 10MB -> 5MB로 원상 복구!
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 5MB).\n파일 크기를 줄인 후 다시 시도해 주십시오.`);
         return; 
       }
 
@@ -514,7 +511,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       } else {
         const errorData = await res.json().catch(() => null);
         if (errorData?.error === 'forbidden_word') {
-          alert(`🚨 작성하신 글에 금지된 단어 [ ${errorData.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
+          alert(`🚨 작성하신 글에 금지된 단어 [ ${errorData.word} ]가 포함되어 있습니다.\n특수문자나 정규식 우회 시도도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
         } else {
           alert('글 등록에 실패했습니다.');
         }
