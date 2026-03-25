@@ -162,7 +162,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         }
 
         // 💡 [수술 완료] 움짤 제한을 10MB -> 5MB로 원상 복구!
-        const MAX_ANIM_SIZE = 5 * 1024 * 1024; 
+        const MAX_ANIM_SIZE = 10 * 1024 * 1024; 
         const MAX_IMAGE_SIZE = 15 * 1024 * 1024; 
 
         if (isUncompressibleAnim && file.size > MAX_ANIM_SIZE) {
@@ -389,9 +389,9 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         return;
       }
 
-      // 💡 [수술 완료] 동영상 제한을 10MB -> 5MB로 원상 복구!
-      if (file.size > 5 * 1024 * 1024) {
-        alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 5MB).\n파일 크기를 줄인 후 다시 시도해 주십시오.`);
+      // 💡 [수술 완료] 동영상 제한 10MB로 해제!
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).\n파일 크기를 줄인 후 다시 시도해 주십시오.`);
         return; 
       }
 
