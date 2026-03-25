@@ -632,9 +632,8 @@ export default async function PostDetailPage(props: any) {
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
       <VideoVolumeFix />
       
-      {/* 💡 [수술 완료] 스마트 리사이징 & 선명도 마법 CSS 적용 완료 */}
       <style>{`
-        /* 1. 이미지: 웹툰/만화 가독성을 위한 '스마트 리사이징' */
+        /* 1. 이미지: 웹툰/만화 가독성을 위한 스마트 리사이징 (렌더링 렉 유발 코드 삭제 완료) */
         .ql-editor img {
           display: block;
           max-width: 720px !important; 
@@ -642,8 +641,6 @@ export default async function PostDetailPage(props: any) {
           height: auto;
           margin: 0 auto 15px auto;
           border-radius: 8px;
-          image-rendering: crisp-edges; /* 네이버처럼 선명한 텍스트 유지 */
-          -ms-interpolation-mode: nearest-neighbor;
         }
 
         /* 2. 동영상/유튜브: 기존 황금비율 650px 유지하여 깨짐 방지 */
