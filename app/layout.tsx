@@ -3,19 +3,44 @@ import Link from "next/link";
 import "./globals.css";
 import CopyProtection from "./components/CopyProtection";
 
-const siteTitle = "오재미 (OJEMI)";
-const siteDescription = "유머, 감동, 지식, 일상이 살아 숨 쉬는 커뮤니티 오재미입니다.";
+const siteTitle = "오재미 - 유머, 이슈, 꿀잼 커뮤니티";
+const siteDescription = "코미디보다 더 재밌는 곳! 매일 업데이트되는 유머, 감동, 지식, 최신 이슈가 살아 숨 쉬는 종합 커뮤니티 오재미(OJEMI)입니다. 오늘의 재미를 만나보세요.";
 const siteUrl = "https://www.ojemi.kr";
 
-// 💡 [SEO 수술 완벽 적용] 네이버 서치어드바이저 100점 만점을 위한 풀세트 장착!
+// 💡 [SEO 수술 완벽 적용] 네이버/구글 1페이지 탈환을 위한 극한의 메타데이터!
 export const metadata: Metadata = {
-  // 1. 기본 메타데이터 (페이지 제목, 설명)
-  title: siteTitle,
+  metadataBase: new URL(siteUrl), // 💡 [핵심] 봇들이 이미지 경로를 헷갈리지 않게 기준점 세팅
+  
+  // 1. 기본 메타데이터 (제목과 설명에 '커뮤니티'를 팍팍 강조!)
+  title: {
+    default: siteTitle,
+    template: "%s | 오재미 커뮤니티", // 💡 다른 페이지로 이동 시 "게시글 제목 | 오재미 커뮤니티" 로 예쁘게 뜹니다.
+  },
   description: siteDescription,
-  keywords: ["오재미", "오제미", "ojemi", "커뮤니티", "유머", "감동", "포럼"],
+  
+  // 💡 [핵심] 코미디언을 이기기 위한 '연관 검색어(꼬리표)' 폭격!
+  keywords: [
+    "오재미", "오재미 커뮤니티", "오재미 사이트", "오재미 유머", "ojemi", 
+    "오늘의재미", "유머", "이슈", "감동", "포럼", "커뮤니티", "꿀잼", "유머게시판"
+  ],
   manifest: "/manifest.json", 
   
-  // 2. 구글 & 네이버 소유확인 명찰
+  // 2. 검색 로봇 프리패스권 (무조건 다 긁어가라고 명령!)
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
+
+  // 3. 원본 주소 명시 (유사 문서 공격 방어)
+  alternates: {
+    canonical: "/",
+  },
+  
+  // 4. 구글 & 네이버 소유확인 명찰 (기존 대장님 세팅 완벽 유지!)
   verification: {
     google: "3aIk8mNr5N-uh1qZIVo9F6PUpio0bAh9tsDIMQiTG3o", 
     other: {
@@ -23,17 +48,17 @@ export const metadata: Metadata = {
     },
   },
 
-  // 3. 🚀 네이버가 가장 좋아하는 오픈 그래프(Open Graph) 정석 문법!
+  // 5. 🚀 카카오톡, 네이버 블로그 공유 시 뜨는 썸네일(Open Graph)
   openGraph: {
     type: "website",
-    title: siteTitle,
-    description: siteDescription,
+    title: "오재미 - 유머, 이슈, 꿀잼 커뮤니티",
+    description: "유머, 감동, 이슈가 살아 숨 쉬는 커뮤니티 오재미(OJEMI)입니다.",
     url: siteUrl,
-    siteName: siteTitle,
+    siteName: "오재미 커뮤니티",
     locale: "ko_KR",
     images: [
       {
-        url: `${siteUrl}/og-image.png`, // 절대 경로로 명시해야 봇이 헷갈리지 않습니다.
+        url: "/og-image.png", // metadataBase 덕분에 알아서 절대경로로 조립됩니다.
         width: 1200,
         height: 630,
         alt: "오재미 커뮤니티 썸네일",
@@ -41,12 +66,12 @@ export const metadata: Metadata = {
     ],
   },
 
-  // 4. 🐦 덤으로 트위터(X) 카드까지 완벽 셋팅 (이걸 해두면 공유 파급력이 다릅니다)
+  // 6. 🐦 트위터(X) 카드 셋팅
   twitter: {
     card: "summary_large_image",
-    title: siteTitle,
+    title: "오재미 커뮤니티",
     description: siteDescription,
-    images: [`${siteUrl}/og-image.png`],
+    images: ["/og-image.png"],
   },
 };
 
