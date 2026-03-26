@@ -2,10 +2,10 @@
 import { sql } from '@vercel/postgres';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import { revalidatePath } from 'next/cache'; // 💡 [추가] DB 업데이트 후 새로고침용
+import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
 import SettingsForm from './SettingsForm';
-import ProfileAvatar from './ProfileAvatar'; // 💡 [추가] 방금 만든 프사 업로드 부품 장착!
+import ProfileAvatar from './ProfileAvatar';
 
 function formatDate(dateString: string) {
   try {
@@ -58,15 +58,17 @@ export default async function ProfilePage(props: any) {
   }
 
   let points = 0;
-  let profileImage = null; // 💡 [추가] DB에서 가져올 프사 주소 보관함
+  let profileImage = null; 
+  let currentEmail = ''; // 💡 [추가 완료] DB에서 가져올 이메일 보관함!
   let myPosts: any[] = [];
   let myScraps: any[] = [];
 
   try {
     if (currentUserId) {
-      // 💡 [수술] points 뿐만 아니라 profile_image도 같이 가져오게 쿼리 변경!
-      const userRes = await sql`SELECT points, profile_image FROM users WHERE user_id = ${currentUserId}`;
+      // 💡 [수술 완료] points, profile_image 뿐만 아니라 email도 같이 꺼내옵니다!
+      const userRes = await sql`SELECT email, points, profile_image FROM users WHERE user_id = ${currentUserId}`;
       if (userRes.rows.length > 0) {
+        currentEmail = userRes.rows[0].email; // 💡 [추가 완료] 이메일 장착!
         points = userRes.rows[0].points || 0;
         profileImage = userRes.rows[0].profile_image;
       }
@@ -90,7 +92,6 @@ export default async function ProfilePage(props: any) {
     console.error("프로필 DB 조회 에러:", error);
   }
 
-  // 💡 [서버 액션] 업로드 성공 후 받은 사진 주소를 DB에 저장하는 1급 보안 로직
   async function updateProfileImage(url: string) {
     'use server';
     const store = await cookies();
@@ -99,7 +100,7 @@ export default async function ProfilePage(props: any) {
 
     try {
       await sql`UPDATE users SET profile_image = ${url} WHERE user_id = ${uid}`;
-      revalidatePath('/profile'); // 업데이트 완료 후 화면 즉시 새로고침
+      revalidatePath('/profile'); 
       return { success: true };
     } catch (error) {
       return { error: 'DB Error' };
@@ -125,7 +126,6 @@ export default async function ProfilePage(props: any) {
           )}
           
           <div className="relative z-10">
-            {/* 💡 [수술 핵심] 밋밋했던 글자 프사를 떼어내고, 카메라 달린 스마트 프사 부품으로 교체! */}
             <ProfileAvatar 
               initialImage={profileImage} 
               fallbackChar={currentUser.charAt(0)} 
@@ -223,11 +223,11 @@ export default async function ProfilePage(props: any) {
 
           {currentTab === 'settings' && (
             <div className="max-w-[400px] mx-auto py-4">
-              {/* 💡 [방어막 1단계] 네이버 유저(n_ 시작)인지 판독해서 SettingsForm에 알려주기! */}
               <SettingsForm 
                 currentUserId={currentUserId!} 
                 currentNickname={currentUser} 
                 isNaverUser={currentUserId?.startsWith('n_')} 
+                currentEmail={currentEmail} /* 💡 [이식 완료] 방금 꺼낸 이메일 폼으로 쏴주기! */
               />
             </div>
           )}
