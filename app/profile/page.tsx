@@ -45,6 +45,11 @@ function getTierInfo(points: number) {
 export default async function ProfilePage(props: any) {
   const searchParams = await props.searchParams;
   const currentTab = searchParams?.tab || 'posts';
+  
+  // 💡 [페이지 나누기 핵심 1] 현재 페이지 번호와 1페이지당 개수(30개) 설정!
+  const currentPage = parseInt(searchParams?.page || '1', 10) || 1;
+  const ITEMS_PER_PAGE = 30;
+  const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('ojemi_user');      
@@ -59,29 +64,37 @@ export default async function ProfilePage(props: any) {
 
   let points = 0;
   let profileImage = null; 
-  let currentEmail = ''; // 💡 [추가 완료] DB에서 가져올 이메일 보관함!
+  let currentEmail = ''; 
   let myPosts: any[] = [];
   let myScraps: any[] = [];
+  let totalItems = 0; // 💡 [추가] 전체 글 개수를 담을 그릇
 
   try {
     if (currentUserId) {
-      // 💡 [수술 완료] points, profile_image 뿐만 아니라 email도 같이 꺼내옵니다!
       const userRes = await sql`SELECT email, points, profile_image FROM users WHERE user_id = ${currentUserId}`;
       if (userRes.rows.length > 0) {
-        currentEmail = userRes.rows[0].email; // 💡 [추가 완료] 이메일 장착!
+        currentEmail = userRes.rows[0].email;
         points = userRes.rows[0].points || 0;
         profileImage = userRes.rows[0].profile_image;
       }
     }
 
-    if (currentTab === 'posts' || currentTab === 'scraps') {
-      const postsResult = await sql`SELECT * FROM posts WHERE author = ${currentUser} ORDER BY id DESC LIMIT 100`;
+    // 💡 [페이지 나누기 핵심 2] 탭에 맞춰서 전체 개수를 세고, 딱 30개만 잘라서 가져오기!
+    if (currentTab === 'posts') {
+      const countRes = await sql`SELECT COUNT(*) FROM posts WHERE author = ${currentUser}`;
+      totalItems = parseInt(countRes.rows[0].count, 10);
+
+      const postsResult = await sql`SELECT * FROM posts WHERE author = ${currentUser} ORDER BY id DESC LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
       myPosts = postsResult.rows;
+
+    } else if (currentTab === 'scraps') {
+      const countRes = await sql`SELECT COUNT(*) FROM scraps WHERE author = ${currentUser}`;
+      totalItems = parseInt(countRes.rows[0].count, 10);
 
       try {
         const scrapsResult = await sql`
           SELECT p.* FROM posts p JOIN scraps s ON p.id = s.post_id
-          WHERE s.author = ${currentUser} ORDER BY s.created_at DESC LIMIT 100
+          WHERE s.author = ${currentUser} ORDER BY s.created_at DESC LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
         `;
         myScraps = scrapsResult.rows;
       } catch (e) {
@@ -113,6 +126,39 @@ export default async function ProfilePage(props: any) {
   const progressPercent = isMaxLevel 
     ? 100 
     : Math.min(((points - currentTier.min) / (nextTier.min - currentTier.min)) * 100, 100);
+
+  // 💡 [페이지 나누기 핵심 3] 전체 페이지 수 계산 및 렌더링 함수
+  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+  
+  const renderPagination = () => {
+    if (totalPages <= 1) return null; // 1페이지밖에 없으면 번호 숨기기
+
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, currentPage + 2);
+
+    if (currentPage <= 3) endPage = Math.min(totalPages, 5);
+    if (currentPage >= totalPages - 2) startPage = Math.max(1, totalPages - 4);
+
+    return (
+      <div className="flex justify-center items-center gap-2 mt-8 pb-4">
+        {currentPage > 1 && (
+          <Link href={`/profile?tab=${currentTab}&page=${currentPage - 1}`} className="px-3 py-1.5 border border-gray-200 rounded-sm text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">이전</Link>
+        )}
+        {Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(p => (
+          <Link 
+            key={p} 
+            href={`/profile?tab=${currentTab}&page=${p}`} 
+            className={`px-3.5 py-1.5 border rounded-sm text-sm font-bold transition-colors ${currentPage === p ? 'bg-[#3b4890] text-white border-[#3b4890]' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+          >
+            {p}
+          </Link>
+        ))}
+        {currentPage < totalPages && (
+          <Link href={`/profile?tab=${currentTab}&page=${currentPage + 1}`} className="px-3 py-1.5 border border-gray-200 rounded-sm text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">다음</Link>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-[80vh] bg-gray-50 flex justify-center py-10 px-4 font-sans">
@@ -188,16 +234,20 @@ export default async function ProfilePage(props: any) {
               {myPosts.length === 0 ? (
                 <div className="text-center py-16 text-gray-400 font-bold text-sm">아직 작성하신 글이 없습니다.</div>
               ) : (
-                <div className="divide-y divide-gray-100">
-                  {myPosts.map((post: any) => (
-                    <div key={post.id} className="py-4 hover:bg-gray-50 transition-colors px-2 rounded-sm flex justify-between items-center gap-4">
-                      <Link href={`/board/${post.id}`} className="flex-1 min-w-0">
-                        <div className="text-[15px] font-bold text-gray-800 truncate mb-1">{post.title}</div>
-                        <div className="text-xs text-gray-400 font-medium">{formatDate(post.date)} · 조회 {post.views || 0} · 공감 {post.likes || 0}</div>
-                      </Link>
-                    </div>
-                  ))}
-                </div>
+                <>
+                  <div className="divide-y divide-gray-100">
+                    {myPosts.map((post: any) => (
+                      <div key={post.id} className="py-4 hover:bg-gray-50 transition-colors px-2 rounded-sm flex justify-between items-center gap-4">
+                        <Link href={`/board/${post.id}`} className="flex-1 min-w-0">
+                          <div className="text-[15px] font-bold text-gray-800 truncate mb-1">{post.title}</div>
+                          <div className="text-xs text-gray-400 font-medium">{formatDate(post.date)} · 조회 {post.views || 0} · 공감 {post.likes || 0}</div>
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                  {/* 💡 [페이지 나누기 버튼 장착!] */}
+                  {renderPagination()}
+                </>
               )}
             </div>
           )}
@@ -207,16 +257,20 @@ export default async function ProfilePage(props: any) {
               {myScraps.length === 0 ? (
                 <div className="text-center py-16 text-gray-400 font-bold text-sm">스크랩한 글이 없습니다.</div>
               ) : (
-                <div className="divide-y divide-gray-100">
-                  {myScraps.map((post: any) => (
-                    <div key={post.id} className="py-4 hover:bg-gray-50 transition-colors px-2 rounded-sm flex justify-between items-center gap-4">
-                      <Link href={`/board/${post.id}`} className="flex-1 min-w-0">
-                        <div className="text-[15px] font-bold text-gray-800 truncate mb-1">{post.title}</div>
-                        <div className="text-xs text-gray-400 font-medium">{post.author} · {formatDate(post.date)}</div>
-                      </Link>
-                    </div>
-                  ))}
-                </div>
+                <>
+                  <div className="divide-y divide-gray-100">
+                    {myScraps.map((post: any) => (
+                      <div key={post.id} className="py-4 hover:bg-gray-50 transition-colors px-2 rounded-sm flex justify-between items-center gap-4">
+                        <Link href={`/board/${post.id}`} className="flex-1 min-w-0">
+                          <div className="text-[15px] font-bold text-gray-800 truncate mb-1">{post.title}</div>
+                          <div className="text-xs text-gray-400 font-medium">{post.author} · {formatDate(post.date)}</div>
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                  {/* 💡 [페이지 나누기 버튼 장착!] */}
+                  {renderPagination()}
+                </>
               )}
             </div>
           )}
@@ -227,7 +281,7 @@ export default async function ProfilePage(props: any) {
                 currentUserId={currentUserId!} 
                 currentNickname={currentUser} 
                 isNaverUser={currentUserId?.startsWith('n_')} 
-                currentEmail={currentEmail} /* 💡 [이식 완료] 방금 꺼낸 이메일 폼으로 쏴주기! */
+                currentEmail={currentEmail} 
               />
             </div>
           )}
