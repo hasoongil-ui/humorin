@@ -9,6 +9,7 @@ import { PostLikeButton, PostDislikeButton, CommentLikeButton, CommentDislikeBut
 import CommentForm from './CommentForm';
 import VideoVolumeFix from './VideoVolumeFix'; 
 import { Metadata } from 'next';
+import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3'; 
 
 function getSeoDatetime(dateString: any) {
   if (!dateString) return '';
@@ -191,10 +192,59 @@ export default async function PostDetailPage(props: any) {
   const deletePost = async () => {
     'use server';
     if (!isAdmin && !isAuthor) return; 
+
+    // 💡 [1단계: 초고속 미디어 폭파] 무식한 전체 DB 검색 싹 폐기! 내 글에 있는 사진만 즉시 0.1초 컷 폭파!
+    try {
+      const { rows: commentRows } = await sql`SELECT content, image_data FROM comments WHERE post_id = ${postId}`;
+      let allTextToSearch = post.content || '';
+      commentRows.forEach(c => {
+         allTextToSearch += ' ' + (c.content || '') + ' ' + (c.image_data || '');
+      });
+
+      const uniqueKeys = new Set<string>();
+      const matches = allTextToSearch.match(/[0-9]{13}-[a-z0-9]+\.[a-z0-9]+/gi);
+      if (matches) {
+        matches.forEach(key => uniqueKeys.add(key));
+      }
+
+      const fileKeysToDelete = Array.from(uniqueKeys).map(key => ({ Key: key }));
+
+      // 군말 없이 즉시 파괴! (다른 테이블 검사 로직 전면 삭제)
+      if (fileKeysToDelete.length > 0 && process.env.R2_BUCKET_NAME) {
+        const s3 = new S3Client({
+          region: 'auto',
+          endpoint: process.env.R2_ENDPOINT || '',
+          credentials: {
+            accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+            secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
+          },
+        });
+        const deleteCommand = new DeleteObjectsCommand({
+          Bucket: process.env.R2_BUCKET_NAME,
+          Delete: { Objects: fileKeysToDelete }
+        });
+        await s3.send(deleteCommand);
+      }
+    } catch (e) {
+      console.error('게시글 삭제 중 미디어 즉시 삭제 실패:', e);
+    }
+
+    // 💡 [2단계: DB 찌꺼기 완벽 청소] 부모 글을 지우기 전에 얽혀있는 자식 데이터들을 먼저 깔끔하게 지웁니다!
+    await sql`DELETE FROM likes WHERE post_id = ${postId}`;
+    await sql`DELETE FROM post_dislikes WHERE post_id = ${postId}`;
+    await sql`DELETE FROM scraps WHERE post_id = ${postId}`;
+    
+    // 댓글에 달린 공감/비공감 먼저 삭제 -> 그다음 댓글 삭제
+    await sql`DELETE FROM comment_likes WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ${postId})`;
+    await sql`DELETE FROM comment_dislikes WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ${postId})`;
+    await sql`DELETE FROM comments WHERE post_id = ${postId}`;
+
+    // 💡 [3단계: 부모 게시글 삭제 및 포인트 회수]
     await sql`DELETE FROM posts WHERE id = ${postId}`;
     if (post.author_id) {
       await sql`UPDATE users SET points = GREATEST(COALESCE(points, 0) - 10, 0) WHERE user_id = ${post.author_id}`;
     }
+    
     redirect('/board');
   };
 

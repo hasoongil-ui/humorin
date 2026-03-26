@@ -17,7 +17,9 @@ const s3 = new S3Client({
   },
 });
 
-export default async function MonitorControlCenter() {
+// 💡 [수술] URL 파라미터(searchParams)를 읽어오기 위해 props를 받도록 수정했습니다!
+export default async function MonitorControlCenter(props: any) {
+  const searchParams = await props.searchParams;
   const cookieStore = await cookies();
   const userId = cookieStore.get('ojemi_userid')?.value;
 
@@ -88,36 +90,43 @@ export default async function MonitorControlCenter() {
   } catch (e) {}
 
   // ---------------------------------------------------------
-  // 🚨 [비상 버튼 동작 (무한 확장 스케일업 로직 적용!)] 
+  // 🚨 [비상 버튼 동작 (보고서 기능 탑재!)] 
   // ---------------------------------------------------------
   
   const cleanUpGhostFiles = async () => {
     'use server';
-    try {
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    let finalCount = 0;
+    let finalSizeMB = "0.00";
 
-      // Cloudflare R2 창고 완벽 청소
+    try {
       if (process.env.R2_BUCKET_NAME && process.env.NEXT_PUBLIC_R2_URL) {
         const command = new ListObjectsV2Command({ Bucket: process.env.R2_BUCKET_NAME });
         const { Contents } = await s3.send(command);
         
         if (Contents) {
-          const r2KeysToDelete = [];
-          const candidates = Contents.filter(item => item.LastModified && new Date(item.LastModified) < oneHourAgo);
+          const r2KeysToDelete: any[] = [];
+          let deletedCount = 0;
+          let deletedSizeBytes = 0;
           
+          const candidates = Contents; 
           const chunkSize = 50;
+          
           for (let i = 0; i < candidates.length; i += chunkSize) {
             const chunk = candidates.slice(i, i + chunkSize);
 
             await Promise.all(chunk.map(async (item) => {
               if (!item.Key) return;
-              const fileUrl = `${process.env.NEXT_PUBLIC_R2_URL}/${item.Key}`;
               
-              const { rows: postCheck } = await sql`SELECT id FROM posts WHERE content LIKE ${'%' + fileUrl + '%'} LIMIT 1`;
-              const { rows: commentCheck } = await sql`SELECT id FROM comments WHERE content LIKE ${'%' + fileUrl + '%'} OR image_data LIKE ${'%' + fileUrl + '%'} LIMIT 1`;
+              const fileName = item.Key; 
+              
+              const { rows: postCheck } = await sql`SELECT id FROM posts WHERE content LIKE ${'%' + fileName + '%'} LIMIT 1`;
+              const { rows: commentCheck } = await sql`SELECT id FROM comments WHERE content LIKE ${'%' + fileName + '%'} OR image_data LIKE ${'%' + fileName + '%'} LIMIT 1`;
+              const { rows: userCheck } = await sql`SELECT user_id FROM users WHERE profile_image LIKE ${'%' + fileName + '%'} LIMIT 1`;
 
-              if (postCheck.length === 0 && commentCheck.length === 0) {
+              if (postCheck.length === 0 && commentCheck.length === 0 && userCheck.length === 0) {
                 r2KeysToDelete.push({ Key: item.Key }); 
+                deletedCount++;
+                deletedSizeBytes += (item.Size || 0); // 💡 지울 때마다 용량을 계산!
               }
             }));
           }
@@ -132,13 +141,17 @@ export default async function MonitorControlCenter() {
               await s3.send(deleteCommand);
             }
           }
+          
+          finalCount = deletedCount;
+          finalSizeMB = (deletedSizeBytes / 1024 / 1024).toFixed(2);
         }
       }
-
-      revalidatePath('/admin/monitor');
     } catch (error) {
       console.error("유령 파일 청소 중 에러 발생:", error);
     }
+    
+    // 💡 청소가 완벽히 끝나면, 결과 데이터를 들고 새로고침합니다!
+    redirect(`/admin/monitor?cleared=true&count=${finalCount}&size=${finalSizeMB}`);
   };
 
   const emergencyDeleteJunkPosts = async () => {
@@ -181,10 +194,27 @@ export default async function MonitorControlCenter() {
           </Link>
         </div>
 
+        {/* 💡 [결과 알림 전광판] 청소가 끝나면 이 멋진 알림창이 나타납니다! */}
+        {searchParams?.cleared === 'true' && (
+          <div className="bg-emerald-900/40 border border-emerald-500/50 p-5 rounded-md mb-8 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="flex items-center gap-4">
+              <div className="text-3xl">🧹</div>
+              <div>
+                <h3 className="text-emerald-300 font-black text-lg">싹쓸이 청소 작전 완료!</h3>
+                <p className="text-slate-300 text-sm mt-1">
+                  총 <span className="text-white font-black text-[15px]">{searchParams.count}개</span>의 유령 파일 (약 <span className="text-white font-black text-[15px]">{searchParams.size} MB</span>)을 소각하여 서버 용량을 즉시 확보했습니다.
+                </p>
+              </div>
+            </div>
+            <Link href="/admin/monitor" className="px-5 py-2 bg-emerald-800/60 hover:bg-emerald-700/80 text-emerald-100 font-bold text-sm rounded transition-colors shrink-0">
+              확인 (닫기)
+            </Link>
+          </div>
+        )}
+
         {/* 1. 시스템 현황 패널 (DB & R2 듀얼 모니터링) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           
-          {/* [1] 데이터베이스 */}
           <div className={`bg-slate-800 border ${dbError ? 'border-red-500 shadow-red-900/50' : 'border-slate-700'} p-6 rounded-md shadow-lg flex flex-col`}>
             <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">🗄️ 방명록 (게시글 DB)</h2>
             {dbError ? (
@@ -204,7 +234,6 @@ export default async function MonitorControlCenter() {
             <p className="text-[11px] text-slate-400 font-medium mt-auto pt-4">※ 텍스트만 저장되므로 천천히 증가합니다.</p>
           </div>
 
-          {/* [2] Cloudflare R2 (유일한 미디어 창고) */}
           <div className={`bg-slate-800 border ${r2Error ? 'border-red-500 shadow-red-900/50' : 'border-sky-500/50'} p-6 rounded-md shadow-lg flex flex-col`}>
             <h2 className={`text-lg font-bold mb-6 flex items-center gap-2 ${r2Error ? 'text-red-400' : 'text-sky-400'}`}>☁️ 미디어 창고 (Cloudflare R2)</h2>
             {r2Error ? (
@@ -229,7 +258,6 @@ export default async function MonitorControlCenter() {
         {/* 2. 데이터 세부 현황 & 긴급 조치 버튼들 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          {/* 현황 패널 */}
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-md shadow-lg">
             <h3 className="text-lg font-bold text-blue-300 mb-4">📈 현재 쌓인 데이터 현황</h3>
             <ul className="space-y-4 font-bold text-[15px]">
@@ -245,7 +273,6 @@ export default async function MonitorControlCenter() {
             </ul>
           </div>
 
-          {/* 비상 조치 패널 */}
           <div className="bg-rose-900/10 border border-rose-900/50 p-6 rounded-md shadow-lg">
             <h3 className="text-lg font-bold text-rose-400 mb-4 flex items-center gap-2">🚨 서버 비상 긴급 조치 스위치</h3>
             <p className="text-sm text-slate-400 font-medium mb-6 leading-relaxed">
@@ -256,8 +283,8 @@ export default async function MonitorControlCenter() {
               <form action={cleanUpGhostFiles}>
                 <button type="submit" className="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 border border-sky-600/50 rounded text-left transition-colors group">
                   <div>
-                    <div className="text-sky-400 font-black text-[14px]">🌀 미디어 창고 '유령 파일' 싹쓸이 청소</div>
-                    <div className="text-[11px] text-slate-400 mt-1 font-medium">게시물에 등록되지 않고 버려진 고아 파일을 DB엔진으로 찾아내 일괄 삭제합니다.<br/>(작성 중인 파일 보호를 위해 업로드 후 1시간이 지난 파일만 지웁니다)</div>
+                    <div className="text-sky-400 font-black text-[14px]">🌀 미디어 창고 '유령 파일' 싹쓸이 즉시 청소</div>
+                    <div className="text-[11px] text-slate-400 mt-1 font-medium">게시물에 등록되지 않고 버려진 고아 파일을 찾아 즉시 일괄 삭제하여 용량을 확보합니다.</div>
                   </div>
                   <span className="text-sky-400 group-hover:scale-110 transition-transform">▶</span>
                 </button>
@@ -284,7 +311,6 @@ export default async function MonitorControlCenter() {
           </div>
 
         </div>
-
       </div>
     </div>
   );
