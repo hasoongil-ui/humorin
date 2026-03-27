@@ -17,7 +17,6 @@ const s3 = new S3Client({
   },
 });
 
-// 💡 [수정 완료] 최신 Next.js 규칙에 맞게 props를 받아와서 await으로 풀어줍니다!
 export default async function MonitorControlCenter(props: any) {
   const searchParams = await props.searchParams; 
   const cookieStore = await cookies();
@@ -101,11 +100,18 @@ export default async function MonitorControlCenter(props: any) {
 
             await Promise.all(chunk.map(async (item) => {
               if (!item.Key) return;
-              
               const fileName = item.Key; 
+              
+              // 💡 [서버 부하 0% 핵심 방어막] 대장님 지시 사항 완벽 적용!
+              // 파일 이름이 profiles/ 로 시작하는 프사 파일은 DB를 뒤지지 않고 즉시 통과시킵니다.
+              if (fileName.startsWith('profiles/')) {
+                return;
+              }
               
               const { rows: postCheck } = await sql`SELECT id FROM posts WHERE content LIKE ${'%' + fileName + '%'} LIMIT 1`;
               const { rows: commentCheck } = await sql`SELECT id FROM comments WHERE content LIKE ${'%' + fileName + '%'} OR image_data LIKE ${'%' + fileName + '%'} LIMIT 1`;
+              
+              // (참고) 기존에 루트 폴더에 저장된 과거 프사들을 보호하기 위해 userCheck는 남겨둡니다. 
               const { rows: userCheck } = await sql`SELECT user_id FROM users WHERE profile_image LIKE ${'%' + fileName + '%'} LIMIT 1`;
 
               if (postCheck.length === 0 && commentCheck.length === 0 && userCheck.length === 0) {

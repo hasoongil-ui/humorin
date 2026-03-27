@@ -15,8 +15,11 @@ export async function POST(request: NextRequest) {
   try {
     const { filename, contentType } = await request.json();
 
-    // 💡 [CCTV 가동] 브라우저가 도대체 어떤 이름표를 달고 보내는지 터미널에 기록합니다.
-    console.log(`[업로드 요청] 파일명: ${filename}, 타입: ${contentType}`);
+    // 💡 [보안 철벽] 업로드 요청이 어디서 왔는지(출처) 확인하여 프사인지 게시판인지 완벽하게 자동 구분합니다.
+    const referer = request.headers.get('referer') || '';
+    const isProfileUpload = referer.includes('/profile');
+
+    console.log(`[업로드 요청] 파일명: ${filename}, 타입: ${contentType}, 프사폴더이동: ${isProfileUpload}`);
 
     if (!filename || !contentType) {
       return NextResponse.json({ error: '파일 정보가 없습니다.' }, { status: 400 });
@@ -36,7 +39,12 @@ export async function POST(request: NextRequest) {
     // 한글/띄어쓰기로 인한 URL 깨짐 방지를 위해 파일명 강제 세탁
     const extension = filename.split('.').pop()?.toLowerCase() || 'bin';
     const safeRandomName = Math.random().toString(36).substring(2, 10);
-    const uniqueFileName = `${Date.now()}-${safeRandomName}.${extension}`;
+    let uniqueFileName = `${Date.now()}-${safeRandomName}.${extension}`;
+
+    // 💡 [핵심] 프로필 페이지에서 온 요청이면 프사 전용 폴더(profiles/)로 안전하게 격리합니다!
+    if (isProfileUpload) {
+      uniqueFileName = `profiles/${uniqueFileName}`;
+    }
 
     const command = new PutObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME,

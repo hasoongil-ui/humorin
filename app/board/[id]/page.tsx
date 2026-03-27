@@ -202,7 +202,7 @@ export default async function PostDetailPage(props: any) {
       });
 
       const uniqueKeys = new Set<string>();
-      const matches = allTextToSearch.match(/[0-9]{13}-[a-z0-9]+\.[a-z0-9]+/gi);
+      const matches = allTextToSearch.match(/[0-9]{13}-[a-zA-Z0-9-_]+\.[a-zA-Z0-9]+/gi);
       if (matches) {
         matches.forEach(key => uniqueKeys.add(key));
       }
