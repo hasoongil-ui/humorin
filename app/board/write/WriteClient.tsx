@@ -35,9 +35,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const quillRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
-  // 💡 [최종 수술 1] 스마트폰 버퍼링 방어용 '누적 계산기' 바구니 준비!
   const accumulatedImageSizeRef = useRef(0);
-  const MAX_TOTAL_IMAGE_SIZE = 30 * 1024 * 1024; // 이미지 총합 한계선: 30MB
+  const MAX_TOTAL_IMAGE_SIZE = 30 * 1024 * 1024; // 30MB 방어막
 
   useEffect(() => {
     if (isGlobalLocked && !isAdmin) {
@@ -116,6 +115,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     });
   }, [isGlobalLocked, isAdmin, router]);
 
+  // 🚀 [마법의 파이프라인] 병렬 압축 + 순차 용량검사 + 병렬 업로드 + 원샷 삽입
   const processAndUploadImages = async (fileArray: File[], forcedIndex?: number) => {
     if (!quillRef.current) return;
     
@@ -126,81 +126,75 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       return;
     }
 
+    setIsUploading(true);
     let insertIndex = forcedIndex !== undefined ? forcedIndex : (editor.getSelection()?.index || editor.getLength());
 
-    setIsUploading(true);
-    
-    for (let i = 0; i < fileArray.length; i++) {
-      const file = fileArray[i];
-      if (!file.type.startsWith('image/')) continue;
-      
-      try {
-        let fileToUpload = file;
-        let shouldCompress = true;
-
-        // 💡 [최종 수술 2] 복잡한 바이트 검사 삭제! GIF/WebP는 묻지도 따지지도 않고 압축 패스!
-        if (file.type === 'image/gif' || file.type === 'image/webp') {
-          shouldCompress = false; 
-        }
-
-        if (shouldCompress) {
+    try {
+      // 1. 다차선 압축 (병렬 처리로 속도 극대화)
+      const compressPromises = fileArray.filter(f => f.type.startsWith('image/')).map(async (file) => {
+        if (file.type === 'image/gif' || file.type === 'image/webp') return file;
+        try {
           const img = new Image();
           img.src = URL.createObjectURL(file);
           await new Promise((resolve) => { img.onload = resolve; });
           const isLongImage = img.height > img.width * 2; 
           URL.revokeObjectURL(img.src);
+
+          const options = isLongImage 
+            ? { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: true, initialQuality: 0.95, fileType: 'image/webp' }
+            : { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.92, fileType: 'image/webp' };
           
-          try {
-            const options = isLongImage 
-              ? { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: true, initialQuality: 0.95, fileType: 'image/webp' }
-              : { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.92, fileType: 'image/webp' };
-            
-            const compressedBlob = await imageCompression(file, options);
-            const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
-            fileToUpload = new File([compressedBlob], newFileName, { type: 'image/webp' });
-            
-          } catch (compressError) {
-            console.warn("압축 중 오류 발생, 원본으로 폴백:", compressError);
-            fileToUpload = file; 
-          }
+          const compressedBlob = await imageCompression(file, options);
+          const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+          return new File([compressedBlob], newFileName, { type: 'image/webp' });
+        } catch (e) {
+          return file; // 압축 실패 시 원본 폴백
         }
+      });
 
-        // 💡 [최종 수술 3] 압축이 끝난 최종 용량으로 '누적 30MB' 계산기 작동!
-        if (accumulatedImageSizeRef.current + fileToUpload.size > MAX_TOTAL_IMAGE_SIZE) {
-          alert(`🚨 [${file.name}] 첨부 실패!\n게시글당 허용된 이미지(움짤 포함) 총 누적 용량(30MB)을 초과했습니다.\n(스마트폰 로딩 속도를 위해 업로드가 차단됩니다)`);
-          continue; // 이 파일만 스킵하고 방어
+      const processedFiles = (await Promise.all(compressPromises)).filter(Boolean) as File[];
+
+      // 2. 용량 검사는 순차적으로 깐깐하게! (꼼수 원천 차단)
+      const approvedFiles: File[] = [];
+      for (const file of processedFiles) {
+        if (accumulatedImageSizeRef.current + file.size > MAX_TOTAL_IMAGE_SIZE) {
+          alert(`🚨 [${file.name}] 첨부 실패!\n게시글당 허용된 총 누적 용량(30MB)을 초과했습니다.`);
+          continue;
         }
+        accumulatedImageSizeRef.current += file.size;
+        approvedFiles.push(file);
+      }
 
-        // 💡 통과한 파일은 계산기에 용량을 더해줌 (꼼수 완벽 차단)
-        accumulatedImageSizeRef.current += fileToUpload.size;
-
+      // 3. 다차선 하이패스 업로드 (병렬 처리로 R2 창고에 광속 저장)
+      const uploadPromises = approvedFiles.map(async (file) => {
         const ticketRes = await fetch('/api/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: fileToUpload.name, contentType: fileToUpload.type }),
+          body: JSON.stringify({ filename: file.name, contentType: file.type }),
         });
-        
         const { uploadUrl, publicUrl } = await ticketRes.json();
-        
         if (uploadUrl) {
-          await fetch(uploadUrl, { method: 'PUT', body: fileToUpload, headers: { 'Content-Type': fileToUpload.type } });
-          
-          const currentScrollY = window.scrollY; 
-          
-          editor.insertEmbed(insertIndex, 'image', publicUrl);
-          editor.insertText(insertIndex + 1, '\n');
-          insertIndex += 2; 
-          editor.setSelection(insertIndex); 
-          
-          setTimeout(() => {
-            window.scrollTo(0, currentScrollY);
-          }, 10);
+          await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+          return publicUrl;
         }
-      } catch (error) {
-        alert('이미지 업로드 중 오류가 발생했습니다.');
-      }
+        return null;
+      });
+
+      const uploadedUrls = (await Promise.all(uploadPromises)).filter(Boolean) as string[];
+
+      // 4. 에디터 삽입 (깜빡임 없이 부드럽게 한 방에 꽂아넣기)
+      uploadedUrls.forEach(url => {
+        editor.insertEmbed(insertIndex, 'image', url, 'silent');
+        editor.insertText(insertIndex + 1, '\n', 'silent');
+        insertIndex += 2; 
+      });
+      editor.setSelection(insertIndex, 'silent'); 
+
+    } catch (error) {
+      alert('이미지 업로드 중 오류가 발생했습니다.');
+    } finally {
+      setIsUploading(false); 
     }
-    setIsUploading(false); 
   };
 
   const uploadImagesRef = useRef(processAndUploadImages);
@@ -229,15 +223,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const editor = quillRef.current.getEditor();
           const range = editor.getSelection();
           const pasteIndex = range ? range.index : editor.getLength();
-          const currentScrollY = window.scrollY;
 
-          editor.insertEmbed(pasteIndex, 'youtubeVideo', embedUrl);
-          editor.insertText(pasteIndex + 1, '\n');
-          editor.setSelection(pasteIndex + 2);
-          
-          setTimeout(() => {
-            window.scrollTo(0, currentScrollY);
-          }, 10);
+          editor.insertEmbed(pasteIndex, 'youtubeVideo', embedUrl, 'silent');
+          editor.insertText(pasteIndex + 1, '\n', 'silent');
+          editor.setSelection(pasteIndex + 2, 'silent');
           return;
         }
       }
@@ -264,9 +253,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           if (hasExternalMedia) {
             extractedHtml = doc.body.innerHTML; 
           }
-        } catch (err) {
-          console.error("HTML Parser error", err);
-        }
+        } catch (err) {}
       }
 
       if (!hasExternalMedia && text) {
@@ -276,13 +263,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           e.stopPropagation();
           const editor = quillRef.current.getEditor();
           let pasteIndex = editor.getSelection()?.index || editor.getLength();
-          const currentScrollY = window.scrollY;
 
-          editor.insertEmbed(pasteIndex, 'image', text.trim());
-          editor.insertText(pasteIndex + 1, '\n');
-          editor.setSelection(pasteIndex + 2);
-
-          setTimeout(() => window.scrollTo(0, currentScrollY), 50);
+          editor.insertEmbed(pasteIndex, 'image', text.trim(), 'silent');
+          editor.insertText(pasteIndex + 1, '\n', 'silent');
+          editor.setSelection(pasteIndex + 2, 'silent');
           return;
         }
       }
@@ -294,13 +278,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         const editor = quillRef.current.getEditor();
         const range = editor.getSelection();
         const pasteIndex = range ? range.index : editor.getLength();
-        const currentScrollY = window.scrollY;
 
         editor.clipboard.dangerouslyPasteHTML(pasteIndex, extractedHtml);
-        
-        setTimeout(() => {
-          window.scrollTo(0, currentScrollY);
-        }, 50);
         return;
       }
 
@@ -381,14 +360,9 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
           
-          const currentScrollY = window.scrollY; 
-          editor.insertEmbed(insertIndex, 'mp4Video', publicUrl);
-          editor.insertText(insertIndex + 1, '\n');
-          editor.setSelection(insertIndex + 2);
-          
-          setTimeout(() => {
-            window.scrollTo(0, currentScrollY);
-          }, 10);
+          editor.insertEmbed(insertIndex, 'mp4Video', publicUrl, 'silent');
+          editor.insertText(insertIndex + 1, '\n', 'silent');
+          editor.setSelection(insertIndex + 2, 'silent');
         }
       } catch (error) {
         alert('동영상 업로드 중 오류가 발생했습니다.');

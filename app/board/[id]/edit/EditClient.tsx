@@ -35,9 +35,8 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
   const quillRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
-  // 💡 [최종 수술 1] 수정 창에서도 동일하게 '누적 계산기' 바구니 준비! (수정 시 새로 추가하는 사진 합산)
   const accumulatedImageSizeRef = useRef(0);
-  const MAX_TOTAL_IMAGE_SIZE = 30 * 1024 * 1024; // 이미지 총합 한계선: 30MB
+  const MAX_TOTAL_IMAGE_SIZE = 30 * 1024 * 1024; // 30MB 방어막
 
   useEffect(() => {
     if (isGlobalLocked && !isAdmin) {
@@ -150,6 +149,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     return () => editor.off('text-change', handleTextChange);
   }, [isEditorReady]);
 
+  // 🚀 [마법의 파이프라인] 병렬 압축 + 순차 용량검사 + 병렬 업로드 + 원샷 삽입
   const processAndUploadImages = async (fileArray: File[]) => {
     if (!quillRef.current) return;
     
@@ -161,67 +161,71 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     }
 
     setIsUploading(true);
+    const range = editor.getSelection(true) || { index: editor.getLength() };
+    let insertIndex = range.index;
     
-    for (let i = 0; i < fileArray.length; i++) {
-      const file = fileArray[i];
-      if (!file.type.startsWith('image/')) continue;
-      
-      try {
-        let fileToUpload = file;
-        let shouldCompress = true;
-
-        // 💡 [최종 수술 2] 복잡한 바이트 검사 삭제! GIF/WebP 압축 무조건 패스
-        if (file.type === 'image/gif' || file.type === 'image/webp') {
-          shouldCompress = false; 
-        }
-
-        if (shouldCompress) {
+    try {
+      const compressPromises = fileArray.filter(f => f.type.startsWith('image/')).map(async (file) => {
+        if (file.type === 'image/gif' || file.type === 'image/webp') return file;
+        try {
           const img = new Image();
           img.src = URL.createObjectURL(file);
           await new Promise((resolve) => { img.onload = resolve; });
           const isLongImage = img.height > img.width * 2; 
           URL.revokeObjectURL(img.src);
-          
-          try {
-            const options = isLongImage 
-              ? { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: true, initialQuality: 0.95, fileType: 'image/webp' }
-              : { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.92, fileType: 'image/webp' };
-            
-            const compressedBlob = await imageCompression(file, options);
-            const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
-            fileToUpload = new File([compressedBlob], newFileName, { type: 'image/webp' });
-            
-          } catch (compressError) {
-            console.warn("압축 중 오류 발생, 원본으로 폴백:", compressError);
-            fileToUpload = file; 
-          }
-        }
 
-        // 💡 [최종 수술 3] 누적 계산기 방어막
-        if (accumulatedImageSizeRef.current + fileToUpload.size > MAX_TOTAL_IMAGE_SIZE) {
-          alert(`🚨 [${file.name}] 첨부 실패!\n이번 수정에서 허용된 추가 이미지 총 용량(30MB)을 초과했습니다.\n(스마트폰 로딩 속도를 위해 업로드가 차단됩니다)`);
+          const options = isLongImage 
+            ? { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: true, initialQuality: 0.95, fileType: 'image/webp' }
+            : { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.92, fileType: 'image/webp' };
+          
+          const compressedBlob = await imageCompression(file, options);
+          const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+          return new File([compressedBlob], newFileName, { type: 'image/webp' });
+        } catch (e) {
+          return file; // 압축 실패 시 원본 폴백
+        }
+      });
+
+      const processedFiles = (await Promise.all(compressPromises)).filter(Boolean) as File[];
+
+      const approvedFiles: File[] = [];
+      for (const file of processedFiles) {
+        if (accumulatedImageSizeRef.current + file.size > MAX_TOTAL_IMAGE_SIZE) {
+          alert(`🚨 [${file.name}] 첨부 실패!\n이번 수정에서 허용된 추가 이미지 총 용량(30MB)을 초과했습니다.`);
           continue; 
         }
+        accumulatedImageSizeRef.current += file.size;
+        approvedFiles.push(file);
+      }
 
-        // 💡 통과한 녀석만 용량 계산기에 누적 합산!
-        accumulatedImageSizeRef.current += fileToUpload.size;
-
+      const uploadPromises = approvedFiles.map(async (file) => {
         const ticketRes = await fetch('/api/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: fileToUpload.name, contentType: fileToUpload.type }),
+          body: JSON.stringify({ filename: file.name, contentType: file.type }),
         });
         const { uploadUrl, publicUrl } = await ticketRes.json();
         if (uploadUrl) {
-          await fetch(uploadUrl, { method: 'PUT', body: fileToUpload, headers: { 'Content-Type': fileToUpload.type } });
-          const range = editor.getSelection(true) || { index: editor.getLength() };
-          editor.insertEmbed(range.index, 'image', publicUrl);
-          editor.insertText(range.index + 1, '\n');
-          editor.setSelection(range.index + 2); 
+          await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+          return publicUrl;
         }
-      } catch (error) {}
+        return null;
+      });
+
+      const uploadedUrls = (await Promise.all(uploadPromises)).filter(Boolean) as string[];
+
+      uploadedUrls.forEach(url => {
+        editor.insertEmbed(insertIndex, 'image', url, 'silent');
+        editor.insertText(insertIndex + 1, '\n', 'silent');
+        insertIndex += 2;
+      });
+      editor.setSelection(insertIndex, 'silent');
+
+    } catch (error) {
+      alert('이미지 첨부 중 오류가 발생했습니다.');
+    } finally {
+      setIsUploading(false); 
     }
-    setIsUploading(false); 
   };
 
   const uploadImagesRef = useRef(processAndUploadImages);
@@ -248,9 +252,9 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
           const editor = quillRef.current.getEditor();
           const range = editor.getSelection(true) || { index: editor.getLength() };
           
-          editor.insertEmbed(range.index, 'youtubeVideo', embedUrl);
-          editor.insertText(range.index + 1, '\n');
-          editor.setSelection(range.index + 2);
+          editor.insertEmbed(range.index, 'youtubeVideo', embedUrl, 'silent');
+          editor.insertText(range.index + 1, '\n', 'silent');
+          editor.setSelection(range.index + 2, 'silent');
           return;
         }
       }
@@ -311,6 +315,9 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
       }
 
       setIsUploading(true);
+      const range = editor.getSelection(true) || { index: editor.getLength() };
+      let insertIndex = range.index;
+
       try {
         const ticketRes = await fetch('/api/upload', {
           method: 'POST',
@@ -320,10 +327,10 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
         const { uploadUrl, publicUrl } = await ticketRes.json();
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-          const range = editor.getSelection(true) || { index: editor.getLength() };
-          editor.insertEmbed(range.index, 'mp4Video', publicUrl);
-          editor.insertText(range.index + 1, '\n');
-          editor.setSelection(range.index + 2);
+          
+          editor.insertEmbed(insertIndex, 'mp4Video', publicUrl, 'silent');
+          editor.insertText(insertIndex + 1, '\n', 'silent');
+          editor.setSelection(insertIndex + 2, 'silent');
         }
       } catch (error) {
         alert('동영상 업로드 중 오류가 발생했습니다.');
