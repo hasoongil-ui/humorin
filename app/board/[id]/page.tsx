@@ -8,6 +8,7 @@ import { cookies } from 'next/headers';
 import { PostLikeButton, PostDislikeButton, CommentLikeButton, CommentDislikeButton, PostScrapButton, PostReportButton, CommentReportButton, EditCommentForm, PostShareButton, CopyLinkBox } from './InteractiveButtons'; 
 import CommentForm from './CommentForm';
 import VideoVolumeFix from './VideoVolumeFix'; 
+import DeleteConfirmButton from './DeleteConfirmButton';
 import { Metadata } from 'next';
 import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3'; 
 
@@ -100,8 +101,6 @@ export async function generateMetadata(props: any): Promise<Metadata> {
   }
 }
 
-// --------------------------------------------------------------------------------
-
 export default async function PostDetailPage(props: any) {
   const params = await props.params;
   const searchParams = await props.searchParams; 
@@ -193,7 +192,6 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!isAdmin && !isAuthor) return; 
 
-    // 💡 [1단계: 초고속 미디어 폭파] 무식한 전체 DB 검색 싹 폐기! 내 글에 있는 사진만 즉시 0.1초 컷 폭파!
     try {
       const { rows: commentRows } = await sql`SELECT content, image_data FROM comments WHERE post_id = ${postId}`;
       let allTextToSearch = post.content || '';
@@ -209,7 +207,6 @@ export default async function PostDetailPage(props: any) {
 
       const fileKeysToDelete = Array.from(uniqueKeys).map(key => ({ Key: key }));
 
-      // 군말 없이 즉시 파괴! (다른 테이블 검사 로직 전면 삭제)
       if (fileKeysToDelete.length > 0 && process.env.R2_BUCKET_NAME) {
         const s3 = new S3Client({
           region: 'auto',
@@ -229,17 +226,14 @@ export default async function PostDetailPage(props: any) {
       console.error('게시글 삭제 중 미디어 즉시 삭제 실패:', e);
     }
 
-    // 💡 [2단계: DB 찌꺼기 완벽 청소] 부모 글을 지우기 전에 얽혀있는 자식 데이터들을 먼저 깔끔하게 지웁니다!
     await sql`DELETE FROM likes WHERE post_id = ${postId}`;
     await sql`DELETE FROM post_dislikes WHERE post_id = ${postId}`;
     await sql`DELETE FROM scraps WHERE post_id = ${postId}`;
     
-    // 댓글에 달린 공감/비공감 먼저 삭제 -> 그다음 댓글 삭제
     await sql`DELETE FROM comment_likes WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ${postId})`;
     await sql`DELETE FROM comment_dislikes WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ${postId})`;
     await sql`DELETE FROM comments WHERE post_id = ${postId}`;
 
-    // 💡 [3단계: 부모 게시글 삭제 및 포인트 회수]
     await sql`DELETE FROM posts WHERE id = ${postId}`;
     if (post.author_id) {
       await sql`UPDATE users SET points = GREATEST(COALESCE(points, 0) - 10, 0) WHERE user_id = ${post.author_id}`;
@@ -353,7 +347,6 @@ export default async function PostDetailPage(props: any) {
     const botTrap = formData.get('bot_trap') as string; 
     
     if (botTrap) {
-      console.log('🚨 [스팸 봇 차단 완료] 댓글 허니팟 함정에 걸려들었습니다.');
       return { success: true };
     }
 
@@ -368,7 +361,6 @@ export default async function PostDetailPage(props: any) {
     const cleanContent = extractTextOnly(content);
     for (const word of forbiddenWords) {
       if (cleanContent.includes(word)) {
-        console.log(`🚨 [금칙어 차단] 차단된 단어: ${word}`);
         return { error: 'forbidden_word', word: word }; 
       }
     }
@@ -402,7 +394,6 @@ export default async function PostDetailPage(props: any) {
     const cleanContent = extractTextOnly(content || '');
     for (const word of forbiddenWords) {
       if (cleanContent.includes(word)) {
-        console.log(`🚨 [금칙어 차단] 수정 우회 시도 차단됨: ${word}`);
         return { error: 'forbidden_word', word: word }; 
       }
     }
@@ -569,10 +560,14 @@ export default async function PostDetailPage(props: any) {
                 <label htmlFor={`edit-${node.id}`} className="cursor-pointer text-[12px] text-gray-400 hover:text-indigo-600 hover:underline">수정</label>
               )}
               {canDeleteComment && !isDeleted && (
-                <form action={deleteComment}>
+                <DeleteConfirmButton 
+                  action={deleteComment} 
+                  message={"이 댓글을 정말 삭제하시겠습니까?\n삭제된 댓글은 복구할 수 없습니다."}
+                  className="text-[12px] text-red-400 hover:text-red-600 hover:underline"
+                >
                   <input type="hidden" name="commentId" value={node.id} />
-                  <button type="submit" className="text-[12px] text-red-400 hover:text-red-600 hover:underline">삭제</button>
-                </form>
+                  삭제
+                </DeleteConfirmButton>
               )}
             </div>
           </div>
@@ -683,7 +678,6 @@ export default async function PostDetailPage(props: any) {
       <VideoVolumeFix />
       
       <style>{`
-        /* 1. 이미지: 웹툰/만화 가독성을 위한 스마트 리사이징 (렌더링 렉 유발 코드 삭제 완료) */
         .ql-editor img {
           display: block;
           max-width: 720px !important; 
@@ -693,7 +687,6 @@ export default async function PostDetailPage(props: any) {
           border-radius: 8px;
         }
 
-        /* 2. 동영상/유튜브: 기존 황금비율 650px 유지하여 깨짐 방지 */
         .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube,
         .ql-editor video, .ql-editor video.ojemi-mp4 {
           display: block;
@@ -708,7 +701,6 @@ export default async function PostDetailPage(props: any) {
         .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16 / 9; height: auto; }
         .ql-editor video, .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; object-fit: contain; aspect-ratio: auto; }
 
-        /* 3. 스마트폰 모드: 100% 가득 채움 */
         @media (max-width: 768px) {
           .ql-editor img, .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube, .ql-editor video, .ql-editor video.ojemi-mp4 {
             max-width: 100% !important;
@@ -796,8 +788,15 @@ export default async function PostDetailPage(props: any) {
         <div className="mt-6 border-t pt-6 flex justify-between">
           <div className="flex gap-2">
             {isAuthor && <Link href={`/board/${postId}/edit`} className="px-6 py-2 border font-bold text-sm rounded-sm">수정</Link>}
+            
             {(isAuthor || isAdmin) && (
-              <form action={deletePost}><button type="submit" className="px-6 py-2 bg-[#e06c75] text-white font-bold text-sm rounded-sm">삭제</button></form>
+              <DeleteConfirmButton 
+                action={deletePost} 
+                message={"게시글을 정말 삭제하시겠습니까?\n첨부된 미디어와 데이터는 즉시 파기되며 복구할 수 없습니다."}
+                className="px-6 py-2 bg-[#e06c75] text-white font-bold text-sm rounded-sm hover:bg-red-500 transition-colors"
+              >
+                삭제
+              </DeleteConfirmButton>
             )}
           </div>
           <Link href={backToListUrl} className="px-8 py-2 bg-[#414a66] text-white font-bold text-sm rounded-sm hover:bg-[#2a3042] transition-colors">목록으로</Link>
