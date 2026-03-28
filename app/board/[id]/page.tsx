@@ -8,7 +8,6 @@ import { cookies } from 'next/headers';
 import { PostLikeButton, PostDislikeButton, CommentLikeButton, CommentDislikeButton, PostScrapButton, PostReportButton, CommentReportButton, EditCommentForm, PostShareButton, CopyLinkBox } from './InteractiveButtons'; 
 import CommentForm from './CommentForm';
 import VideoVolumeFix from './VideoVolumeFix'; 
-import DeleteConfirmButton from './DeleteConfirmButton';
 import { Metadata } from 'next';
 import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3'; 
 
@@ -78,12 +77,20 @@ export async function generateMetadata(props: any): Promise<Metadata> {
     const videoMatch = postContent.match(/<video[^>]*src=["']([^"'>]+)["']/i);
     const videoUrl = videoMatch ? videoMatch[1] : null;
 
+    // 💡 [핵심 추가] 이 게시글의 고유 URL을 명시적으로 선언!
+    const postUrl = `https://www.ojemi.kr/board/${postId}`;
+
     return {
       title: `${cleanTitle} - 오재미`,
       description: description,
+      // 💡 [핵심 추가] 페이스북이 헷갈리지 않게 표준 URL(canonical)을 강제로 박아줍니다!
+      alternates: {
+        canonical: postUrl,
+      },
       openGraph: {
         title: cleanTitle,
         description: description,
+        url: postUrl, // 💡 [핵심 추가] OG 태그에도 이 글의 URL을 확실하게 알려줍니다!
         siteName: '오재미',
         images: imageUrl ? [{ url: imageUrl }] : [],
         videos: videoUrl ? [{ url: videoUrl }] : [],
@@ -100,6 +107,8 @@ export async function generateMetadata(props: any): Promise<Metadata> {
     return { title: '오재미' };
   }
 }
+
+// --------------------------------------------------------------------------------
 
 export default async function PostDetailPage(props: any) {
   const params = await props.params;
@@ -347,6 +356,7 @@ export default async function PostDetailPage(props: any) {
     const botTrap = formData.get('bot_trap') as string; 
     
     if (botTrap) {
+      console.log('🚨 [스팸 봇 차단 완료] 댓글 허니팟 함정에 걸려들었습니다.');
       return { success: true };
     }
 
@@ -361,6 +371,7 @@ export default async function PostDetailPage(props: any) {
     const cleanContent = extractTextOnly(content);
     for (const word of forbiddenWords) {
       if (cleanContent.includes(word)) {
+        console.log(`🚨 [금칙어 차단] 차단된 단어: ${word}`);
         return { error: 'forbidden_word', word: word }; 
       }
     }
@@ -394,6 +405,7 @@ export default async function PostDetailPage(props: any) {
     const cleanContent = extractTextOnly(content || '');
     for (const word of forbiddenWords) {
       if (cleanContent.includes(word)) {
+        console.log(`🚨 [금칙어 차단] 수정 우회 시도 차단됨: ${word}`);
         return { error: 'forbidden_word', word: word }; 
       }
     }
@@ -560,14 +572,10 @@ export default async function PostDetailPage(props: any) {
                 <label htmlFor={`edit-${node.id}`} className="cursor-pointer text-[12px] text-gray-400 hover:text-indigo-600 hover:underline">수정</label>
               )}
               {canDeleteComment && !isDeleted && (
-                <DeleteConfirmButton 
-                  action={deleteComment} 
-                  message={"이 댓글을 정말 삭제하시겠습니까?\n삭제된 댓글은 복구할 수 없습니다."}
-                  className="text-[12px] text-red-400 hover:text-red-600 hover:underline"
-                >
+                <form action={deleteComment}>
                   <input type="hidden" name="commentId" value={node.id} />
-                  삭제
-                </DeleteConfirmButton>
+                  <button type="submit" className="text-[12px] text-red-400 hover:text-red-600 hover:underline">삭제</button>
+                </form>
               )}
             </div>
           </div>
@@ -678,6 +686,7 @@ export default async function PostDetailPage(props: any) {
       <VideoVolumeFix />
       
       <style>{`
+        /* 1. 이미지: 웹툰/만화 가독성을 위한 스마트 리사이징 (렌더링 렉 유발 코드 삭제 완료) */
         .ql-editor img {
           display: block;
           max-width: 720px !important; 
@@ -687,6 +696,7 @@ export default async function PostDetailPage(props: any) {
           border-radius: 8px;
         }
 
+        /* 2. 동영상/유튜브: 기존 황금비율 650px 유지하여 깨짐 방지 */
         .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube,
         .ql-editor video, .ql-editor video.ojemi-mp4 {
           display: block;
@@ -701,6 +711,7 @@ export default async function PostDetailPage(props: any) {
         .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16 / 9; height: auto; }
         .ql-editor video, .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; object-fit: contain; aspect-ratio: auto; }
 
+        /* 3. 스마트폰 모드: 100% 가득 채움 */
         @media (max-width: 768px) {
           .ql-editor img, .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube, .ql-editor video, .ql-editor video.ojemi-mp4 {
             max-width: 100% !important;
@@ -788,15 +799,8 @@ export default async function PostDetailPage(props: any) {
         <div className="mt-6 border-t pt-6 flex justify-between">
           <div className="flex gap-2">
             {isAuthor && <Link href={`/board/${postId}/edit`} className="px-6 py-2 border font-bold text-sm rounded-sm">수정</Link>}
-            
             {(isAuthor || isAdmin) && (
-              <DeleteConfirmButton 
-                action={deletePost} 
-                message={"게시글을 정말 삭제하시겠습니까?\n첨부된 미디어와 데이터는 즉시 파기되며 복구할 수 없습니다."}
-                className="px-6 py-2 bg-[#e06c75] text-white font-bold text-sm rounded-sm hover:bg-red-500 transition-colors"
-              >
-                삭제
-              </DeleteConfirmButton>
+              <form action={deletePost}><button type="submit" className="px-6 py-2 bg-[#e06c75] text-white font-bold text-sm rounded-sm">삭제</button></form>
             )}
           </div>
           <Link href={backToListUrl} className="px-8 py-2 bg-[#414a66] text-white font-bold text-sm rounded-sm hover:bg-[#2a3042] transition-colors">목록으로</Link>
