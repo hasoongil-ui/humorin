@@ -242,40 +242,38 @@ export function EditCommentForm({ commentId, initialContent, initialImage, editA
 // ---------------------------------------------------------
 export function PostShareButton({ title }: { title: string }) {
   const handleShare = async () => {
-    // 💡 [미나 수술] 노골적인 홍보 문구 삭제! 오직 제목과 링크만 깔끔하게 전달합니다.
-    const shareData = {
-      title: title,
-      url: window.location.href, 
-    };
+    const url = window.location.href;
+    // 💡 [핵심] 트위터 본문에 꽂아넣을 텍스트 조립!
+    const text = `${title} - 오재미`;
 
     if (navigator.share) {
+      // 스마트폰에서는 카카오톡, 문자 등 기본 공유창 띄우기 (제목 포함)
       try {
-        await navigator.share(shareData);
-      } catch (error) {
-        console.log('공유 취소됨');
+        await navigator.share({
+          title: title,
+          text: text,
+          url: url,
+        });
+      } catch (err) {
+        console.error('공유 실패:', err);
       }
-    } 
-    else {
-      try {
-        await navigator.clipboard.writeText(window.location.href);
-        // PC 버전에 뜨는 알림창 문구도 거부감 없이 자연스럽게 수정했습니다.
-        alert('🔗 게시글 링크가 복사되었습니다!');
-      } catch (error) {
-        alert('링크 복사에 실패했습니다.');
-      }
+    } else {
+      // PC에서는 트위터(X) 공유 창을 다이렉트로 띄우면서 제목 꽂아주기!
+      const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+      window.open(twitterUrl, '_blank', 'width=600,height=400,scrollbars=no,resizable=no');
     }
   };
 
   return (
-    <button
+    <button 
       onClick={handleShare}
-      className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 border border-gray-300 rounded-sm transition-colors shadow-sm"
-      title="게시글 공유하기"
+      className="flex flex-col items-center justify-center p-2 rounded-sm transition-colors text-gray-500 hover:text-[#3b4890] hover:bg-indigo-50"
+      title="이 글 공유하기"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
-      </svg>
-      공유
+      <div className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full mb-1">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" /></svg>
+      </div>
+      <span className="text-[12px] font-bold">공유</span>
     </button>
   );
 }
