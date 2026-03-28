@@ -18,6 +18,8 @@ const ReactQuillWrapper = dynamic(
 );
 import 'react-quill-new/dist/quill.snow.css';
 
+const MAX_CONTENT_LENGTH = 65000;
+
 export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked, boards, updateAction }: any) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState(post?.content || '');
@@ -26,13 +28,16 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const [isEditorReady, setIsEditorReady] = useState(false);
   
-  // 💡 [수술 1] 기존 글이 공지사항이었다면 스위치를 'ON' 상태로 불러옵니다!
   const [isNotice, setIsNotice] = useState(post?.is_notice || false);
 
   const router = useRouter();
   
   const quillRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+
+  // 💡 [최종 수술 1] 수정 창에서도 동일하게 '누적 계산기' 바구니 준비! (수정 시 새로 추가하는 사진 합산)
+  const accumulatedImageSizeRef = useRef(0);
+  const MAX_TOTAL_IMAGE_SIZE = 30 * 1024 * 1024; // 이미지 총합 한계선: 30MB
 
   useEffect(() => {
     if (isGlobalLocked && !isAdmin) {
@@ -160,36 +165,14 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     for (let i = 0; i < fileArray.length; i++) {
       const file = fileArray[i];
       if (!file.type.startsWith('image/')) continue;
-      if (file.size > 10 * 1024 * 1024) {
-        alert(`[${file.name}] 사진 용량이 너무 큽니다 (최대 10MB).`);
-        continue; 
-      }
+      
       try {
         let fileToUpload = file;
-        
         let shouldCompress = true;
 
-        if (file.type === 'image/gif') {
+        // 💡 [최종 수술 2] 복잡한 바이트 검사 삭제! GIF/WebP 압축 무조건 패스
+        if (file.type === 'image/gif' || file.type === 'image/webp') {
           shouldCompress = false; 
-        } else if (file.type === 'image/webp') {
-          const isAnimated = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              const arr = new Uint8Array(e.target.result as ArrayBuffer);
-              let found = false;
-              for (let i = 0; i < arr.length - 3; i++) {
-                if (arr[i] === 65 && arr[i+1] === 78 && arr[i+2] === 73 && arr[i+3] === 77) {
-                  found = true; break;
-                }
-              }
-              resolve(found);
-            };
-            reader.readAsArrayBuffer(file.slice(0, 1024)); 
-          });
-
-          if (isAnimated) {
-            shouldCompress = false; 
-          }
         }
 
         if (shouldCompress) {
@@ -198,11 +181,30 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
           await new Promise((resolve) => { img.onload = resolve; });
           const isLongImage = img.height > img.width * 2; 
           URL.revokeObjectURL(img.src);
-          if (!isLongImage) {
-            const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1280, useWebWorker: true };
-            fileToUpload = await imageCompression(file, options);
+          
+          try {
+            const options = isLongImage 
+              ? { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: true, initialQuality: 0.95, fileType: 'image/webp' }
+              : { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.92, fileType: 'image/webp' };
+            
+            const compressedBlob = await imageCompression(file, options);
+            const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+            fileToUpload = new File([compressedBlob], newFileName, { type: 'image/webp' });
+            
+          } catch (compressError) {
+            console.warn("압축 중 오류 발생, 원본으로 폴백:", compressError);
+            fileToUpload = file; 
           }
         }
+
+        // 💡 [최종 수술 3] 누적 계산기 방어막
+        if (accumulatedImageSizeRef.current + fileToUpload.size > MAX_TOTAL_IMAGE_SIZE) {
+          alert(`🚨 [${file.name}] 첨부 실패!\n이번 수정에서 허용된 추가 이미지 총 용량(30MB)을 초과했습니다.\n(스마트폰 로딩 속도를 위해 업로드가 차단됩니다)`);
+          continue; 
+        }
+
+        // 💡 통과한 녀석만 용량 계산기에 누적 합산!
+        accumulatedImageSizeRef.current += fileToUpload.size;
 
         const ticketRes = await fetch('/api/upload', {
           method: 'POST',
@@ -235,7 +237,6 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
 
       const text = clipboardData.getData('text/plain');
       if (text) {
-        // 💡 [수술 2] 수정 화면에서도 붙여넣기 시 쇼츠(Shorts) 주소 완벽 인식!
         const ytRegex = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
         
@@ -305,7 +306,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
       }
 
       if (file.size > 10 * 1024 * 1024) {
-        alert(`[${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).`);
+        alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).\n파일 크기를 줄인 후 다시 시도해 주십시오.`);
         return;
       }
 
@@ -357,7 +358,22 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     }
   }), []);
 
-  // 💡 [수술 3] 수정 화면에도 스크롤 튕김 완벽 차단(수동 발사) 로직 적용!
+  const handleContentChange = (newContent: string) => {
+    const textOnly = newContent.replace(/<[^>]*>?/gm, ''); 
+    
+    if (textOnly.length > MAX_CONTENT_LENGTH) {
+      alert(`🚨 게시글은 최대 ${MAX_CONTENT_LENGTH.toLocaleString()}자까지만 작성할 수 있습니다.\n현재 초과된 분량은 자동으로 삭제됩니다.`);
+      if (quillRef.current) {
+        const editor = quillRef.current.getEditor();
+        editor.history.undo();
+      }
+      return;
+    }
+    setContent(newContent);
+  };
+
+  const currentLength = content.replace(/<[^>]*>?/gm, '').length;
+
   const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
     if (e) e.preventDefault();
     
@@ -378,6 +394,11 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
       alert('게시글에 용량을 초과하는 텍스트 이미지(Base64)가 포함되어 있습니다.\n해당 이미지를 삭제하신 후 다시 첨부해 주십시오.'); return;
     }
     if (isUploading || isSubmitting) return;
+    
+    if (currentLength > MAX_CONTENT_LENGTH) {
+      alert(`게시글 글자 수 제한(${MAX_CONTENT_LENGTH.toLocaleString()}자)을 초과했습니다.`); return;
+    }
+
     setIsSubmitting(true); 
 
     try {
@@ -385,8 +406,6 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
       formData.append('title', title);
       formData.append('content', content);
       formData.append('category', category);
-      
-      // 💡 [수술 4] 변경된 공지사항 스위치(ON/OFF) 상태를 백엔드로 보냅니다.
       formData.append('is_notice', isNotice ? 'true' : 'false');
 
       const res = await updateAction(formData);
@@ -486,7 +505,6 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
             </div>
           </div>
 
-          {/* 💡 [수술 5] 수정 화면에서도 관리자에게만 보이는 공지사항 스위치 장착 완료! */}
           {isAdmin && (
             <div className="flex items-center gap-2 px-1 py-2 bg-indigo-50 border border-indigo-100 rounded-sm mt-1">
               <input 
@@ -504,12 +522,18 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
 
           <div className="bg-white rounded-sm mt-4 border border-gray-300" ref={editorContainerRef}>
             {isEditorReady ? (
-              <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={setContent} placeholder="내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다." />
+              <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={handleContentChange} placeholder="내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다." />
             ) : (
               <div className="h-[600px] flex items-center justify-center bg-gray-50 text-gray-400 font-bold text-lg animate-pulse">
                 기존 게시글을 불러오는 중입니다...
               </div>
             )}
+          </div>
+          
+          <div className="flex justify-end mt-2 px-1">
+            <span className={`text-[11px] sm:text-[12px] font-black tracking-tighter ${currentLength >= MAX_CONTENT_LENGTH ? 'text-rose-500' : 'text-gray-400'}`}>
+              {currentLength.toLocaleString()} / {MAX_CONTENT_LENGTH.toLocaleString()}자
+            </span>
           </div>
 
           <div className="flex justify-center gap-2 pt-6 border-t border-gray-100 mt-4">

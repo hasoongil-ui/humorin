@@ -35,6 +35,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const quillRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
+  // 💡 [최종 수술 1] 스마트폰 버퍼링 방어용 '누적 계산기' 바구니 준비!
+  const accumulatedImageSizeRef = useRef(0);
+  const MAX_TOTAL_IMAGE_SIZE = 30 * 1024 * 1024; // 이미지 총합 한계선: 30MB
+
   useEffect(() => {
     if (isGlobalLocked && !isAdmin) {
       alert("🚨 현재 관리자에 의해 사이트 전체 글쓰기가 제한되었습니다.");
@@ -133,44 +137,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       try {
         let fileToUpload = file;
         let shouldCompress = true;
-        let isUncompressibleAnim = false;
 
-        if (file.type === 'image/gif') {
-          const buffer = await file.arrayBuffer();
-          const arr = new Uint8Array(buffer);
-          let frames = 0;
-          for (let j = 0; j < arr.length - 2; j++) {
-            if (arr[j] === 0x21 && arr[j + 1] === 0xF9 && arr[j + 2] === 0x04) {
-              frames++;
-              if (frames > 1) { 
-                isUncompressibleAnim = true;
-                shouldCompress = false; 
-                break;
-              }
-            }
-          }
-        } else if (file.type === 'image/webp') {
-          const buffer = await file.arrayBuffer();
-          const arr = new Uint8Array(buffer);
-          for (let j = 0; j < arr.length - 3; j++) {
-            if (arr[j] === 65 && arr[j+1] === 78 && arr[j+2] === 73 && arr[j+3] === 77) { 
-              isUncompressibleAnim = true;
-              shouldCompress = false; 
-              break;
-            }
-          }
-        }
-
-        // 💡 [수술 완료] 움짤 제한을 10MB -> 5MB로 원상 복구!
-        const MAX_ANIM_SIZE = 10 * 1024 * 1024; 
-        const MAX_IMAGE_SIZE = 15 * 1024 * 1024; 
-
-        if (isUncompressibleAnim && file.size > MAX_ANIM_SIZE) {
-          alert(`🚨 [${file.name}] 움직이는 움짤(GIF/WebP)은 모바일 최적화를 위해 최대 5MB까지만 올릴 수 있습니다.\n용량을 줄이거나 MP4 동영상 파일로 첨부해 주십시오.`);
-          continue; 
-        } else if (!isUncompressibleAnim && file.size > MAX_IMAGE_SIZE) {
-          alert(`🚨 [${file.name}] 사진 원본 용량이 너무 큽니다 (최대 15MB).\n용량을 줄인 후 다시 시도해 주십시오.`);
-          continue; 
+        // 💡 [최종 수술 2] 복잡한 바이트 검사 삭제! GIF/WebP는 묻지도 따지지도 않고 압축 패스!
+        if (file.type === 'image/gif' || file.type === 'image/webp') {
+          shouldCompress = false; 
         }
 
         if (shouldCompress) {
@@ -194,6 +164,15 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             fileToUpload = file; 
           }
         }
+
+        // 💡 [최종 수술 3] 압축이 끝난 최종 용량으로 '누적 30MB' 계산기 작동!
+        if (accumulatedImageSizeRef.current + fileToUpload.size > MAX_TOTAL_IMAGE_SIZE) {
+          alert(`🚨 [${file.name}] 첨부 실패!\n게시글당 허용된 이미지(움짤 포함) 총 누적 용량(30MB)을 초과했습니다.\n(스마트폰 로딩 속도를 위해 업로드가 차단됩니다)`);
+          continue; // 이 파일만 스킵하고 방어
+        }
+
+        // 💡 통과한 파일은 계산기에 용량을 더해줌 (꼼수 완벽 차단)
+        accumulatedImageSizeRef.current += fileToUpload.size;
 
         const ticketRes = await fetch('/api/upload', {
           method: 'POST',
@@ -238,7 +217,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const text = clipboardData.getData('text/plain');
       const html = clipboardData.getData('text/html');
       
-      // 1. 유튜브 자동 변환 로직
       if (text) {
         const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
@@ -264,7 +242,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         }
       }
 
-      // 💡 [수술 보호] DOMParser로 네이버 영혼까지 털어오는 마법 100% 보존!
       let hasExternalMedia = false;
       let extractedHtml = html;
 
@@ -327,7 +304,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         return;
       }
 
-      // 2. 외부 사이트 복사가 아닌 경우 정상 업로드
       const items = clipboardData.items;
       let hasImage = false;
       const imageFiles: File[] = [];
@@ -389,7 +365,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         return;
       }
 
-      // 💡 [수술 완료] 동영상 제한 10MB로 해제!
       if (file.size > 10 * 1024 * 1024) {
         alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).\n파일 크기를 줄인 후 다시 시도해 주십시오.`);
         return; 
