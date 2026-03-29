@@ -45,6 +45,14 @@ export async function POST(request: Request) {
     const currentUserId = userIdCookie ? userIdCookie.value : null;
     const signature = signatureCookie ? signatureCookie.value : null;
 
+    // 🚨 [여기가 미나 비서가 추가한 핵심 철통 방어막입니다!] 🚨
+    // 로그인 쿠키(명찰)가 없으면 무조건 쫓아냅니다. 익명 글쓰기 절대 불가!
+    if (!currentUserId || !currentUser) {
+      console.log('🚨 [비인가 접근 차단] 로그인 없는 글쓰기 봇 공격 발견!');
+      return NextResponse.json({ message: '로그인한 회원만 글을 쓸 수 있습니다.' }, { status: 401 });
+    }
+
+    // 이제 안심하고 작성자 이름을 지정합니다.
     const finalAuthor = currentUser || author || '익명';
     const titleWithCategory = `[${category}] ${title}`;
 
