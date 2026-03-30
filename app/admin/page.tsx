@@ -192,12 +192,11 @@ export default async function AdminDashboardPage(props: any) {
 
   const bannedIpsArray = bannedIpsString ? bannedIpsString.split(',') : [];
 
-  // 💡 [엑셀 다운로드 백엔드 로직] 현재 화면에 보이는 유저 목록을 CSV 형식으로 즉시 변환!
   const csvHeader = "No,아이디,닉네임,가입일,최근로그인,IP,게시글수,포인트,상태,관리자여부\n";
   const csvRows = userList.map((user, idx) => {
     return `${offset + idx + 1},"${user.userid}","${user.nickname || ''}","${user.created_at}","${user.last_login}","${user.ip || '알수없음'}","${user.post_count || 0}","${user.points || 0}","${user.status}","${user.is_admin ? 'O' : 'X'}"`;
   }).join('\n');
-  const csvString = '\uFEFF' + csvHeader + csvRows; // 한글 깨짐 방지용 \uFEFF 추가
+  const csvString = '\uFEFF' + csvHeader + csvRows; 
   const csvDataUri = "data:text/csv;charset=utf-8," + encodeURIComponent(csvString);
 
   return (
@@ -238,7 +237,9 @@ export default async function AdminDashboardPage(props: any) {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="grid grid-cols-4 gap-3 mb-6">
+          
+          {/* 💡 원래대로 4칸으로 복구 완료! */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
             <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[11px] font-bold text-gray-500 mb-1">총 회원</p><p className="text-xl font-black text-gray-800">{totalUsers}</p></div>
             <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[11px] font-bold text-gray-500 mb-1">오늘 신규가입</p><p className="text-xl font-black text-rose-500">+{todayUsers}</p></div>
             <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[11px] font-bold text-gray-500 mb-1">차단/정지 회원</p><p className="text-xl font-black text-gray-800">{bannedUsers}</p></div>
@@ -262,7 +263,7 @@ export default async function AdminDashboardPage(props: any) {
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
             <div className="flex-1">
               <h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-indigo-500">📝</span> 에디터 안내 문구 설정</h2>
-              <p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">게시판 글쓰기 창에 기본으로 보여지는 흐린 안내 문구를 자유롭게 수정할 수 있습니다.</p>
+              <p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">게시판 글쓰기 창에 기본 보여지는 흐린 안내 문구를 수정할 수 있습니다.</p>
             </div>
             <form action={updateEditorPlaceholder} className="flex items-center gap-2 bg-gray-50 p-2 rounded-sm border border-gray-200 w-full xl:w-auto">
               <input type="text" name="placeholder" defaultValue={editorPlaceholder} className="w-full xl:w-[400px] px-2 py-1.5 border border-gray-300 rounded-sm text-[12px] font-bold text-gray-700 outline-none focus:border-indigo-400" placeholder="안내 문구를 입력하세요..." />
@@ -283,7 +284,6 @@ export default async function AdminDashboardPage(props: any) {
                 {q && <Link href="/admin" className="px-3 py-1.5 border border-gray-300 text-gray-600 text-xs font-bold rounded-sm hover:bg-gray-50">초기화</Link>}
               </form>
 
-              {/* 💡 [엑셀 다운로드 버튼] 서버 부하 없이 현재 화면 리스트 즉시 다운로드! */}
               <a 
                 href={csvDataUri} 
                 download={`오재미_회원관리_${new Date().toISOString().slice(0,10)}.csv`}
@@ -351,12 +351,10 @@ export default async function AdminDashboardPage(props: any) {
                               <input type="hidden" name="userid" value={user.userid} />
                               <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-amber-50 border border-amber-300 rounded-sm hover:bg-amber-100 text-amber-700">비번리셋</button>
                             </form>
-
                             <form action={banIpAddress} className="border-l pl-1.5">
                               <input type="hidden" name="ip" value={user.ip} />
                               <BanButton ip={user.ip} isBannedIp={isBannedIp} />
                             </form>
-
                             {user.userid !== 'admin' && (
                               <form action={toggleAdminRole} className="border-l pl-1.5">
                                 <input type="hidden" name="userid" value={user.userid} />

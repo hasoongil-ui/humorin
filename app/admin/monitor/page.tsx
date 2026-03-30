@@ -33,6 +33,40 @@ export default async function MonitorControlCenter(props: any) {
     if (!isRealAdmin) return redirect('/'); 
   }
 
+  // 💡 [변경됨] 대장님 지시대로 무료 플랜 기준 '100'으로 맞췄습니다!
+  let neonCuHrs = "0.00";
+  let neonUsagePercent = "0.0";
+  const maxNeonCuHrs = 100; 
+
+  try {
+    if (process.env.NEON_PROJECT_ID && process.env.NEON_API_KEY) {
+      const neonRes = await fetch(`https://console.neon.tech/api/v2/projects/${process.env.NEON_PROJECT_ID}`, {
+        headers: { Authorization: `Bearer ${process.env.NEON_API_KEY}` },
+        cache: 'no-store'
+      });
+      
+      if (neonRes.ok) {
+        const neonData = await neonRes.json();
+        
+        const seconds = neonData.project?.compute_time_seconds;
+        
+        if (seconds !== undefined) {
+          const cuHours = seconds / 3600;
+          neonCuHrs = cuHours.toFixed(2);
+          neonUsagePercent = Math.min((cuHours / maxNeonCuHrs) * 100, 100).toFixed(1);
+        } else {
+          neonCuHrs = "데이터없음";
+        }
+      } else {
+        neonCuHrs = "통신오류";
+      }
+    } else {
+      neonCuHrs = "키없음";
+    }
+  } catch (e) {
+    neonCuHrs = "에러";
+  }
+
   let dbSizeBytes = 0;
   let dbError = null;
   try {
@@ -102,16 +136,12 @@ export default async function MonitorControlCenter(props: any) {
               if (!item.Key) return;
               const fileName = item.Key; 
               
-              // 💡 [서버 부하 0% 핵심 방어막] 대장님 지시 사항 완벽 적용!
-              // 파일 이름이 profiles/ 로 시작하는 프사 파일은 DB를 뒤지지 않고 즉시 통과시킵니다.
               if (fileName.startsWith('profiles/')) {
                 return;
               }
               
               const { rows: postCheck } = await sql`SELECT id FROM posts WHERE content LIKE ${'%' + fileName + '%'} LIMIT 1`;
               const { rows: commentCheck } = await sql`SELECT id FROM comments WHERE content LIKE ${'%' + fileName + '%'} OR image_data LIKE ${'%' + fileName + '%'} LIMIT 1`;
-              
-              // (참고) 기존에 루트 폴더에 저장된 과거 프사들을 보호하기 위해 userCheck는 남겨둡니다. 
               const { rows: userCheck } = await sql`SELECT user_id FROM users WHERE profile_image LIKE ${'%' + fileName + '%'} LIMIT 1`;
 
               if (postCheck.length === 0 && commentCheck.length === 0 && userCheck.length === 0) {
@@ -167,44 +197,75 @@ export default async function MonitorControlCenter(props: any) {
             <h1 className="text-2xl md:text-3xl font-black text-emerald-400 flex items-center gap-2">🖥️ 오재미 종합 모니터링 관제센터</h1>
             <p className="text-slate-400 text-sm mt-1 font-bold">오직 최고 관리자만 접근할 수 있는 1급 보안 구역입니다.</p>
           </div>
-          <Link href="/" className="px-5 py-2 bg-slate-800 text-white font-bold rounded-sm border border-slate-600 hover:bg-slate-700 transition-colors shrink-0">&larr; 사이트로 돌아가기</Link>
+          <Link href="/admin" className="px-5 py-2 bg-slate-800 text-white font-bold rounded-sm border border-slate-600 hover:bg-slate-700 transition-colors shrink-0">&larr; 관리자 메인으로</Link>
         </div>
 
-        {searchParams?.cleared === 'true' && (
-          <div key={searchParams?.t} className="bg-emerald-900/40 border border-emerald-500/50 p-5 rounded-md mb-8 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
-            <div className="flex items-center gap-4">
-              <div className="text-3xl">🧹</div>
-              <div>
-                <h3 className="text-emerald-300 font-black text-lg">싹쓸이 청소 작전 완료!</h3>
-                <p className="text-slate-300 text-sm mt-1">총 <span className="text-white font-black text-[15px]">{searchParams.count}개</span>의 유령 파일 (약 <span className="text-white font-black text-[15px]">{searchParams.size} MB</span>)을 소각하여 서버 용량을 즉시 확보했습니다.</p>
-              </div>
-            </div>
-            <Link href="/admin/monitor" className="px-5 py-2 bg-emerald-800/60 hover:bg-emerald-700/80 text-emerald-100 font-bold text-sm rounded transition-colors shrink-0">확인 (닫기)</Link>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-slate-800 border border-slate-700 p-6 rounded-md shadow-lg flex flex-col">
-            <h2 className="text-lg font-bold text-white mb-6">🗄️ 방명록 (게시글 DB)</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          
+          {/* 1. Neon DB 엔진 서버비 모니터링 패널 */}
+          <div className="bg-slate-800 border border-amber-500/50 p-6 rounded-md shadow-lg flex flex-col relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500 rounded-full blur-[50px] opacity-10 group-hover:opacity-20 transition-opacity"></div>
+            <h2 className="text-lg font-bold text-amber-400 mb-6 flex justify-between items-center">
+              <span>🔥 네온(Neon) 엔진 과금</span>
+              <span className="text-[10px] font-normal text-slate-400 bg-slate-900 px-2 py-1 rounded border border-slate-700">F5 갱신</span>
+            </h2>
             <div className="mb-2 flex justify-between text-sm font-bold">
-              <span>사용량: {dbSizeMB} MB</span>
+              <span>누적: {neonCuHrs} CU-hrs</span>
+              <span className="text-slate-400">한도: {maxNeonCuHrs} CU-hrs</span>
+            </div>
+            <div className="w-full bg-slate-900 rounded-full h-6 relative overflow-hidden border border-slate-700">
+              <div className={`h-full transition-all duration-1000 ${Number(neonUsagePercent) > 80 ? 'bg-red-500' : 'bg-amber-500'}`} style={{ width: `${neonUsagePercent}%` }}></div>
+              <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-white mix-blend-difference">{neonUsagePercent}% 소모됨</span>
+            </div>
+            {/* 💡 [추가] 네온 바로가기 링크 */}
+            <div className="mt-5 pt-4 border-t border-amber-900/40 flex justify-end relative z-10">
+              <a href="https://console.neon.tech/app/projects" target="_blank" rel="noopener noreferrer" className="text-[12px] font-black text-amber-500 hover:text-amber-300 transition-colors flex items-center gap-1.5 bg-amber-950/30 px-3 py-1.5 rounded-sm border border-amber-900/50 hover:bg-amber-900/50">
+                Neon 대시보드 바로가기 ↗
+              </a>
+            </div>
+          </div>
+
+          {/* 2. 기존 방명록 DB 패널 (Vercel) */}
+          <div className="bg-slate-800 border border-emerald-500/50 p-6 rounded-md shadow-lg flex flex-col relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500 rounded-full blur-[50px] opacity-10 group-hover:opacity-20 transition-opacity"></div>
+            <h2 className="text-lg font-bold text-emerald-400 mb-6 flex justify-between items-center">
+              <span>🗄️ 방명록 (게시글 DB)</span>
+            </h2>
+            <div className="mb-2 flex justify-between text-sm font-bold">
+              <span>용량: {dbSizeMB} MB</span>
               <span className="text-slate-400">최대: {maxDbMB} MB</span>
             </div>
             <div className="w-full bg-slate-900 rounded-full h-6 relative overflow-hidden border border-slate-700">
               <div className={`h-full transition-all duration-1000 ${Number(dbUsagePercent) > 80 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${dbUsagePercent}%` }}></div>
               <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-white mix-blend-difference">{dbUsagePercent}% 사용 중</span>
             </div>
+            {/* 💡 [추가] Vercel 바로가기 링크 */}
+            <div className="mt-5 pt-4 border-t border-emerald-900/40 flex justify-end relative z-10">
+              <a href="https://vercel.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-[12px] font-black text-emerald-500 hover:text-emerald-300 transition-colors flex items-center gap-1.5 bg-emerald-950/30 px-3 py-1.5 rounded-sm border border-emerald-900/50 hover:bg-emerald-900/50">
+                Vercel 본관 바로가기 ↗
+              </a>
+            </div>
           </div>
 
-          <div className="bg-slate-800 border border-sky-500/50 p-6 rounded-md shadow-lg flex flex-col">
-            <h2 className="text-lg font-bold text-sky-400 mb-6">☁️ 미디어 창고 (Cloudflare R2)</h2>
+          {/* 3. 기존 R2 미디어 창고 패널 (Cloudflare) */}
+          <div className="bg-slate-800 border border-sky-500/50 p-6 rounded-md shadow-lg flex flex-col relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500 rounded-full blur-[50px] opacity-10 group-hover:opacity-20 transition-opacity"></div>
+            <h2 className="text-lg font-bold text-sky-400 mb-6 flex justify-between items-center">
+              <span>☁️ 미디어 창고 (R2)</span>
+            </h2>
             <div className="mb-2 flex justify-between text-sm font-bold">
-              <span>사용량: {r2SizeMB} MB</span>
+              <span>용량: {r2SizeMB} MB</span>
               <span className="text-slate-400">총 {r2Count}개 파일</span>
             </div>
             <div className="w-full bg-slate-900 rounded-full h-6 relative overflow-hidden border border-slate-700">
               <div className={`h-full transition-all duration-1000 ${Number(r2UsagePercent) > 80 ? 'bg-red-500' : 'bg-sky-500'}`} style={{ width: `${r2UsagePercent}%` }}></div>
               <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-white mix-blend-difference">{r2UsagePercent}% 사용 중</span>
+            </div>
+            {/* 💡 [추가] Cloudflare 바로가기 링크 */}
+            <div className="mt-5 pt-4 border-t border-sky-900/40 flex justify-end relative z-10">
+              <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer" className="text-[12px] font-black text-sky-500 hover:text-sky-300 transition-colors flex items-center gap-1.5 bg-sky-950/30 px-3 py-1.5 rounded-sm border border-sky-900/50 hover:bg-sky-900/50">
+                Cloudflare 방어벽 바로가기 ↗
+              </a>
             </div>
           </div>
         </div>
