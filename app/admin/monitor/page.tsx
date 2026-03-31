@@ -33,9 +33,10 @@ export default async function MonitorControlCenter(props: any) {
     if (!isRealAdmin) return redirect('/'); 
   }
 
-  // 💡 [변경됨] 게이지 최대치는 600으로 넉넉하게 잡고, 표시되는 글자만 '현재 한도 360'으로 세팅!
+  // 💡 [작전 변경] 360 기준 % 계산 & 600까지의 여유 게이지 & 360 지점 붉은 점선 적용
   let neonCuHrs = "0.00";
-  let neonUsagePercent = "0.0";
+  let neonUsagePercentText = "0.0"; // 글자 표시용 (360 기준)
+  let neonVisualPercent = "0.0";    // 막대기 채우기용 (600 기준)
   const gaugeMaxCuHrs = 600; 
   const displayLimitText = 360; 
 
@@ -53,7 +54,12 @@ export default async function MonitorControlCenter(props: any) {
         if (seconds !== undefined) {
           const cuHours = seconds / 3600;
           neonCuHrs = cuHours.toFixed(2);
-          neonUsagePercent = Math.min((cuHours / gaugeMaxCuHrs) * 100, 100).toFixed(1);
+          
+          // 🚀 1. 글자용 퍼센트는 대장님이 정한 360 기준으로 깐깐하게 계산!
+          neonUsagePercentText = ((cuHours / displayLimitText) * 100).toFixed(1);
+          
+          // 🚀 2. 막대기 시각적 길이는 600 기준으로 여유롭게 계산!
+          neonVisualPercent = Math.min((cuHours / gaugeMaxCuHrs) * 100, 100).toFixed(1);
         } else {
           neonCuHrs = "데이터없음";
         }
@@ -67,8 +73,6 @@ export default async function MonitorControlCenter(props: any) {
     console.error("🚨 Neon API 통신 에러 발생:", e);
     neonCuHrs = "에러";
   } 
-
-  // 💡 불필요하게 중복 복사되어있던 두 번째 에러 유발 코드를 삭제했습니다!
 
   let dbSizeBytes = 0;
   let dbError = null;
@@ -214,13 +218,25 @@ export default async function MonitorControlCenter(props: any) {
             </h2>
             <div className="mb-2 flex justify-between text-sm font-bold">
               <span>누적: {neonCuHrs} CU-hrs</span>
-              <span className="text-slate-400">현재 한도: {displayLimitText} CU-hrs</span>
+              <span className="text-slate-400 flex items-center gap-1">
+                목표 한도: {displayLimitText} 
+                <span className="text-[10px] text-slate-500 font-normal">(여유 {gaugeMaxCuHrs})</span>
+              </span>
             </div>
+            
             <div className="w-full bg-slate-900 rounded-full h-6 relative overflow-hidden border border-slate-700">
-              <div className={`h-full transition-all duration-1000 ${Number(neonUsagePercent) > 80 ? 'bg-red-500' : 'bg-amber-500'}`} style={{ width: `${neonUsagePercent}%` }}></div>
-              <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-white mix-blend-difference">{neonUsagePercent}% 소모됨</span>
+              {/* 1. 채워지는 막대기 (600 기준 시각적 길이) */}
+              <div className={`h-full transition-all duration-1000 ${Number(neonUsagePercentText) > 100 ? 'bg-red-500' : 'bg-amber-500'}`} style={{ width: `${neonVisualPercent}%` }}></div>
+              
+              {/* 2. 🚨 360(600의 60%) 지점에 붉은 점선 */}
+              <div className="absolute top-0 bottom-0 border-l-[3px] border-dashed border-red-500 z-10" style={{ left: `${(displayLimitText / gaugeMaxCuHrs) * 100}%` }}></div>
+
+              {/* 3. 텍스트 표시 (360 기준 퍼센트) */}
+              <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-white mix-blend-difference z-20">
+                {neonUsagePercentText}% 소모됨 (360 기준)
+              </span>
             </div>
-            {/* 💡 [추가] 네온 바로가기 링크 */}
+
             <div className="mt-5 pt-4 border-t border-amber-900/40 flex justify-end relative z-10">
               <a href="https://console.neon.tech/app/projects" target="_blank" rel="noopener noreferrer" className="text-[12px] font-black text-amber-500 hover:text-amber-300 transition-colors flex items-center gap-1.5 bg-amber-950/30 px-3 py-1.5 rounded-sm border border-amber-900/50 hover:bg-amber-900/50">
                 Neon 대시보드 바로가기 ↗
@@ -242,7 +258,6 @@ export default async function MonitorControlCenter(props: any) {
               <div className={`h-full transition-all duration-1000 ${Number(dbUsagePercent) > 80 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${dbUsagePercent}%` }}></div>
               <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-white mix-blend-difference">{dbUsagePercent}% 사용 중</span>
             </div>
-            {/* 💡 [추가] Vercel 바로가기 링크 */}
             <div className="mt-5 pt-4 border-t border-emerald-900/40 flex justify-end relative z-10">
               <a href="https://vercel.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-[12px] font-black text-emerald-500 hover:text-emerald-300 transition-colors flex items-center gap-1.5 bg-emerald-950/30 px-3 py-1.5 rounded-sm border border-emerald-900/50 hover:bg-emerald-900/50">
                 Vercel 본관 바로가기 ↗
@@ -264,7 +279,6 @@ export default async function MonitorControlCenter(props: any) {
               <div className={`h-full transition-all duration-1000 ${Number(r2UsagePercent) > 80 ? 'bg-red-500' : 'bg-sky-500'}`} style={{ width: `${r2UsagePercent}%` }}></div>
               <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-white mix-blend-difference">{r2UsagePercent}% 사용 중</span>
             </div>
-            {/* 💡 [추가] Cloudflare 바로가기 링크 */}
             <div className="mt-5 pt-4 border-t border-sky-900/40 flex justify-end relative z-10">
               <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer" className="text-[12px] font-black text-sky-500 hover:text-sky-300 transition-colors flex items-center gap-1.5 bg-sky-950/30 px-3 py-1.5 rounded-sm border border-sky-900/50 hover:bg-sky-900/50">
                 Cloudflare 방어벽 바로가기 ↗
