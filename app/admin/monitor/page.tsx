@@ -33,10 +33,11 @@ export default async function MonitorControlCenter(props: any) {
     if (!isRealAdmin) return redirect('/'); 
   }
 
-  // 💡 [변경됨] 대장님 지시대로 무료 플랜 기준 '100'으로 맞췄습니다!
+  // 💡 [변경됨] 게이지 최대치는 600으로 넉넉하게 잡고, 표시되는 글자만 '현재 한도 360'으로 세팅!
   let neonCuHrs = "0.00";
   let neonUsagePercent = "0.0";
-  const maxNeonCuHrs = 100; 
+  const gaugeMaxCuHrs = 600; 
+  const displayLimitText = 360; 
 
   try {
     if (process.env.NEON_PROJECT_ID && process.env.NEON_API_KEY) {
@@ -47,13 +48,12 @@ export default async function MonitorControlCenter(props: any) {
       
       if (neonRes.ok) {
         const neonData = await neonRes.json();
-        
         const seconds = neonData.project?.compute_time_seconds;
         
         if (seconds !== undefined) {
           const cuHours = seconds / 3600;
           neonCuHrs = cuHours.toFixed(2);
-          neonUsagePercent = Math.min((cuHours / maxNeonCuHrs) * 100, 100).toFixed(1);
+          neonUsagePercent = Math.min((cuHours / gaugeMaxCuHrs) * 100, 100).toFixed(1);
         } else {
           neonCuHrs = "데이터없음";
         }
@@ -64,8 +64,11 @@ export default async function MonitorControlCenter(props: any) {
       neonCuHrs = "키없음";
     }
   } catch (e) {
+    console.error("🚨 Neon API 통신 에러 발생:", e);
     neonCuHrs = "에러";
-  }
+  } 
+
+  // 💡 불필요하게 중복 복사되어있던 두 번째 에러 유발 코드를 삭제했습니다!
 
   let dbSizeBytes = 0;
   let dbError = null;
@@ -211,7 +214,7 @@ export default async function MonitorControlCenter(props: any) {
             </h2>
             <div className="mb-2 flex justify-between text-sm font-bold">
               <span>누적: {neonCuHrs} CU-hrs</span>
-              <span className="text-slate-400">한도: {maxNeonCuHrs} CU-hrs</span>
+              <span className="text-slate-400">현재 한도: {displayLimitText} CU-hrs</span>
             </div>
             <div className="w-full bg-slate-900 rounded-full h-6 relative overflow-hidden border border-slate-700">
               <div className={`h-full transition-all duration-1000 ${Number(neonUsagePercent) > 80 ? 'bg-red-500' : 'bg-amber-500'}`} style={{ width: `${neonUsagePercent}%` }}></div>
