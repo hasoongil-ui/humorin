@@ -62,14 +62,15 @@ export async function generateMetadata(props: any): Promise<Metadata> {
       ? (plainText.length > 80 ? plainText.substring(0, 80) + '...' : plainText) 
       : cleanTitle; 
 
+    // 💡 [핵심] 카톡/페북용(og)과 트위터용(twitter) 이미지를 완벽하게 분리!
     let ogImageUrl = null;
     let twitterImageUrl = null;
 
     const imgMatch = postContent.match(/<img[^>]*src=["']([^"'>]+)["']/i);
     if (imgMatch && imgMatch[1]) {
       const rawUrl = imgMatch[1];
-      ogImageUrl = rawUrl; 
-      twitterImageUrl = `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&w=1200&h=630&fit=cover&a=top`; 
+      ogImageUrl = rawUrl; // 카카오톡/페이스북은 원본 이미지 주소 그대로 (기존과 100% 동일)
+      twitterImageUrl = `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&w=1200&h=630&fit=cover&a=top`; // 오직 트위터만 프록시로 강제 자름
     } 
     else {
       const ytMatch = postContent.match(/<iframe[^>]*src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube\.com\/embed\/|youtu\.be\/)([^"'>?]+)/i);
@@ -95,7 +96,7 @@ export async function generateMetadata(props: any): Promise<Metadata> {
         description: description,
         url: postUrl, 
         siteName: '오재미',
-        images: ogImageUrl ? [{ url: ogImageUrl }] : [], 
+        images: ogImageUrl ? [{ url: ogImageUrl }] : [], // 카톡/페북은 원본(ogImageUrl) 사용
         videos: videoUrl ? [{ url: videoUrl }] : [],
         type: 'article',
       },
@@ -103,7 +104,7 @@ export async function generateMetadata(props: any): Promise<Metadata> {
         card: 'summary_large_image',
         title: cleanTitle,
         description: description,
-        images: twitterImageUrl ? [twitterImageUrl] : [], 
+        images: twitterImageUrl ? [twitterImageUrl] : [], // 오직 트위터만 자른 이미지(twitterImageUrl) 사용
       }
     };
   } catch (error) {
@@ -693,4 +694,141 @@ export default async function PostDetailPage(props: any) {
       <VideoVolumeFix />
       
       <style>{`
-        /* 1. 이미지: 웹툰/만화 가독
+        /* 1. 이미지: 웹툰/만화 가독성을 위한 스마트 리사이징 (렌더링 렉 유발 코드 삭제 완료) */
+        .ql-editor img {
+          display: block;
+          max-width: 720px !important; 
+          width: 100%; 
+          height: auto;
+          margin: 0 auto 15px auto;
+          border-radius: 8px;
+        }
+
+        /* 2. 동영상/유튜브: 기존 황금비율 650px 유지하여 깨짐 방지 */
+        .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube,
+        .ql-editor video, .ql-editor video.ojemi-mp4 {
+          display: block;
+          width: 100%;
+          max-width: 650px; 
+          margin: 10px auto 30px auto;
+          border-radius: 8px;
+          background-color: #000;
+          border: none;
+        }
+        
+        .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16 / 9; height: auto; }
+        .ql-editor video, .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; object-fit: contain; aspect-ratio: auto; }
+
+        /* 3. 스마트폰 모드: 100% 가득 채움 */
+        @media (max-width: 768px) {
+          .ql-editor img, .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube, .ql-editor video, .ql-editor video.ojemi-mp4 {
+            max-width: 100% !important;
+          }
+        }
+
+        .ql-editor p { min-height: 1.5em; }
+        .ql-editor p br { display: block; }
+      `}</style>
+
+      <main className="max-w-[1000px] mx-auto p-5 md:p-8 mt-4 mb-20 overflow-hidden">
+        
+        <div className="border-b-2 border-gray-800 pb-4 mb-4">
+          <h1 className="text-2xl md:text-3xl font-black mb-4"><span className="text-[#3b4890] mr-2">[{postData.cat}]</span>{postData.cleanTitle}</h1>
+          <div className="flex justify-between items-center text-gray-500 text-sm font-bold flex-wrap gap-y-2">
+            
+            <div className="flex items-center gap-2">
+              {post.author_id ? (
+                <Link href={`/user/${post.author_id}`} className="text-[14px] hover:text-[#3b4890] hover:underline cursor-pointer transition-colors">
+                  {post.author}
+                </Link>
+              ) : (<span className="text-[14px]">{post.author}</span>)}
+              
+              <span className="text-gray-300">|</span>
+              
+              <time dateTime={getSeoDatetime(post.date)} className="text-[12px] font-medium text-gray-400 tracking-tight">
+                {getDisplayDate(post.date)}
+              </time>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <div className="text-gray-400 text-[12px] font-medium flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                {post.views || 0}
+              </div>
+              <div className="text-rose-500 text-[13px] flex items-center gap-1">
+                공감 {post.likes || 0}
+              </div>
+            </div>
+
+          </div>
+        </div>
+        
+        <CopyLinkBox postId={postId} />
+        
+        {post.is_blinded && !isAdmin ? (
+          <div className="bg-gray-100 p-12 text-center rounded-lg border border-gray-300 my-10 shadow-inner">
+            <p className="text-gray-600 font-bold text-lg leading-relaxed">보고 싶어 하지 않은 분들이 많아<br/>블라인드 처리된 게시글입니다.</p>
+          </div>
+        ) : (
+          <div className="post-content-area">
+            {post.is_blinded && isAdmin && (
+              <div className="bg-red-50 border border-red-200 p-4 sm:p-5 rounded-sm mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+                <div>
+                  <p className="text-red-600 font-black text-[15px] sm:text-[16px] flex items-center gap-1.5">
+                    <span>🚨</span> [관리자 알림] 신고가 누적되어 블라인드 처리된 글입니다.
+                  </p>
+                  <p className="text-red-500 text-[12px] font-bold mt-1.5 pl-6">
+                    복구 버튼을 누르면 신고 횟수가 0으로 초기화되고 다시 정상 노출됩니다.
+                  </p>
+                </div>
+                <form action={grantPostImmunity} className="w-full sm:w-auto text-right">
+                  <button type="submit" className="w-full sm:w-auto px-5 py-2.5 bg-red-600 text-white text-[13px] font-black rounded-sm hover:bg-red-700 shadow-md transition-colors flex items-center justify-center gap-1.5">
+                    🛡️ 게시글 복구 (블라인드 해제)
+                  </button>
+                </form>
+              </div>
+            )}
+            
+            <div className="min-h-[300px] text-[17px] whitespace-pre-wrap leading-relaxed ql-editor" dangerouslySetInnerHTML={{ __html: cleanContent }} />
+          </div>
+        )}
+        
+        <div className="mt-16 flex justify-center items-center gap-6 sm:gap-10 border-t pt-10 px-2">
+          <PostLikeButton postId={postId} initialLikes={post.likes || 0} initialHasLiked={hasLiked} toggleAction={toggleLike} isAdmin={isAdmin} />
+          <PostDislikeButton postId={postId} initialDislikes={post.dislikes || 0} initialHasDisliked={hasDisliked} toggleAction={toggleDislike} isAdmin={isAdmin} />
+        </div>
+
+        <div className="mt-8 flex justify-end items-center gap-2 px-2">
+          <PostShareButton title={postData.cleanTitle} />
+          <PostScrapButton postId={postId} initialHasScrapped={hasScrapped} toggleScrapAction={toggleScrap} />
+          <PostReportButton postId={postId} currentUserId={currentUserId} isAdmin={isAdmin} />
+        </div>
+        
+        <div className="mt-6 border-t pt-6 flex justify-between">
+          <div className="flex gap-2">
+            {isAuthor && <Link href={`/board/${postId}/edit`} className="px-6 py-2 border font-bold text-sm rounded-sm">수정</Link>}
+            
+            {(isAuthor || isAdmin) && (
+              <DeleteConfirmButton 
+                action={deletePost} 
+                message={"게시글을 정말 삭제하시겠습니까?\n첨부된 미디어와 데이터는 즉시 파기되며 복구할 수 없습니다."}
+                className="px-6 py-2 bg-[#e06c75] text-white font-bold text-sm rounded-sm hover:bg-red-500 transition-colors"
+              >
+                삭제
+              </DeleteConfirmButton>
+            )}
+          </div>
+          <Link href={backToListUrl} className="px-8 py-2 bg-[#414a66] text-white font-bold text-sm rounded-sm hover:bg-[#2a3042] transition-colors">목록으로</Link>
+        </div>
+
+        <div className="mt-16 bg-gray-50 p-5 border rounded-sm shadow-sm">
+           <h3 className="font-bold text-lg border-b pb-3 border-gray-200">댓글 <span className="text-[#e74c3c]">{comments.length}</span></h3>
+           <div className="mt-4">{commentTree.map(node => renderCommentNode(node, 0))}</div>
+           <div className="mt-8">
+             {currentUser ? <CommentForm postId={postId} actionType="main" submitAction={addComment} /> : <div className="p-4 bg-white border border-gray-200 text-center font-bold text-sm text-gray-500 rounded-sm shadow-sm">로그인이 필요합니다.</div>}
+           </div>
+        </div>
+      </main>
+    </div>
+  );
+}
