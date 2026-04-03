@@ -72,7 +72,7 @@ export default async function MonitorControlCenter(props: any) {
   const dbSizeMB = (dbSizeBytes / 1024 / 1024).toFixed(2);
 
   // ==========================================
-  // 3. Cloudflare R2 (게시판 미디어 vs 회원 프사 분리!)
+  // 3. Cloudflare R2 (게시판 미디어 vs 회원 프사 분리)
   // ==========================================
   let r2BoardSize = 0;
   let r2BoardCount = 0;
@@ -94,9 +94,7 @@ export default async function MonitorControlCenter(props: any) {
           }
         });
       }
-    } catch(e: any) {
-      console.error("R2 에러:", e);
-    }
+    } catch(e: any) { console.error("R2 에러:", e); }
   }
   
   const r2ProfileMB = (r2ProfileSize / 1024 / 1024).toFixed(2);
@@ -104,21 +102,23 @@ export default async function MonitorControlCenter(props: any) {
   const r2BoardGB = (r2BoardSize / 1024 / 1024 / 1024).toFixed(3); 
 
   // ==========================================
-  // 4. 🚀 [신규 추가] Cloudflare Analytics 트래픽 CCTV 연동
+  // 4. 🚀 실시간 클라우드플레어 대역폭(트래픽) 연동!
   // ==========================================
   let cfVisitors = "0";
   let cfThreats = "0";
-  let cfBandwidth = "0.00";
+  let cfBandwidthMB = "0.00";
+  let cfBandwidthGB = "0.00";
   let cfRequests = "0";
 
   if (process.env.CLOUDFLARE_ZONE_ID && process.env.CLOUDFLARE_API_TOKEN) {
     try {
-      const cfRes = await fetch(`https://api.cloudflare.com/client/v4/zones/${process.env.CLOUDFLARE_ZONE_ID}/analytics/dashboard?since=-1440`, {
+      // 최근 30일(-43200분) 데이터를 가져와 Vercel 한달 기준(100GB)과 비교합니다.
+      const cfRes = await fetch(`https://api.cloudflare.com/client/v4/zones/${process.env.CLOUDFLARE_ZONE_ID}/analytics/dashboard?since=-43200`, {
         headers: {
           'Authorization': `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
           'Content-Type': 'application/json'
         },
-        next: { revalidate: 60 } // 1분마다 새로고침
+        next: { revalidate: 60 }
       });
       if (cfRes.ok) {
         const cfData = await cfRes.json();
@@ -126,7 +126,12 @@ export default async function MonitorControlCenter(props: any) {
         if (totals) {
           cfVisitors = (totals.uniques?.all || 0).toLocaleString();
           cfThreats = (totals.threats?.all || 0).toLocaleString();
-          cfBandwidth = ((totals.bandwidth?.all || 0) / 1024 / 1024).toFixed(2); // MB 변환
+          
+          // 대역폭 계산 (바이트 -> MB -> GB)
+          const bytes = totals.bandwidth?.all || 0;
+          cfBandwidthMB = (bytes / 1024 / 1024).toFixed(2); 
+          cfBandwidthGB = (bytes / 1024 / 1024 / 1024).toFixed(2); 
+          
           cfRequests = (totals.requests?.all || 0).toLocaleString();
         }
       }
@@ -144,12 +149,11 @@ export default async function MonitorControlCenter(props: any) {
     blindPosts = blindRows[0].cnt;
   } catch (e) {}
 
-  const vercelBandwidthGB = "0.00"; 
   const neonEgressGB = "0.00";      
   const neonStorageGB = "0.03";     
 
   // ==========================================
-  // 관리자 비상 조치 함수
+  // 관리자 액션 함수
   // ==========================================
   const cleanUpGhostFiles = async () => {
     'use server';
@@ -218,6 +222,25 @@ export default async function MonitorControlCenter(props: any) {
   return (
     <div className="min-h-screen bg-[#0f111a] text-gray-100 font-sans p-4 md:p-8">
       <div className="max-w-[1500px] mx-auto">
+        
+        {/* 🚨 [부활 완료] 대장님이 찾으시던 유령 파일 삭제 결과 알림창 🚨 */}
+        {searchParams?.cleared === 'true' && (
+          <div className="mb-6 bg-emerald-900/40 border border-emerald-500 p-4 rounded-md flex justify-between items-center shadow-[0_0_15px_rgba(16,185,129,0.2)] animate-pulse">
+            <div className="flex items-center gap-4">
+              <span className="text-3xl">🧹</span>
+              <div>
+                <h3 className="text-emerald-400 font-black text-lg">유령 파일 싹쓸이 청소 완료!</h3>
+                <p className="text-emerald-100/70 text-sm font-bold">
+                  R2 창고에서 총 <span className="text-white text-base">{searchParams.count}개</span>의 쓰레기 파일 (<span className="text-white text-base">{searchParams.size} MB</span>)을 완벽하게 영구 삭제했습니다.
+                </p>
+              </div>
+            </div>
+            <Link href="/admin/monitor" className="px-4 py-2 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold rounded transition-colors shadow">
+              확인 (닫기) ✕
+            </Link>
+          </div>
+        )}
+
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-slate-700 pb-4 gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-black text-emerald-400 flex items-center gap-2">🖥️ 오재미 궁극의 종합 관제탑</h1>
@@ -231,18 +254,19 @@ export default async function MonitorControlCenter(props: any) {
           
           <div className="bg-slate-800/80 border border-slate-600 p-6 rounded-md shadow-lg flex flex-col relative overflow-hidden">
             <h2 className="text-lg font-black text-white mb-6 flex items-center gap-2 pb-3 border-b border-slate-700">
-              <span className="text-2xl">🏢</span> Vercel 본관 <span className="text-xs font-normal text-slate-400 ml-auto bg-slate-900 px-2 py-1 rounded">Hobby 요금제</span>
+              <span className="text-2xl">🏢</span> Vercel 본관 <span className="text-xs font-normal text-slate-400 ml-auto bg-slate-900 px-2 py-1 rounded">Hobby (100GB 무료)</span>
             </h2>
             
+            {/* 💡 [핵심 연동] 서버에서 실제 빠져나간 대역폭(cfBandwidthGB)을 100GB 게이지에 연결! */}
             <div className="mb-6">
               <div className="flex justify-between text-xs font-bold mb-1.5">
-                <span className="text-slate-300">사이트 접속 트래픽 (Bandwidth)</span>
-                <span className="text-emerald-400">{vercelBandwidthGB} / 100 GB</span>
+                <span className="text-slate-300">사이트 접속 트래픽 (최근 30일 누적)</span>
+                <span className="text-emerald-400">{cfBandwidthGB} GB / 100 GB</span>
               </div>
               <div className="w-full bg-slate-900 rounded-full h-2.5 border border-slate-700 overflow-hidden">
-                <div className="bg-emerald-500 h-full" style={{ width: `${Math.min((Number(vercelBandwidthGB) / 100) * 100, 100)}%` }}></div>
+                <div className={`h-full ${Number(cfBandwidthGB) > 80 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min((Number(cfBandwidthGB) / 100) * 100, 100)}%` }}></div>
               </div>
-              <p className="text-[10px] text-slate-500 mt-1 text-right">🚨 초과 시 사이트 접속 차단됨</p>
+              <p className="text-[10px] text-slate-500 mt-1 text-right">🚨 100GB 초과 시 사이트 차단. (Vercel 요금 방어용)</p>
             </div>
 
             <div className="mb-2">
@@ -347,7 +371,7 @@ export default async function MonitorControlCenter(props: any) {
 
         </div>
 
-        {/* 🚨 보조 패널 영역 (3칸으로 확장 완료!) 🚨 */}
+        {/* 🚨 보조 패널 영역 (3칸 유지!) 🚨 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-md shadow-lg">
@@ -359,11 +383,11 @@ export default async function MonitorControlCenter(props: any) {
             </ul>
           </div>
 
-          {/* 🚀 신규 추가된 Cloudflare 대문 CCTV 구역 */}
+          {/* 🚀 대장님이 살려두라고 하신 CCTV 모니터 옵션 그대로 보존! */}
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-md shadow-lg relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500 rounded-full blur-[60px] opacity-10"></div>
             <h3 className="text-lg font-bold text-orange-400 mb-4 flex items-center gap-2">
-              <span>👁️</span> 실시간 대문 CCTV <span className="text-[10px] text-orange-200/50 ml-auto">(최근 24시간)</span>
+              <span>👁️</span> 실시간 대문 CCTV <span className="text-[10px] text-orange-200/50 ml-auto">(최근 30일 누적)</span>
             </h3>
             <ul className="space-y-3 font-bold text-[14px]">
               <li className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-700">
@@ -376,7 +400,7 @@ export default async function MonitorControlCenter(props: any) {
                 <span className="text-slate-400">🌐 총 클릭/요청 수</span><span className="text-sky-400 font-black">{cfRequests} 건</span>
               </li>
               <li className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-700">
-                <span className="text-slate-400">📊 아낀 데이터 대역폭</span><span className="text-amber-400 font-black">{cfBandwidth} MB</span>
+                <span className="text-slate-400">📊 서버 총 소모 대역폭</span><span className="text-amber-400 font-black">{cfBandwidthMB} MB</span>
               </li>
             </ul>
           </div>
@@ -388,7 +412,7 @@ export default async function MonitorControlCenter(props: any) {
                 <button type="submit" className="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 border border-sky-600/50 rounded text-left transition-colors">
                   <div>
                     <div className="text-sky-400 font-black text-[14px]">🌀 미디어 창고 '유령 파일' 싹쓸이 청소</div>
-                    <div className="text-[11px] text-slate-400 mt-1 font-medium">DB에 없는 게시판 파일을 찾아 삭제합니다. (프사는 절대 보호됨)</div>
+                    <div className="text-[11px] text-slate-400 mt-1 font-medium">DB에 없는 게시판 파일을 찾아 삭제합니다. (프사 보호)</div>
                   </div>
                   <span className="text-sky-400">▶</span>
                 </button>
@@ -403,7 +427,7 @@ export default async function MonitorControlCenter(props: any) {
                 <button type="submit" className="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 border border-indigo-600/50 rounded text-left transition-colors">
                   <div>
                     <div className="text-indigo-400 font-black text-[14px]">👻 부모 잃은 유령 댓글 싹쓸이 청소</div>
-                    <div className="text-[11px] text-slate-400 mt-1 font-medium">과거 일괄 삭제 시 남았던 고아 댓글 9개를 즉시 청소합니다.</div>
+                    <div className="text-[11px] text-slate-400 mt-1 font-medium">고아 댓글 9개를 즉시 청소합니다.</div>
                   </div>
                   <span className="text-indigo-400">▶</span>
                 </button>
