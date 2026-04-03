@@ -137,6 +137,15 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const img = new Image();
           img.src = URL.createObjectURL(file);
           await new Promise((resolve) => { img.onload = resolve; });
+          
+          // 🚨🚨🚨 [대장님의 핵심 방어막: 초장축 웹툰 무사통과 하이패스!] 🚨🚨🚨
+          // 브라우저 캔버스 한계(잘림 현상)를 피하기 위해 세로 5000px 초과 시 원본 그대로 패스!
+          // 가로 해상도 저하(쥐똥만해지는 현상) 절대 없음!
+          if (img.height > 5000) {
+            URL.revokeObjectURL(img.src);
+            return file; 
+          }
+
           const isLongImage = img.height > img.width * 2; 
           URL.revokeObjectURL(img.src);
 
