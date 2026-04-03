@@ -72,7 +72,7 @@ export default async function MonitorControlCenter(props: any) {
   const dbSizeMB = (dbSizeBytes / 1024 / 1024).toFixed(2);
 
   // ==========================================
-  // 3. 🚨 완벽 수정: Cloudflare R2 (게시판 미디어 vs 회원 프사 분리!)
+  // 3. Cloudflare R2 (게시판 미디어 vs 회원 프사 분리!)
   // ==========================================
   let r2BoardSize = 0;
   let r2BoardCount = 0;
@@ -85,7 +85,6 @@ export default async function MonitorControlCenter(props: any) {
       const { Contents } = await s3.send(command);
       if (Contents) {
         Contents.forEach(item => {
-          // 💡 파일 이름이 'profiles/'로 시작하면 프사, 아니면 게시판 파일로 완벽 분류!
           if (item.Key && item.Key.startsWith('profiles/')) {
             r2ProfileCount++;
             r2ProfileSize += (item.Size || 0);
@@ -100,10 +99,39 @@ export default async function MonitorControlCenter(props: any) {
     }
   }
   
-  // 프사는 MB, 게시판은 GB로 보기 편하게 세팅
   const r2ProfileMB = (r2ProfileSize / 1024 / 1024).toFixed(2);
   const r2BoardMB = (r2BoardSize / 1024 / 1024).toFixed(2);
   const r2BoardGB = (r2BoardSize / 1024 / 1024 / 1024).toFixed(3); 
+
+  // ==========================================
+  // 4. 🚀 [신규 추가] Cloudflare Analytics 트래픽 CCTV 연동
+  // ==========================================
+  let cfVisitors = "0";
+  let cfThreats = "0";
+  let cfBandwidth = "0.00";
+  let cfRequests = "0";
+
+  if (process.env.CLOUDFLARE_ZONE_ID && process.env.CLOUDFLARE_API_TOKEN) {
+    try {
+      const cfRes = await fetch(`https://api.cloudflare.com/client/v4/zones/${process.env.CLOUDFLARE_ZONE_ID}/analytics/dashboard?since=-1440`, {
+        headers: {
+          'Authorization': `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        next: { revalidate: 60 } // 1분마다 새로고침
+      });
+      if (cfRes.ok) {
+        const cfData = await cfRes.json();
+        const totals = cfData.result?.totals;
+        if (totals) {
+          cfVisitors = (totals.uniques?.all || 0).toLocaleString();
+          cfThreats = (totals.threats?.all || 0).toLocaleString();
+          cfBandwidth = ((totals.bandwidth?.all || 0) / 1024 / 1024).toFixed(2); // MB 변환
+          cfRequests = (totals.requests?.all || 0).toLocaleString();
+        }
+      }
+    } catch(e) { console.error("CF API 에러:", e); }
+  }
 
   // 통계 데이터
   let totalPosts = 0, totalComments = 0, blindPosts = 0;
@@ -116,14 +144,12 @@ export default async function MonitorControlCenter(props: any) {
     blindPosts = blindRows[0].cnt;
   } catch (e) {}
 
-  // API 미연동 임시 방어값
   const vercelBandwidthGB = "0.00"; 
   const neonEgressGB = "0.00";      
   const neonStorageGB = "0.03";     
-  const cfWafBlocks = "340";        
 
   // ==========================================
-  // 관리자 액션 함수
+  // 관리자 비상 조치 함수
   // ==========================================
   const cleanUpGhostFiles = async () => {
     'use server';
@@ -144,7 +170,6 @@ export default async function MonitorControlCenter(props: any) {
               if (!item.Key) return;
               const fileName = item.Key; 
               
-              // 🚨 프사와 시스템 고정 이미지는 무조건 살려두는 절대 방어막!
               if (fileName.startsWith('profiles/')) return;
               
               const { rows: postCheck } = await sql`SELECT id FROM posts WHERE content LIKE ${'%' + fileName + '%'} LIMIT 1`;
@@ -182,14 +207,6 @@ export default async function MonitorControlCenter(props: any) {
     } catch(e) {}
   };
 
-  const clearBlindedPosts = async () => {
-    'use server';
-    try {
-      await sql`DELETE FROM posts WHERE is_blinded = true`;
-      revalidatePath('/admin/monitor');
-    } catch(e) {}
-  };
-
   const cleanUpGhostComments = async () => {
     'use server';
     try {
@@ -212,7 +229,6 @@ export default async function MonitorControlCenter(props: any) {
         {/* 🚨 오재미 생존 3대장 모니터링 구역 🚨 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           
-          {/* [구역 1] Vercel 모니터링 (가짜 Blob 구역 완벽 제거) */}
           <div className="bg-slate-800/80 border border-slate-600 p-6 rounded-md shadow-lg flex flex-col relative overflow-hidden">
             <h2 className="text-lg font-black text-white mb-6 flex items-center gap-2 pb-3 border-b border-slate-700">
               <span className="text-2xl">🏢</span> Vercel 본관 <span className="text-xs font-normal text-slate-400 ml-auto bg-slate-900 px-2 py-1 rounded">Hobby 요금제</span>
@@ -247,7 +263,6 @@ export default async function MonitorControlCenter(props: any) {
             </div>
           </div>
 
-          {/* [구역 2] Neon 모니터링 */}
           <div className="bg-[#1a1e26] border border-amber-500/30 p-6 rounded-md shadow-lg flex flex-col relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500 rounded-full blur-[60px] opacity-10"></div>
             <h2 className="text-lg font-black text-amber-400 mb-6 flex items-center gap-2 pb-3 border-b border-amber-900/50">
@@ -295,14 +310,12 @@ export default async function MonitorControlCenter(props: any) {
             </div>
           </div>
 
-          {/* [구역 3] Cloudflare 모니터링 (프사와 게시판 완벽 분리 적용!) */}
           <div className="bg-[#121c29] border border-sky-500/30 p-6 rounded-md shadow-lg flex flex-col relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500 rounded-full blur-[60px] opacity-10"></div>
             <h2 className="text-lg font-black text-sky-400 mb-6 flex items-center gap-2 pb-3 border-b border-sky-900/50">
               <span className="text-2xl">🛡️</span> Cloudflare 저장소 <span className="text-xs font-normal text-sky-300/70 ml-auto bg-sky-950/50 px-2 py-1 rounded border border-sky-900/50">R2 (10GB 무료)</span>
             </h2>
 
-            {/* 회원 프사 전용 구역 (추가됨) */}
             <div className="mb-5 relative z-10">
               <div className="flex justify-between text-xs font-bold mb-1.5">
                 <span className="text-pink-300">회원 프사 전용 보관함 (profiles)</span>
@@ -314,7 +327,6 @@ export default async function MonitorControlCenter(props: any) {
               <p className="text-[10px] text-pink-400/60 mt-1 text-right">✅ 현재 총 {r2ProfileCount}개 회원 프사 안전 보관 중</p>
             </div>
 
-            {/* 일반 게시판 미디어 구역 */}
             <div className="mb-6 relative z-10">
               <div className="flex justify-between text-xs font-bold mb-1.5">
                 <span className="text-sky-200">게시판 미디어 창고 (본문 이미지)</span>
@@ -335,14 +347,37 @@ export default async function MonitorControlCenter(props: any) {
 
         </div>
 
-        {/* 보조 패널 영역 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 🚨 보조 패널 영역 (3칸으로 확장 완료!) 🚨 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-md shadow-lg">
             <h3 className="text-lg font-bold text-blue-300 mb-4">📈 데이터 세부 현황</h3>
             <ul className="space-y-4 font-bold text-[15px]">
               <li className="flex justify-between items-center bg-slate-900 p-3 rounded border border-slate-700"><span>📝 총 게시글</span><span className="text-white">{totalPosts} 개</span></li>
               <li className="flex justify-between items-center bg-slate-900 p-3 rounded border border-slate-700"><span>💬 총 댓글</span><span className="text-white">{totalComments} 개</span></li>
               <li className="flex justify-between items-center bg-slate-900 p-3 rounded border border-slate-700"><span className="text-rose-400">🚨 블라인드 글</span><span className="text-rose-400">{blindPosts} 개</span></li>
+            </ul>
+          </div>
+
+          {/* 🚀 신규 추가된 Cloudflare 대문 CCTV 구역 */}
+          <div className="bg-slate-800 border border-slate-700 p-6 rounded-md shadow-lg relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500 rounded-full blur-[60px] opacity-10"></div>
+            <h3 className="text-lg font-bold text-orange-400 mb-4 flex items-center gap-2">
+              <span>👁️</span> 실시간 대문 CCTV <span className="text-[10px] text-orange-200/50 ml-auto">(최근 24시간)</span>
+            </h3>
+            <ul className="space-y-3 font-bold text-[14px]">
+              <li className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-700">
+                <span className="text-slate-400">👤 순 방문자 수</span><span className="text-emerald-400 font-black">{cfVisitors} 명</span>
+              </li>
+              <li className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-700">
+                <span className="text-slate-400">🚨 튕겨낸 해커/봇</span><span className="text-rose-500 font-black">{cfThreats} 회</span>
+              </li>
+              <li className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-700">
+                <span className="text-slate-400">🌐 총 클릭/요청 수</span><span className="text-sky-400 font-black">{cfRequests} 건</span>
+              </li>
+              <li className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-700">
+                <span className="text-slate-400">📊 아낀 데이터 대역폭</span><span className="text-amber-400 font-black">{cfBandwidth} MB</span>
+              </li>
             </ul>
           </div>
 
