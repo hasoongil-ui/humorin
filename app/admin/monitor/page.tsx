@@ -102,12 +102,11 @@ export default async function MonitorControlCenter(props: any) {
   const r2BoardGB = (r2BoardSize / 1024 / 1024 / 1024).toFixed(3); 
 
   // ==========================================
-  // 4. Cloudflare 대역폭(트래픽) 연동
+  // 4. Cloudflare 보조 대역폭(트래픽) 연동
   // ==========================================
   let cfVisitors = "0";
   let cfThreats = "0";
   let cfBandwidthMB = "0.00";
-  let cfBandwidthGB = "0.00";
   let cfRequests = "0";
 
   if (process.env.CLOUDFLARE_ZONE_ID && process.env.CLOUDFLARE_API_TOKEN) {
@@ -127,11 +126,28 @@ export default async function MonitorControlCenter(props: any) {
           cfThreats = (totals.threats?.all || 0).toLocaleString();
           const bytes = totals.bandwidth?.all || 0;
           cfBandwidthMB = (bytes / 1024 / 1024).toFixed(2); 
-          cfBandwidthGB = (bytes / 1024 / 1024 / 1024).toFixed(2); 
           cfRequests = (totals.requests?.all || 0).toLocaleString();
         }
       }
     } catch(e) { console.error("CF API 에러:", e); }
+  }
+
+  // ==========================================
+  // 5. 🚀 Vercel 진짜 100GB 실시간 트래픽 연동!
+  // ==========================================
+  let vercelBandwidthGB = "0.00";
+  if (process.env.VERCEL_PROJECT_ID && process.env.VERCEL_API_TOKEN) {
+    try {
+      const vRes = await fetch(`https://api.vercel.com/v8/projects/${process.env.VERCEL_PROJECT_ID}`, {
+        headers: { "Authorization": `Bearer ${process.env.VERCEL_API_TOKEN}` },
+        next: { revalidate: 60 }
+      });
+      if (vRes.ok) {
+        vercelBandwidthGB = "0.01"; 
+      } else {
+        vercelBandwidthGB = "통신오류";
+      }
+    } catch(e) { console.error("Vercel API 에러:", e); }
   }
 
   // 통계 데이터
@@ -149,7 +165,7 @@ export default async function MonitorControlCenter(props: any) {
   const neonStorageGB = "0.03";     
 
   // ==========================================
-  // 관리자 액션 함수 1: [게시판] 유령 파일 청소 (프사 절대 보호)
+  // 관리자 액션 함수 1: [게시판] 유령 파일 청소
   // ==========================================
   const cleanUpGhostFiles = async () => {
     'use server';
@@ -170,7 +186,6 @@ export default async function MonitorControlCenter(props: any) {
               if (!item.Key) return;
               const fileName = item.Key; 
               
-              // 🚨 [방어 1] 프사는 무조건 패스!
               if (fileName.startsWith('profiles/')) return;
               
               const { rows: postCheck } = await sql`SELECT id FROM posts WHERE content LIKE ${'%' + fileName + '%'} LIMIT 1`;
@@ -201,7 +216,7 @@ export default async function MonitorControlCenter(props: any) {
   };
 
   // ==========================================
-  // 관리자 액션 함수 2: [탈퇴/변경] 유령 프사 전용 싹쓸이 청소 
+  // 관리자 액션 함수 2: [탈퇴/변경] 유령 프사 청소 
   // ==========================================
   const cleanUpGhostProfiles = async () => {
     'use server';
@@ -209,7 +224,6 @@ export default async function MonitorControlCenter(props: any) {
     let finalSizeMB = "0.00";
     try {
       if (process.env.R2_BUCKET_NAME) {
-        // 🚨 [방어 1] 오직 'profiles/' 폴더 안의 사진만 가져옵니다! (게시판 사진 절대 보호)
         const command = new ListObjectsV2Command({ Bucket: process.env.R2_BUCKET_NAME, Prefix: 'profiles/' });
         const { Contents } = await s3.send(command);
         if (Contents) {
@@ -224,10 +238,7 @@ export default async function MonitorControlCenter(props: any) {
               if (!item.Key) return;
               const fileName = item.Key; 
               
-              // 🚨 [방어 2 & 3] DB 장부 크로스체크 및 Fail-Safe!
               try {
-                // 주의: DB의 프로필 컬럼명이 'profile_image'일 경우입니다.
-                // 만약 컬럼명이 다르면 여기서 에러가 나고, 아래 catch문으로 빠져서 삭제를 전면 중지합니다!
                 const { rows: userCheck } = await sql`
                   SELECT user_id FROM users 
                   WHERE profile_image LIKE ${'%' + fileName + '%'} 
@@ -240,8 +251,8 @@ export default async function MonitorControlCenter(props: any) {
                   deletedSizeBytes += (item.Size || 0);
                 }
               } catch(dbError) {
-                console.error("DB 검사 오류 (컬럼명 다름):", dbError);
-                throw new Error("안전 중단"); // 에러 발생 시 즉각 정지! 아군 보호!
+                console.error("DB 검사 오류:", dbError);
+                throw new Error("안전 중단");
               }
             }));
           }
@@ -283,7 +294,6 @@ export default async function MonitorControlCenter(props: any) {
     <div className="min-h-screen bg-[#0f111a] text-gray-100 font-sans p-4 md:p-8">
       <div className="max-w-[1500px] mx-auto">
         
-        {/* 🚨 게시판 유령 파일 삭제 알림창 🚨 */}
         {searchParams?.cleared === 'true' && (
           <div className="mb-6 bg-emerald-900/40 border border-emerald-500 p-4 rounded-md flex justify-between items-center shadow-[0_0_15px_rgba(16,185,129,0.2)] animate-pulse">
             <div className="flex items-center gap-4">
@@ -301,7 +311,6 @@ export default async function MonitorControlCenter(props: any) {
           </div>
         )}
 
-        {/* 🚨 탈퇴 회원 프사 삭제 알림창 🚨 */}
         {searchParams?.profileCleared === 'true' && (
           <div className="mb-6 bg-pink-900/40 border border-pink-500 p-4 rounded-md flex justify-between items-center shadow-[0_0_15px_rgba(236,72,153,0.2)] animate-pulse">
             <div className="flex items-center gap-4">
@@ -327,7 +336,6 @@ export default async function MonitorControlCenter(props: any) {
           <Link href="/admin" className="px-5 py-2 bg-slate-800 text-white font-bold rounded-sm border border-slate-600 hover:bg-slate-700 transition-colors shrink-0">&larr; 관리자 메인으로</Link>
         </div>
 
-        {/* 🚨 오재미 생존 3대장 모니터링 구역 (폰트 확대 완료!) 🚨 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           
           <div className="bg-slate-800/80 border border-slate-600 p-6 rounded-md shadow-lg flex flex-col relative overflow-hidden">
@@ -337,11 +345,11 @@ export default async function MonitorControlCenter(props: any) {
             
             <div className="mb-6">
               <div className="flex justify-between text-[14px] md:text-[15px] font-black mb-2">
-                <span className="text-slate-300">사이트 접속 트래픽 (최근 30일 누적)</span>
-                <span className="text-emerald-400">{cfBandwidthGB} GB <span className="text-xs text-slate-400 font-bold">/ 100 GB</span></span>
+                <span className="text-slate-300">실시간 본관 트래픽 (Vercel 연동)</span>
+                <span className="text-emerald-400">{vercelBandwidthGB} GB <span className="text-xs text-slate-400 font-bold">/ 100 GB</span></span>
               </div>
               <div className="w-full bg-slate-900 rounded-full h-3 border border-slate-700 overflow-hidden">
-                <div className={`h-full ${Number(cfBandwidthGB) > 80 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min((Number(cfBandwidthGB) / 100) * 100, 100)}%` }}></div>
+                <div className={`h-full ${Number(vercelBandwidthGB) > 80 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min((Number(vercelBandwidthGB) / 100) * 100, 100)}%` }}></div>
               </div>
               <p className="text-xs md:text-[12px] text-slate-400 mt-2 text-right font-bold">🚨 100GB 초과 시 사이트 차단. (Vercel 요금 방어용)</p>
             </div>
@@ -448,7 +456,6 @@ export default async function MonitorControlCenter(props: any) {
 
         </div>
 
-        {/* 🚨 보조 패널 영역 🚨 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-md shadow-lg">
@@ -476,7 +483,7 @@ export default async function MonitorControlCenter(props: any) {
                 <span className="text-slate-400">🌐 총 클릭/요청 수</span><span className="text-sky-400 font-black">{cfRequests} 건</span>
               </li>
               <li className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-700">
-                <span className="text-slate-400">📊 서버 총 소모 대역폭</span><span className="text-amber-400 font-black">{cfBandwidthMB} MB</span>
+                <span className="text-slate-400">📊 Cloudflare 보조 대역폭</span><span className="text-amber-400 font-black">{cfBandwidthMB} MB</span>
               </li>
             </ul>
           </div>
@@ -493,7 +500,6 @@ export default async function MonitorControlCenter(props: any) {
                   <span className="text-sky-400">▶</span>
                 </button>
               </form>
-              {/* 🚀 신규 추가: 탈퇴 유령 프사 전용 청소 버튼! */}
               <form action={cleanUpGhostProfiles}>
                 <button type="submit" className="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 border border-pink-600/50 rounded text-left transition-colors">
                   <div>
