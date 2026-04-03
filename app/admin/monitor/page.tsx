@@ -102,7 +102,7 @@ export default async function MonitorControlCenter(props: any) {
   const r2BoardGB = (r2BoardSize / 1024 / 1024 / 1024).toFixed(3); 
 
   // ==========================================
-  // 4. 🚀 실시간 클라우드플레어 대역폭(트래픽) 연동!
+  // 4. Cloudflare 대역폭(트래픽) 연동
   // ==========================================
   let cfVisitors = "0";
   let cfThreats = "0";
@@ -112,7 +112,6 @@ export default async function MonitorControlCenter(props: any) {
 
   if (process.env.CLOUDFLARE_ZONE_ID && process.env.CLOUDFLARE_API_TOKEN) {
     try {
-      // 최근 30일(-43200분) 데이터를 가져와 Vercel 한달 기준(100GB)과 비교합니다.
       const cfRes = await fetch(`https://api.cloudflare.com/client/v4/zones/${process.env.CLOUDFLARE_ZONE_ID}/analytics/dashboard?since=-43200`, {
         headers: {
           'Authorization': `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
@@ -126,12 +125,9 @@ export default async function MonitorControlCenter(props: any) {
         if (totals) {
           cfVisitors = (totals.uniques?.all || 0).toLocaleString();
           cfThreats = (totals.threats?.all || 0).toLocaleString();
-          
-          // 대역폭 계산 (바이트 -> MB -> GB)
           const bytes = totals.bandwidth?.all || 0;
           cfBandwidthMB = (bytes / 1024 / 1024).toFixed(2); 
           cfBandwidthGB = (bytes / 1024 / 1024 / 1024).toFixed(2); 
-          
           cfRequests = (totals.requests?.all || 0).toLocaleString();
         }
       }
@@ -153,7 +149,7 @@ export default async function MonitorControlCenter(props: any) {
   const neonStorageGB = "0.03";     
 
   // ==========================================
-  // 관리자 액션 함수
+  // 관리자 액션 함수 1: [게시판] 유령 파일 청소 (프사 절대 보호)
   // ==========================================
   const cleanUpGhostFiles = async () => {
     'use server';
@@ -174,6 +170,7 @@ export default async function MonitorControlCenter(props: any) {
               if (!item.Key) return;
               const fileName = item.Key; 
               
+              // 🚨 [방어 1] 프사는 무조건 패스!
               if (fileName.startsWith('profiles/')) return;
               
               const { rows: postCheck } = await sql`SELECT id FROM posts WHERE content LIKE ${'%' + fileName + '%'} LIMIT 1`;
@@ -203,6 +200,69 @@ export default async function MonitorControlCenter(props: any) {
     redirect(`/admin/monitor?cleared=true&count=${finalCount}&size=${finalSizeMB}&t=${Date.now()}`);
   };
 
+  // ==========================================
+  // 관리자 액션 함수 2: [탈퇴/변경] 유령 프사 전용 싹쓸이 청소 
+  // ==========================================
+  const cleanUpGhostProfiles = async () => {
+    'use server';
+    let finalCount = 0;
+    let finalSizeMB = "0.00";
+    try {
+      if (process.env.R2_BUCKET_NAME) {
+        // 🚨 [방어 1] 오직 'profiles/' 폴더 안의 사진만 가져옵니다! (게시판 사진 절대 보호)
+        const command = new ListObjectsV2Command({ Bucket: process.env.R2_BUCKET_NAME, Prefix: 'profiles/' });
+        const { Contents } = await s3.send(command);
+        if (Contents) {
+          const r2KeysToDelete = [];
+          let deletedCount = 0;
+          let deletedSizeBytes = 0;
+          const chunkSize = 50;
+          
+          for (let i = 0; i < Contents.length; i += chunkSize) {
+            const chunk = Contents.slice(i, i + chunkSize);
+            await Promise.all(chunk.map(async (item) => {
+              if (!item.Key) return;
+              const fileName = item.Key; 
+              
+              // 🚨 [방어 2 & 3] DB 장부 크로스체크 및 Fail-Safe!
+              try {
+                // 주의: DB의 프로필 컬럼명이 'profile_image'일 경우입니다.
+                // 만약 컬럼명이 다르면 여기서 에러가 나고, 아래 catch문으로 빠져서 삭제를 전면 중지합니다!
+                const { rows: userCheck } = await sql`
+                  SELECT user_id FROM users 
+                  WHERE profile_image LIKE ${'%' + fileName + '%'} 
+                  LIMIT 1
+                `;
+                
+                if (userCheck.length === 0) {
+                  r2KeysToDelete.push({ Key: item.Key }); 
+                  deletedCount++;
+                  deletedSizeBytes += (item.Size || 0);
+                }
+              } catch(dbError) {
+                console.error("DB 검사 오류 (컬럼명 다름):", dbError);
+                throw new Error("안전 중단"); // 에러 발생 시 즉각 정지! 아군 보호!
+              }
+            }));
+          }
+          
+          if (r2KeysToDelete.length > 0) {
+            for (let i = 0; i < r2KeysToDelete.length; i += 1000) {
+              const deleteChunk = r2KeysToDelete.slice(i, i + 1000);
+              await s3.send(new DeleteObjectsCommand({
+                Bucket: process.env.R2_BUCKET_NAME,
+                Delete: { Objects: deleteChunk }
+              }));
+            }
+          }
+          finalCount = deletedCount;
+          finalSizeMB = (deletedSizeBytes / 1024 / 1024).toFixed(2);
+        }
+      }
+    } catch (error) {}
+    redirect(`/admin/monitor?profileCleared=true&count=${finalCount}&size=${finalSizeMB}&t=${Date.now()}`);
+  };
+
   const emergencyDeleteJunkPosts = async () => {
     'use server';
     try {
@@ -223,19 +283,37 @@ export default async function MonitorControlCenter(props: any) {
     <div className="min-h-screen bg-[#0f111a] text-gray-100 font-sans p-4 md:p-8">
       <div className="max-w-[1500px] mx-auto">
         
-        {/* 🚨 [부활 완료] 대장님이 찾으시던 유령 파일 삭제 결과 알림창 🚨 */}
+        {/* 🚨 게시판 유령 파일 삭제 알림창 🚨 */}
         {searchParams?.cleared === 'true' && (
           <div className="mb-6 bg-emerald-900/40 border border-emerald-500 p-4 rounded-md flex justify-between items-center shadow-[0_0_15px_rgba(16,185,129,0.2)] animate-pulse">
             <div className="flex items-center gap-4">
               <span className="text-3xl">🧹</span>
               <div>
-                <h3 className="text-emerald-400 font-black text-lg">유령 파일 싹쓸이 청소 완료!</h3>
+                <h3 className="text-emerald-400 font-black text-lg">게시판 미디어 싹쓸이 완료!</h3>
                 <p className="text-emerald-100/70 text-sm font-bold">
                   R2 창고에서 총 <span className="text-white text-base">{searchParams.count}개</span>의 쓰레기 파일 (<span className="text-white text-base">{searchParams.size} MB</span>)을 완벽하게 영구 삭제했습니다.
                 </p>
               </div>
             </div>
             <Link href="/admin/monitor" className="px-4 py-2 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold rounded transition-colors shadow">
+              확인 (닫기) ✕
+            </Link>
+          </div>
+        )}
+
+        {/* 🚨 탈퇴 회원 프사 삭제 알림창 🚨 */}
+        {searchParams?.profileCleared === 'true' && (
+          <div className="mb-6 bg-pink-900/40 border border-pink-500 p-4 rounded-md flex justify-between items-center shadow-[0_0_15px_rgba(236,72,153,0.2)] animate-pulse">
+            <div className="flex items-center gap-4">
+              <span className="text-3xl">👻</span>
+              <div>
+                <h3 className="text-pink-400 font-black text-lg">유령 프사 싹쓸이 완료!</h3>
+                <p className="text-pink-100/70 text-sm font-bold">
+                  R2 창고에서 총 <span className="text-white text-base">{searchParams.count}개</span>의 탈퇴/찌꺼기 프사 (<span className="text-white text-base">{searchParams.size} MB</span>)를 영구 삭제했습니다.
+                </p>
+              </div>
+            </div>
+            <Link href="/admin/monitor" className="px-4 py-2 bg-pink-800 hover:bg-pink-700 text-white text-xs font-bold rounded transition-colors shadow">
               확인 (닫기) ✕
             </Link>
           </div>
@@ -249,39 +327,38 @@ export default async function MonitorControlCenter(props: any) {
           <Link href="/admin" className="px-5 py-2 bg-slate-800 text-white font-bold rounded-sm border border-slate-600 hover:bg-slate-700 transition-colors shrink-0">&larr; 관리자 메인으로</Link>
         </div>
 
-        {/* 🚨 오재미 생존 3대장 모니터링 구역 🚨 */}
+        {/* 🚨 오재미 생존 3대장 모니터링 구역 (폰트 확대 완료!) 🚨 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           
           <div className="bg-slate-800/80 border border-slate-600 p-6 rounded-md shadow-lg flex flex-col relative overflow-hidden">
-            <h2 className="text-lg font-black text-white mb-6 flex items-center gap-2 pb-3 border-b border-slate-700">
+            <h2 className="text-xl font-black text-white mb-6 flex items-center gap-2 pb-3 border-b border-slate-700">
               <span className="text-2xl">🏢</span> Vercel 본관 <span className="text-xs font-normal text-slate-400 ml-auto bg-slate-900 px-2 py-1 rounded">Hobby (100GB 무료)</span>
             </h2>
             
-            {/* 💡 [핵심 연동] 서버에서 실제 빠져나간 대역폭(cfBandwidthGB)을 100GB 게이지에 연결! */}
             <div className="mb-6">
-              <div className="flex justify-between text-xs font-bold mb-1.5">
+              <div className="flex justify-between text-[14px] md:text-[15px] font-black mb-2">
                 <span className="text-slate-300">사이트 접속 트래픽 (최근 30일 누적)</span>
-                <span className="text-emerald-400">{cfBandwidthGB} GB / 100 GB</span>
+                <span className="text-emerald-400">{cfBandwidthGB} GB <span className="text-xs text-slate-400 font-bold">/ 100 GB</span></span>
               </div>
-              <div className="w-full bg-slate-900 rounded-full h-2.5 border border-slate-700 overflow-hidden">
+              <div className="w-full bg-slate-900 rounded-full h-3 border border-slate-700 overflow-hidden">
                 <div className={`h-full ${Number(cfBandwidthGB) > 80 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min((Number(cfBandwidthGB) / 100) * 100, 100)}%` }}></div>
               </div>
-              <p className="text-[10px] text-slate-500 mt-1 text-right">🚨 100GB 초과 시 사이트 차단. (Vercel 요금 방어용)</p>
+              <p className="text-xs md:text-[12px] text-slate-400 mt-2 text-right font-bold">🚨 100GB 초과 시 사이트 차단. (Vercel 요금 방어용)</p>
             </div>
 
             <div className="mb-2">
-              <div className="flex justify-between text-xs font-bold mb-1.5">
+              <div className="flex justify-between text-[14px] md:text-[15px] font-black mb-2">
                 <span className="text-slate-300">초기 텍스트 DB (Postgres)</span>
-                <span className="text-indigo-400">{dbSizeMB} / 256 MB</span>
+                <span className="text-indigo-400">{dbSizeMB} MB <span className="text-xs text-slate-400 font-bold">/ 256 MB</span></span>
               </div>
-              <div className="w-full bg-slate-900 rounded-full h-2.5 border border-slate-700 overflow-hidden">
+              <div className="w-full bg-slate-900 rounded-full h-3 border border-slate-700 overflow-hidden">
                 <div className={`h-full ${Number(dbSizeMB) > 200 ? 'bg-red-500' : 'bg-indigo-500'}`} style={{ width: `${Math.min((Number(dbSizeMB) / 256) * 100, 100)}%` }}></div>
               </div>
-              <p className="text-[10px] text-slate-500 mt-1 text-right">🚨 초과 시 DB 마비 (텍스트 전용 방어막)</p>
+              <p className="text-xs md:text-[12px] text-slate-400 mt-2 text-right font-bold">🚨 초과 시 DB 마비 (텍스트 전용 방어막)</p>
             </div>
 
             <div className="mt-auto pt-5 border-t border-slate-700/50 flex justify-end">
-              <a href="https://vercel.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-[12px] font-black text-slate-300 hover:text-white transition-colors flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-sm border border-slate-600 hover:bg-slate-700">
+              <a href="https://vercel.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-sm font-black text-slate-300 hover:text-white transition-colors flex items-center gap-1.5 bg-slate-900 px-4 py-2 rounded-sm border border-slate-600 hover:bg-slate-700">
                 Vercel 관리자 바로가기 ↗
               </a>
             </div>
@@ -289,46 +366,46 @@ export default async function MonitorControlCenter(props: any) {
 
           <div className="bg-[#1a1e26] border border-amber-500/30 p-6 rounded-md shadow-lg flex flex-col relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500 rounded-full blur-[60px] opacity-10"></div>
-            <h2 className="text-lg font-black text-amber-400 mb-6 flex items-center gap-2 pb-3 border-b border-amber-900/50">
+            <h2 className="text-xl font-black text-amber-400 mb-6 flex items-center gap-2 pb-3 border-b border-amber-900/50">
               <span className="text-2xl">🗄️</span> Neon 메인 DB <span className="text-xs font-normal text-amber-500/70 ml-auto bg-amber-950/50 px-2 py-1 rounded border border-amber-900/50">월 $19 결제중</span>
             </h2>
 
             <div className="mb-5 relative z-10">
-              <div className="flex justify-between text-xs font-bold mb-1.5">
+              <div className="flex justify-between text-[14px] md:text-[15px] font-black mb-2">
                 <span className="text-amber-200">엔진 구동량 (Compute)</span>
-                <span className="text-amber-400">{neonCuHrs} / 360 CU-hrs</span>
+                <span className="text-amber-400">{neonCuHrs} <span className="text-xs text-amber-600 font-bold">/ 360 CU-hrs</span></span>
               </div>
-              <div className="w-full bg-slate-900 rounded-full h-3 border border-slate-700 relative overflow-hidden">
+              <div className="w-full bg-slate-900 rounded-full h-3.5 border border-slate-700 relative overflow-hidden">
                 <div className={`h-full transition-all duration-1000 ${Number(neonCuHrs) > 360 ? 'bg-red-500' : 'bg-amber-500'}`} style={{ width: `${neonVisualPercent}%` }}></div>
                 <div className="absolute top-0 bottom-0 border-l-[2px] border-dashed border-red-500 z-10" style={{ left: `${(360 / gaugeMaxCuHrs) * 100}%` }}></div>
               </div>
-              <p className="text-[10px] text-amber-500/70 mt-1 text-right">✅ 0.5 CU 자물쇠로 완벽 방어 중 ({neonUsagePercentText}% 소모됨)</p>
+              <p className="text-xs md:text-[12px] text-amber-500/70 mt-2 text-right font-bold">✅ 0.5 CU 자물쇠로 완벽 방어 중 ({neonUsagePercentText}% 소모됨)</p>
             </div>
 
             <div className="mb-5 relative z-10">
-              <div className="flex justify-between text-xs font-bold mb-1.5">
+              <div className="flex justify-between text-[14px] md:text-[15px] font-black mb-2">
                 <span className="text-rose-200">데이터 유출량 (Egress)</span>
-                <span className="text-rose-400">{neonEgressGB} / 100 GB</span>
+                <span className="text-rose-400">{neonEgressGB} GB <span className="text-xs text-rose-800 font-bold">/ 100 GB</span></span>
               </div>
-              <div className="w-full bg-slate-900 rounded-full h-2.5 border border-slate-700 overflow-hidden shadow-[0_0_8px_rgba(225,29,72,0.15)]">
+              <div className="w-full bg-slate-900 rounded-full h-3 border border-slate-700 overflow-hidden shadow-[0_0_8px_rgba(225,29,72,0.15)]">
                 <div className="bg-rose-500 h-full" style={{ width: `${Math.min((Number(neonEgressGB) / 100) * 100, 100)}%` }}></div>
               </div>
-              <p className="text-[10px] text-rose-400/80 mt-1 text-right font-bold">🚨 해커 스크래핑 시 수십만원 요금 폭탄 주의</p>
+              <p className="text-xs md:text-[12px] text-rose-400/80 mt-2 text-right font-bold">🚨 해커 스크래핑 시 수십만원 요금 폭탄 주의</p>
             </div>
 
             <div className="mb-2 relative z-10">
-              <div className="flex justify-between text-xs font-bold mb-1.5">
+              <div className="flex justify-between text-[14px] md:text-[15px] font-black mb-2">
                 <span className="text-amber-100/70">메인 DB 용량 (Storage)</span>
-                <span className="text-amber-100/70">{neonStorageGB} / 10 GB</span>
+                <span className="text-amber-100/70">{neonStorageGB} GB <span className="text-xs text-slate-500 font-bold">/ 10 GB</span></span>
               </div>
-              <div className="w-full bg-slate-900 rounded-full h-1.5 border border-slate-700 overflow-hidden">
+              <div className="w-full bg-slate-900 rounded-full h-2 border border-slate-700 overflow-hidden">
                 <div className="bg-amber-600 h-full" style={{ width: `${Math.min((Number(neonStorageGB) / 10) * 100, 100)}%` }}></div>
               </div>
-              <p className="text-[10px] text-slate-500 mt-1 text-right">✅ 텍스트 전용 저장이라 평생 넉넉함</p>
+              <p className="text-xs md:text-[12px] text-slate-400 mt-2 text-right font-bold">✅ 텍스트 전용 저장이라 평생 넉넉함</p>
             </div>
 
             <div className="mt-auto pt-5 border-t border-amber-900/30 flex justify-end relative z-10">
-              <a href="https://console.neon.tech/app/projects" target="_blank" rel="noopener noreferrer" className="text-[12px] font-black text-amber-500 hover:text-amber-300 transition-colors flex items-center gap-1.5 bg-amber-950/30 px-3 py-1.5 rounded-sm border border-amber-900/50 hover:bg-amber-900/50">
+              <a href="https://console.neon.tech/app/projects" target="_blank" rel="noopener noreferrer" className="text-sm font-black text-amber-500 hover:text-amber-300 transition-colors flex items-center gap-1.5 bg-amber-950/30 px-4 py-2 rounded-sm border border-amber-900/50 hover:bg-amber-900/50">
                 Neon 대시보드 바로가기 ↗
               </a>
             </div>
@@ -336,34 +413,34 @@ export default async function MonitorControlCenter(props: any) {
 
           <div className="bg-[#121c29] border border-sky-500/30 p-6 rounded-md shadow-lg flex flex-col relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500 rounded-full blur-[60px] opacity-10"></div>
-            <h2 className="text-lg font-black text-sky-400 mb-6 flex items-center gap-2 pb-3 border-b border-sky-900/50">
+            <h2 className="text-xl font-black text-sky-400 mb-6 flex items-center gap-2 pb-3 border-b border-sky-900/50">
               <span className="text-2xl">🛡️</span> Cloudflare 저장소 <span className="text-xs font-normal text-sky-300/70 ml-auto bg-sky-950/50 px-2 py-1 rounded border border-sky-900/50">R2 (10GB 무료)</span>
             </h2>
 
             <div className="mb-5 relative z-10">
-              <div className="flex justify-between text-xs font-bold mb-1.5">
+              <div className="flex justify-between text-[14px] md:text-[15px] font-black mb-2">
                 <span className="text-pink-300">회원 프사 전용 보관함 (profiles)</span>
-                <span className="text-pink-400">{r2ProfileMB} MB / 1,024 MB</span>
+                <span className="text-pink-400">{r2ProfileMB} MB <span className="text-xs text-pink-800 font-bold">/ 1,024 MB</span></span>
               </div>
-              <div className="w-full bg-slate-900 rounded-full h-2.5 border border-slate-700 overflow-hidden">
+              <div className="w-full bg-slate-900 rounded-full h-3 border border-slate-700 overflow-hidden">
                 <div className="bg-pink-500 h-full" style={{ width: `${Math.min((Number(r2ProfileMB) / 1024) * 100, 100)}%` }}></div>
               </div>
-              <p className="text-[10px] text-pink-400/60 mt-1 text-right">✅ 현재 총 {r2ProfileCount}개 회원 프사 안전 보관 중</p>
+              <p className="text-xs md:text-[12px] text-pink-400/60 mt-2 text-right font-bold">✅ 현재 총 {r2ProfileCount}개 회원 프사 안전 보관 중</p>
             </div>
 
             <div className="mb-6 relative z-10">
-              <div className="flex justify-between text-xs font-bold mb-1.5">
+              <div className="flex justify-between text-[14px] md:text-[15px] font-black mb-2">
                 <span className="text-sky-200">게시판 미디어 창고 (본문 이미지)</span>
-                <span className="text-sky-400">{r2BoardGB} GB <span className="text-slate-400 font-normal">({r2BoardMB} MB)</span> / 10 GB</span>
+                <span className="text-sky-400">{r2BoardGB} GB <span className="text-xs text-slate-400 font-bold">/ 10 GB</span></span>
               </div>
-              <div className="w-full bg-slate-900 rounded-full h-2.5 border border-slate-700 overflow-hidden">
+              <div className="w-full bg-slate-900 rounded-full h-3 border border-slate-700 overflow-hidden">
                 <div className="bg-sky-500 h-full" style={{ width: `${Math.min((Number(r2BoardGB) / 10) * 100, 100)}%` }}></div>
               </div>
-              <p className="text-[10px] text-sky-400/60 mt-1 text-right">✅ 현재 총 {r2BoardCount}개 게시글 파일 저장 중</p>
+              <p className="text-xs md:text-[12px] text-sky-400/60 mt-2 text-right font-bold">✅ 현재 총 {r2BoardCount}개 게시글 파일 저장 중 ({r2BoardMB} MB)</p>
             </div>
 
             <div className="mt-auto pt-3 border-t border-sky-900/30 flex justify-end relative z-10">
-              <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer" className="text-[12px] font-black text-sky-500 hover:text-sky-300 transition-colors flex items-center gap-1.5 bg-sky-950/30 px-3 py-1.5 rounded-sm border border-sky-900/50 hover:bg-sky-900/50">
+              <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer" className="text-sm font-black text-sky-500 hover:text-sky-300 transition-colors flex items-center gap-1.5 bg-sky-950/30 px-4 py-2 rounded-sm border border-sky-900/50 hover:bg-sky-900/50">
                 Cloudflare 관리자 바로가기 ↗
               </a>
             </div>
@@ -371,7 +448,7 @@ export default async function MonitorControlCenter(props: any) {
 
         </div>
 
-        {/* 🚨 보조 패널 영역 (3칸 유지!) 🚨 */}
+        {/* 🚨 보조 패널 영역 🚨 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-md shadow-lg">
@@ -383,7 +460,6 @@ export default async function MonitorControlCenter(props: any) {
             </ul>
           </div>
 
-          {/* 🚀 대장님이 살려두라고 하신 CCTV 모니터 옵션 그대로 보존! */}
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-md shadow-lg relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500 rounded-full blur-[60px] opacity-10"></div>
             <h3 className="text-lg font-bold text-orange-400 mb-4 flex items-center gap-2">
@@ -412,9 +488,19 @@ export default async function MonitorControlCenter(props: any) {
                 <button type="submit" className="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 border border-sky-600/50 rounded text-left transition-colors">
                   <div>
                     <div className="text-sky-400 font-black text-[14px]">🌀 미디어 창고 '유령 파일' 싹쓸이 청소</div>
-                    <div className="text-[11px] text-slate-400 mt-1 font-medium">DB에 없는 게시판 파일을 찾아 삭제합니다. (프사 보호)</div>
+                    <div className="text-[11px] text-slate-400 mt-1 font-medium">DB에 없는 게시판 파일만 삭제 (프사 절대 보호)</div>
                   </div>
                   <span className="text-sky-400">▶</span>
+                </button>
+              </form>
+              {/* 🚀 신규 추가: 탈퇴 유령 프사 전용 청소 버튼! */}
+              <form action={cleanUpGhostProfiles}>
+                <button type="submit" className="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 border border-pink-600/50 rounded text-left transition-colors">
+                  <div>
+                    <div className="text-pink-400 font-black text-[14px]">👻 탈퇴 회원 '유령 프사' 싹쓸이 청소</div>
+                    <div className="text-[11px] text-slate-400 mt-1 font-medium">DB 장부에 없는 탈퇴/찌꺼기 프사만 골라 삭제합니다.</div>
+                  </div>
+                  <span className="text-pink-400">▶</span>
                 </button>
               </form>
               <form action={emergencyDeleteJunkPosts}>
@@ -425,10 +511,7 @@ export default async function MonitorControlCenter(props: any) {
               </form>
               <form action={cleanUpGhostComments}>
                 <button type="submit" className="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 border border-indigo-600/50 rounded text-left transition-colors">
-                  <div>
-                    <div className="text-indigo-400 font-black text-[14px]">👻 부모 잃은 유령 댓글 싹쓸이 청소</div>
-                    <div className="text-[11px] text-slate-400 mt-1 font-medium">고아 댓글 9개를 즉시 청소합니다.</div>
-                  </div>
+                  <div className="text-indigo-400 font-black text-[14px]">👻 부모 잃은 유령 댓글 싹쓸이 청소</div>
                   <span className="text-indigo-400">▶</span>
                 </button>
               </form>
