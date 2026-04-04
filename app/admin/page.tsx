@@ -164,6 +164,9 @@ export default async function AdminDashboardPage(props: any) {
     } else if (q && type === 'nickname') {
       countResult = await sql`SELECT COUNT(*) FROM users WHERE nickname ILIKE ${'%' + q + '%'}`;
       queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count FROM users u WHERE u.nickname ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+    } else if (q && type === 'ip') {
+      countResult = await sql`SELECT COUNT(*) FROM users WHERE ip ILIKE ${'%' + q + '%'}`;
+      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count FROM users u WHERE u.ip ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
     } else {
       countResult = await sql`SELECT COUNT(*) FROM users`;
       queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count FROM users u ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
@@ -238,7 +241,6 @@ export default async function AdminDashboardPage(props: any) {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
           
-          {/* 💡 원래대로 4칸으로 복구 완료! */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
             <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[11px] font-bold text-gray-500 mb-1">총 회원</p><p className="text-xl font-black text-gray-800">{totalUsers}</p></div>
             <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[11px] font-bold text-gray-500 mb-1">오늘 신규가입</p><p className="text-xl font-black text-rose-500">+{todayUsers}</p></div>
@@ -278,19 +280,30 @@ export default async function AdminDashboardPage(props: any) {
                 <select name="type" defaultValue={type} className="text-xs font-bold border border-gray-300 p-1.5 rounded-sm outline-none bg-white text-gray-700">
                   <option value="userid">아이디</option>
                   <option value="nickname">닉네임</option>
+                  <option value="ip">접속 IP</option>
                 </select>
                 <input type="text" name="q" defaultValue={q} placeholder="검색어 입력..." className="text-xs font-bold border border-gray-300 p-1.5 rounded-sm outline-none w-48 focus:border-[#3b4890]" />
                 <button type="submit" className="px-4 py-1.5 bg-[#414a66] text-white text-xs font-bold rounded-sm hover:bg-[#2a3042] shadow-sm">검색</button>
                 {q && <Link href="/admin" className="px-3 py-1.5 border border-gray-300 text-gray-600 text-xs font-bold rounded-sm hover:bg-gray-50">초기화</Link>}
               </form>
 
-              <a 
-                href={csvDataUri} 
-                download={`오재미_회원관리_${new Date().toISOString().slice(0,10)}.csv`}
-                className="px-4 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 text-xs font-black rounded-sm flex items-center gap-1 transition-colors shadow-sm whitespace-nowrap"
-              >
-                📥 현재 목록 엑셀 저장
-              </a>
+              <div className="flex flex-col items-end gap-1.5">
+                <a 
+                  href={csvDataUri} 
+                  download={`오재미_회원관리_${new Date().toISOString().slice(0,10)}.csv`}
+                  className="px-4 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 text-xs font-black rounded-sm flex items-center justify-center gap-1 transition-colors shadow-sm w-full whitespace-nowrap"
+                >
+                  📥 현재 목록 엑셀 저장
+                </a>
+                <a 
+                  href="https://console.neon.tech/app/projects/broad-sea-43444817/branches/br-square-band-aibyzdjw/tables?database=neondb" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-[10px] font-bold text-gray-500 hover:text-indigo-600 transition-colors flex items-center gap-0.5 whitespace-nowrap"
+                >
+                  🗄️ 전체 회원 명단 다운로드는 Neon Database에서 실행 ↗
+                </a>
+              </div>
             </div>
           </div>
 
