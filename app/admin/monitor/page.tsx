@@ -101,55 +101,6 @@ export default async function MonitorControlCenter(props: any) {
   const r2BoardMB = (r2BoardSize / 1024 / 1024).toFixed(2);
   const r2BoardGB = (r2BoardSize / 1024 / 1024 / 1024).toFixed(3); 
 
-  // ==========================================
-  // 4. Cloudflare 보조 대역폭(트래픽) 연동
-  // ==========================================
-  let cfVisitors = "0";
-  let cfThreats = "0";
-  let cfBandwidthMB = "0.00";
-  let cfRequests = "0";
-
-  if (process.env.CLOUDFLARE_ZONE_ID && process.env.CLOUDFLARE_API_TOKEN) {
-    try {
-      const cfRes = await fetch(`https://api.cloudflare.com/client/v4/zones/${process.env.CLOUDFLARE_ZONE_ID}/analytics/dashboard?since=-43200`, {
-        headers: {
-          'Authorization': `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        next: { revalidate: 60 }
-      });
-      if (cfRes.ok) {
-        const cfData = await cfRes.json();
-        const totals = cfData.result?.totals;
-        if (totals) {
-          cfVisitors = (totals.uniques?.all || 0).toLocaleString();
-          cfThreats = (totals.threats?.all || 0).toLocaleString();
-          const bytes = totals.bandwidth?.all || 0;
-          cfBandwidthMB = (bytes / 1024 / 1024).toFixed(2); 
-          cfRequests = (totals.requests?.all || 0).toLocaleString();
-        }
-      }
-    } catch(e) { console.error("CF API 에러:", e); }
-  }
-
-  // ==========================================
-  // 5. 🚀 Vercel 진짜 100GB 실시간 트래픽 연동!
-  // ==========================================
-  let vercelBandwidthGB = "0.00";
-  if (process.env.VERCEL_PROJECT_ID && process.env.VERCEL_API_TOKEN) {
-    try {
-      const vRes = await fetch(`https://api.vercel.com/v8/projects/${process.env.VERCEL_PROJECT_ID}`, {
-        headers: { "Authorization": `Bearer ${process.env.VERCEL_API_TOKEN}` },
-        next: { revalidate: 60 }
-      });
-      if (vRes.ok) {
-        vercelBandwidthGB = "0.01"; 
-      } else {
-        vercelBandwidthGB = "통신오류";
-      }
-    } catch(e) { console.error("Vercel API 에러:", e); }
-  }
-
   // 통계 데이터
   let totalPosts = 0, totalComments = 0, blindPosts = 0;
   try {
@@ -162,7 +113,7 @@ export default async function MonitorControlCenter(props: any) {
   } catch (e) {}
 
   const neonEgressGB = "0.00";      
-  const neonStorageGB = "0.03";     
+  const neonStorageGB = "0.03";    
 
   // ==========================================
   // 관리자 액션 함수 1: [게시판] 유령 파일 청소
@@ -295,7 +246,7 @@ export default async function MonitorControlCenter(props: any) {
       <div className="max-w-[1500px] mx-auto">
         
         {searchParams?.cleared === 'true' && (
-          <div className="mb-6 bg-emerald-900/40 border border-emerald-500 p-4 rounded-md flex justify-between items-center shadow-[0_0_15px_rgba(16,185,129,0.2)] animate-pulse">
+          <div className="mb-6 bg-emerald-900/40 border border-emerald-500 p-4 rounded-md flex justify-between items-center shadow-[0_0_15px_rgba(16,185,129,0.2)]">
             <div className="flex items-center gap-4">
               <span className="text-3xl">🧹</span>
               <div>
@@ -312,7 +263,7 @@ export default async function MonitorControlCenter(props: any) {
         )}
 
         {searchParams?.profileCleared === 'true' && (
-          <div className="mb-6 bg-pink-900/40 border border-pink-500 p-4 rounded-md flex justify-between items-center shadow-[0_0_15px_rgba(236,72,153,0.2)] animate-pulse">
+          <div className="mb-6 bg-pink-900/40 border border-pink-500 p-4 rounded-md flex justify-between items-center shadow-[0_0_15px_rgba(236,72,153,0.2)]">
             <div className="flex items-center gap-4">
               <span className="text-3xl">👻</span>
               <div>
@@ -343,15 +294,24 @@ export default async function MonitorControlCenter(props: any) {
               <span className="text-2xl">🏢</span> Vercel 본관 <span className="text-xs font-normal text-slate-400 ml-auto bg-slate-900 px-2 py-1 rounded">Hobby (100GB 무료)</span>
             </h2>
             
-            <div className="mb-6">
-              <div className="flex justify-between text-[14px] md:text-[15px] font-black mb-2">
-                <span className="text-slate-300">실시간 본관 트래픽 (Vercel 연동)</span>
-                <span className="text-emerald-400">{vercelBandwidthGB} GB <span className="text-xs text-slate-400 font-bold">/ 100 GB</span></span>
+            <div className="mb-6 bg-red-950/40 border border-red-800 p-4 rounded-md">
+              <div className="flex items-start gap-3">
+                <span className="text-xl mt-0.5">⚠️</span>
+                <div className="flex-1">
+                  <p className="text-red-400 font-bold text-[14px] mb-2">
+                    아래 항목 초과 시 예고 없이 셧다운 주의!
+                  </p>
+                  <ul className="text-red-200/80 font-medium text-[13px] space-y-1 bg-black/20 p-2.5 rounded border border-red-900/30">
+                    <li>• Fluid Active CPU <span className="text-white font-bold">(4H)</span></li>
+                    <li>• Fast Data Transfer <span className="text-white font-bold">(100GB)</span></li>
+                    <li>• Fast Origin Transfer <span className="text-white font-bold">(10GB)</span></li>
+                  </ul>
+                  <p className="text-slate-400 font-medium text-[12px] mt-2.5 leading-tight">
+                    해당 데이터는 외부 연동이 불가하므로<br/>
+                    <span className="text-red-300 font-bold">Vercel 공홈 직접 확인 필수</span>
+                  </p>
+                </div>
               </div>
-              <div className="w-full bg-slate-900 rounded-full h-3 border border-slate-700 overflow-hidden">
-                <div className={`h-full ${Number(vercelBandwidthGB) > 80 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min((Number(vercelBandwidthGB) / 100) * 100, 100)}%` }}></div>
-              </div>
-              <p className="text-xs md:text-[12px] text-slate-400 mt-2 text-right font-bold">🚨 100GB 초과 시 사이트 차단. (Vercel 요금 방어용)</p>
             </div>
 
             <div className="mb-2">
@@ -362,12 +322,12 @@ export default async function MonitorControlCenter(props: any) {
               <div className="w-full bg-slate-900 rounded-full h-3 border border-slate-700 overflow-hidden">
                 <div className={`h-full ${Number(dbSizeMB) > 200 ? 'bg-red-500' : 'bg-indigo-500'}`} style={{ width: `${Math.min((Number(dbSizeMB) / 256) * 100, 100)}%` }}></div>
               </div>
-              <p className="text-xs md:text-[12px] text-slate-400 mt-2 text-right font-bold">🚨 초과 시 DB 마비 (텍스트 전용 방어막)</p>
+              <p className="text-xs md:text-[12px] text-slate-400 mt-2 text-right font-bold">✅ 초과 시 DB 마비 (텍스트 전용 방어막)</p>
             </div>
 
             <div className="mt-auto pt-5 border-t border-slate-700/50 flex justify-end">
-              <a href="https://vercel.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-sm font-black text-slate-300 hover:text-white transition-colors flex items-center gap-1.5 bg-slate-900 px-4 py-2 rounded-sm border border-slate-600 hover:bg-slate-700">
-                Vercel 관리자 바로가기 ↗
+              <a href="https://vercel.com/hasoongil-uis-projects/~/usage" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-slate-300 hover:text-white transition-colors flex items-center gap-1.5 bg-slate-900 px-4 py-2 rounded-sm border border-slate-600 hover:bg-slate-700">
+                Vercel 3대장 직접 확인하기 ↗
               </a>
             </div>
           </div>
@@ -413,7 +373,7 @@ export default async function MonitorControlCenter(props: any) {
             </div>
 
             <div className="mt-auto pt-5 border-t border-amber-900/30 flex justify-end relative z-10">
-              <a href="https://console.neon.tech/app/projects" target="_blank" rel="noopener noreferrer" className="text-sm font-black text-amber-500 hover:text-amber-300 transition-colors flex items-center gap-1.5 bg-amber-950/30 px-4 py-2 rounded-sm border border-amber-900/50 hover:bg-amber-900/50">
+              <a href="https://console.neon.tech/app/projects" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-amber-500 hover:text-amber-300 transition-colors flex items-center gap-1.5 bg-amber-950/30 px-4 py-2 rounded-sm border border-amber-900/50 hover:bg-amber-900/50">
                 Neon 대시보드 바로가기 ↗
               </a>
             </div>
@@ -448,15 +408,16 @@ export default async function MonitorControlCenter(props: any) {
             </div>
 
             <div className="mt-auto pt-3 border-t border-sky-900/30 flex justify-end relative z-10">
-              <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer" className="text-sm font-black text-sky-500 hover:text-sky-300 transition-colors flex items-center gap-1.5 bg-sky-950/30 px-4 py-2 rounded-sm border border-sky-900/50 hover:bg-sky-900/50">
-                Cloudflare 관리자 바로가기 ↗
+              {/* 🚨 대장님이 주신 Cloudflare R2 직행 링크로 교체! */}
+              <a href="https://dash.cloudflare.com/7394bc5926cfa8cc846b26750a3a81ee/r2/overview" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-sky-500 hover:text-sky-300 transition-colors flex items-center gap-1.5 bg-sky-950/30 px-4 py-2 rounded-sm border border-sky-900/50 hover:bg-sky-900/50">
+                Cloudflare R2 직접 확인하기 ↗
               </a>
             </div>
           </div>
 
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-md shadow-lg">
             <h3 className="text-lg font-bold text-blue-300 mb-4">📈 데이터 세부 현황</h3>
@@ -464,27 +425,6 @@ export default async function MonitorControlCenter(props: any) {
               <li className="flex justify-between items-center bg-slate-900 p-3 rounded border border-slate-700"><span>📝 총 게시글</span><span className="text-white">{totalPosts} 개</span></li>
               <li className="flex justify-between items-center bg-slate-900 p-3 rounded border border-slate-700"><span>💬 총 댓글</span><span className="text-white">{totalComments} 개</span></li>
               <li className="flex justify-between items-center bg-slate-900 p-3 rounded border border-slate-700"><span className="text-rose-400">🚨 블라인드 글</span><span className="text-rose-400">{blindPosts} 개</span></li>
-            </ul>
-          </div>
-
-          <div className="bg-slate-800 border border-slate-700 p-6 rounded-md shadow-lg relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500 rounded-full blur-[60px] opacity-10"></div>
-            <h3 className="text-lg font-bold text-orange-400 mb-4 flex items-center gap-2">
-              <span>👁️</span> 실시간 대문 CCTV <span className="text-[10px] text-orange-200/50 ml-auto">(최근 30일 누적)</span>
-            </h3>
-            <ul className="space-y-3 font-bold text-[14px]">
-              <li className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-700">
-                <span className="text-slate-400">👤 순 방문자 수</span><span className="text-emerald-400 font-black">{cfVisitors} 명</span>
-              </li>
-              <li className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-700">
-                <span className="text-slate-400">🚨 튕겨낸 해커/봇</span><span className="text-rose-500 font-black">{cfThreats} 회</span>
-              </li>
-              <li className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-700">
-                <span className="text-slate-400">🌐 총 클릭/요청 수</span><span className="text-sky-400 font-black">{cfRequests} 건</span>
-              </li>
-              <li className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-700">
-                <span className="text-slate-400">📊 Cloudflare 보조 대역폭</span><span className="text-amber-400 font-black">{cfBandwidthMB} MB</span>
-              </li>
             </ul>
           </div>
 
