@@ -3,29 +3,28 @@ import Link from "next/link";
 import "./globals.css";
 import CopyProtection from "./components/CopyProtection";
 
-const siteTitle = "오재미 - 유머, 이슈, 꿀잼 커뮤니티";
-const siteDescription = "코미디보다 더 재밌는 곳! 매일 업데이트되는 유머, 감동, 지식, 최신 이슈가 살아 숨 쉬는 종합 커뮤니티 오재미(OJEMI)입니다. 오늘의 재미를 만나보세요.";
+const siteTitle = "오재미 | 세상의 모든 재미";
+const siteDescription = "매일 업데이트되는 유머, 감동, 지식, 최신 이슈가 살아 숨 쉬는 종합 커뮤니티입니다. 오늘의 재미, 오재미에서 만나보세요.";
 const siteUrl = "https://www.ojemi.kr";
 
-// 💡 [SEO 수술 완벽 적용] 네이버/구글 1페이지 탈환을 위한 극한의 메타데이터!
+// 💡 [SEO 수술 완벽 적용] '오재미' 단독 키워드 정조준!
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl), // 💡 [핵심] 봇들이 이미지 경로를 헷갈리지 않게 기준점 세팅
+  metadataBase: new URL(siteUrl),
   
-  // 1. 기본 메타데이터 (제목과 설명에 '커뮤니티'를 팍팍 강조!)
+  // 1. 기본 메타데이터 ('오재미'를 가장 강력하게 인식시킴)
   title: {
     default: siteTitle,
-    template: "%s | 오재미 커뮤니티", // 💡 다른 페이지로 이동 시 "게시글 제목 | 오재미 커뮤니티" 로 예쁘게 뜹니다.
+    template: "%s | 오재미", // 💡 '오재미 커뮤니티'보다 짧고 강렬하게 '오재미'로만 고정
   },
   description: siteDescription,
   
-  // 💡 [핵심] 코미디언을 이기기 위한 '연관 검색어(꼬리표)' 폭격!
+  // 💡 [핵심] 분산되는 '사이트' 단어 삭제, 오직 '오재미'에 집중
   keywords: [
-    "오재미", "오재미 커뮤니티", "오재미 사이트", "오재미 유머", "ojemi", 
-    "오늘의재미", "유머", "이슈", "감동", "포럼", "커뮤니티", "꿀잼", "유머게시판"
+    "오재미", "유머", "이슈", "감동", "포럼", "커뮤니티", "꿀잼", "유머게시판", "ojemi"
   ],
   manifest: "/manifest.json", 
   
-  // 2. 검색 로봇 프리패스권 (무조건 다 긁어가라고 명령!)
+  // 2. 검색 로봇 프리패스권
   robots: {
     index: true,
     follow: true,
@@ -35,12 +34,12 @@ export const metadata: Metadata = {
     },
   },
 
-  // 3. 원본 주소 명시 (유사 문서 공격 방어)
+  // 3. 원본 주소 명시
   alternates: {
     canonical: "/",
   },
   
-  // 4. 구글 & 네이버 소유확인 명찰 (기존 대장님 세팅 완벽 유지!)
+  // 4. 구글 & 네이버 소유확인 명찰
   verification: {
     google: "3aIk8mNr5N-uh1qZIVo9F6PUpio0bAh9tsDIMQiTG3o", 
     other: {
@@ -51,17 +50,17 @@ export const metadata: Metadata = {
   // 5. 🚀 카카오톡, 네이버 블로그 공유 시 뜨는 썸네일(Open Graph)
   openGraph: {
     type: "website",
-    title: "오재미 - 유머, 이슈, 꿀잼 커뮤니티",
-    description: "유머, 감동, 이슈가 살아 숨 쉬는 커뮤니티 오재미(OJEMI)입니다.",
+    title: siteTitle,
+    description: siteDescription,
     url: siteUrl,
-    siteName: "오재미 커뮤니티",
+    siteName: "오재미",
     locale: "ko_KR",
     images: [
       {
-        url: "/og-image.png", // metadataBase 덕분에 알아서 절대경로로 조립됩니다.
+        url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "오재미 커뮤니티 썸네일",
+        alt: "오재미 로고",
       },
     ],
   },
@@ -69,7 +68,7 @@ export const metadata: Metadata = {
   // 6. 🐦 트위터(X) 카드 셋팅
   twitter: {
     card: "summary_large_image",
-    title: "오재미 커뮤니티",
+    title: siteTitle,
     description: siteDescription,
     images: ["/og-image.png"],
   },

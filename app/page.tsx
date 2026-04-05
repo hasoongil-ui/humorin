@@ -59,7 +59,6 @@ export default async function HomePage() {
   const userIdCookie = cookieStore.get('ojemi_userid');
   const currentUserId = userIdCookie ? userIdCookie.value : null;
 
-  // 💡 [수술 핵심 1] 무식한 하드코딩 삭제하고 DB에서 직접 관리자 여부 확인!
   let isAdmin = false;
   if (currentUserId) {
     try {
@@ -77,7 +76,7 @@ export default async function HomePage() {
     const store = await cookies();
     store.delete('ojemi_user');
     store.delete('ojemi_userid');
-    store.delete('ojemi_signature'); // 💡 기왕 하는 거 서명 쿠키도 같이 삭제
+    store.delete('ojemi_signature'); 
   };
 
   let mainBoards: any[] = [];
@@ -159,11 +158,12 @@ export default async function HomePage() {
         
         <div className="bg-[#414a66] rounded-sm p-6 md:p-10 mb-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
           <div>
+            {/* 💡 [SEO 수술 핵심] h1 태그 안의 느낌표 파괴! 로봇이 '오재미'를 완벽하게 하나의 단어로 읽도록 수정! */}
             <h1 className="text-2xl md:text-3xl font-black text-white mb-2">
-              반갑습니다! 세상의 모든 재미 <span className="text-yellow-400">오!재미</span> 입니다.
+              반갑습니다! 세상의 모든 재미 <span className="text-yellow-400">오재미</span> 입니다.
             </h1>
             <p className="text-sm md:text-base text-gray-300 font-medium">
-              함께 웃고, 나누고, 소통하는 우리들의 따뜻한 공간 오! 재미.
+              함께 웃고, 나누고, 소통하는 우리들의 따뜻한 공간 오재미.
             </p>
           </div>
 
