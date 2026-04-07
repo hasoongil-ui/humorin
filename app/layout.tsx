@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link"; 
+import Link from "next/link";
 import "./globals.css";
 import CopyProtection from "./components/CopyProtection";
 
@@ -10,20 +10,20 @@ const siteUrl = "https://www.ojemi.kr";
 // 💡 [SEO 수술 완벽 적용] '오재미' 단독 키워드 정조준!
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  
+
   // 1. 기본 메타데이터 ('오재미'를 가장 강력하게 인식시킴)
   title: {
     default: siteTitle,
     template: "%s | 오재미", // 💡 '오재미 커뮤니티'보다 짧고 강렬하게 '오재미'로만 고정
   },
   description: siteDescription,
-  
+
   // 💡 [핵심] 분산되는 '사이트' 단어 삭제, 오직 '오재미'에 집중
   keywords: [
     "오재미", "유머", "이슈", "감동", "포럼", "커뮤니티", "꿀잼", "유머게시판", "ojemi"
   ],
-  manifest: "/manifest.json", 
-  
+  manifest: "/manifest.json",
+
   // 2. 검색 로봇 프리패스권
   robots: {
     index: true,
@@ -38,10 +38,10 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
-  
+
   // 4. 구글 & 네이버 소유확인 명찰
   verification: {
-    google: "3aIk8mNr5N-uh1qZIVo9F6PUpio0bAh9tsDIMQiTG3o", 
+    google: "3aIk8mNr5N-uh1qZIVo9F6PUpio0bAh9tsDIMQiTG3o",
     other: {
       "naver-site-verification": "8c8cd4db2f2b39e98404ffa41a05e2aea08cb455",
     },
