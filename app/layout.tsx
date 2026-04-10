@@ -10,6 +10,7 @@ const siteUrl = "https://www.ojemi.kr";
 // 💡 [SEO 수술 완벽 적용] '오재미' 단독 키워드 정조준!
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+  referrer: 'same-origin', // 💡 [추가 완료] 에펨코리아 등 외부 이미지 복붙 시 엑스박스 방지 및 내부 보안 유지
 
   // 1. 기본 메타데이터 ('오재미'를 가장 강력하게 인식시킴)
   title: {
