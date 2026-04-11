@@ -1,45 +1,45 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
 export default function CopyProtection() {
   useEffect(() => {
     const handleCopy = (e: ClipboardEvent) => {
       const selection = window.getSelection();
-      if (!selection || !selection.rangeCount) return;
+      // 선택한 게 없으면 그냥 통과
+      if (!selection || selection.isCollapsed) return; 
 
-      // 유저가 드래그한 내용을 몰래 임시 상자에 담습니다.
-      const container = document.createElement('div');
-      container.appendChild(selection.getRangeAt(0).cloneContents());
+      e.preventDefault();
 
-      // 복사한 내용 중에 <img> 태그가 있는지 싹 뒤집니다.
-      const imgs = container.querySelectorAll('img');
+      // 1. 메모장 같은 곳에 붙여넣을 때 쓸 '글자' 버젼
+      const selectedText = selection.toString();
+      const currentUrl = window.location.href;
+      const sourceLinkText = `\n\n출처: ${currentUrl}`;
+
+      // 2. 타 커뮤니티(디시, 펨코)에 붙여넣을 때 쓸 '사진+글씨' 버젼 (HTML)
+      const range = selection.getRangeAt(0);
+      const clonedSelection = range.cloneContents();
+      const div = document.createElement('div');
+      div.appendChild(clonedSelection);
+      const selectedHtml = div.innerHTML;
       
-      if (imgs.length > 0) {
-         imgs.forEach(img => {
-            // 🔥 [핵심] 원본 이미지 주소를 '경고 이미지' 주소로 바꿔치기합니다!
-            // (나중에 대장님이 만든 오재미 전용 엑박 이미지 주소로 바꾸시면 됩니다)
-            img.src = "https://via.placeholder.com/600x400/f3f4f6/9ca3af?text=This+image+is+only+available+on+Ojemi"; 
-            img.style.maxWidth = "100%";
-         });
+      // 출처에 링크(a 태그)를 걸어서 클릭하면 바로 오재미로 오게 만듦
+      const sourceLinkHtml = `<br><br>출처: <a href="${currentUrl}">${currentUrl}</a>`;
 
-         // 꼬리표(출처) 강제 부착!
-         const watermark = document.createElement('p');
-         watermark.innerHTML = `<br><br><b>출처: 오재미 (https://ojemi.kr)</b>`;
-         container.appendChild(watermark);
-
-         // 조작된 내용을 유저의 클립보드(복사통)에 몰래 쑤셔 넣습니다.
-         e.clipboardData?.setData('text/html', container.innerHTML);
-         e.clipboardData?.setData('text/plain', container.innerText + '\n\n출처: 오재미 (https://ojemi.kr)');
-         
-         // 원래 브라우저가 하려던 복사 동작을 취소시킵니다.
-         e.preventDefault();
+      // 3. 복사통(클립보드)에 두 가지 버젼을 동시에 몰래 쑤셔 넣기!
+      if (e.clipboardData) {
+        e.clipboardData.setData("text/plain", selectedText + sourceLinkText);
+        e.clipboardData.setData("text/html", selectedHtml + sourceLinkHtml);
       }
     };
 
-    document.addEventListener('copy', handleCopy);
-    return () => document.removeEventListener('copy', handleCopy);
+    // 누군가 '복사(Ctrl+C)'를 하는 순간 이 마법이 발동됨
+    document.addEventListener("copy", handleCopy);
+
+    return () => {
+      document.removeEventListener("copy", handleCopy);
+    };
   }, []);
 
-  return null; // 화면에 보이는 건 없습니다. 백그라운드에서 감시만 합니다!
+  return null; // 화면에는 아무것도 안 보임 (투명망토)
 }
