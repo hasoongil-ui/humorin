@@ -81,12 +81,11 @@ export default async function BoardPage(props: any) {
 
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('ojemi_user');
-  const userIdCookie = cookieStore.get('ojemi_userid'); // 💡 유저 고유 ID도 가져옵니다.
+  const userIdCookie = cookieStore.get('ojemi_userid'); 
   
   const currentUser = userCookie ? userCookie.value : null;
   const currentUserId = userIdCookie ? userIdCookie.value : null;
 
-  // 💡 [수술 1] 사이드바에 띄워줄 로그인 유저의 프로필 사진을 DB에서 꺼내옵니다.
   let currentUserProfileImage = null;
   if (currentUserId) {
     try {
@@ -103,7 +102,7 @@ export default async function BoardPage(props: any) {
     'use server';
     const store = await cookies();
     store.delete('ojemi_user');
-    store.delete('ojemi_userid'); // 로그아웃 시 ID 쿠키도 같이 지워줍니다.
+    store.delete('ojemi_userid');
   };
   
   const limit = 20; 
@@ -198,6 +197,29 @@ export default async function BoardPage(props: any) {
   const renderTopPost = topPost && !noticeIds.has(topPost.id) ? topPost : null;
   const canWrite = bestType === ''; 
 
+  // 💡 [수술 1] 페이지네이션 URL 생성 도우미 함수
+  const getPageUrl = (pageNum: number) => {
+    let url = `/board?page=${pageNum}`;
+    if (keyword) url += `&q=${keyword}&searchType=${searchType}`;
+    if (bestType) url += `&best=${bestType}`;
+    if (category !== 'all') url += `&category=${category}`;
+    return url;
+  };
+
+  // 💡 [수술 2] 반응형 숫자 축소 로직 (항상 최대 5개만 노출 - 슬라이딩 윈도우)
+  const maxPageButtons = 5;
+  let startPage = Math.max(1, page - 2);
+  let endPage = Math.min(totalPages, startPage + maxPageButtons - 1);
+  
+  if (endPage - startPage + 1 < maxPageButtons) {
+    startPage = Math.max(1, endPage - maxPageButtons + 1);
+  }
+  
+  const visiblePages = [];
+  for (let i = startPage; i <= endPage; i++) {
+    visiblePages.push(i);
+  }
+
   return (
     <>
       <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row gap-5 p-4 md:py-6 mt-2 mb-20">
@@ -207,7 +229,6 @@ export default async function BoardPage(props: any) {
             {currentUser ? (
               <div>
                 <div className="flex items-center gap-3 mb-4">
-                  {/* 💡 [수술 2] 사이드바의 밋밋한 아바타를 영롱한 '내 프사'로 교체했습니다! */}
                   <div className="w-12 h-12 bg-gray-100 border border-gray-200 rounded-full flex items-center justify-center text-gray-500 shadow-inner overflow-hidden shrink-0">
                     {currentUserProfileImage ? (
                       <img src={currentUserProfileImage} alt={`${currentUser}님의 프로필`} className="w-full h-full object-cover" />
@@ -230,7 +251,7 @@ export default async function BoardPage(props: any) {
                 </div>
 
                 <form action={handleLogout}>
-                  <button type="submit" className="w-full py-2 bg-gray-800 text-white text-xs font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm">
+                  <button type="submit" className="w-full py-2 bg-gray-800 text-white text-xs font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap">
                     로그아웃
                   </button>
                 </form>
@@ -240,7 +261,7 @@ export default async function BoardPage(props: any) {
                 <div className="text-xs font-bold text-gray-500 mb-3 text-center">
                   오재미를 더 편리하게 이용하세요.
                 </div>
-                <Link href="/login" className="block w-full text-center py-2 bg-[#414a66] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors shadow-sm mb-2">
+                <Link href="/login" className="block w-full text-center py-2 bg-[#414a66] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors shadow-sm mb-2 whitespace-nowrap">
                   로그인
                 </Link>
                 <div className="flex justify-between text-xs font-bold text-gray-500 px-1">
@@ -284,7 +305,7 @@ export default async function BoardPage(props: any) {
             </h2>
             
             {canWrite && (
-              <Link href={`/board/write?category=${category}`} className="shrink-0 px-4 py-2 bg-[#3b4890] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors shadow-sm flex items-center gap-1">
+              <Link href={`/board/write?category=${category}`} className="shrink-0 px-4 py-2 bg-[#3b4890] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors shadow-sm flex items-center gap-1 whitespace-nowrap">
                 글쓰기
               </Link>
             )}
@@ -453,30 +474,42 @@ export default async function BoardPage(props: any) {
             </form>
           </div>
 
-          <div className="flex flex-col md:flex-row justify-between items-center mt-4 gap-4">
-            <div className="hidden md:block w-24"></div> 
+          {/* 💡 [수술 3] 페이지네이션 및 하단 버튼 반응형 완벽 개선 (끝 버튼 삭제로 DB 렉 폭탄 방어) */}
+          <div className="flex flex-col md:flex-row justify-between items-center mt-4 gap-4 w-full">
+            <div className="hidden md:block md:flex-1 shrink-0"></div> 
             
-            <div className="flex justify-center items-center gap-1">
+            <div className="flex justify-center items-center gap-1 flex-wrap shrink-0">
               {page > 1 && (
-                <Link href={`/board?page=${page - 1}${keyword ? `&q=${keyword}&searchType=${searchType}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className="px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-xs">
-                  이전
-                </Link>
+                <>
+                  <Link href={getPageUrl(1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                    <span className="hidden sm:inline">처음</span>
+                    <span className="sm:hidden">{"<<"}</span>
+                  </Link>
+                  <Link href={getPageUrl(page - 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                    <span className="hidden sm:inline">이전</span>
+                    <span className="sm:hidden">{"<"}</span>
+                  </Link>
+                </>
               )}
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <Link key={p} href={`/board?page=${p}${keyword ? `&q=${keyword}&searchType=${searchType}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className={`px-3 py-1.5 border rounded-sm font-bold text-xs transition-colors ${page === p ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
+              {visiblePages.map((p) => (
+                <Link key={p} href={getPageUrl(p)} className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${page === p ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
                   {p}
                 </Link>
               ))}
               {page < totalPages && (
-                <Link href={`/board?page=${page + 1}${keyword ? `&q=${keyword}&searchType=${searchType}` : ''}${bestType ? `&best=${bestType}` : ''}${category !== 'all' ? `&category=${category}` : ''}`} className="px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-xs">
-                  다음
-                </Link>
+                <>
+                  <Link href={getPageUrl(page + 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                    <span className="hidden sm:inline">다음</span>
+                    <span className="sm:hidden">{">"}</span>
+                  </Link>
+                  {/* 🚨 악성 부하를 일으키는 '끝(>>)' 버튼은 대형 커뮤니티 표준에 따라 영구 삭제됨 */}
+                </>
               )}
             </div>
 
-            <div className="w-full md:w-24 flex justify-end">
+            <div className="w-full md:flex-1 flex justify-end shrink-0">
               {canWrite && (
-                <Link href={`/board/write?category=${category}`} className="w-full md:w-auto px-5 py-2 bg-[#414a66] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors flex items-center justify-center">
+                <Link href={`/board/write?category=${category}`} className="w-full md:w-auto px-5 py-2 bg-[#414a66] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors flex items-center justify-center whitespace-nowrap">
                   글쓰기
                 </Link>
               )}
