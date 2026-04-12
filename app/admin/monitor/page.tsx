@@ -291,7 +291,7 @@ export default async function MonitorControlCenter(props: any) {
           
           <div className="bg-slate-800/80 border border-slate-600 p-6 rounded-md shadow-lg flex flex-col relative overflow-hidden">
             <h2 className="text-xl font-black text-white mb-6 flex items-center gap-2 pb-3 border-b border-slate-700">
-              <span className="text-2xl">🏢</span> Vercel 본관 <span className="text-xs font-normal text-slate-400 ml-auto bg-slate-900 px-2 py-1 rounded">Hobby (100GB 무료)</span>
+              <span className="text-2xl">🏢</span> Vercel 본관 <span className="text-xs font-normal text-slate-400 ml-auto bg-slate-900 px-2 py-1 rounded">Pro (1000GB 무료)</span>
             </h2>
             
             <div className="mb-6 bg-red-950/40 border border-red-800 p-4 rounded-md">
@@ -299,12 +299,12 @@ export default async function MonitorControlCenter(props: any) {
                 <span className="text-xl mt-0.5">⚠️</span>
                 <div className="flex-1">
                   <p className="text-red-400 font-bold text-[14px] mb-2">
-                    아래 항목 초과 시 예고 없이 셧다운 주의!
+                    아래 항목 초과 시 셧다운 주의!(Pro 버전으로 변경으로 여유))
                   </p>
                   <ul className="text-red-200/80 font-medium text-[13px] space-y-1 bg-black/20 p-2.5 rounded border border-red-900/30">
-                    <li>• Fluid Active CPU <span className="text-white font-bold">(4H)</span></li>
-                    <li>• Fast Data Transfer <span className="text-white font-bold">(100GB)</span></li>
-                    <li>• Fast Origin Transfer <span className="text-white font-bold">(10GB)</span></li>
+                    <li>• Fluid Active CPU <span className="text-white font-bold">(1000H)</span></li>
+                    <li>• Fast Data Transfer <span className="text-white font-bold">(1000GB)</span></li>
+                    <li>• Fast Origin Transfer <span className="text-white font-bold">(100GB)</span></li>
                   </ul>
                   <p className="text-slate-400 font-medium text-[12px] mt-2.5 leading-tight">
                     해당 데이터는 외부 연동이 불가하므로<br/>
