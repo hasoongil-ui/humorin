@@ -290,17 +290,19 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
+  // 💡 [게시글 비공감 수술 완료]
   const toggleDislike = async () => {
     'use server';
     if (!currentUserId) redirect('/login');
     
-    let blindThreshold = 5;
-    try {
-      const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
-      if (rows.length > 0) blindThreshold = Number(rows[0].value) || 5;
-    } catch(e) {}
-
+    // 💡 [관리자 전용 슈퍼파워]: 관리자가 누르면 즉시 블라인드 처리
     if (isAdmin) {
+      let blindThreshold = 5;
+      try {
+        const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
+        if (rows.length > 0) blindThreshold = Number(rows[0].value) || 5;
+      } catch(e) {}
+
       await sql`
         UPDATE posts 
         SET dislikes = COALESCE(dislikes, 0) + 10,
@@ -311,18 +313,14 @@ export default async function PostDetailPage(props: any) {
       return;
     }
 
+    // 🛡️ [일반 유저 테러 방어]: 일반 유저는 순수하게 '비공감' 숫자만 오르내림 (블라인드 로직 완전 삭제)
     const { rows: checkRows = [] } = await sql`SELECT * FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
       await sql`DELETE FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
       await sql`UPDATE posts SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO post_dislikes (post_id, author_id) VALUES (${postId}, ${currentUserId})`;
-      await sql`
-        UPDATE posts 
-        SET dislikes = COALESCE(dislikes, 0) + 1,
-            is_blinded = CASE WHEN COALESCE(dislikes, 0) + 1 >= ${blindThreshold} THEN true ELSE is_blinded END
-        WHERE id = ${postId}
-      `;
+      await sql`UPDATE posts SET dislikes = COALESCE(dislikes, 0) + 1 WHERE id = ${postId}`;
     }
     revalidatePath(`/board/${postId}`);
   };
@@ -469,18 +467,20 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
+  // 💡 [댓글 비공감 수술 완료]
   const toggleCommentDislike = async (formData: FormData) => {
     'use server';
     if (!currentUserId) return;
     const commentId = formData.get('commentId') as string;
 
-    let blindThreshold = 5;
-    try {
-      const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
-      if (rows.length > 0) blindThreshold = Number(rows[0].value) || 5;
-    } catch(e) {}
-
+    // 💡 [관리자 전용 슈퍼파워]: 관리자가 누르면 즉시 블라인드 처리
     if (isAdmin) {
+      let blindThreshold = 5;
+      try {
+        const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
+        if (rows.length > 0) blindThreshold = Number(rows[0].value) || 5;
+      } catch(e) {}
+
       await sql`
         UPDATE comments 
         SET dislikes = COALESCE(dislikes, 0) + 10,
@@ -491,18 +491,14 @@ export default async function PostDetailPage(props: any) {
       return;
     }
 
+    // 🛡️ [일반 유저 테러 방어]: 일반 유저는 순수하게 '비공감' 숫자만 오르내림 (블라인드 로직 완전 삭제)
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_dislikes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
       await sql`DELETE FROM comment_dislikes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
       await sql`UPDATE comments SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${commentId}`;
     } else {
       await sql`INSERT INTO comment_dislikes (comment_id, author_id) VALUES (${commentId}, ${currentUserId})`;
-      await sql`
-        UPDATE comments 
-        SET dislikes = COALESCE(dislikes, 0) + 1,
-            is_blinded = CASE WHEN COALESCE(dislikes, 0) + 1 >= ${blindThreshold} THEN true ELSE is_blinded END
-        WHERE id = ${commentId}
-      `;
+      await sql`UPDATE comments SET dislikes = COALESCE(dislikes, 0) + 1 WHERE id = ${commentId}`;
     }
     revalidatePath(`/board/${postId}`);
   };
