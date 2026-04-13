@@ -62,15 +62,14 @@ export async function generateMetadata(props: any): Promise<Metadata> {
       ? (plainText.length > 80 ? plainText.substring(0, 80) + '...' : plainText) 
       : cleanTitle; 
 
-    // 💡 [핵심] 카톡/페북용(og)과 트위터용(twitter) 이미지를 완벽하게 분리!
     let ogImageUrl = null;
     let twitterImageUrl = null;
 
     const imgMatch = postContent.match(/<img[^>]*src=["']([^"'>]+)["']/i);
     if (imgMatch && imgMatch[1]) {
       const rawUrl = imgMatch[1];
-      ogImageUrl = rawUrl; // 카카오톡/페이스북은 원본 이미지 주소 그대로 (기존과 100% 동일)
-      twitterImageUrl = `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&w=1200&h=630&fit=cover&a=top`; // 오직 트위터만 프록시로 강제 자름
+      ogImageUrl = rawUrl; 
+      twitterImageUrl = `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&w=1200&h=630&fit=cover&a=top`; 
     } 
     else {
       const ytMatch = postContent.match(/<iframe[^>]*src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube\.com\/embed\/|youtu\.be\/)([^"'>?]+)/i);
@@ -96,7 +95,7 @@ export async function generateMetadata(props: any): Promise<Metadata> {
         description: description,
         url: postUrl, 
         siteName: '오재미',
-        images: ogImageUrl ? [{ url: ogImageUrl }] : [], // 카톡/페북은 원본(ogImageUrl) 사용
+        images: ogImageUrl ? [{ url: ogImageUrl }] : [], 
         videos: videoUrl ? [{ url: videoUrl }] : [],
         type: 'article',
       },
@@ -104,15 +103,13 @@ export async function generateMetadata(props: any): Promise<Metadata> {
         card: 'summary_large_image',
         title: cleanTitle,
         description: description,
-        images: twitterImageUrl ? [twitterImageUrl] : [], // 오직 트위터만 자른 이미지(twitterImageUrl) 사용
+        images: twitterImageUrl ? [twitterImageUrl] : [], 
       }
     };
   } catch (error) {
     return { title: '오재미' };
   }
 }
-
-// --------------------------------------------------------------------------------
 
 export default async function PostDetailPage(props: any) {
   const params = await props.params;
@@ -268,8 +265,7 @@ export default async function PostDetailPage(props: any) {
             best1000_at = CASE WHEN COALESCE(likes, 0) + 10 >= 1000 AND best1000_at IS NULL THEN NOW() ELSE best1000_at END
         WHERE id = ${postId}
       `;
-      revalidatePath(`/board/${postId}`);
-      return;
+      return; 
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
@@ -287,14 +283,12 @@ export default async function PostDetailPage(props: any) {
         WHERE id = ${postId}
       `;
     }
-    revalidatePath(`/board/${postId}`);
   };
 
   const toggleDislike = async () => {
     'use server';
     if (!currentUserId) redirect('/login');
     
-    // 💡 [관리자 슈퍼파워]: 관리자가 누르면 +10 증가 및 즉시 블라인드 처리
     if (isAdmin) {
       let blindThreshold = 5;
       try {
@@ -308,21 +302,17 @@ export default async function PostDetailPage(props: any) {
             is_blinded = CASE WHEN COALESCE(dislikes, 0) + 10 >= ${blindThreshold} THEN true ELSE is_blinded END
         WHERE id = ${postId}
       `;
-      revalidatePath(`/board/${postId}`);
-      return;
+      return; 
     }
 
-    // 🛡️ [일반 유저 테러 원천 방어]: 일반 회원은 비공감 시 순수하게 '숫자'만 1 증가/감소. (블라인드 로직 완전 삭제!)
     const { rows: checkRows = [] } = await sql`SELECT * FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
       await sql`DELETE FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
       await sql`UPDATE posts SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO post_dislikes (post_id, author_id) VALUES (${postId}, ${currentUserId})`;
-      // 💡 여기에 있던 is_blinded = CASE WHEN... 함정 코드를 완벽히 제거했습니다!
       await sql`UPDATE posts SET dislikes = COALESCE(dislikes, 0) + 1 WHERE id = ${postId}`;
     }
-    revalidatePath(`/board/${postId}`);
   };
 
   const toggleScrap = async () => {
@@ -334,7 +324,6 @@ export default async function PostDetailPage(props: any) {
     } else {
       await sql`INSERT INTO scraps (post_id, author, author_id) VALUES (${postId}, ${currentUser}, ${currentUserId})`;
     }
-    revalidatePath(`/board/${postId}`);
   };
 
   const addComment = async (formData: FormData) => {
@@ -452,8 +441,7 @@ export default async function PostDetailPage(props: any) {
     
     if (isAdmin) {
       await sql`UPDATE comments SET likes = COALESCE(likes, 0) + 10 WHERE id = ${commentId}`;
-      revalidatePath(`/board/${postId}`);
-      return;
+      return; 
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_likes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
@@ -464,7 +452,6 @@ export default async function PostDetailPage(props: any) {
       await sql`INSERT INTO comment_likes (comment_id, author, author_id) VALUES (${commentId}, ${currentUser}, ${currentUserId})`;
       await sql`UPDATE comments SET likes = COALESCE(likes, 0) + 1 WHERE id = ${commentId}`;
     }
-    revalidatePath(`/board/${postId}`);
   };
 
   const toggleCommentDislike = async (formData: FormData) => {
@@ -472,7 +459,6 @@ export default async function PostDetailPage(props: any) {
     if (!currentUserId) return;
     const commentId = formData.get('commentId') as string;
 
-    // 💡 [관리자 슈퍼파워]: 관리자가 누르면 +10 증가 및 즉시 블라인드 처리
     if (isAdmin) {
       let blindThreshold = 5;
       try {
@@ -486,21 +472,17 @@ export default async function PostDetailPage(props: any) {
             is_blinded = CASE WHEN COALESCE(dislikes, 0) + 10 >= ${blindThreshold} THEN true ELSE is_blinded END
         WHERE id = ${commentId}
       `;
-      revalidatePath(`/board/${postId}`);
-      return;
+      return; 
     }
 
-    // 🛡️ [일반 유저 테러 원천 방어]: 일반 회원은 비공감 시 순수하게 '숫자'만 1 증가/감소. (블라인드 로직 완전 삭제!)
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_dislikes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
       await sql`DELETE FROM comment_dislikes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
       await sql`UPDATE comments SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${commentId}`;
     } else {
       await sql`INSERT INTO comment_dislikes (comment_id, author_id) VALUES (${commentId}, ${currentUserId})`;
-      // 💡 여기에 있던 is_blinded = CASE WHEN... 함정 코드를 완벽히 제거했습니다!
       await sql`UPDATE comments SET dislikes = COALESCE(dislikes, 0) + 1 WHERE id = ${commentId}`;
     }
-    revalidatePath(`/board/${postId}`);
   };
 
   const grantPostImmunity = async () => {
@@ -690,7 +672,7 @@ export default async function PostDetailPage(props: any) {
       <VideoVolumeFix />
       
       <style>{`
-        /* 1. 이미지: 웹툰/만화 가독성을 위한 스마트 리사이징 (렌더링 렉 유발 코드 삭제 완료) */
+        /* 1. 이미지: 웹툰/만화 가독성을 위한 스마트 리사이징 */
         .ql-editor img {
           display: block;
           max-width: 720px !important; 

@@ -32,7 +32,7 @@ export function PostLikeButton({ postId, initialLikes, initialHasLiked, toggleAc
   };
 
   return (
-    <button onClick={handleClick} disabled={isPending} className={`w-[80px] h-[80px] sm:w-[90px] sm:h-[90px] rounded-full border-[3px] flex flex-col items-center justify-center gap-1 transition-all shadow-sm ${hasLiked ? 'border-[#3b4890] bg-[#3b4890] text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-[#3b4890] hover:text-[#3b4890]'}`}>
+    <button type="button" onClick={handleClick} disabled={isPending} className={`w-[80px] h-[80px] sm:w-[90px] sm:h-[90px] rounded-full border-[3px] flex flex-col items-center justify-center gap-1 transition-all shadow-sm ${hasLiked ? 'border-[#3b4890] bg-[#3b4890] text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-[#3b4890] hover:text-[#3b4890]'}`}>
       <span className="text-2xl sm:text-3xl leading-none mt-1">👍</span>
       <span className="text-[12px] sm:text-[13px] font-black">{likes}</span>
     </button>
@@ -61,7 +61,7 @@ export function PostDislikeButton({ postId, initialDislikes, initialHasDisliked,
   };
 
   return (
-    <button onClick={handleClick} disabled={isPending} className={`w-[80px] h-[80px] sm:w-[90px] sm:h-[90px] rounded-full border-[3px] flex flex-col items-center justify-center gap-1 transition-all shadow-sm ${hasDisliked ? 'border-gray-500 bg-gray-500 text-white' : 'border-gray-200 bg-white text-gray-400 hover:border-gray-400 hover:text-gray-600'}`}>
+    <button type="button" onClick={handleClick} disabled={isPending} className={`w-[80px] h-[80px] sm:w-[90px] sm:h-[90px] rounded-full border-[3px] flex flex-col items-center justify-center gap-1 transition-all shadow-sm ${hasDisliked ? 'border-gray-500 bg-gray-500 text-white' : 'border-gray-200 bg-white text-gray-400 hover:border-gray-400 hover:text-gray-600'}`}>
       <span className="text-2xl sm:text-3xl leading-none mt-1">👎</span>
       <span className="text-[12px] sm:text-[13px] font-bold">{dislikes}</span>
     </button>
@@ -81,7 +81,7 @@ export function PostScrapButton({ postId, initialHasScrapped, toggleScrapAction 
   };
 
   return (
-    <button onClick={handleClick} disabled={isPending} className={`px-3 py-1.5 rounded-sm border flex items-center justify-center gap-1.5 text-[12px] font-bold transition-all shadow-sm ${hasScrapped ? 'border-yellow-400 bg-yellow-50 text-yellow-600' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'}`}>
+    <button type="button" onClick={handleClick} disabled={isPending} className={`px-3 py-1.5 rounded-sm border flex items-center justify-center gap-1.5 text-[12px] font-bold transition-all shadow-sm ${hasScrapped ? 'border-yellow-400 bg-yellow-50 text-yellow-600' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'}`}>
       <span>{hasScrapped ? '⭐' : '☆'}</span>
       <span>스크랩</span>
     </button>
@@ -100,7 +100,7 @@ export function PostReportButton({ postId, currentUserId, isAdmin }: any) {
     }
   };
   return (
-    <button onClick={handleReport} className="px-3 py-1.5 flex items-center justify-center gap-1 text-[12px] font-bold text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all rounded-sm border border-transparent">
+    <button type="button" onClick={handleReport} className="px-3 py-1.5 flex items-center justify-center gap-1 text-[12px] font-bold text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all rounded-sm border border-transparent">
       🚨 신고
     </button>
   );
@@ -134,7 +134,7 @@ export function CommentLikeButton({ commentId, initialLikes, initialHasLiked, to
   };
 
   return (
-    <button onClick={handleClick} disabled={isPending} className={`px-2 py-1 border rounded-sm flex items-center gap-1 text-[11px] font-bold transition-colors ${hasLiked ? 'border-[#3b4890] text-[#3b4890] bg-indigo-50' : 'border-gray-300 text-gray-500 hover:bg-gray-50 hover:border-[#3b4890] hover:text-[#3b4890]'}`}>
+    <button type="button" onClick={handleClick} disabled={isPending} className={`px-2 py-1 border rounded-sm flex items-center gap-1 text-[11px] font-bold transition-colors ${hasLiked ? 'border-[#3b4890] text-[#3b4890] bg-indigo-50' : 'border-gray-300 text-gray-500 hover:bg-gray-50 hover:border-[#3b4890] hover:text-[#3b4890]'}`}>
       <span>👍</span>
       <span>{likes}</span>
     </button>
@@ -165,7 +165,7 @@ export function CommentDislikeButton({ commentId, initialDislikes, initialHasDis
   };
 
   return (
-    <button onClick={handleClick} disabled={isPending} className={`px-2 py-1 border rounded-sm flex items-center gap-1 text-[11px] font-bold transition-colors ${hasDisliked ? 'border-gray-500 text-gray-600 bg-gray-100' : 'border-gray-300 text-gray-400 hover:bg-gray-50 hover:border-gray-400 hover:text-gray-600'}`}>
+    <button type="button" onClick={handleClick} disabled={isPending} className={`px-2 py-1 border rounded-sm flex items-center gap-1 text-[11px] font-bold transition-colors ${hasDisliked ? 'border-gray-500 text-gray-600 bg-gray-100' : 'border-gray-300 text-gray-400 hover:bg-gray-50 hover:border-gray-400 hover:text-gray-600'}`}>
       <span>👎</span>
       <span>{dislikes}</span>
     </button>
@@ -184,7 +184,7 @@ export function CommentReportButton({ commentId, currentUserId, isAdmin }: any) 
     }
   };
   return (
-    <button onClick={handleReport} className="px-1.5 py-1 border border-transparent flex items-center gap-1 text-[11px] font-bold text-gray-300 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors rounded-sm" title="신고하기">
+    <button type="button" onClick={handleReport} className="px-1.5 py-1 border border-transparent flex items-center gap-1 text-[11px] font-bold text-gray-300 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors rounded-sm" title="신고하기">
       🚨 신고
     </button>
   );
@@ -331,6 +331,7 @@ export function PostShareButton({ title }: { title: string }) {
 
   return (
     <button 
+      type="button"
       onClick={handleShare}
       className="flex flex-col items-center justify-center p-2 rounded-sm transition-colors text-gray-500 hover:text-[#3b4890] hover:bg-indigo-50"
       title="이 글 공유하기"
@@ -367,6 +368,7 @@ export function CopyLinkBox({ postId }: { postId: string }) {
           {url}
         </span>
         <button
+          type="button"
           onClick={handleCopy}
           className={`px-3 py-1.5 border-l border-gray-200 text-[12px] font-bold transition-colors ${
             copied ? 'bg-green-50 text-green-600' : 'bg-white text-gray-700 hover:bg-gray-100'
