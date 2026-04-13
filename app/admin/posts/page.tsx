@@ -65,21 +65,22 @@ export default async function AdminPostsPage(props: any) {
   const limit = 50;
   const offset = (currentPage - 1) * limit;
 
-  let totalPosts = 0; let todayPosts = 0; let hiddenPosts = 0;
+  let totalPosts = 0; let todayPosts = 0; let blindedPosts = 0;
   let postList: any[] = []; let totalPages = 1;
   let boards: any[] = [];
 
   try {
+    // 💡 [수술 1] 상단 통계에 'is_blinded = true' 인 진짜 블라인드 글을 정확하게 카운트하도록 수정
     const { rows: stats } = await sql`
       SELECT 
         COUNT(*) as total,
         COUNT(CASE WHEN DATE(date) = CURRENT_DATE THEN 1 END) as today,
-        COUNT(CASE WHEN status = 'hidden' THEN 1 END) as hidden
+        COUNT(CASE WHEN is_blinded = true THEN 1 END) as blinded
       FROM posts
     `;
     totalPosts = Number(stats[0]?.total) || 0;
     todayPosts = Number(stats[0]?.today) || 0;
-    hiddenPosts = Number(stats[0]?.hidden) || 0;
+    blindedPosts = Number(stats[0]?.blinded) || 0;
 
     let countResult;
     let queryResult;
@@ -138,7 +139,7 @@ export default async function AdminPostsPage(props: any) {
           <div className="grid grid-cols-4 gap-3 mb-6">
             <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[11px] font-bold text-gray-500 mb-1">총 게시글</p><p className="text-xl font-black text-gray-800">{totalPosts}</p></div>
             <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[11px] font-bold text-gray-500 mb-1">오늘 올라온 글</p><p className="text-xl font-black text-emerald-500">+{todayPosts}</p></div>
-            <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[11px] font-bold text-gray-500 mb-1">블라인드</p><p className="text-xl font-black text-rose-500">{hiddenPosts}</p></div>
+            <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[11px] font-bold text-gray-500 mb-1">블라인드</p><p className="text-xl font-black text-rose-500">{blindedPosts}</p></div>
             <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm flex items-center justify-between"><div><p className="text-[11px] font-bold text-gray-500 mb-1">현재 페이지</p><p className="text-xl font-black text-indigo-600">{currentPage} / {totalPages}</p></div></div>
           </div>
 
@@ -202,7 +203,14 @@ export default async function AdminPostsPage(props: any) {
                         </td>
                         <td className="px-3 py-2 text-center text-[11px] font-bold text-gray-400">{formatDate(post.date)}</td>
                         <td className="px-3 py-2 text-center">
-                          {(!post.status || post.status === 'published') ? <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-sm border border-emerald-100">정상</span> : <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm border border-rose-100">숨김</span>}
+                          {/* 💡 [수술 2] is_blinded 값을 최우선으로 검사하여 붉은색 경고 렌더링! */}
+                          {post.is_blinded ? (
+                            <span className="text-[10px] font-black text-red-600 bg-red-50 px-2 py-0.5 rounded-sm border border-red-200 shadow-sm">🚨 블라인드</span>
+                          ) : post.status === 'hidden' ? (
+                            <span className="text-[10px] font-black text-gray-500 bg-gray-100 px-2 py-0.5 rounded-sm border border-gray-200">숨김</span>
+                          ) : (
+                            <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-sm border border-emerald-100">정상</span>
+                          )}
                         </td>
                       </tr>
                     );
