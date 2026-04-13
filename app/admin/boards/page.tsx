@@ -30,7 +30,6 @@ async function addBoard(formData: FormData) {
   revalidatePath('/admin/boards');
 }
 
-// 🛡️ [수술 1] 게시판 업데이트 액션에 '그룹명'과 '게시판명'도 수정 가능하게 파라미터 추가!
 async function updateBoard(formData: FormData) {
   'use server';
   const id = formData.get('id') as string;
