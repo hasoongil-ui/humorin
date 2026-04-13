@@ -67,7 +67,7 @@ export default async function ProfilePage(props: any) {
   let currentEmail = ''; 
   let myPosts: any[] = [];
   let myScraps: any[] = [];
-  let totalItems = 0; // 💡 [추가] 전체 글 개수를 담을 그릇
+  let totalItems = 0; 
 
   try {
     if (currentUserId) {
@@ -127,34 +127,59 @@ export default async function ProfilePage(props: any) {
     ? 100 
     : Math.min(((points - currentTier.min) / (nextTier.min - currentTier.min)) * 100, 100);
 
-  // 💡 [페이지 나누기 핵심 3] 전체 페이지 수 계산 및 렌더링 함수
+  // 💡 [페이지 나누기 핵심 3] 전체 페이지 수 계산 및 완벽 반응형 렌더링 함수
   const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
   
   const renderPagination = () => {
     if (totalPages <= 1) return null; // 1페이지밖에 없으면 번호 숨기기
 
+    const maxPageButtons = 5;
     let startPage = Math.max(1, currentPage - 2);
-    let endPage = Math.min(totalPages, currentPage + 2);
+    let endPage = Math.min(totalPages, startPage + maxPageButtons - 1);
+    
+    if (endPage - startPage + 1 < maxPageButtons) {
+      startPage = Math.max(1, endPage - maxPageButtons + 1);
+    }
+    
+    const visiblePages = [];
+    for (let i = startPage; i <= endPage; i++) {
+      visiblePages.push(i);
+    }
 
-    if (currentPage <= 3) endPage = Math.min(totalPages, 5);
-    if (currentPage >= totalPages - 2) startPage = Math.max(1, totalPages - 4);
+    const getPageUrl = (pageNum: number) => `/profile?tab=${currentTab}&page=${pageNum}`;
 
     return (
-      <div className="flex justify-center items-center gap-2 mt-8 pb-4">
+      <div className="flex justify-center items-center gap-1 flex-wrap mt-8 pb-4 w-full">
         {currentPage > 1 && (
-          <Link href={`/profile?tab=${currentTab}&page=${currentPage - 1}`} className="px-3 py-1.5 border border-gray-200 rounded-sm text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">이전</Link>
+          <>
+            <Link href={getPageUrl(1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+              <span className="hidden sm:inline">처음</span>
+              <span className="sm:hidden">{"<<"}</span>
+            </Link>
+            <Link href={getPageUrl(currentPage - 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+              <span className="hidden sm:inline">이전</span>
+              <span className="sm:hidden">{"<"}</span>
+            </Link>
+          </>
         )}
-        {Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(p => (
+        
+        {visiblePages.map((p) => (
           <Link 
             key={p} 
-            href={`/profile?tab=${currentTab}&page=${p}`} 
-            className={`px-3.5 py-1.5 border rounded-sm text-sm font-bold transition-colors ${currentPage === p ? 'bg-[#3b4890] text-white border-[#3b4890]' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+            href={getPageUrl(p)} 
+            className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${currentPage === p ? 'bg-[#3b4890] text-white border-[#3b4890]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}
           >
             {p}
           </Link>
         ))}
+        
         {currentPage < totalPages && (
-          <Link href={`/profile?tab=${currentTab}&page=${currentPage + 1}`} className="px-3 py-1.5 border border-gray-200 rounded-sm text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">다음</Link>
+          <>
+            <Link href={getPageUrl(currentPage + 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+              <span className="hidden sm:inline">다음</span>
+              <span className="sm:hidden">{">"}</span>
+            </Link>
+          </>
         )}
       </div>
     );
