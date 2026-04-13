@@ -1,59 +1,96 @@
 'use client';
 
 import { useFormStatus } from 'react-dom';
-import { useState, useRef } from 'react';
+import { useState, useRef, useTransition } from 'react';
 import { Loader2 } from 'lucide-react';
 
-function SubmitButton({ children, className, disabled }: any) {
-  const { pending } = useFormStatus();
+// ---------------------------------------------------------
+// 🟢 1. 게시글용 무반동(Zero-Recoil) 버튼들
+// ---------------------------------------------------------
+
+export function PostLikeButton({ postId, initialLikes, initialHasLiked, toggleAction, isAdmin }: any) {
+  const [isPending, startTransition] = useTransition();
+  const [hasLiked, setHasLiked] = useState(initialHasLiked);
+  const [likes, setLikes] = useState(initialLikes);
+
+  const handleClick = () => {
+    if (isPending) return;
+
+    // 즉각적인 화면 업데이트 (Optimistic UI)
+    const increment = isAdmin ? 10 : 1;
+    if (isAdmin) {
+      setLikes(likes + increment);
+    } else {
+      setHasLiked(!hasLiked);
+      setLikes(hasLiked ? Math.max(0, likes - 1) : likes + increment);
+    }
+
+    // 서버 업데이트는 백그라운드에서 스크롤 튕김 없이 조용히 처리
+    startTransition(async () => {
+      await toggleAction();
+    });
+  };
+
   return (
-    <button type="submit" disabled={pending || disabled} className={className}>
-      {pending ? '...' : children}
+    <button onClick={handleClick} disabled={isPending} className={`w-[80px] h-[80px] sm:w-[90px] sm:h-[90px] rounded-full border-[3px] flex flex-col items-center justify-center gap-1 transition-all shadow-sm ${hasLiked ? 'border-[#3b4890] bg-[#3b4890] text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-[#3b4890] hover:text-[#3b4890]'}`}>
+      <span className="text-2xl sm:text-3xl leading-none mt-1">👍</span>
+      <span className="text-[12px] sm:text-[13px] font-black">{likes}</span>
     </button>
   );
 }
 
-// ---------------------------------------------------------
-// 🟢 1. 게시글용 버튼들
-// ---------------------------------------------------------
-
-export function PostLikeButton({ postId, initialLikes, initialHasLiked, toggleAction, isAdmin }: any) {
-  return (
-    <form action={toggleAction}>
-      <SubmitButton className={`w-[80px] h-[80px] sm:w-[90px] sm:h-[90px] rounded-full border-[3px] flex flex-col items-center justify-center gap-1 transition-all shadow-sm ${initialHasLiked ? 'border-[#3b4890] bg-[#3b4890] text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-[#3b4890] hover:text-[#3b4890]'}`}>
-        <span className="text-2xl sm:text-3xl leading-none mt-1">👍</span>
-        <span className="text-[12px] sm:text-[13px] font-black">{initialLikes}</span>
-      </SubmitButton>
-    </form>
-  );
-}
-
 export function PostDislikeButton({ postId, initialDislikes, initialHasDisliked, toggleAction, isAdmin }: any) {
+  const [isPending, startTransition] = useTransition();
+  const [hasDisliked, setHasDisliked] = useState(initialHasDisliked);
+  const [dislikes, setDislikes] = useState(initialDislikes);
+
+  const handleClick = () => {
+    if (isPending) return;
+
+    const increment = isAdmin ? 10 : 1;
+    if (isAdmin) {
+      setDislikes(dislikes + increment);
+    } else {
+      setHasDisliked(!hasDisliked);
+      setDislikes(hasDisliked ? Math.max(0, dislikes - 1) : dislikes + increment);
+    }
+
+    startTransition(async () => {
+      await toggleAction();
+    });
+  };
+
   return (
-    <form action={toggleAction}>
-      <SubmitButton className={`w-[80px] h-[80px] sm:w-[90px] sm:h-[90px] rounded-full border-[3px] flex flex-col items-center justify-center gap-1 transition-all shadow-sm ${initialHasDisliked ? 'border-gray-500 bg-gray-500 text-white' : 'border-gray-200 bg-white text-gray-400 hover:border-gray-400 hover:text-gray-600'}`}>
-        <span className="text-2xl sm:text-3xl leading-none mt-1">👎</span>
-        <span className="text-[12px] sm:text-[13px] font-bold">{initialDislikes}</span>
-      </SubmitButton>
-    </form>
+    <button onClick={handleClick} disabled={isPending} className={`w-[80px] h-[80px] sm:w-[90px] sm:h-[90px] rounded-full border-[3px] flex flex-col items-center justify-center gap-1 transition-all shadow-sm ${hasDisliked ? 'border-gray-500 bg-gray-500 text-white' : 'border-gray-200 bg-white text-gray-400 hover:border-gray-400 hover:text-gray-600'}`}>
+      <span className="text-2xl sm:text-3xl leading-none mt-1">👎</span>
+      <span className="text-[12px] sm:text-[13px] font-bold">{dislikes}</span>
+    </button>
   );
 }
 
 export function PostScrapButton({ postId, initialHasScrapped, toggleScrapAction }: any) {
+  const [isPending, startTransition] = useTransition();
+  const [hasScrapped, setHasScrapped] = useState(initialHasScrapped);
+
+  const handleClick = () => {
+    if (isPending) return;
+    setHasScrapped(!hasScrapped);
+    startTransition(async () => {
+      await toggleScrapAction();
+    });
+  };
+
   return (
-    <form action={toggleScrapAction}>
-      <SubmitButton className={`px-3 py-1.5 rounded-sm border flex items-center justify-center gap-1.5 text-[12px] font-bold transition-all shadow-sm ${initialHasScrapped ? 'border-yellow-400 bg-yellow-50 text-yellow-600' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'}`}>
-        <span>{initialHasScrapped ? '⭐' : '☆'}</span>
-        <span>스크랩</span>
-      </SubmitButton>
-    </form>
+    <button onClick={handleClick} disabled={isPending} className={`px-3 py-1.5 rounded-sm border flex items-center justify-center gap-1.5 text-[12px] font-bold transition-all shadow-sm ${hasScrapped ? 'border-yellow-400 bg-yellow-50 text-yellow-600' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'}`}>
+      <span>{hasScrapped ? '⭐' : '☆'}</span>
+      <span>스크랩</span>
+    </button>
   );
 }
 
 export function PostReportButton({ postId, currentUserId, isAdmin }: any) {
   const handleReport = async () => {
     if (!currentUserId) return alert('로그인이 필요합니다.');
-    // 💡 [수술 1] 관리자 튕겨내는 알림창 삭제 완료!
     if (confirm('이 게시글을 신고하시겠습니까?\n허위 신고 시 불이익을 받을 수 있습니다.')) {
       try {
         const res = await fetch(`/api/report/post`, { method: 'POST', body: JSON.stringify({ postId }) });
@@ -70,37 +107,74 @@ export function PostReportButton({ postId, currentUserId, isAdmin }: any) {
 }
 
 // ---------------------------------------------------------
-// 🟢 2. 댓글용 버튼들
+// 🟢 2. 댓글용 무반동 버튼들
 // ---------------------------------------------------------
 
 export function CommentLikeButton({ commentId, initialLikes, initialHasLiked, toggleAction, isAdmin }: any) {
+  const [isPending, startTransition] = useTransition();
+  const [hasLiked, setHasLiked] = useState(initialHasLiked);
+  const [likes, setLikes] = useState(initialLikes);
+
+  const handleClick = () => {
+    if (isPending) return;
+
+    const increment = isAdmin ? 10 : 1;
+    if (isAdmin) {
+      setLikes(likes + increment);
+    } else {
+      setHasLiked(!hasLiked);
+      setLikes(hasLiked ? Math.max(0, likes - 1) : likes + increment);
+    }
+
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.append('commentId', commentId);
+      await toggleAction(formData);
+    });
+  };
+
   return (
-    <form action={toggleAction}>
-      <input type="hidden" name="commentId" value={commentId} />
-      <SubmitButton className={`px-2 py-1 border rounded-sm flex items-center gap-1 text-[11px] font-bold transition-colors ${initialHasLiked ? 'border-[#3b4890] text-[#3b4890] bg-indigo-50' : 'border-gray-300 text-gray-500 hover:bg-gray-50 hover:border-[#3b4890] hover:text-[#3b4890]'}`}>
-        <span>👍</span>
-        <span>{initialLikes}</span>
-      </SubmitButton>
-    </form>
+    <button onClick={handleClick} disabled={isPending} className={`px-2 py-1 border rounded-sm flex items-center gap-1 text-[11px] font-bold transition-colors ${hasLiked ? 'border-[#3b4890] text-[#3b4890] bg-indigo-50' : 'border-gray-300 text-gray-500 hover:bg-gray-50 hover:border-[#3b4890] hover:text-[#3b4890]'}`}>
+      <span>👍</span>
+      <span>{likes}</span>
+    </button>
   );
 }
 
 export function CommentDislikeButton({ commentId, initialDislikes, initialHasDisliked, toggleAction, isAdmin }: any) {
+  const [isPending, startTransition] = useTransition();
+  const [hasDisliked, setHasDisliked] = useState(initialHasDisliked);
+  const [dislikes, setDislikes] = useState(initialDislikes);
+
+  const handleClick = () => {
+    if (isPending) return;
+
+    const increment = isAdmin ? 10 : 1;
+    if (isAdmin) {
+      setDislikes(dislikes + increment);
+    } else {
+      setHasDisliked(!hasDisliked);
+      setDislikes(hasDisliked ? Math.max(0, dislikes - 1) : dislikes + increment);
+    }
+
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.append('commentId', commentId);
+      await toggleAction(formData);
+    });
+  };
+
   return (
-    <form action={toggleAction}>
-      <input type="hidden" name="commentId" value={commentId} />
-      <SubmitButton className={`px-2 py-1 border rounded-sm flex items-center gap-1 text-[11px] font-bold transition-colors ${initialHasDisliked ? 'border-gray-500 text-gray-600 bg-gray-100' : 'border-gray-300 text-gray-400 hover:bg-gray-50 hover:border-gray-400 hover:text-gray-600'}`}>
-        <span>👎</span>
-        <span>{initialDislikes}</span>
-      </SubmitButton>
-    </form>
+    <button onClick={handleClick} disabled={isPending} className={`px-2 py-1 border rounded-sm flex items-center gap-1 text-[11px] font-bold transition-colors ${hasDisliked ? 'border-gray-500 text-gray-600 bg-gray-100' : 'border-gray-300 text-gray-400 hover:bg-gray-50 hover:border-gray-400 hover:text-gray-600'}`}>
+      <span>👎</span>
+      <span>{dislikes}</span>
+    </button>
   );
 }
 
 export function CommentReportButton({ commentId, currentUserId, isAdmin }: any) {
   const handleReport = async () => {
     if (!currentUserId) return alert('로그인이 필요합니다.');
-    // 💡 [수술 2] 관리자 튕겨내는 알림창 삭제 완료!
     if (confirm('이 댓글을 신고하시겠습니까?')) {
       try {
         const res = await fetch(`/api/report/comment`, { method: 'POST', body: JSON.stringify({ commentId }) });
@@ -238,27 +312,18 @@ export function EditCommentForm({ commentId, initialContent, initialImage, editA
 }
 
 // ---------------------------------------------------------
-// 🟢 4. 최신 트렌드 Web Share API가 탑재된 공유 버튼!
+// 🟢 4. 최신 트렌드 Web Share API 공유 버튼
 // ---------------------------------------------------------
 export function PostShareButton({ title }: { title: string }) {
   const handleShare = async () => {
     const url = window.location.href;
-    // 💡 [핵심] 트위터 본문에 꽂아넣을 텍스트 조립!
     const text = `${title} - 오재미`;
 
     if (navigator.share) {
-      // 스마트폰에서는 카카오톡, 문자 등 기본 공유창 띄우기 (제목 포함)
       try {
-        await navigator.share({
-          title: title,
-          text: text,
-          url: url,
-        });
-      } catch (err) {
-        console.error('공유 실패:', err);
-      }
+        await navigator.share({ title: title, text: text, url: url });
+      } catch (err) {}
     } else {
-      // PC에서는 트위터(X) 공유 창을 다이렉트로 띄우면서 제목 꽂아주기!
       const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
       window.open(twitterUrl, '_blank', 'width=600,height=400,scrollbars=no,resizable=no');
     }
@@ -279,7 +344,7 @@ export function PostShareButton({ title }: { title: string }) {
 }
 
 // ---------------------------------------------------------
-// 🟢 5. 주소 복사 박스 (PC/모바일 공용 직관적 UI)
+// 🟢 5. 주소 복사 박스
 // ---------------------------------------------------------
 export function CopyLinkBox({ postId }: { postId: string }) {
   const [copied, setCopied] = useState(false);
