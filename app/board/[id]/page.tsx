@@ -290,12 +290,11 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 💡 [게시글 비공감 수술 완료]
   const toggleDislike = async () => {
     'use server';
     if (!currentUserId) redirect('/login');
     
-    // 💡 [관리자 전용 슈퍼파워]: 관리자가 누르면 즉시 블라인드 처리
+    // 💡 [관리자 슈퍼파워]: 관리자가 누르면 +10 증가 및 즉시 블라인드 처리
     if (isAdmin) {
       let blindThreshold = 5;
       try {
@@ -313,13 +312,14 @@ export default async function PostDetailPage(props: any) {
       return;
     }
 
-    // 🛡️ [일반 유저 테러 방어]: 일반 유저는 순수하게 '비공감' 숫자만 오르내림 (블라인드 로직 완전 삭제)
+    // 🛡️ [일반 유저 테러 원천 방어]: 일반 회원은 비공감 시 순수하게 '숫자'만 1 증가/감소. (블라인드 로직 완전 삭제!)
     const { rows: checkRows = [] } = await sql`SELECT * FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
       await sql`DELETE FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
       await sql`UPDATE posts SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO post_dislikes (post_id, author_id) VALUES (${postId}, ${currentUserId})`;
+      // 💡 여기에 있던 is_blinded = CASE WHEN... 함정 코드를 완벽히 제거했습니다!
       await sql`UPDATE posts SET dislikes = COALESCE(dislikes, 0) + 1 WHERE id = ${postId}`;
     }
     revalidatePath(`/board/${postId}`);
@@ -467,13 +467,12 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 💡 [댓글 비공감 수술 완료]
   const toggleCommentDislike = async (formData: FormData) => {
     'use server';
     if (!currentUserId) return;
     const commentId = formData.get('commentId') as string;
 
-    // 💡 [관리자 전용 슈퍼파워]: 관리자가 누르면 즉시 블라인드 처리
+    // 💡 [관리자 슈퍼파워]: 관리자가 누르면 +10 증가 및 즉시 블라인드 처리
     if (isAdmin) {
       let blindThreshold = 5;
       try {
@@ -491,13 +490,14 @@ export default async function PostDetailPage(props: any) {
       return;
     }
 
-    // 🛡️ [일반 유저 테러 방어]: 일반 유저는 순수하게 '비공감' 숫자만 오르내림 (블라인드 로직 완전 삭제)
+    // 🛡️ [일반 유저 테러 원천 방어]: 일반 회원은 비공감 시 순수하게 '숫자'만 1 증가/감소. (블라인드 로직 완전 삭제!)
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_dislikes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
       await sql`DELETE FROM comment_dislikes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
       await sql`UPDATE comments SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${commentId}`;
     } else {
       await sql`INSERT INTO comment_dislikes (comment_id, author_id) VALUES (${commentId}, ${currentUserId})`;
+      // 💡 여기에 있던 is_blinded = CASE WHEN... 함정 코드를 완벽히 제거했습니다!
       await sql`UPDATE comments SET dislikes = COALESCE(dislikes, 0) + 1 WHERE id = ${commentId}`;
     }
     revalidatePath(`/board/${postId}`);
