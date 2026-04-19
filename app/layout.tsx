@@ -3,44 +3,36 @@ import Link from "next/link";
 import "./globals.css";
 import CopyProtection from "./components/CopyProtection";
 
-const siteTitle = "오재미 | 세상의 모든 재미";
+const siteTitle = "오재미 - 오늘의 재미, 유머 커뮤니티";
 const siteDescription = "매일 업데이트되는 유머, 감동, 지식, 최신 이슈가 살아 숨 쉬는 종합 커뮤니티입니다. 오늘의 재미, 오재미에서 만나보세요.";
 const siteUrl = "https://www.ojemi.kr";
 
-// 💡 [SEO 수술 완벽 적용] '오재미' 단독 키워드 정조준!
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  referrer: 'same-origin', // 💡 [추가 완료] 에펨코리아 등 외부 이미지 복붙 시 엑스박스 방지 및 내부 보안 유지
+  referrer: 'same-origin',
 
-  // 1. 기본 메타데이터 ('오재미'를 가장 강력하게 인식시킴)
   title: {
     default: siteTitle,
-    template: "%s | 오재미", // 💡 '오재미 커뮤니티'보다 짧고 강렬하게 '오재미'로만 고정
+    template: "%s | 오재미",
   },
   description: siteDescription,
-
-  // 💡 [핵심] 분산되는 '사이트' 단어 삭제, 오직 '오재미'에 집중
   keywords: [
-    "오재미", "유머", "이슈", "감동", "포럼", "커뮤니티", "꿀잼", "유머게시판", "ojemi"
+    "오재미", "오늘의재미", "유머", "이슈", "감동", "포럼", "커뮤니티", "오재미사이트", "ojemi"
   ],
   manifest: "/manifest.json",
 
-  // 2. 검색 로봇 프리패스권
   robots: {
     index: true,
     follow: true,
     googleBot: {
       index: true,
       follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
     },
   },
 
-  // 3. 원본 주소 명시
-  alternates: {
-    canonical: "/",
-  },
-
-  // 4. 구글 & 네이버 소유확인 명찰
   verification: {
     google: "3aIk8mNr5N-uh1qZIVo9F6PUpio0bAh9tsDIMQiTG3o",
     other: {
@@ -48,7 +40,6 @@ export const metadata: Metadata = {
     },
   },
 
-  // 5. 🚀 카카오톡, 네이버 블로그 공유 시 뜨는 썸네일(Open Graph)
   openGraph: {
     type: "website",
     title: siteTitle,
@@ -66,12 +57,16 @@ export const metadata: Metadata = {
     ],
   },
 
-  // 6. 🐦 트위터(X) 카드 셋팅
   twitter: {
     card: "summary_large_image",
     title: siteTitle,
     description: siteDescription,
     images: ["/og-image.png"],
+  },
+  
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png', 
   },
 };
 
@@ -80,8 +75,23 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "오재미",
+    "alternateName": ["OJEMI", "오재미 커뮤니티", "오늘의재미"],
+    "url": siteUrl,
+  };
+
   return (
     <html lang="ko">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body className="bg-gray-100 font-sans flex flex-col min-h-screen">
         <CopyProtection />
         <div id="ad-space-top" className="w-full"></div>

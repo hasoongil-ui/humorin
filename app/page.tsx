@@ -1,9 +1,16 @@
+import type { Metadata } from 'next';
 import { sql } from '@vercel/postgres';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import Navbar from './board/Navbar';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: '/',
+  },
+};
 
 function extractData(fullTitle: string) {
   if (!fullTitle) return { cat: '일반', cleanTitle: '' };
@@ -158,7 +165,6 @@ export default async function HomePage() {
         
         <div className="bg-[#414a66] rounded-sm p-6 md:p-10 mb-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
           <div>
-            {/* 💡 [SEO 수술 핵심] h1 태그 안의 느낌표 파괴! 로봇이 '오재미'를 완벽하게 하나의 단어로 읽도록 수정! */}
             <h1 className="text-2xl md:text-3xl font-black text-white mb-2">
               반갑습니다! 세상의 모든 재미 <span className="text-yellow-400">오재미</span> 입니다.
             </h1>
