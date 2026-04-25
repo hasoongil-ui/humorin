@@ -9,12 +9,12 @@ import BanButton from './BanButton';
 
 export const dynamic = 'force-dynamic';
 
-const SECRET_KEY = process.env.AUTH_SECRET || 'ojemi-super-secret-key-2026-very-safe';
+const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
 
 async function verifyAdmin() {
   const cookieStore = await cookies();
-  const userId = cookieStore.get('ojemi_userid')?.value;
-  const signature = cookieStore.get('ojemi_signature')?.value; 
+  const userId = cookieStore.get('humorin_userid')?.value;
+  const signature = cookieStore.get('humorin_signature')?.value; 
   
   if (!userId) return false;
 
@@ -206,7 +206,7 @@ export default async function AdminDashboardPage(props: any) {
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <aside className="w-60 bg-[#2a3042] text-gray-300 flex flex-col shadow-xl z-20 flex-shrink-0">
         <div className="p-5 border-b border-gray-700/50 bg-[#1e2330]">
-          <Link href="/" className="text-2xl font-black text-white tracking-tighter hover:text-indigo-400 transition-colors">OJEMI <span className="text-xs text-indigo-400 align-top">ADMIN</span></Link>
+          <Link href="/" className="text-2xl font-black text-white tracking-tighter hover:text-indigo-400 transition-colors">HUMORIN <span className="text-xs text-indigo-400 align-top">ADMIN</span></Link>
         </div>
         <nav className="flex-1 py-4 overflow-y-auto">
           <ul className="space-y-1">
@@ -290,7 +290,7 @@ export default async function AdminDashboardPage(props: any) {
               <div className="flex flex-col items-end gap-1.5">
                 <a 
                   href={csvDataUri} 
-                  download={`오재미_회원관리_${new Date().toISOString().slice(0,10)}.csv`}
+                  download={`유머인_회원관리_${new Date().toISOString().slice(0,10)}.csv`}
                   className="px-4 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 text-xs font-black rounded-sm flex items-center justify-center gap-1 transition-colors shadow-sm w-full whitespace-nowrap"
                 >
                   📥 현재 목록 엑셀 저장

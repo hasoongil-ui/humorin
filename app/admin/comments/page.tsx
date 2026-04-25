@@ -41,7 +41,7 @@ async function handleBulkAction(formData: FormData) {
 
 export default async function AdminCommentsPage(props: any) {
   const cookieStore = await cookies();
-  const currentUserId = cookieStore.get('ojemi_userid')?.value;
+  const currentUserId = cookieStore.get('humorin_userid')?.value;
   
   let isAdmin = currentUserId === 'admin';
   if (currentUserId && !isAdmin) {
@@ -126,7 +126,7 @@ export default async function AdminCommentsPage(props: any) {
     <div suppressHydrationWarning className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <aside className="w-60 bg-[#2a3042] text-gray-300 flex flex-col shadow-xl z-20 flex-shrink-0">
         <div className="p-5 border-b border-gray-700/50 bg-[#1e2330]">
-          <Link href="/" className="text-2xl font-black text-white tracking-tighter hover:text-indigo-400 transition-colors">OJEMI <span className="text-xs text-indigo-400 align-top">ADMIN</span></Link>
+          <Link href="/" className="text-2xl font-black text-white tracking-tighter hover:text-indigo-400 transition-colors">HUMORIN <span className="text-xs text-indigo-400 align-top">ADMIN</span></Link>
         </div>
         <nav className="flex-1 py-4 overflow-y-auto">
           <ul className="space-y-1">

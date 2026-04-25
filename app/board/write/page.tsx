@@ -7,8 +7,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function WritePage() {
   const cookieStore = await cookies();
-  const userCookie = cookieStore.get('ojemi_user');
-  const userIdCookie = cookieStore.get('ojemi_userid');
+  const userCookie = cookieStore.get('humorin_user');
+  const userIdCookie = cookieStore.get('humorin_userid');
   
   const currentUser = userCookie ? userCookie.value : null;
   const currentUserId = userIdCookie ? userIdCookie.value : null;

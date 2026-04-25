@@ -317,7 +317,7 @@ export function EditCommentForm({ commentId, initialContent, initialImage, editA
 export function PostShareButton({ title }: { title: string }) {
   const handleShare = async () => {
     const url = window.location.href;
-    const text = `${title} - 오재미`;
+    const text = `${title} - 유머인`;
 
     if (navigator.share) {
       try {
@@ -349,7 +349,7 @@ export function PostShareButton({ title }: { title: string }) {
 // ---------------------------------------------------------
 export function CopyLinkBox({ postId }: { postId: string }) {
   const [copied, setCopied] = useState(false);
-  const url = `https://www.ojemi.kr/board/${postId}`;
+  const url = `https://www.humorin.kr/board/${postId}`;
 
   const handleCopy = async () => {
     try {

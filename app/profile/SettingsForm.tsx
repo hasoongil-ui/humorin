@@ -165,7 +165,7 @@ export default function SettingsForm({
           <div className="bg-green-50 p-4 border border-green-200 rounded-sm">
             <label className="block text-sm font-bold text-green-800 mb-1">비밀번호 변경 안내</label>
             <p className="text-xs text-green-700 font-medium leading-relaxed">
-              네이버로 간편 가입하신 회원님은 오재미에서 비밀번호를 변경하실 수 없습니다.<br/>
+              네이버로 간편 가입하신 회원님은 유머인에서 비밀번호를 변경하실 수 없습니다.<br/>
               계정 보안 및 비밀번호 관리는 <b>네이버 홈페이지</b>를 이용해 주세요!
             </p>
           </div>
@@ -217,7 +217,7 @@ export default function SettingsForm({
 
       <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
         <form action={async (formData) => {
-          if (window.confirm('정말로 오재미를 탈퇴하시겠습니까?\n작성하신 모든 정보가 영구적으로 삭제되며 복구할 수 없습니다.')) {
+          if (window.confirm('정말로 유머인를 탈퇴하시겠습니까?\n작성하신 모든 정보가 영구적으로 삭제되며 복구할 수 없습니다.')) {
             await deleteUserAction(formData);
           }
         }}>

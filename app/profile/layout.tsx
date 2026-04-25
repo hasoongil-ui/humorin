@@ -16,7 +16,7 @@ export default function ProfileLayout({
             className="flex items-center gap-2 text-gray-700 hover:text-[#414a66] transition-colors font-bold text-sm md:text-base"
           >
             <Home size={18} />
-            <span>오재미 메인으로 돌아가기</span>
+            <span>유머인 메인으로 돌아가기</span>
           </Link>
         </div>
       </div>

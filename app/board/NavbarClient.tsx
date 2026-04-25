@@ -98,7 +98,7 @@ export default function NavbarClient(props: NavbarClientProps) {
 
       <header className="bg-white px-4 border-b border-gray-200 shadow-sm relative z-20 h-[65px] flex items-center">
         <div className="w-full max-w-[1200px] mx-auto flex justify-between items-center">
-          <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter shrink-0">OJEMI</Link>
+          <Link href="/" className="text-3xl font-black text-[#3b4890] tracking-tighter shrink-0">Humor Inside</Link>
 
           <div className="flex items-center gap-2 md:gap-4 h-[32px]">
             {user ? (

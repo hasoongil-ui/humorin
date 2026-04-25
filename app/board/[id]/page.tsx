@@ -51,7 +51,7 @@ export async function generateMetadata(props: any): Promise<Metadata> {
     const post = rows[0];
 
     if (!post) {
-      return { title: '오재미' };
+      return { title: '유머인' };
     }
 
     const { cleanTitle } = extractData(post.title);
@@ -82,10 +82,10 @@ export async function generateMetadata(props: any): Promise<Metadata> {
     const videoMatch = postContent.match(/<video[^>]*src=["']([^"'>]+)["']/i);
     const videoUrl = videoMatch ? videoMatch[1] : null;
 
-    const postUrl = `https://www.ojemi.kr/board/${postId}`;
+    const postUrl = `https://www.humorin.kr/board/${postId}`;
 
     return {
-      title: `${cleanTitle} - 오재미`,
+      title: `${cleanTitle} - 유머인`,
       description: description,
       alternates: {
         canonical: postUrl,
@@ -94,7 +94,7 @@ export async function generateMetadata(props: any): Promise<Metadata> {
         title: cleanTitle,
         description: description,
         url: postUrl, 
-        siteName: '오재미',
+        siteName: '유머인',
         images: ogImageUrl ? [{ url: ogImageUrl }] : [], 
         videos: videoUrl ? [{ url: videoUrl }] : [],
         type: 'article',
@@ -107,7 +107,7 @@ export async function generateMetadata(props: any): Promise<Metadata> {
       }
     };
   } catch (error) {
-    return { title: '오재미' };
+    return { title: '유머인' };
   }
 }
 
@@ -118,8 +118,8 @@ export default async function PostDetailPage(props: any) {
   const fromLocation = searchParams?.from; 
 
   const cookieStore = await cookies();
-  const userCookie = cookieStore.get('ojemi_user');      
-  const userIdCookie = cookieStore.get('ojemi_userid');  
+  const userCookie = cookieStore.get('humorin_user');      
+  const userIdCookie = cookieStore.get('humorin_userid');  
 
   const currentUser = userCookie ? userCookie.value : null;
   const currentUserId = userIdCookie ? userIdCookie.value : null;
@@ -516,7 +516,7 @@ export default async function PostDetailPage(props: any) {
     if (!isDeleted) {
       if (node.likes >= 30) {
         bgColorClass = 'bg-green-100/40 border-green-300';
-        badge = <span className="px-2 py-0.5 bg-green-500 text-white text-[11px] rounded-full shadow-sm font-black tracking-wide">🌳 오재미 숲 성지</span>;
+        badge = <span className="px-2 py-0.5 bg-green-500 text-white text-[11px] rounded-full shadow-sm font-black tracking-wide">🌳 유머인 숲 성지</span>;
       } else if (node.likes >= 10) {
         bgColorClass = 'bg-emerald-50 border-emerald-200';
         badge = <span className="px-2 py-0.5 bg-emerald-500 text-white text-[11px] rounded-full shadow-sm font-bold">🌲 튼튼한 나무</span>;
@@ -643,7 +643,7 @@ export default async function PostDetailPage(props: any) {
       /<video([^>]*)src="([^"]+)"([^>]*)>/gi,
       (match, beforeSrc, srcUrl, afterSrc) => {
         const newSrc = srcUrl.includes('#t=') ? srcUrl : `${srcUrl}#t=0.001`;
-        return `<video controls="true" preload="metadata" playsinline="true" muted="true" class="ojemi-mp4" src="${newSrc}">`;
+        return `<video controls="true" preload="metadata" playsinline="true" muted="true" class="humorin-mp4" src="${newSrc}">`;
       }
     );
   }
@@ -683,8 +683,8 @@ export default async function PostDetailPage(props: any) {
         }
 
         /* 2. 동영상/유튜브: 기존 황금비율 650px 유지하여 깨짐 방지 */
-        .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube,
-        .ql-editor video, .ql-editor video.ojemi-mp4 {
+        .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube,
+        .ql-editor video, .ql-editor video.humorin-mp4 {
           display: block;
           width: 100%;
           max-width: 650px; 
@@ -694,12 +694,12 @@ export default async function PostDetailPage(props: any) {
           border: none;
         }
         
-        .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16 / 9; height: auto; }
-        .ql-editor video, .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; object-fit: contain; aspect-ratio: auto; }
+        .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube { aspect-ratio: 16 / 9; height: auto; }
+        .ql-editor video, .ql-editor video.humorin-mp4 { height: auto; max-height: 70vh; object-fit: contain; aspect-ratio: auto; }
 
         /* 3. 스마트폰 모드: 100% 가득 채움 */
         @media (max-width: 768px) {
-          .ql-editor img, .ql-editor iframe.ql-video, .ql-editor iframe.ojemi-youtube, .ql-editor video, .ql-editor video.ojemi-mp4 {
+          .ql-editor img, .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube, .ql-editor video, .ql-editor video.humorin-mp4 {
             max-width: 100% !important;
           }
         }

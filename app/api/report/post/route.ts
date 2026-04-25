@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     
     // 1. 안전하게 쿠키에서 유저 정보 꺼내기
     const cookieStore = await cookies();
-    const userIdCookie = cookieStore.get('ojemi_userid');
+    const userIdCookie = cookieStore.get('humorin_userid');
     const currentUserId = userIdCookie?.value;
 
     if (!currentUserId) return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });

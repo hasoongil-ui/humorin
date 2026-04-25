@@ -12,9 +12,9 @@ export default function robots(): MetadataRoute.Robots {
       // 🚫 2. Vercel 요금을 갉아먹는 나쁜 식충이 사설 봇 6대장
       {
         userAgent: ['AhrefsBot', 'SemrushBot', 'DotBot', 'MJ12bot', 'PetalBot', 'YandexBot'],
-        disallow: ['/'], // 🚨 오재미 사이트 전체 접근 및 수집 완전 금지!
+        disallow: ['/'], // 🚨 유머인 사이트 전체 접근 및 수집 완전 금지!
       }
     ],
-    sitemap: 'https://www.ojemi.kr/sitemap.xml', // 🗺️ 지도는 여기 있어!
+    sitemap: 'https://www.humorin.kr/sitemap.xml', // 🗺️ 지도는 여기 있어!
   }
 }

@@ -3,9 +3,9 @@ import Link from "next/link";
 import "./globals.css";
 import CopyProtection from "./components/CopyProtection";
 
-const siteTitle = "오재미 - 오늘의 재미, 유머 커뮤니티";
-const siteDescription = "매일 업데이트되는 유머, 감동, 지식, 최신 이슈가 살아 숨 쉬는 종합 커뮤니티입니다. 오늘의 재미, 오재미에서 만나보세요.";
-const siteUrl = "https://www.ojemi.kr";
+const siteTitle = "유머인 - 오늘의 재미, 유머 커뮤니티";
+const siteDescription = "매일 업데이트되는 유머, 감동, 지식, 최신 이슈가 살아 숨 쉬는 종합 커뮤니티입니다. 오늘의 재미, 유머인에서 만나보세요.";
+const siteUrl = "https://www.humorin.kr";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -13,11 +13,11 @@ export const metadata: Metadata = {
 
   title: {
     default: siteTitle,
-    template: "%s | 오재미",
+    template: "%s | 유머인",
   },
   description: siteDescription,
   keywords: [
-    "오재미", "오늘의재미", "유머", "이슈", "감동", "포럼", "커뮤니티", "오재미사이트", "ojemi"
+    "유머인", "오늘의재미", "유머", "이슈", "감동", "포럼", "커뮤니티", "유머인사이트", "humorin"
   ],
   manifest: "/manifest.json",
 
@@ -45,14 +45,14 @@ export const metadata: Metadata = {
     title: siteTitle,
     description: siteDescription,
     url: siteUrl,
-    siteName: "오재미",
+    siteName: "유머인",
     locale: "ko_KR",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "오재미 로고",
+        alt: "유머인 로고",
       },
     ],
   },
@@ -79,8 +79,8 @@ export default function RootLayout({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "오재미",
-    "alternateName": ["OJEMI", "오재미 커뮤니티", "오늘의재미"],
+    "name": "유머인",
+    "alternateName": ["HUMORIN", "유머인 커뮤니티", "오늘의재미"],
     "url": siteUrl,
   };
 
@@ -112,11 +112,11 @@ export default function RootLayout({
             </div>
             <div className="text-[12px] text-gray-500 font-medium leading-relaxed text-center md:text-left">
               <p className="mb-2">
-                본 사이트(오재미)는 유저가 작성한 게시물에 대한 법적 책임을 지지 않습니다. 모든 게시물의 저작권과 책임은 작성자 본인에게 있습니다.<br className="hidden md:block" />
+                본 사이트(유머인)는 유저가 작성한 게시물에 대한 법적 책임을 지지 않습니다. 모든 게시물의 저작권과 책임은 작성자 본인에게 있습니다.<br className="hidden md:block" />
                 권리 침해나 불법 게시물을 발견하셨을 경우, 관리자 메일(<Link href="/contact" className="font-bold hover:underline">ruffian71@naver.com</Link>)로 연락 주시면 신속히 조치하겠습니다.
               </p>
               <p className="font-bold text-gray-400">
-                © {new Date().getFullYear()} OJEMI. All Rights Reserved.
+                © {new Date().getFullYear()} HUMORIN. All Rights Reserved.
               </p>
             </div>
           </div>

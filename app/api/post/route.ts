@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { cookies, headers } from 'next/headers'; // 💡 headers 추가!
 import crypto from 'crypto';
 
-const SECRET_KEY = process.env.AUTH_SECRET || 'ojemi-super-secret-key-2026-very-safe';
+const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
 
 const extractTextOnly = (htmlText: string) => {
   const noHtml = htmlText.replace(/<[^>]*>?/gm, ''); 
@@ -37,9 +37,9 @@ export async function POST(request: Request) {
     }
     
     const cookieStore = await cookies();
-    const userCookie = cookieStore.get('ojemi_user');
-    const userIdCookie = cookieStore.get('ojemi_userid');
-    const signatureCookie = cookieStore.get('ojemi_signature'); 
+    const userCookie = cookieStore.get('humorin_user');
+    const userIdCookie = cookieStore.get('humorin_userid');
+    const signatureCookie = cookieStore.get('humorin_signature'); 
     
     const currentUser = userCookie ? userCookie.value : null;
     const currentUserId = userIdCookie ? userIdCookie.value : null;

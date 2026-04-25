@@ -7,7 +7,7 @@ import { redirect } from 'next/navigation';
 // 💡 1. [점수 배달 요원] 유저의 닉네임, 레벨, 포인트를 가져옵니다.
 export async function getUserProfile() {
   const cookieStore = await cookies();
-  const userIdCookie = cookieStore.get('ojemi_userid');
+  const userIdCookie = cookieStore.get('humorin_userid');
   
   if (!userIdCookie) return null;
 
@@ -24,8 +24,8 @@ export async function getUserProfile() {
 // 💡 2. [로그아웃 요원] 쿠키를 삭제하고 로그아웃 시킵니다.
 export async function handleLogoutAction() {
   const cookieStore = await cookies();
-  cookieStore.delete('ojemi_user');
-  cookieStore.delete('ojemi_userid');
+  cookieStore.delete('humorin_user');
+  cookieStore.delete('humorin_userid');
   redirect('/');
 }
 

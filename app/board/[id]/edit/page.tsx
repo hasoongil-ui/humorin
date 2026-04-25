@@ -12,8 +12,8 @@ export default async function EditPage(props: any) {
   const postId = params.id;
 
   const cookieStore = await cookies();
-  const currentUser = cookieStore.get('ojemi_user')?.value;
-  const currentUserId = cookieStore.get('ojemi_userid')?.value;
+  const currentUser = cookieStore.get('humorin_user')?.value;
+  const currentUserId = cookieStore.get('humorin_userid')?.value;
   
   if (!currentUser) redirect('/login');
 

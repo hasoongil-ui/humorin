@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs'; 
 import crypto from 'crypto'; 
 
-const SECRET_KEY = process.env.AUTH_SECRET || 'ojemi-super-secret-key-2026-very-safe';
+const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
 
 export async function POST(request: Request) {
   try {
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
         
         // 쿠키 설정
         response.cookies.set({
-          name: 'ojemi_user',
+          name: 'humorin_user',
           value: user.nickname || user.user_id,
           httpOnly: true,
           path: '/',
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
         });
 
         response.cookies.set({
-          name: 'ojemi_userid',
+          name: 'humorin_userid',
           value: user.user_id, 
           httpOnly: true,
           path: '/',
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
         const signature = crypto.createHmac('sha256', SECRET_KEY).update(user.user_id).digest('hex');
         response.cookies.set({
-          name: 'ojemi_signature',
+          name: 'humorin_signature',
           value: signature,
           httpOnly: true,
           path: '/',

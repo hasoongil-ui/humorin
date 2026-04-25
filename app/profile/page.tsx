@@ -52,8 +52,8 @@ export default async function ProfilePage(props: any) {
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   const cookieStore = await cookies();
-  const userCookie = cookieStore.get('ojemi_user');      
-  const userIdCookie = cookieStore.get('ojemi_userid');  
+  const userCookie = cookieStore.get('humorin_user');      
+  const userIdCookie = cookieStore.get('humorin_userid');  
   
   const currentUser = userCookie ? userCookie.value : null;
   const currentUserId = userIdCookie ? userIdCookie.value : null;
@@ -108,7 +108,7 @@ export default async function ProfilePage(props: any) {
   async function updateProfileImage(url: string) {
     'use server';
     const store = await cookies();
-    const uid = store.get('ojemi_userid')?.value;
+    const uid = store.get('humorin_userid')?.value;
     if (!uid) return { error: 'Unauthorized' };
 
     try {
@@ -214,7 +214,7 @@ export default async function ProfilePage(props: any) {
                 {!isMaxLevel ? (
                   <span>다음 단계 <span className="text-white">[{nextTier.icon} {nextTier.name}]</span> 까지: {(nextTier.min - points).toLocaleString()} P 남음</span>
                 ) : (
-                  <span className="text-yellow-400">✨ 오재미의 전설 달성! ✨</span>
+                  <span className="text-yellow-400">✨ 유머인의 전설 달성! ✨</span>
                 )}
               </div>
               <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden shadow-inner relative">

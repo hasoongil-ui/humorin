@@ -78,7 +78,7 @@ function LoginForm() {
           type="submit"
           className="w-full py-3.5 mt-2 bg-[#2a3042] hover:bg-[#1e2335] text-white font-bold rounded-sm text-lg transition-colors flex justify-center items-center gap-2"
         >
-          오재미 계정으로 로그인
+          유머인 계정으로 로그인
         </button>
       </form>
 
@@ -111,7 +111,7 @@ export default function LoginPage() {
         
         <div className="text-center mb-8">
           <Link href="/" className="text-4xl font-black text-[#3b4890] tracking-tighter inline-block mb-3">
-            OJEMI
+            HUMORIN
           </Link>
           <h2 className="text-xl font-bold text-gray-800">로그인</h2>
         </div>
@@ -121,7 +121,7 @@ export default function LoginPage() {
         </Suspense>
 
         <div className="mt-8 pt-6 border-t border-gray-100 text-center text-[13px] text-gray-600 font-medium">
-          <p className="mb-2 text-gray-500">아직 오재미의 회원이 아니신가요?</p>
+          <p className="mb-2 text-gray-500">아직 유머인의 회원이 아니신가요?</p>
           <Link 
             href="/signup" 
             className="text-[#3b4890] font-bold hover:underline inline-block text-[14px]"

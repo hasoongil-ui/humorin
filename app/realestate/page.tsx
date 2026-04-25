@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function RealEstatePage() {
   const cookieStore = await cookies();
-  const userCookie = cookieStore.get('ojemi_user');
+  const userCookie = cookieStore.get('humorin_user');
   const currentUser = userCookie ? userCookie.value : null;
 
   const STREAMLIT_APP_URL = "https://seoul-aptdata.streamlit.app/?embed=true";
@@ -29,7 +29,7 @@ export default async function RealEstatePage() {
               <span className="text-6xl mb-4">🔒</span>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">회원 전용 서비스입니다</h2>
               <p className="text-gray-500 mb-8 font-medium">
-                오재미의 따뜻한 이웃이 되어주세요! <br/>
+                유머인의 따뜻한 이웃이 되어주세요! <br/>
                 로그인하시면 부동산 빅데이터 분석 도구를 무료로 이용하실 수 있습니다.
               </p>
               <Link 

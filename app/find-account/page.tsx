@@ -74,7 +74,7 @@ export default function FindAccountPage() {
         
         <div className="text-center mb-8">
           <Link href="/board" className="text-3xl font-black text-[#3b4890] tracking-tighter inline-block mb-2">
-            OJEMI
+            HUMORIN
           </Link>
           <h2 className="text-xl font-bold text-gray-800">계정 찾기</h2>
         </div>

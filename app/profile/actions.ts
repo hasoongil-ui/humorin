@@ -27,7 +27,7 @@ export async function updateProfileAction(formData: FormData) {
         
         const cookieStore = await cookies();
         cookieStore.set({
-          name: 'ojemi_user',
+          name: 'humorin_user',
           value: newNickname.trim(),
           httpOnly: true,
           path: '/',
@@ -101,9 +101,9 @@ export async function deleteUserAction(formData: FormData) {
     `;
 
     const cookieStore = await cookies();
-    cookieStore.delete('ojemi_user');
-    cookieStore.delete('ojemi_userid');
-    cookieStore.delete('ojemi_signature');
+    cookieStore.delete('humorin_user');
+    cookieStore.delete('humorin_userid');
+    cookieStore.delete('humorin_signature');
 
   } catch (error) {
     console.error("회원 탈퇴 처리 중 에러 발생:", error);

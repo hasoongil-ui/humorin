@@ -71,7 +71,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
         class CustomVideo extends BlockEmbed {
           static blotName = 'mp4Video';
           static tagName = 'VIDEO';
-          static className = 'ojemi-mp4';
+          static className = 'humorin-mp4';
           static create(value: any) {
             let node = super.create();
             node.setAttribute('controls', 'true');
@@ -93,7 +93,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
         class YoutubeVideo extends BlockEmbed {
           static blotName = 'youtubeVideo';
           static tagName = 'IFRAME';
-          static className = 'ojemi-youtube';
+          static className = 'humorin-youtube';
           static create(value: any) {
             let node = super.create();
             node.setAttribute('src', value);
@@ -473,12 +473,12 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
 
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
         
-        .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
-        .ql-editor video.ojemi-mp4 { width: 100%; max-width: 800px; height: auto; max-height: 70vh; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
+        .ql-editor iframe.humorin-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
+        .ql-editor video.humorin-mp4 { width: 100%; max-width: 800px; height: auto; max-height: 70vh; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
         
         @media (max-width: 768px) { 
-          .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; } 
-          .ql-editor video.ojemi-mp4 { height: auto; max-height: 70vh; }
+          .ql-editor iframe.humorin-youtube { aspect-ratio: 16/9; height: auto; } 
+          .ql-editor video.humorin-mp4 { height: auto; max-height: 70vh; }
         }
         
         .ql-toolbar.ql-snow { position: sticky; top: 0; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }

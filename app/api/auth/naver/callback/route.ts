@@ -4,7 +4,7 @@ import { sql } from '@vercel/postgres';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 
-const SECRET_KEY = process.env.AUTH_SECRET || 'ojemi-super-secret-key-2026-very-safe';
+const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -68,7 +68,7 @@ export async function GET(request: Request) {
       finalNickname = nickname;
       const defaultPassword = 'naver_sso_password_123!';
 
-      // 혹시 네이버 닉네임이 오재미에 이미 있으면 뒤에 랜덤 숫자를 붙여줍니다.
+      // 혹시 네이버 닉네임이 유머인에 이미 있으면 뒤에 랜덤 숫자를 붙여줍니다.
       const { rows: nickCheck } = await sql`SELECT * FROM users WHERE nickname = ${finalNickname}`;
       if (nickCheck.length > 0) {
         finalNickname = `${finalNickname}_${Math.floor(Math.random() * 1000)}`;
@@ -85,11 +85,11 @@ export async function GET(request: Request) {
     const signature = crypto.createHmac('sha256', SECRET_KEY).update(finalUserId).digest('hex');
     
     const cookieStore = await cookies();
-    cookieStore.set('ojemi_user', finalNickname, { path: '/', maxAge: 60 * 60 * 24 * 7 });
-    cookieStore.set('ojemi_userid', finalUserId, { path: '/', maxAge: 60 * 60 * 24 * 7 });
-    cookieStore.set('ojemi_signature', signature, { path: '/', httpOnly: true, maxAge: 60 * 60 * 24 * 7 });
+    cookieStore.set('humorin_user', finalNickname, { path: '/', maxAge: 60 * 60 * 24 * 7 });
+    cookieStore.set('humorin_userid', finalUserId, { path: '/', maxAge: 60 * 60 * 24 * 7 });
+    cookieStore.set('humorin_signature', signature, { path: '/', httpOnly: true, maxAge: 60 * 60 * 24 * 7 });
 
-    // 5. 오재미 메인 화면으로 멋지게 복귀!
+    // 5. 유머인 메인 화면으로 멋지게 복귀!
     return NextResponse.redirect(new URL('/', request.url));
 
   } catch (err) {

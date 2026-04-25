@@ -4,7 +4,7 @@ export default function ContactPage() {
       <div className="max-w-3xl mx-auto bg-white p-8 md:p-12 border border-gray-200 shadow-sm rounded-sm text-center">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">버그 신고 및 문의</h1>
         <p className="text-gray-600 mb-8">
-          "오재미"는 저작권, 권리 침해 방지 및 쾌적한 환경을 위해 신속한 조치를 시행하고 있습니다.<br />
+          "유머인"는 저작권, 권리 침해 방지 및 쾌적한 환경을 위해 신속한 조치를 시행하고 있습니다.<br />
           아래 이메일로 내용을 보내주시면 관리자가 확인 후 신속하게 처리해 드리겠습니다.
         </p>
         

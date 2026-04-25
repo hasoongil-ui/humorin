@@ -5,7 +5,7 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import bcrypt from 'bcryptjs';
 
-const FORBIDDEN_WORDS = ['admin', '관리자', '운영자', '오재미', 'ojemi', '스탭', '매니저', '마스터', '시스템'];
+const FORBIDDEN_WORDS = ['admin', '관리자', '운영자', '유머인', 'humorin', '스탭', '매니저', '마스터', '시스템'];
 
 function isForbidden(text: string) {
   const lowerText = text.toLowerCase().replace(/\s/g, ''); 
@@ -73,8 +73,8 @@ export async function registerUserAction(formData: FormData) {
     `;
     
     const cookieStore = await cookies();
-    cookieStore.set({ name: 'ojemi_user', value: nickname, httpOnly: true, path: '/', maxAge: 60 * 60 * 24 * 7 });
-    cookieStore.set({ name: 'ojemi_userid', value: userId, httpOnly: true, path: '/', maxAge: 60 * 60 * 24 * 7 });
+    cookieStore.set({ name: 'humorin_user', value: nickname, httpOnly: true, path: '/', maxAge: 60 * 60 * 24 * 7 });
+    cookieStore.set({ name: 'humorin_userid', value: userId, httpOnly: true, path: '/', maxAge: 60 * 60 * 24 * 7 });
     
   } catch (error) {
     console.error("DB 에러:", error);

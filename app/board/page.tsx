@@ -80,8 +80,8 @@ export default async function BoardPage(props: any) {
   else if (category === 'all' && !keyword) fromQuery = '?from=all';
 
   const cookieStore = await cookies();
-  const userCookie = cookieStore.get('ojemi_user');
-  const userIdCookie = cookieStore.get('ojemi_userid'); 
+  const userCookie = cookieStore.get('humorin_user');
+  const userIdCookie = cookieStore.get('humorin_userid'); 
   
   const currentUser = userCookie ? userCookie.value : null;
   const currentUserId = userIdCookie ? userIdCookie.value : null;
@@ -101,8 +101,8 @@ export default async function BoardPage(props: any) {
   const handleLogout = async () => {
     'use server';
     const store = await cookies();
-    store.delete('ojemi_user');
-    store.delete('ojemi_userid');
+    store.delete('humorin_user');
+    store.delete('humorin_userid');
   };
   
   const limit = 20; 
@@ -240,7 +240,7 @@ export default async function BoardPage(props: any) {
                     <div className="font-black text-gray-800 text-sm truncate">
                       <span className="text-[#3b4890]">{currentUser}</span>님
                     </div>
-                    <div className="text-[11px] text-gray-400 font-bold mt-0.5 truncate">커뮤니티 오재미</div>
+                    <div className="text-[11px] text-gray-400 font-bold mt-0.5 truncate">커뮤니티 유머인</div>
                   </div>
                 </div>
                 
@@ -259,7 +259,7 @@ export default async function BoardPage(props: any) {
             ) : (
               <div>
                 <div className="text-xs font-bold text-gray-500 mb-3 text-center">
-                  오재미를 더 편리하게 이용하세요.
+                  유머인를 더 편리하게 이용하세요.
                 </div>
                 <Link href="/login" className="block w-full text-center py-2 bg-[#414a66] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors shadow-sm mb-2 whitespace-nowrap">
                   로그인

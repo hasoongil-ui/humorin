@@ -67,7 +67,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         class CustomVideo extends BlockEmbed {
           static blotName = 'mp4Video';
           static tagName = 'VIDEO';
-          static className = 'ojemi-mp4';
+          static className = 'humorin-mp4';
           static create(value: any) {
             let node = super.create();
             node.setAttribute('controls', 'true');
@@ -89,7 +89,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         class YoutubeVideo extends BlockEmbed {
           static blotName = 'youtubeVideo';
           static tagName = 'IFRAME';
-          static className = 'ojemi-youtube';
+          static className = 'humorin-youtube';
           static create(value: any) {
             let node = super.create();
             node.setAttribute('src', value);
@@ -515,8 +515,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16'; } 
 
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
-        .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
-        @media (max-width: 768px) { .ql-editor video.ojemi-mp4, .ql-editor iframe.ojemi-youtube { aspect-ratio: 16/9; height: auto; max-height: 70vh; } }
+        .ql-editor video.humorin-mp4, .ql-editor iframe.humorin-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
+        @media (max-width: 768px) { .ql-editor video.humorin-mp4, .ql-editor iframe.humorin-youtube { aspect-ratio: 16/9; height: auto; max-height: 70vh; } }
         
         .ql-toolbar.ql-snow { position: sticky; top: 0; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
       `}} />
@@ -529,11 +529,11 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         <form onSubmit={handleSubmit} className="space-y-4">
           
           <div className="absolute opacity-0 -z-50 h-0 w-0 overflow-hidden" aria-hidden="true">
-            <label htmlFor="ojemi_secret_trap">웹사이트 주소 (사람은 비워두세요)</label>
+            <label htmlFor="humorin_secret_trap">웹사이트 주소 (사람은 비워두세요)</label>
             <input 
               type="text" 
-              id="ojemi_secret_trap" 
-              name="ojemi_secret_trap" 
+              id="humorin_secret_trap" 
+              name="humorin_secret_trap" 
               value={botTrap} 
               onChange={(e) => setBotTrap(e.target.value)} 
               tabIndex={-1} 

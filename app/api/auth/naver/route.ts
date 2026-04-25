@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   const protocol = host.includes('localhost') ? 'http' : 'https';
   const redirectUri = `${protocol}://${host}/api/auth/naver/callback`;
   
-  const state = 'ojemi_naver_login';
+  const state = 'humorin_naver_login';
   
   // 💡 네이버 공식 로그인 페이지로 1초 만에 강제 로켓 배송!
   const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;

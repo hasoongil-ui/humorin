@@ -82,7 +82,7 @@ export default function SignupPage() {
     if (!val) { setEmailError(''); setEmailOk(false); return; }
 
     if (!emailRegex.test(val)) {
-      setEmailError('❌ 올바른 이메일 형식이 아닙니다. (예: ojemi@naver.com)');
+      setEmailError('❌ 올바른 이메일 형식이 아닙니다. (예: humorin@naver.com)');
       setEmailOk(false); return;
     }
 
@@ -140,7 +140,7 @@ export default function SignupPage() {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center font-sans py-10">
       <div className="bg-white p-8 rounded-sm shadow-sm border border-gray-200 w-full max-w-[400px]">
         <div className="text-center mb-8">
-          <Link href="/" className="text-4xl font-black text-[#3b4890] tracking-tighter inline-block mb-2">OJEMI</Link>
+          <Link href="/" className="text-4xl font-black text-[#3b4890] tracking-tighter inline-block mb-2">HUMORIN</Link>
           <h2 className="text-xl font-bold text-gray-800 mt-2">회원 가입</h2>
         </div>
 
@@ -253,7 +253,7 @@ export default function SignupPage() {
         </form>
 
         <div className="mt-8 pt-6 border-t border-gray-100 text-center text-[13px] text-gray-600 font-medium">
-          <p className="mb-2 text-gray-500">이미 오재미의 회원이신가요?</p>
+          <p className="mb-2 text-gray-500">이미 유머인의 회원이신가요?</p>
           <Link href="/login" className="text-[#3b4890] font-bold hover:underline inline-block text-[14px]">
             로그인하러 가기
           </Link>

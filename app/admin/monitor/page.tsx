@@ -20,7 +20,7 @@ const s3 = new S3Client({
 export default async function MonitorControlCenter(props: any) {
   const searchParams = await props.searchParams; 
   const cookieStore = await cookies();
-  const userId = cookieStore.get('ojemi_userid')?.value;
+  const userId = cookieStore.get('humorin_userid')?.value;
 
   if (userId !== 'admin') {
     let isRealAdmin = false;
@@ -281,7 +281,7 @@ export default async function MonitorControlCenter(props: any) {
 
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-slate-700 pb-4 gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-black text-emerald-400 flex items-center gap-2">🖥️ 오재미 궁극의 종합 관제탑</h1>
+            <h1 className="text-2xl md:text-3xl font-black text-emerald-400 flex items-center gap-2">🖥️ 유머인 궁극의 종합 관제탑</h1>
             <p className="text-slate-400 text-sm mt-1 font-bold">오직 최고 관리자만 접근할 수 있는 1급 보안 구역 및 서버 상태 모니터링</p>
           </div>
           <Link href="/admin" className="px-5 py-2 bg-slate-800 text-white font-bold rounded-sm border border-slate-600 hover:bg-slate-700 transition-colors shrink-0">&larr; 관리자 메인으로</Link>

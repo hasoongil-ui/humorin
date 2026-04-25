@@ -95,11 +95,11 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
             
             {/* 🛡️ [수술 4] 봇을 유인하는 시크릿 함정 (Honeypot) - 화면에는 안 보이지만 봇은 이걸 채웁니다! */}
             <div className="absolute opacity-0 -z-50 h-0 w-0 overflow-hidden" aria-hidden="true">
-                <label htmlFor={`ojemi_secret_trap_${uniqueId}`}>웹사이트 주소</label>
+                <label htmlFor={`humorin_secret_trap_${uniqueId}`}>웹사이트 주소</label>
                 <input 
                     type="text" 
-                    id={`ojemi_secret_trap_${uniqueId}`} 
-                    name="ojemi_secret_trap" 
+                    id={`humorin_secret_trap_${uniqueId}`} 
+                    name="humorin_secret_trap" 
                     value={botTrap} 
                     onChange={(e) => setBotTrap(e.target.value)} 
                     tabIndex={-1} 

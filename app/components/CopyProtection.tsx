@@ -23,7 +23,7 @@ export default function CopyProtection() {
       div.appendChild(clonedSelection);
       const selectedHtml = div.innerHTML;
       
-      // 출처에 링크(a 태그)를 걸어서 클릭하면 바로 오재미로 오게 만듦
+      // 출처에 링크(a 태그)를 걸어서 클릭하면 바로 유머인로 오게 만듦
       const sourceLinkHtml = `<br><br>출처: <a href="${currentUrl}">${currentUrl}</a>`;
 
       // 3. 복사통(클립보드)에 두 가지 버젼을 동시에 몰래 쑤셔 넣기!

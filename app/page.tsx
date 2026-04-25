@@ -60,10 +60,10 @@ function getIconForCategory(category: string) {
 
 export default async function HomePage() {
   const cookieStore = await cookies();
-  const userCookie = cookieStore.get('ojemi_user');
+  const userCookie = cookieStore.get('humorin_user');
   const currentUser = userCookie ? userCookie.value : null;
 
-  const userIdCookie = cookieStore.get('ojemi_userid');
+  const userIdCookie = cookieStore.get('humorin_userid');
   const currentUserId = userIdCookie ? userIdCookie.value : null;
 
   let isAdmin = false;
@@ -81,9 +81,9 @@ export default async function HomePage() {
   const handleLogout = async () => {
     'use server';
     const store = await cookies();
-    store.delete('ojemi_user');
-    store.delete('ojemi_userid');
-    store.delete('ojemi_signature'); 
+    store.delete('humorin_user');
+    store.delete('humorin_userid');
+    store.delete('humorin_signature'); 
   };
 
   let mainBoards: any[] = [];
@@ -166,10 +166,10 @@ export default async function HomePage() {
         <div className="bg-[#414a66] rounded-sm p-6 md:p-10 mb-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
           <div>
             <h1 className="text-2xl md:text-3xl font-black text-white mb-2">
-              반갑습니다! 세상의 모든 재미 <span className="text-yellow-400">오재미</span> 입니다.
+              세상의 모든 웃음이 있는 곳 <span className="text-yellow-400">유머인</span> 입니다.
             </h1>
             <p className="text-sm md:text-base text-gray-300 font-medium">
-              함께 웃고, 나누고, 소통하는 우리들의 따뜻한 공간 오재미.
+              함께 웃고, 나누고, 소통하는 우리들의 따뜻한 공간 유머인.
             </p>
           </div>
 
@@ -201,7 +201,7 @@ export default async function HomePage() {
             ) : (
               <>
                 <div className="text-gray-300 text-sm font-bold">
-                  오재미를 더 편리하게 이용하세요.
+                  유머인을 더 편리하게 이용하세요.
                 </div>
                 <div className="flex flex-wrap items-center justify-center md:justify-end gap-2">
                   <Link href="/login?redirect=/" className="px-6 sm:px-8 py-2 bg-[#ebedf5] text-[#3b4890] text-sm font-black rounded-sm shadow-md hover:bg-white transition-colors whitespace-nowrap shrink-0">

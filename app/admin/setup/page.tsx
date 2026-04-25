@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 
 export default async function AdminSetupPage(props: any) {
   const cookieStore = await cookies();
-  const currentUserId = cookieStore.get('ojemi_userid')?.value;
+  const currentUserId = cookieStore.get('humorin_userid')?.value;
   
   // 🛡️ [수술 완료] 무식한 문지기 교체! 아이디가 'admin'이 아니더라도 DB에서 권한증을 확인합니다.
   let isAdmin = false;
@@ -151,7 +151,7 @@ export default async function AdminSetupPage(props: any) {
         
         <div className="bg-white p-8 md:p-10 rounded-sm shadow-xl border border-gray-200 text-center">
           <h1 className="text-2xl font-black text-gray-800 mb-2">통제실 DB 건설 현장 🏗️</h1>
-          <p className="text-sm text-gray-500 mb-8 font-bold">오재미의 게시판과 설정 데이터를 보관할 새로운 창고를 짓습니다.</p>
+          <p className="text-sm text-gray-500 mb-8 font-bold">유머인의 게시판과 설정 데이터를 보관할 새로운 창고를 짓습니다.</p>
           
           {isSuccess ? (
             <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-sm">

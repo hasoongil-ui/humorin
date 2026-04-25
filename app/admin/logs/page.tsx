@@ -5,12 +5,12 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import crypto from 'crypto';
 
-const SECRET_KEY = process.env.AUTH_SECRET || 'ojemi-super-secret-key-2026-very-safe';
+const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
 
 async function verifyAdmin() {
   const cookieStore = await cookies();
-  const userId = cookieStore.get('ojemi_userid')?.value;
-  const signature = cookieStore.get('ojemi_signature')?.value; 
+  const userId = cookieStore.get('humorin_userid')?.value;
+  const signature = cookieStore.get('humorin_signature')?.value; 
   if (!userId) return false;
   if (signature) {
     const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(userId).digest('hex');
@@ -72,7 +72,7 @@ export default async function AdminLogsPage(props: any) {
       {/* 사이드바 */}
       <aside className="w-60 bg-[#2a3042] text-gray-300 flex flex-col shadow-xl z-20">
         <div className="p-5 border-b border-gray-700/50 bg-[#1e2330]">
-          <Link href="/" className="text-2xl font-black text-white tracking-tighter">OJEMI <span className="text-xs text-indigo-400 align-top">ADMIN</span></Link>
+          <Link href="/" className="text-2xl font-black text-white tracking-tighter">HUMORIN <span className="text-xs text-indigo-400 align-top">ADMIN</span></Link>
         </div>
         <nav className="flex-1 py-4">
           <ul className="space-y-1">
@@ -107,7 +107,7 @@ export default async function AdminLogsPage(props: any) {
               {/* 💡 [엑셀 다운로드 버튼] 서버 통신 없이 즉시 다운로드! */}
               <a 
                 href={csvDataUri} 
-                download={`오재미_로그_${new Date().toISOString().slice(0,10)}.csv`}
+                download={`유머인_로그_${new Date().toISOString().slice(0,10)}.csv`}
                 className="px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 text-xs font-black rounded-sm flex items-center gap-1 transition-colors shadow-sm"
               >
                 📥 현재 목록 엑셀 저장
