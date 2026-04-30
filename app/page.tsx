@@ -37,7 +37,11 @@ function getIconForCategory(category: string) {
   if (category.includes('감동')) return '💖';
   if (category.includes('세상')) return '☕';
   if (category.includes('흥미')) return '💡';
-  if (category.includes('동물')) return '🐾';
+  if (category.includes('동물')) return '🐱';
+  if (category.includes('맛집')) return '🍔';
+  if (category.includes('건강')) return '🏕️';
+  if (category.includes('Art') || category.includes('Photo')) return '🎨';
+  if (category.includes('격려')) return '🐳';
   if (category.includes('정보') || category.includes('상식')) return '📘';
   if (category.includes('질문')) return '❓';
   if (category.includes('자유')) return '💬';
@@ -46,7 +50,7 @@ function getIconForCategory(category: string) {
     '🚀', '🌟', '💎', '🌈', '🎯', '🎨', '🧩', '🎧', '🍿', '🎈',
     '🔮', '🏆', '🍔', '🍺', '🏕️', '🛸', '🎸', '🎮', '📸', '🍀',
     '☀️', '🌙', '⚡', '🔥', '👑', '🍒', '🍉', '🌴', '🌻', '🐶',
-    '🐱', '🐳', '🍩', '🍷', '🛹', '✈️', '⛵', '城堡', '🎡', '💎'
+    '🐱', '🐳', '🍩', '🍷', '🛹', '✈️', '⛵', '🎡', '💎'
   ];
 
   let hash = 0;
@@ -165,9 +169,9 @@ export default async function HomePage() {
         
         <div className="bg-[#414a66] rounded-sm p-6 md:p-10 mb-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
           <div>
-            <h1 className="text-2xl md:text-3xl font-black text-white mb-2">
-              세상의 모든 웃음이 있는 곳 <span className="text-yellow-400">유머인</span> 입니다.
-            </h1>
+            <h1 className="text-2xl md:text-3xl font-black text-white mb-2 break-keep">
+  세상의 모든 웃음이 있는 곳 <span className="text-yellow-400 whitespace-nowrap">유머인</span> 입니다.
+</h1>
             <p className="text-sm md:text-base text-gray-300 font-medium">
               함께 웃고, 나누고, 소통하는 우리들의 따뜻한 공간 유머인.
             </p>
