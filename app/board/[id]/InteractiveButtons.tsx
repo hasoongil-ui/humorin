@@ -312,7 +312,7 @@ export function EditCommentForm({ commentId, initialContent, initialImage, editA
 }
 
 // ---------------------------------------------------------
-// 🟢 4. 최신 트렌드 Web Share API 공유 버튼
+// 🟢 4. 최신 트렌드 Web Share API 공유 버튼 (중복 오류 완벽 해결!)
 // ---------------------------------------------------------
 export function PostShareButton({ title }: { title: string }) {
   const handleShare = async () => {
@@ -321,9 +321,12 @@ export function PostShareButton({ title }: { title: string }) {
 
     if (navigator.share) {
       try {
-        await navigator.share({ title: title, text: text, url: url });
+        // 🚨 핵심 수정 부분: text 속성을 제거하여 카카오톡이 텍스트를 강제로 합치는 것을 막습니다. 
+        // 오직 게시글 원본 '제목'과 'URL' 두 가지만 깔끔하게 보냅니다!
+        await navigator.share({ title: title, url: url });
       } catch (err) {}
     } else {
+      // 카카오톡이 아닌 일반 트위터 공유 등의 환경은 기존대로 유지하여 안전을 확보합니다.
       const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
       window.open(twitterUrl, '_blank', 'width=600,height=400,scrollbars=no,resizable=no');
     }
