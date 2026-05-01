@@ -1,7 +1,9 @@
+// 파일 위치: app/board/page.tsx
 // @ts-nocheck
 import { sql } from '@vercel/postgres';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
+import CategoryIcon from './CategoryIcon'; // 💡 1단계에서 만든 부품 상자를 연결합니다.
 
 export const dynamic = 'force-dynamic';
 
@@ -37,32 +39,6 @@ function extractData(fullTitle: string) {
     return { cat, cleanTitle };
   }
   return { cat: '일반', cleanTitle: fullTitle };
-}
-
-// 💡 [안전한 수술 구역] 무거운 SVG 그림을 지우고 대표님이 원하신 예쁜 이모지로 교체 완료!
-function CategoryIcon({ category }: { category: string }) {
-  const baseClass = "w-4 h-4 inline-flex items-center justify-center mr-2 flex-shrink-0 text-[15px]";
-  
-  let icon = '📌'; // 기본 이모지
-
-  if (category.includes('유머')) icon = '😆';
-  else if (category.includes('감동')) icon = '💖';
-  else if (category.includes('세상')) icon = '☕';
-  else if (category.includes('흥미')) icon = '💡';
-  else if (category.includes('동물')) icon = '🐱';
-  else if (category.includes('맛집')) icon = '🍔';
-  else if (category.includes('건강')) icon = '🏕️';
-  else if (category.includes('Art') || category.includes('Photo')) icon = '🎨';
-  else if (category.includes('격려')) icon = '🐳';
-  else if (category.includes('상식')) icon = '📘';
-  else if (category.includes('요청')) icon = '🙋';
-  else if (category.includes('자유')) icon = '💬';
-  else if (category.includes('영화')) icon = '🍿';
-  else if (category.includes('가볼만한')) icon = '🚗';
-  else if (category.includes('재테크')) icon = '💰';
-  else if (category.includes('수필') || category.includes('시/') || category.includes('소설') || category.includes('창작')) icon = '🖋️';
-
-  return <span className={baseClass}>{icon}</span>;
 }
 
 export default async function BoardPage(props: any) {
@@ -198,7 +174,6 @@ export default async function BoardPage(props: any) {
   const renderTopPost = topPost && !noticeIds.has(topPost.id) ? topPost : null;
   const canWrite = bestType === ''; 
 
-  // 💡 [수술 1] 페이지네이션 URL 생성 도우미 함수
   const getPageUrl = (pageNum: number) => {
     let url = `/board?page=${pageNum}`;
     if (keyword) url += `&q=${keyword}&searchType=${searchType}`;
@@ -207,7 +182,6 @@ export default async function BoardPage(props: any) {
     return url;
   };
 
-  // 💡 [수술 2] 반응형 숫자 축소 로직 (항상 최대 5개만 노출 - 슬라이딩 윈도우)
   const maxPageButtons = 5;
   let startPage = Math.max(1, page - 2);
   let endPage = Math.min(totalPages, startPage + maxPageButtons - 1);

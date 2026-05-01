@@ -1,8 +1,10 @@
+// 파일 위치: app/page.tsx
 import type { Metadata } from 'next';
 import { sql } from '@vercel/postgres';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import Navbar from './board/Navbar';
+import CategoryIcon from './board/CategoryIcon'; // 💡 1단계에서 만든 부품 상자를 연결합니다.
 
 export const dynamic = 'force-dynamic';
 
@@ -30,36 +32,6 @@ function formatShortDate(dateString: any) {
   const dbDate = new Date(dateString);
   const kstDate = new Date(dbDate.getTime() + 9 * 60 * 60 * 1000);
   return `${String(kstDate.getMonth() + 1).padStart(2, '0')}-${String(kstDate.getDate()).padStart(2, '0')}`;
-}
-
-function getIconForCategory(category: string) {
-  if (category.includes('유머')) return '😆';
-  if (category.includes('감동')) return '💖';
-  if (category.includes('세상')) return '☕';
-  if (category.includes('흥미')) return '💡';
-  if (category.includes('동물')) return '🐱';
-  if (category.includes('맛집')) return '🍔';
-  if (category.includes('건강')) return '🏕️';
-  if (category.includes('Art') || category.includes('Photo')) return '🎨';
-  if (category.includes('격려')) return '🐳';
-  if (category.includes('정보') || category.includes('상식')) return '📘';
-  if (category.includes('질문')) return '❓';
-  if (category.includes('자유')) return '💬';
-
-  const randomEmojis = [
-    '🚀', '🌟', '💎', '🌈', '🎯', '🎨', '🧩', '🎧', '🍿', '🎈',
-    '🔮', '🏆', '🍔', '🍺', '🏕️', '🛸', '🎸', '🎮', '📸', '🍀',
-    '☀️', '🌙', '⚡', '🔥', '👑', '🍒', '🍉', '🌴', '🌻', '🐶',
-    '🐱', '🐳', '🍩', '🍷', '🛹', '✈️', '⛵', '🎡', '💎'
-  ];
-
-  let hash = 0;
-  for (let i = 0; i < category.length; i++) {
-    hash = category.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  
-  const index = Math.abs(hash) % randomEmojis.length;
-  return randomEmojis[index];
 }
 
 export default async function HomePage() {
@@ -116,7 +88,7 @@ export default async function HomePage() {
     <div className={`bg-white border ${highlight ? 'border-[#3b4890] shadow-md' : 'border-gray-200 shadow-sm'} rounded-sm overflow-hidden flex flex-col`}>
       <div className={`flex justify-between items-center px-4 py-3 border-b ${highlight ? 'bg-[#3b4890] border-[#3b4890]' : 'bg-gray-50 border-gray-200'}`}>
         <h3 className={`font-black text-[15px] flex items-center gap-1.5 ${highlight ? 'text-white' : 'text-[#3b4890]'}`}>
-          <span>{icon}</span> {title}
+          <span className="flex items-center">{icon}</span> {title}
         </h3>
         <Link href={link} className={`text-xs font-bold transition-colors ${highlight ? 'text-indigo-200 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}>
           더보기 &gt;
@@ -170,8 +142,8 @@ export default async function HomePage() {
         <div className="bg-[#414a66] rounded-sm p-6 md:p-10 mb-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
           <div>
             <h1 className="text-2xl md:text-3xl font-black text-white mb-2 break-keep">
-  세상의 모든 웃음이 있는 곳 <span className="text-yellow-400 whitespace-nowrap">유머인</span> 입니다.
-</h1>
+              세상의 모든 웃음이 있는 곳 <span className="text-yellow-400 whitespace-nowrap">유머인</span> 입니다.
+            </h1>
             <p className="text-sm md:text-base text-gray-300 font-medium">
               함께 웃고, 나누고, 소통하는 우리들의 따뜻한 공간 유머인.
             </p>
@@ -228,7 +200,7 @@ export default async function HomePage() {
             <BoardWidget 
               key={board.id} 
               title={board.name} 
-              icon={getIconForCategory(board.name)} 
+              icon={<CategoryIcon category={board.name} />} 
               link={`/board?category=${board.name}`} 
               posts={dynamicBoardPosts[index]} 
             />
