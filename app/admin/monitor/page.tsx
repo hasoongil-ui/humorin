@@ -382,8 +382,8 @@ export default async function MonitorControlCenter(props: any) {
           <div className="bg-[#121c29] border border-sky-500/30 p-6 rounded-md shadow-lg flex flex-col relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500 rounded-full blur-[60px] opacity-10"></div>
             <h2 className="text-xl font-black text-sky-400 mb-6 flex items-center gap-2 pb-3 border-b border-sky-900/50">
-              <span className="text-2xl">🛡️</span> Cloudflare 저장소 <span className="text-xs font-normal text-sky-300/70 ml-auto bg-sky-950/50 px-2 py-1 rounded border border-sky-900/50">R2 (10GB 무료)</span>
-            </h2>
+  <span className="text-2xl">🛡️</span> Cloudflare 저장소 <span className="text-white ml-2">({process.env.R2_BUCKET_NAME})</span> <span className="text-xs font-normal text-sky-300/70 ml-auto bg-sky-950/50 px-2 py-1 rounded border border-sky-900/50">R2 (10GB 무료)</span>
+</h2>
 
             <div className="mb-5 relative z-10">
               <div className="flex justify-between text-[14px] md:text-[15px] font-black mb-2">
