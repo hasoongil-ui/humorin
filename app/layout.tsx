@@ -64,9 +64,10 @@ export const metadata: Metadata = {
     images: ["/og-image.png"],
   },
   
+  // 👇 바로 이 부분만 캐시 폭파용 꼬리표(?v=2)를 달았습니다!
   icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png', 
+    icon: '/favicon.ico?v=2',
+    apple: '/apple-touch-icon.png?v=2', 
   },
 };
 
