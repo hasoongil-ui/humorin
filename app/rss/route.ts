@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 
-// 구글/네이버 로봇이 접근할 때마다 무조건 DB에서 최신 상태를 강제로 새로고침해 오도록 만듭니다. (캐싱 렉 원천 차단)
+// 구글/네이버 로봇이 접근할 때마다 무조건 DB에서 최신 상태를 강제로 새로고침 (캐싱 렉 원천 차단)
 export const dynamic = 'force-dynamic'; 
 
 export async function GET() {
   try {
-    // 1. 대표님 DB에서 정상 게시글 20개를 불러옵니다. (SEO를 위해 'author' 추가)
+    // 1. 대표님 DB에서 정상 게시글 20개를 불러옵니다.
+    // 🚨 중요: 본문 컬럼명이 'content'가 맞는지 확인해 주세요! (만약 body라면 body로 수정)
     const { rows: recentPosts } = await sql`
-      SELECT id, title, author, date 
+      SELECT id, title, author, date, content 
       FROM posts 
       WHERE COALESCE(status, 'published') = 'published' 
         AND is_blinded = false
@@ -18,12 +19,13 @@ export async function GET() {
 
     const siteURL = 'https://www.humorin.kr';
 
-    // 2. 구글, 네이버, 빙이 요구하는 모든 완벽한 규격(guid, dc:creator 포함)으로 조립합니다.
+    // 2. 구글, 네이버가 요구하는 모든 규격(본문, 이미지, 작성자)으로 조립합니다.
     const rssItemsXml = recentPosts
       .map((post) => {
-        // CDATA 렌더링 오류를 막기 위한 안전장치
+        // XML 에러를 막기 위한 철통 CDATA 안전장치 (특수문자 충돌 방지)
         const safeTitle = post.title ? post.title.replace(/]]>/g, ']]&gt;') : '제목 없음';
         const safeAuthor = post.author ? post.author.replace(/]]>/g, ']]&gt;') : '유머인';
+        const safeContent = post.content ? post.content.replace(/]]>/g, ']]&gt;') : '';
         const postURL = `${siteURL}/board/${post.id}`;
         
         return `
@@ -32,6 +34,7 @@ export async function GET() {
             <link>${postURL}</link>
             <guid isPermaLink="true">${postURL}</guid>
             <description><![CDATA[${safeTitle} 게시글입니다.]]></description>
+            <content:encoded><![CDATA[${safeContent}]]></content:encoded>
             <dc:creator><![CDATA[${safeAuthor}]]></dc:creator>
             <pubDate>${new Date(post.date).toUTCString()}</pubDate>
           </item>
@@ -39,15 +42,16 @@ export async function GET() {
       })
       .join('');
 
-    // 3. Atom(구글 최적화)과 DC(작성자 메타데이터 최적화) 네임스페이스를 모두 적용한 최강의 대문
+    // 3. Atom, DC, 그리고 본문(content) 네임스페이스까지 모두 적용한 최강의 대문
     const rssXml = `<?xml version="1.0" encoding="UTF-8" ?>
       <rss version="2.0" 
            xmlns:atom="http://www.w3.org/2005/Atom" 
-           xmlns:dc="http://purl.org/dc/elements/1.1/">
+           xmlns:dc="http://purl.org/dc/elements/1.1/"
+           xmlns:content="http://purl.org/rss/1.0/modules/content/">
         <channel>
             <title>유머인</title>
             <link>${siteURL}</link>
-            <description>세상의 모든 유머, 유머인</description>
+            <description>세상의 모든 재미, 유머인</description>
             <language>ko</language>
             <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
             <atom:link href="${siteURL}/rss" rel="self" type="application/rss+xml" />
@@ -55,7 +59,7 @@ export async function GET() {
         </channel>
       </rss>`;
 
-    // 4. 한글 깨짐을 방지하는 utf-8 헤더와 함께 로봇에게 반환합니다.
+    // 4. 한글 깨짐을 방지하는 utf-8 헤더와 함께 로봇에게 반환
     return new NextResponse(rssXml, {
       headers: {
         'Content-Type': 'application/xml; charset=utf-8',
