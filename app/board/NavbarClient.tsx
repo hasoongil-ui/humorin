@@ -101,7 +101,7 @@ export default function NavbarClient(props: NavbarClientProps) {
           
           {/* 🚨 로고 이미지 파일명(logo_final.png) 및 크기(48px) 완벽 수정 완료 🚨 */}
           <Link href="/" className="shrink-0 flex items-center">
-            <img src="/logo_final.png" alt="유머.in 로고" style={{ height: '48px', objectFit: 'contain' }} />
+            <img src="/logo_final.png" alt="유머.in 로고" style={{ height: '34px', objectFit: 'contain' }} />
           </Link>
 
           <div className="flex items-center gap-2 md:gap-4 h-[32px]">
