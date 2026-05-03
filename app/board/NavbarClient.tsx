@@ -99,9 +99,9 @@ export default function NavbarClient(props: NavbarClientProps) {
       <header className="bg-white px-4 border-b border-gray-200 shadow-sm relative z-20 h-[65px] flex items-center">
         <div className="w-full max-w-[1200px] mx-auto flex justify-between items-center">
           
-          {/* 🚨 기존 Humor In 텍스트를 삭제하고, 바로 이 부분에 로고 이미지를 삽입했습니다 🚨 */}
+          {/* 🚨 로고 이미지 파일명(logo_final.png) 및 크기(48px) 완벽 수정 완료 🚨 */}
           <Link href="/" className="shrink-0 flex items-center">
-            <img src="/logo.png" alt="유머.in 로고" style={{ height: '38px', objectFit: 'contain' }} />
+            <img src="/logo_final.png" alt="유머.in 로고" style={{ height: '48px', objectFit: 'contain' }} />
           </Link>
 
           <div className="flex items-center gap-2 md:gap-4 h-[32px]">
