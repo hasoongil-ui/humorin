@@ -595,7 +595,11 @@ export default async function PostDetailPage(props: any) {
                     {node.content}
                   </span>
                 </div>
-                {node.image_data && <div className="mb-4 mt-2"><img src={node.image_data} alt="첨부" className="max-w-full sm:max-w-md h-auto rounded-sm border shadow-sm" /></div>}
+                {node.image_data && (
+                  <div className="mb-4 mt-2">
+                    <img src={node.image_data} alt="첨부" className="max-w-full sm:max-w-md h-auto rounded-sm border shadow-sm humorin-comment-img" />
+                  </div>
+                )}
               </div>
 
               {isCommentAuthor && !isDeleted && (
@@ -672,7 +676,9 @@ export default async function PostDetailPage(props: any) {
       <VideoVolumeFix />
       
       <style>{`
-        /* 1. 이미지: 웹툰/만화 가독성을 위한 스마트 리사이징 */
+        /* 1. 이미지: CLS(화면 덜컹거림) 방어용 본문/댓글 통합 스켈레톤 적용 */
+        
+        /* 본문 에디터 안의 이미지 */
         .ql-editor img {
           display: block;
           max-width: 720px !important; 
@@ -680,6 +686,20 @@ export default async function PostDetailPage(props: any) {
           height: auto;
           margin: 0 auto 15px auto;
           border-radius: 8px;
+        }
+
+        /* 💡 본문 이미지 & 댓글 이미지 공통 스켈레톤 애니메이션 */
+        .ql-editor img, .humorin-comment-img {
+          min-height: 250px; /* 이미지가 오기 전 최소 공간 강제 확보 */
+          background-color: #f8fafc;
+          background-image: linear-gradient(90deg, #f8fafc 0px, #f1f5f9 50%, #f8fafc 100%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+          0% { background-position: 100% 0; }
+          100% { background-position: -100% 0; }
         }
 
         /* 2. 동영상/유튜브: 기존 황금비율 650px 유지하여 깨짐 방지 */

@@ -64,6 +64,29 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
         const BlockEmbed = Quill.import('blots/block/embed') as any;
         
+        // 💡 [수정 1] CLS 완벽 방어를 위한 커스텀 이미지 엔진 개조
+        const ImageBlot = Quill.import('formats/image') as any;
+        class CustomImage extends ImageBlot {
+          static create(value: any) {
+            let node = super.create(value);
+            if (typeof value === 'object' && value.url) {
+              node.setAttribute('src', value.url);
+              if (value.width) node.setAttribute('width', value.width);
+              if (value.height) node.setAttribute('height', value.height);
+              if (value.width && value.height) {
+                // 브라우저가 미리 공간을 계산하도록 강제 할당
+                node.style.aspectRatio = `${value.width} / ${value.height}`;
+              }
+            } else if (typeof value === 'string') {
+              node.setAttribute('src', value);
+            }
+            return node;
+          }
+        }
+        CustomImage.blotName = 'image';
+        CustomImage.tagName = 'IMG';
+        Quill.register(CustomImage, true);
+
         class CustomVideo extends BlockEmbed {
           static blotName = 'mp4Video';
           static tagName = 'VIDEO';
@@ -115,7 +138,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     });
   }, [isGlobalLocked, isAdmin, router]);
 
-  // 🚀 [마법의 파이프라인] 병렬 압축 + 순차 용량검사 + 병렬 업로드 + 원샷 삽입
   const processAndUploadImages = async (fileArray: File[], forcedIndex?: number) => {
     if (!quillRef.current) return;
     
@@ -130,7 +152,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     let insertIndex = forcedIndex !== undefined ? forcedIndex : (editor.getSelection()?.index || editor.getLength());
 
     try {
-      // 1. 다차선 압축 (병렬 처리로 속도 극대화)
       const compressPromises = fileArray.filter(f => f.type.startsWith('image/')).map(async (file) => {
         if (file.type === 'image/gif' || file.type === 'image/webp') return file;
         try {
@@ -148,13 +169,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
           return new File([compressedBlob], newFileName, { type: 'image/webp' });
         } catch (e) {
-          return file; // 압축 실패 시 원본 폴백
+          return file; 
         }
       });
 
       const processedFiles = (await Promise.all(compressPromises)).filter(Boolean) as File[];
 
-      // 2. 용량 검사는 순차적으로 깐깐하게! (꼼수 원천 차단)
       const approvedFiles: File[] = [];
       for (const file of processedFiles) {
         if (accumulatedImageSizeRef.current + file.size > MAX_TOTAL_IMAGE_SIZE) {
@@ -165,8 +185,17 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         approvedFiles.push(file);
       }
 
-      // 3. 다차선 하이패스 업로드 (병렬 처리로 R2 창고에 광속 저장)
       const uploadPromises = approvedFiles.map(async (file) => {
+        // 💡 [수정 2] R2 업로드 직전 이미지의 실제 가로/세로 크기를 추출
+        const dimensions = await new Promise<{w: number, h: number}>((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            resolve({ w: img.width, h: img.height });
+            URL.revokeObjectURL(img.src);
+          };
+          img.src = URL.createObjectURL(file);
+        });
+
         const ticketRes = await fetch('/api/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -175,16 +204,18 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         const { uploadUrl, publicUrl } = await ticketRes.json();
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-          return publicUrl;
+          // URL과 함께 크기 데이터를 같이 반환
+          return { url: publicUrl, width: dimensions.w, height: dimensions.h };
         }
         return null;
       });
 
-      const uploadedUrls = (await Promise.all(uploadPromises)).filter(Boolean) as string[];
+      const uploadedImages = (await Promise.all(uploadPromises)).filter(Boolean) as {url: string, width: number, height: number}[];
 
       // 4. 에디터 삽입 (깜빡임 없이 부드럽게 한 방에 꽂아넣기)
-      uploadedUrls.forEach(url => {
-        editor.insertEmbed(insertIndex, 'image', url, 'silent');
+      uploadedImages.forEach(img => {
+        // 💡 [수정 3] 단순 주소가 아닌 폭과 높이 정보를 객체로 전달하여 HTML에 각인
+        editor.insertEmbed(insertIndex, 'image', { url: img.url, width: img.width, height: img.height }, 'silent');
         editor.insertText(insertIndex + 1, '\n', 'silent');
         insertIndex += 2; 
       });
