@@ -305,6 +305,19 @@ export default async function PostDetailPage(props: any) {
       return; 
     }
 
+    // 🚨 [추가된 테러 방어막] 에이징 & 포인트 허들 (Shadowban 로직)
+    const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
+    if (userRows.length > 0) {
+      const user = userRows[0];
+      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
+      
+      if (hoursSinceJoined < 24 || (user.points || 0) < 10) {
+        console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 비공감 공격을 차단했습니다.`);
+        return; 
+      }
+    }
+    // -------------------------------------------------------------
+
     const { rows: checkRows = [] } = await sql`SELECT * FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
       await sql`DELETE FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
@@ -474,6 +487,19 @@ export default async function PostDetailPage(props: any) {
       `;
       return; 
     }
+
+    // 🚨 [추가된 테러 방어막] 에이징 & 포인트 허들 (Shadowban 로직)
+    const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
+    if (userRows.length > 0) {
+      const user = userRows[0];
+      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
+      
+      if (hoursSinceJoined < 24 || (user.points || 0) < 10) {
+        console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 댓글 비공감 공격을 차단했습니다.`);
+        return; 
+      }
+    }
+    // -------------------------------------------------------------
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_dislikes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
