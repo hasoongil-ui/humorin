@@ -23,20 +23,20 @@ const MAX_CONTENT_LENGTH = 65000;
 export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boards, editorPlaceholder, userPoints = 0 }: { currentUser: string, isAdmin: boolean, isGlobalLocked: boolean, boards: any[], editorPlaceholder?: string, userPoints?: number }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState(boards && boards.length > 0 ? boards[0].name : '흥미로운 이야기'); 
+  const [category, setCategory] = useState(boards && boards.length > 0 ? boards[0].name : '흥미로운 이야기');
   const [isUploading, setIsUploading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false); 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditorReady, setIsEditorReady] = useState(false);
-  
+
   const [botTrap, setBotTrap] = useState('');
   const [isNotice, setIsNotice] = useState(false);
   const router = useRouter();
-  
+
   const quillRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
   const accumulatedImageSizeRef = useRef(0);
-  const MAX_TOTAL_IMAGE_SIZE = 30 * 1024 * 1024; 
+  const MAX_TOTAL_IMAGE_SIZE = 30 * 1024 * 1024;
 
   useEffect(() => {
     if (isGlobalLocked && !isAdmin) {
@@ -63,7 +63,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         Quill.register(Size, true);
 
         const BlockEmbed = Quill.import('blots/block/embed') as any;
-        
+
         const ImageBlot = Quill.import('formats/image') as any;
         class CustomImage extends ImageBlot {
           static create(value: any) {
@@ -98,7 +98,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             node.style.display = 'block';
             node.style.width = '100%';
             node.style.maxWidth = '800px';
-            node.style.margin = '10px auto 30px auto'; 
+            node.style.margin = '10px auto 30px auto';
             node.style.borderRadius = '8px';
             node.style.backgroundColor = '#000';
             return node;
@@ -138,7 +138,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
   const processAndUploadImages = async (fileArray: File[], forcedIndex?: number) => {
     if (!quillRef.current) return;
-    
+
     const editor = quillRef.current.getEditor();
     const currentImageCount = editor.root.querySelectorAll('img').length;
     if (currentImageCount + fileArray.length > 20) {
@@ -156,18 +156,18 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const img = new Image();
           img.src = URL.createObjectURL(file);
           await new Promise((resolve) => { img.onload = resolve; });
-          const isLongImage = img.height > img.width * 2; 
+          const isLongImage = img.height > img.width * 2;
           URL.revokeObjectURL(img.src);
 
-          const options = isLongImage 
+          const options = isLongImage
             ? { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: true, initialQuality: 0.95, fileType: 'image/webp' }
             : { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.92, fileType: 'image/webp' };
-          
+
           const compressedBlob = await imageCompression(file, options);
           const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
           return new File([compressedBlob], newFileName, { type: 'image/webp' });
         } catch (e) {
-          return file; 
+          return file;
         }
       });
 
@@ -184,7 +184,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       }
 
       const uploadPromises = approvedFiles.map(async (file) => {
-        const dimensions = await new Promise<{w: number, h: number}>((resolve) => {
+        const dimensions = await new Promise<{ w: number, h: number }>((resolve) => {
           const img = new Image();
           img.onload = () => {
             resolve({ w: img.width, h: img.height });
@@ -206,19 +206,19 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         return null;
       });
 
-      const uploadedImages = (await Promise.all(uploadPromises)).filter(Boolean) as {url: string, width: number, height: number}[];
+      const uploadedImages = (await Promise.all(uploadPromises)).filter(Boolean) as { url: string, width: number, height: number }[];
 
       uploadedImages.forEach(img => {
         editor.insertEmbed(insertIndex, 'image', { url: img.url, width: img.width, height: img.height }, 'silent');
         editor.insertText(insertIndex + 1, '\n', 'silent');
-        insertIndex += 2; 
+        insertIndex += 2;
       });
-      editor.setSelection(insertIndex, 'silent'); 
+      editor.setSelection(insertIndex, 'silent');
 
     } catch (error) {
       alert('이미지 업로드 중 오류가 발생했습니다.');
     } finally {
-      setIsUploading(false); 
+      setIsUploading(false);
     }
   };
 
@@ -235,15 +235,15 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       const text = clipboardData.getData('text/plain');
       const html = clipboardData.getData('text/html');
-      
+
       if (text) {
         const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
-        
+
         if (match) {
           e.preventDefault();
           e.stopPropagation();
-          
+
           const embedUrl = `https://www.youtube.com/embed/${match[1]}`;
           const editor = quillRef.current.getEditor();
           const range = editor.getSelection();
@@ -269,16 +269,16 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             const realSrc = el.getAttribute('src') || el.getAttribute('data-src') || el.getAttribute('data-original');
             if (realSrc && realSrc.startsWith('http')) {
               hasExternalMedia = true;
-              el.setAttribute('src', realSrc); 
+              el.setAttribute('src', realSrc);
               el.removeAttribute('data-src');
               el.removeAttribute('data-original');
             }
           });
 
           if (hasExternalMedia) {
-            extractedHtml = doc.body.innerHTML; 
+            extractedHtml = doc.body.innerHTML;
           }
-        } catch (err) {}
+        } catch (err) { }
       }
 
       if (!hasExternalMedia && text) {
@@ -297,9 +297,9 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       }
 
       if (hasExternalMedia) {
-        e.preventDefault(); 
+        e.preventDefault();
         e.stopPropagation();
-        
+
         const editor = quillRef.current.getEditor();
         const range = editor.getSelection();
         const pasteIndex = range ? range.index : editor.getLength();
@@ -320,12 +320,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       }
 
       if (hasImage && imageFiles.length > 0) {
-        e.preventDefault(); 
+        e.preventDefault();
         e.stopPropagation();
         const editor = quillRef.current.getEditor();
         const range = editor.getSelection();
         const pasteIndex = range ? range.index : editor.getLength();
-        uploadImagesRef.current(imageFiles, pasteIndex); 
+        uploadImagesRef.current(imageFiles, pasteIndex);
       }
     };
 
@@ -341,7 +341,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
     input.setAttribute('accept', 'image/*');
-    input.setAttribute('multiple', 'true'); 
+    input.setAttribute('multiple', 'true');
     input.click();
     input.onchange = async () => {
       const files = input.files;
@@ -357,12 +357,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'video/mp4,video/webm'); 
+    input.setAttribute('accept', 'video/mp4,video/webm');
     input.click();
     input.onchange = async () => {
       const file = input.files ? input.files[0] : null;
       if (!file) return;
-      
+
       const currentVideoCount = editor.root.querySelectorAll('video').length;
       if (currentVideoCount >= 4) {
         alert(`🚨 동영상은 게시글당 최대 4개까지만 첨부할 수 있습니다.`);
@@ -371,7 +371,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       if (file.size > 10 * 1024 * 1024) {
         alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).\n파일 크기를 줄인 후 다시 시도해 주십시오.`);
-        return; 
+        return;
       }
 
       setIsUploading(true);
@@ -384,7 +384,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         const { uploadUrl, publicUrl } = await ticketRes.json();
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-          
+
           editor.insertEmbed(insertIndex, 'mp4Video', publicUrl, 'silent');
           editor.insertText(insertIndex + 1, '\n', 'silent');
           editor.setSelection(insertIndex + 2, 'silent');
@@ -397,34 +397,34 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     };
   };
 
-const modules = useMemo(() => ({
+  const modules = useMemo(() => ({
     history: { delay: 500, maxStack: 100, userOnly: true },
     toolbar: {
       container: [
-        ['image', 'video', 'link'], 
+        ['image', 'video', 'link'],
         [{ 'font': [false, 'pretendard', 'notosanskr', 'gowundodum', 'hahmlet'] }],
-        [{ 'size': ['10px', '12px', '14px', '15px', false, '18px', '20px', '24px', '30px', '36px'] }], 
+        [{ 'size': ['10px', '12px', '14px', '15px', false, '18px', '20px', '24px', '30px', '36px'] }],
         ['undo', 'redo'], // 💡 실행 취소/다시 실행 아이콘을 B(볼드체) 앞으로 전진 배치 완료!
-        [{ 'header': [1, 2, 3, 4, false] }], 
-        ['bold', 'italic', 'underline', 'strike'], 
-        [{ 'color': [] }, { 'background': [] }], 
-        [{ 'align': [] }], 
-        [{ 'list': 'ordered'}, { 'list': 'bullet' }], 
-        ['blockquote', 'code-block'], 
+        [{ 'header': [1, 2, 3, 4, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'color': [] }, { 'background': [] }],
+        [{ 'align': [] }],
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+        ['blockquote', 'code-block'],
         ['clean']
       ],
-      handlers: { 
+      handlers: {
         image: imageHandler,
-        video: videoFileHandler, 
-        undo: function() { this.quill.history.undo(); },
-        redo: function() { this.quill.history.redo(); }
+        video: videoFileHandler,
+        undo: function () { this.quill.history.undo(); },
+        redo: function () { this.quill.history.redo(); }
       }
     }
   }), []);
 
   const handleContentChange = (newContent: string) => {
-    const textOnly = newContent.replace(/<[^>]*>?/gm, ''); 
-    
+    const textOnly = newContent.replace(/<[^>]*>?/gm, '');
+
     if (textOnly.length > MAX_CONTENT_LENGTH) {
       alert(`🚨 게시글은 최대 ${MAX_CONTENT_LENGTH.toLocaleString()}자까지만 작성할 수 있습니다.\n현재 초과된 분량은 자동으로 삭제됩니다.`);
       if (quillRef.current) {
@@ -454,24 +454,24 @@ const modules = useMemo(() => ({
     }
 
     if (!title.trim()) {
-      alert('제목을 입력하세요.'); 
+      alert('제목을 입력하세요.');
       return;
     }
 
     if (!content || content === '<p><br></p>') {
       alert('내용을 작성해 주십시오.'); return;
     }
-    
+
     // 🚨 [테러 방어막 2 - 오작동 버그 픽스 완료!]
     // 이미지/동영상 태그를 지운 순수 텍스트만 스캔하여 정상 뉴비의 사진 업로드는 허용하고, 
     // 악성 봇이 숨겨놓은 URL 광고 링크만 정확히 찢어발깁니다.
     if (!isAdmin && userPoints < 10) {
       const contentWithoutMedia = content.replace(/<(img|video|iframe)[^>]*>/gi, '');
       const hasLink = contentWithoutMedia.includes('http://') || contentWithoutMedia.includes('https://') || contentWithoutMedia.includes('www.') || contentWithoutMedia.includes('.com');
-      
+
       if (hasLink) {
         alert('🚨 스팸 방지를 위해 활동 점수 10점 미만은 외부 링크(URL)를 포함할 수 없습니다.\n본문에서 링크를 삭제한 후 다시 등록해 주십시오.');
-        return; 
+        return;
       }
     }
     // -------------------------------------------------------------
@@ -480,18 +480,18 @@ const modules = useMemo(() => ({
       alert('게시글에 용량을 초과하는 텍스트 이미지(Base64)가 포함되어 있습니다.\n해당 이미지를 삭제하신 후 다시 첨부해 주십시오.'); return;
     }
     if (isUploading || isSubmitting) return;
-    
+
     if (currentLength > MAX_CONTENT_LENGTH) {
       alert(`게시글 글자 수 제한(${MAX_CONTENT_LENGTH.toLocaleString()}자)을 초과했습니다.`); return;
     }
 
-    setIsSubmitting(true); 
+    setIsSubmitting(true);
 
     try {
       const res = await fetch('/api/post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title, content: content, author: currentUser, category: category, is_notice: isNotice, bot_trap: botTrap }), 
+        body: JSON.stringify({ title: title, content: content, author: currentUser, category: category, is_notice: isNotice, bot_trap: botTrap }),
       });
 
       if (res.ok) {
@@ -522,7 +522,8 @@ const modules = useMemo(() => ({
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Hahmlet:wght@400;700&family=Nanum+Gothic:wght@400;700&display=swap');
 
@@ -565,19 +566,19 @@ const modules = useMemo(() => ({
         <h1 className="text-xl font-bold text-gray-800 mb-6 border-b border-gray-300 pb-3 flex items-center gap-2">
           글쓰기 {isUploading && <span className="text-sm font-medium text-gray-500 ml-4">(업로드 처리 중...)</span>}
         </h1>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          
+
           <div className="absolute opacity-0 -z-50 h-0 w-0 overflow-hidden" aria-hidden="true">
             <label htmlFor="humorin_secret_trap">웹사이트 주소 (사람은 비워두세요)</label>
-            <input 
-              type="text" 
-              id="humorin_secret_trap" 
-              name="humorin_secret_trap" 
-              value={botTrap} 
-              onChange={(e) => setBotTrap(e.target.value)} 
-              tabIndex={-1} 
-              autoComplete="off" 
+            <input
+              type="text"
+              id="humorin_secret_trap"
+              name="humorin_secret_trap"
+              value={botTrap}
+              onChange={(e) => setBotTrap(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
             />
           </div>
 
@@ -605,10 +606,10 @@ const modules = useMemo(() => ({
 
           {isAdmin && (
             <div className="flex items-center gap-2 px-1 py-2 bg-indigo-50 border border-indigo-100 rounded-sm mt-1">
-              <input 
-                type="checkbox" 
-                id="is_notice" 
-                checked={isNotice} 
+              <input
+                type="checkbox"
+                id="is_notice"
+                checked={isNotice}
                 onChange={(e) => setIsNotice(e.target.checked)}
                 className="w-4 h-4 ml-2 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-600 cursor-pointer"
               />
@@ -627,7 +628,7 @@ const modules = useMemo(() => ({
               </div>
             )}
           </div>
-          
+
           <div className="flex justify-end mt-2 px-1">
             <span className={`text-[11px] sm:text-[12px] font-black tracking-tighter ${currentLength >= MAX_CONTENT_LENGTH ? 'text-rose-500' : 'text-gray-400'}`}>
               {currentLength.toLocaleString()} / {MAX_CONTENT_LENGTH.toLocaleString()}자
@@ -642,15 +643,15 @@ const modules = useMemo(() => ({
 
           <div className="flex justify-center gap-2 pt-6 border-t border-gray-100 mt-4">
             <button type="button" onClick={() => router.back()} disabled={isSubmitting} className="px-8 py-3 bg-white border border-gray-300 text-gray-700 rounded-sm font-bold hover:bg-gray-50 disabled:opacity-50 transition-colors">취소</button>
-            
-            <button 
-              type="button" 
+
+            <button
+              type="button"
               onMouseDown={(e) => {
-                e.preventDefault(); 
-                handleSubmit(e); 
+                e.preventDefault();
+                handleSubmit(e);
               }}
               onClick={(e) => handleSubmit(e)}
-              disabled={isUploading || isSubmitting || !isEditorReady} 
+              disabled={isUploading || isSubmitting || !isEditorReady}
               className="px-12 py-3 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-all disabled:bg-gray-400 flex items-center justify-center gap-2"
             >
               {isSubmitting && <Loader2 className="animate-spin" size={18} />}
