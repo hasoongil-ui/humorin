@@ -7,6 +7,8 @@ import Link from 'next/link';
 function LoginForm() {
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
+  // 🚨 [테러 방어막 3] 봇 전용 트랩 상태 추가
+  const [botTrap, setBotTrap] = useState(''); 
   const router = useRouter();
   
   const searchParams = useSearchParams();
@@ -14,6 +16,13 @@ function LoginForm() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // 🚨 [테러 방어막 작동] 허니팟이 채워져 있다면 봇으로 간주하고 가짜 성공 처리
+    if (botTrap) {
+      console.log('🛡️ [스팸 봇 차단] 허니팟 덫에 걸려 조용히 쫓아냅니다.');
+      router.push('/'); 
+      return;
+    }
     
     try {
       const res = await fetch('/api/login', {
@@ -34,9 +43,7 @@ function LoginForm() {
     }
   };
 
-  // 💡 [봉인 해제!] 네이버 로그인 창으로 보내주는 함수입니다.
   const handleNaverLogin = () => {
-    // 혹시 로그인 후 돌아갈 주소가 있다면 챙겨서 갑니다.
     const callbackUrl = redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : '';
     window.location.href = `/api/auth/naver${callbackUrl}`;
   };
@@ -44,6 +51,20 @@ function LoginForm() {
   return (
     <div className="space-y-6">
       <form onSubmit={handleLogin} className="space-y-5">
+        
+        {/* 🚨 [테러 방어막 3] 사람 눈에 안 보이고 탭(Tab) 이동도 안 되는 봇 전용 함정 */}
+        <div style={{ display: 'none', visibility: 'hidden', opacity: 0 }}>
+          <label>자동가입방지</label>
+          <input 
+            type="text" 
+            name="bot_trap" 
+            value={botTrap} 
+            onChange={(e) => setBotTrap(e.target.value)} 
+            tabIndex={-1} 
+            autoComplete="off" 
+          />
+        </div>
+
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-2">아이디</label>
           <input
@@ -81,25 +102,6 @@ function LoginForm() {
           유머인 계정으로 로그인
         </button>
       </form>
-
-      {/* 💡 [네이버 심사 지옥 탈출!] 당분간 네이버 버튼 숨김 처리 시작 
-      <div className="relative flex items-center py-2">
-        <div className="flex-grow border-t border-gray-200"></div>
-        <span className="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold">또는 간편하게</span>
-        <div className="flex-grow border-t border-gray-200"></div>
-      </div>
-
-      <button
-        type="button"
-        onClick={handleNaverLogin}
-        className="w-full py-3.5 bg-[#03C75A] hover:bg-[#02b351] text-white font-bold rounded-sm text-[16px] transition-colors flex justify-center items-center gap-2 shadow-sm"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M16.0732 11.206L7.90483 0H0V24H7.92683V12.794L16.0952 24H24V0H16.0732V11.206Z" fill="white"/>
-        </svg>
-        네이버로 1초 만에 시작하기
-      </button>
-      네이버 버튼 숨김 처리 끝 */}
     </div>
   );
 }

@@ -20,7 +20,7 @@ import 'react-quill-new/dist/quill.snow.css';
 
 const MAX_CONTENT_LENGTH = 65000;
 
-export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boards, editorPlaceholder }: { currentUser: string, isAdmin: boolean, isGlobalLocked: boolean, boards: any[], editorPlaceholder?: string }) {
+export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boards, editorPlaceholder, userPoints = 0 }: { currentUser: string, isAdmin: boolean, isGlobalLocked: boolean, boards: any[], editorPlaceholder?: string, userPoints?: number }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState(boards && boards.length > 0 ? boards[0].name : '흥미로운 이야기'); 
@@ -36,7 +36,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
   const accumulatedImageSizeRef = useRef(0);
-  const MAX_TOTAL_IMAGE_SIZE = 30 * 1024 * 1024; // 30MB 방어막
+  const MAX_TOTAL_IMAGE_SIZE = 30 * 1024 * 1024; 
 
   useEffect(() => {
     if (isGlobalLocked && !isAdmin) {
@@ -64,7 +64,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
         const BlockEmbed = Quill.import('blots/block/embed') as any;
         
-        // 💡 [수정 1] CLS 완벽 방어를 위한 커스텀 이미지 엔진 개조
         const ImageBlot = Quill.import('formats/image') as any;
         class CustomImage extends ImageBlot {
           static create(value: any) {
@@ -74,7 +73,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
               if (value.width) node.setAttribute('width', value.width);
               if (value.height) node.setAttribute('height', value.height);
               if (value.width && value.height) {
-                // 브라우저가 미리 공간을 계산하도록 강제 할당
                 node.style.aspectRatio = `${value.width} / ${value.height}`;
               }
             } else if (typeof value === 'string') {
@@ -186,7 +184,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       }
 
       const uploadPromises = approvedFiles.map(async (file) => {
-        // 💡 [수정 2] R2 업로드 직전 이미지의 실제 가로/세로 크기를 추출
         const dimensions = await new Promise<{w: number, h: number}>((resolve) => {
           const img = new Image();
           img.onload = () => {
@@ -204,7 +201,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         const { uploadUrl, publicUrl } = await ticketRes.json();
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-          // URL과 함께 크기 데이터를 같이 반환
           return { url: publicUrl, width: dimensions.w, height: dimensions.h };
         }
         return null;
@@ -212,9 +208,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       const uploadedImages = (await Promise.all(uploadPromises)).filter(Boolean) as {url: string, width: number, height: number}[];
 
-      // 4. 에디터 삽입 (깜빡임 없이 부드럽게 한 방에 꽂아넣기)
       uploadedImages.forEach(img => {
-        // 💡 [수정 3] 단순 주소가 아닌 폭과 높이 정보를 객체로 전달하여 HTML에 각인
         editor.insertEmbed(insertIndex, 'image', { url: img.url, width: img.width, height: img.height }, 'silent');
         editor.insertText(insertIndex + 1, '\n', 'silent');
         insertIndex += 2; 
@@ -467,6 +461,21 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     if (!content || content === '<p><br></p>') {
       alert('내용을 작성해 주십시오.'); return;
     }
+    
+    // 🚨 [테러 방어막 2 - 오작동 버그 픽스 완료!]
+    // 이미지/동영상 태그를 지운 순수 텍스트만 스캔하여 정상 뉴비의 사진 업로드는 허용하고, 
+    // 악성 봇이 숨겨놓은 URL 광고 링크만 정확히 찢어발깁니다.
+    if (!isAdmin && userPoints < 10) {
+      const contentWithoutMedia = content.replace(/<(img|video|iframe)[^>]*>/gi, '');
+      const hasLink = contentWithoutMedia.includes('http://') || contentWithoutMedia.includes('https://') || contentWithoutMedia.includes('www.') || contentWithoutMedia.includes('.com');
+      
+      if (hasLink) {
+        alert('🚨 스팸 방지를 위해 활동 점수 10점 미만은 외부 링크(URL)를 포함할 수 없습니다.\n본문에서 링크를 삭제한 후 다시 등록해 주십시오.');
+        return; 
+      }
+    }
+    // -------------------------------------------------------------
+
     if (content.includes('data:image/')) {
       alert('게시글에 용량을 초과하는 텍스트 이미지(Base64)가 포함되어 있습니다.\n해당 이미지를 삭제하신 후 다시 첨부해 주십시오.'); return;
     }

@@ -268,6 +268,19 @@ export default async function PostDetailPage(props: any) {
       return; 
     }
 
+    // 🚨 [테러 방어막 1] 추천 베스트 조작 방지 (에이징 & 포인트 허들)
+    const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
+    if (userRows.length > 0) {
+      const user = userRows[0];
+      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
+      
+      if (hoursSinceJoined < 24 || (user.points || 0) < 10) {
+        console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 게시글 추천 공격을 차단했습니다.`);
+        return; 
+      }
+    }
+    // -------------------------------------------------------------
+
     const { rows: checkRows = [] } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
       await sql`DELETE FROM likes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
@@ -305,7 +318,6 @@ export default async function PostDetailPage(props: any) {
       return; 
     }
 
-    // 🚨 [추가된 테러 방어막] 에이징 & 포인트 허들 (Shadowban 로직)
     const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
@@ -316,7 +328,6 @@ export default async function PostDetailPage(props: any) {
         return; 
       }
     }
-    // -------------------------------------------------------------
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
@@ -364,6 +375,21 @@ export default async function PostDetailPage(props: any) {
       return { success: true };
     }
 
+    // 🚨 [테러 방어막 2] 뉴비 계정 외부 링크(광고) 삽입 금지 (댓글)
+    if (!isAdmin) {
+      try {
+        const { rows: userRows } = await sql`SELECT points FROM users WHERE user_id = ${currentUserId}`;
+        const userPoints = userRows[0]?.points || 0;
+        const hasLink = content.includes('http://') || content.includes('https://') || content.includes('www.') || content.includes('.com');
+        
+        if (userPoints < 10 && hasLink) {
+          console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 광고 링크 작성을 서버단에서 찢어버렸습니다.`);
+          return { error: 'newbie_link', message: '스팸 방지를 위해 활동 점수 10점 미만은 링크를 포함할 수 없습니다.' }; 
+        }
+      } catch (e) {}
+    }
+    // -------------------------------------------------------------
+
     let forbiddenWords: string[] = [];
     try {
       const { rows: fwRows } = await sql`SELECT value FROM site_settings WHERE key = 'forbidden_words'`;
@@ -397,6 +423,21 @@ export default async function PostDetailPage(props: any) {
     const commentId = formData.get('commentId') as string;
     const content = formData.get('content') as string;
     const imageUrl = formData.get('imageUrl') as string;
+
+    // 🚨 [테러 방어막 2] 뉴비 계정 수정 꼼수를 통한 외부 링크(광고) 삽입 금지
+    if (!isAdmin) {
+      try {
+        const { rows: userRows } = await sql`SELECT points FROM users WHERE user_id = ${currentUserId}`;
+        const userPoints = userRows[0]?.points || 0;
+        const hasLink = content.includes('http://') || content.includes('https://') || content.includes('www.') || content.includes('.com');
+        
+        if (userPoints < 10 && hasLink) {
+          console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 수정 우회 광고 링크 작성을 차단했습니다.`);
+          return { error: 'newbie_link', message: '스팸 방지를 위해 활동 점수 10점 미만은 링크를 포함할 수 없습니다.' }; 
+        }
+      } catch (e) {}
+    }
+    // -------------------------------------------------------------
 
     let forbiddenWords: string[] = [];
     try {
@@ -457,6 +498,19 @@ export default async function PostDetailPage(props: any) {
       return; 
     }
 
+    // 🚨 [테러 방어막 1] 댓글 추천 섀도우 밴
+    const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
+    if (userRows.length > 0) {
+      const user = userRows[0];
+      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
+      
+      if (hoursSinceJoined < 24 || (user.points || 0) < 10) {
+        console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 댓글 추천 공격을 차단했습니다.`);
+        return; 
+      }
+    }
+    // -------------------------------------------------------------
+
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_likes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
       await sql`DELETE FROM comment_likes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
@@ -488,18 +542,15 @@ export default async function PostDetailPage(props: any) {
       return; 
     }
 
-    // 🚨 [추가된 테러 방어막] 에이징 & 포인트 허들 (Shadowban 로직)
     const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
       
       if (hoursSinceJoined < 24 || (user.points || 0) < 10) {
-        console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 댓글 비공감 공격을 차단했습니다.`);
         return; 
       }
     }
-    // -------------------------------------------------------------
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_dislikes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
