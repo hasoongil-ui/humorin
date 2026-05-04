@@ -268,18 +268,17 @@ export default async function PostDetailPage(props: any) {
       return; 
     }
 
-    // 🚨 [테러 방어막 1] 추천 베스트 조작 방지 (에이징 & 포인트 허들)
     const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
       
-      if (hoursSinceJoined < 24 || (user.points || 0) < 10) {
+      // 🚨 [테러 방어막 1] 게시글 추천: 12시간 대기 '또는' 댓글 1개(5점) 작성 시 통과
+      if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
         console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 게시글 추천 공격을 차단했습니다.`);
         return; 
       }
     }
-    // -------------------------------------------------------------
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
@@ -323,7 +322,8 @@ export default async function PostDetailPage(props: any) {
       const user = userRows[0];
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
       
-      if (hoursSinceJoined < 24 || (user.points || 0) < 10) {
+      // 🚨 [테러 방어막 1] 게시글 비공감: 12시간 대기 '또는' 댓글 1개(5점) 작성 시 통과
+      if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
         console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 비공감 공격을 차단했습니다.`);
         return; 
       }
@@ -388,7 +388,6 @@ export default async function PostDetailPage(props: any) {
         }
       } catch (e) {}
     }
-    // -------------------------------------------------------------
 
     let forbiddenWords: string[] = [];
     try {
@@ -437,7 +436,6 @@ export default async function PostDetailPage(props: any) {
         }
       } catch (e) {}
     }
-    // -------------------------------------------------------------
 
     let forbiddenWords: string[] = [];
     try {
@@ -498,18 +496,17 @@ export default async function PostDetailPage(props: any) {
       return; 
     }
 
-    // 🚨 [테러 방어막 1] 댓글 추천 섀도우 밴
     const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
       
-      if (hoursSinceJoined < 24 || (user.points || 0) < 10) {
+      // 🚨 [테러 방어막 1] 댓글 추천: 12시간 대기 '또는' 댓글 1개(5점) 작성 시 통과
+      if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
         console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 댓글 추천 공격을 차단했습니다.`);
         return; 
       }
     }
-    // -------------------------------------------------------------
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_likes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
@@ -547,7 +544,8 @@ export default async function PostDetailPage(props: any) {
       const user = userRows[0];
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
       
-      if (hoursSinceJoined < 24 || (user.points || 0) < 10) {
+      // 🚨 [테러 방어막 1] 댓글 비공감: 12시간 대기 '또는' 댓글 1개(5점) 작성 시 통과
+      if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
         return; 
       }
     }
