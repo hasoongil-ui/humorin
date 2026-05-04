@@ -4,7 +4,7 @@ import { sql } from '@vercel/postgres';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import Navbar from './board/Navbar';
-import CategoryIcon from './board/CategoryIcon'; // 💡 1단계에서 만든 부품 상자를 연결합니다.
+import CategoryIcon from './board/CategoryIcon';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,7 +59,7 @@ export default async function HomePage() {
     const store = await cookies();
     store.delete('humorin_user');
     store.delete('humorin_userid');
-    store.delete('humorin_signature'); 
+    store.delete('humorin_signature');
   };
 
   let mainBoards: any[] = [];
@@ -70,19 +70,30 @@ export default async function HomePage() {
     console.error("메인 보드 불러오기 에러", e);
   }
 
+  // 💡 메인 배너 문구 DB 호출 로직 추가
+  let mainBannerTitle = '세상의 모든 웃음이 있는 곳 유머인 입니다.';
+  let mainBannerSubtitle = '함께 웃고, 나누고, 소통하는 우리들의 따뜻한 공간 유머인.';
+  try {
+    const { rows: settings } = await sql`SELECT key, value FROM site_settings WHERE key IN ('main_banner_title', 'main_banner_subtitle')`;
+    settings.forEach(row => {
+      if (row.key === 'main_banner_title' && row.value) mainBannerTitle = row.value;
+      if (row.key === 'main_banner_subtitle' && row.value) mainBannerSubtitle = row.value;
+    });
+  } catch (e) { }
+
   const bestQuery = sql`SELECT id, title, author, date, best_at, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 ORDER BY best_at DESC NULLS LAST, date DESC LIMIT 10`;
   const allPostsQuery = sql`SELECT id, title, author, date, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts ORDER BY date DESC LIMIT 10`;
-  
+
   const boardQueries = mainBoards.map(board => {
-    const pattern = `[${board.name}]%`; 
+    const pattern = `[${board.name}]%`;
     return sql`SELECT id, title, author, date, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${pattern} ORDER BY date DESC LIMIT 10`;
   });
 
   const results = await Promise.all([bestQuery, allPostsQuery, ...boardQueries]);
-  
-  const bestPosts = results[0].rows; 
-  const allRecentPosts = results[1].rows; 
-  const dynamicBoardPosts = results.slice(2).map(res => res.rows); 
+
+  const bestPosts = results[0].rows;
+  const allRecentPosts = results[1].rows;
+  const dynamicBoardPosts = results.slice(2).map(res => res.rows);
 
   const BoardWidget = ({ title, icon, link, posts, highlight = false }: any) => (
     <div className={`bg-white border ${highlight ? 'border-[#3b4890] shadow-md' : 'border-gray-200 shadow-sm'} rounded-sm overflow-hidden flex flex-col`}>
@@ -114,7 +125,7 @@ export default async function HomePage() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {post.is_blinded ? (
-                     <span className="text-[11px] text-gray-400 w-10 text-right">-</span>
+                    <span className="text-[11px] text-gray-400 w-10 text-right">-</span>
                   ) : (
                     <>
                       {post.likes > 0 && (
@@ -134,18 +145,25 @@ export default async function HomePage() {
     </div>
   );
 
+  // '유머인' 텍스트 자동 형광펜(노란색) 처리 함수
+  const renderTitle = (title: string) => {
+    return title.split(/(유머인)/g).map((part, i) =>
+      part === '유머인' ? <span key={i} className="text-yellow-400 whitespace-nowrap">{part}</span> : part
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#f4f5f7] font-sans text-gray-800">
       <Navbar />
       <main className="max-w-[1200px] mx-auto p-4 md:py-8 mb-20">
-        
+
         <div className="bg-[#414a66] rounded-sm p-6 md:p-10 mb-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
           <div>
-            <h1 className="text-2xl md:text-3xl font-black text-white mb-2 break-keep">
-              세상의 모든 웃음이 있는 곳 <span className="text-yellow-400 whitespace-nowrap">유머인</span> 입니다.
+            <h1 className="text-2xl md:text-3xl font-black text-white mb-2" style={{ wordBreak: 'keep-all' }}>
+              {renderTitle(mainBannerTitle)}
             </h1>
-            <p className="text-sm md:text-base text-gray-300 font-medium">
-              함께 웃고, 나누고, 소통하는 우리들의 따뜻한 공간 유머인.
+            <p className="text-sm md:text-base text-gray-300 font-medium" style={{ wordBreak: 'keep-all' }}>
+              {mainBannerSubtitle}
             </p>
           </div>
 
@@ -195,14 +213,14 @@ export default async function HomePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <BoardWidget title="투데이 베스트" icon="🔥" link="/board?best=today" posts={bestPosts} highlight={true} />
           <BoardWidget title="전체 새글 보기" icon="📝" link="/board" posts={allRecentPosts} />
-          
+
           {mainBoards.map((board, index) => (
-            <BoardWidget 
-              key={board.id} 
-              title={board.name} 
-              icon={<CategoryIcon category={board.name} />} 
-              link={`/board?category=${board.name}`} 
-              posts={dynamicBoardPosts[index]} 
+            <BoardWidget
+              key={board.id}
+              title={board.name}
+              icon={<CategoryIcon category={board.name} />}
+              link={`/board?category=${board.name}`}
+              posts={dynamicBoardPosts[index]}
             />
           ))}
         </div>
