@@ -397,21 +397,21 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     };
   };
 
-  const modules = useMemo(() => ({
+const modules = useMemo(() => ({
     history: { delay: 500, maxStack: 100, userOnly: true },
     toolbar: {
       container: [
         ['image', 'video', 'link'], 
         [{ 'font': [false, 'pretendard', 'notosanskr', 'gowundodum', 'hahmlet'] }],
         [{ 'size': ['10px', '12px', '14px', '15px', false, '18px', '20px', '24px', '30px', '36px'] }], 
+        ['undo', 'redo'], // 💡 실행 취소/다시 실행 아이콘을 B(볼드체) 앞으로 전진 배치 완료!
         [{ 'header': [1, 2, 3, 4, false] }], 
         ['bold', 'italic', 'underline', 'strike'], 
         [{ 'color': [] }, { 'background': [] }], 
         [{ 'align': [] }], 
         [{ 'list': 'ordered'}, { 'list': 'bullet' }], 
         ['blockquote', 'code-block'], 
-        ['clean'], 
-        ['undo', 'redo'] 
+        ['clean']
       ],
       handlers: { 
         image: imageHandler,
