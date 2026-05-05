@@ -147,12 +147,10 @@ export default async function PostDetailPage(props: any) {
   const isAuthor = currentUserId === post.author_id || (!post.author_id && currentUser === post.author);
   const postData = extractData(post.title);
 
-  // 💡 [핵심] 익명 다락방 여부 판독
   const isAnonymous = postData.cat === '익명 다락방';
   const displayAuthorPost = isAnonymous ? '익명' : post.author;
   const displayAuthorIdPost = isAnonymous ? null : post.author_id;
 
-  // 💡 [블라인드/에브리타임 알고리즘] 댓글러 닉네임 자동 넘버링 맵 생성
   const anonymousMap = new Map();
   let anonCounter = 1;
 
@@ -571,6 +569,53 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
+  const suspendUserAction = async () => {
+    'use server';
+    if (!isAdmin || !post.author_id) return;
+    
+    await sql`UPDATE users SET status = 'suspended' WHERE user_id = ${post.author_id}`;
+    await sql`UPDATE posts SET is_blinded = true WHERE id = ${postId}`;
+    
+    revalidatePath(`/board/${postId}`);
+  };
+
+  const shadowbanUserAction = async () => {
+    'use server';
+    if (!isAdmin || !post.author_id) return;
+    
+    await sql`UPDATE users SET status = 'shadowban' WHERE user_id = ${post.author_id}`;
+    await sql`UPDATE posts SET is_blinded = true WHERE id = ${postId}`;
+    
+    revalidatePath(`/board/${postId}`);
+  };
+
+  // 🚨 댓글용 관리자 즉결 심판 액션
+  const suspendUserByComment = async (formData: FormData) => {
+    'use server';
+    if (!isAdmin) return;
+    const targetUserId = formData.get('targetUserId') as string;
+    const commentId = formData.get('commentId') as string;
+    
+    if (targetUserId) {
+      await sql`UPDATE users SET status = 'suspended' WHERE user_id = ${targetUserId}`;
+      await sql`UPDATE comments SET is_blinded = true WHERE id = ${commentId}`;
+    }
+    revalidatePath(`/board/${postId}`);
+  };
+
+  const shadowbanUserByComment = async (formData: FormData) => {
+    'use server';
+    if (!isAdmin) return;
+    const targetUserId = formData.get('targetUserId') as string;
+    const commentId = formData.get('commentId') as string;
+    
+    if (targetUserId) {
+      await sql`UPDATE users SET status = 'shadowban' WHERE user_id = ${targetUserId}`;
+      await sql`UPDATE comments SET is_blinded = true WHERE id = ${commentId}`;
+    }
+    revalidatePath(`/board/${postId}`);
+  };
+
   const renderCommentNode = (node: any, depth: number = 0, parentAuthor: string | null = null) => {
     const isReply = depth > 0;
     const paddingLeft = isReply ? `${Math.min(depth * 1.5, 4)}rem` : '0';
@@ -638,7 +683,8 @@ export default async function PostDetailPage(props: any) {
               )}
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* 댓글 우측 상단 컨트롤 영역 (수정/삭제 및 관리자 버튼) */}
+            <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
               {isCommentAuthor && !isDeleted && (
                 <label htmlFor={`edit-${node.id}`} className="cursor-pointer text-[12px] text-gray-400 hover:text-indigo-600 hover:underline">수정</label>
               )}
@@ -651,6 +697,30 @@ export default async function PostDetailPage(props: any) {
                   <input type="hidden" name="commentId" value={node.id} />
                   삭제
                 </DeleteConfirmButton>
+              )}
+              
+              {/* 🚨 댓글 작성자 즉결 심판 (관리자 전용) */}
+              {isAdmin && !isDeleted && node.author_id && (
+                 <div className="flex items-center gap-1.5 ml-1 pl-2 border-l border-red-200">
+                   <DeleteConfirmButton
+                     action={suspendUserByComment}
+                     message={`댓글 작성자(${node.author_id})를 즉시 [이용 정지] 처리하시겠습니까?`}
+                     className="text-[11px] px-1.5 py-0.5 bg-red-50 text-red-600 border border-red-200 rounded-sm hover:bg-red-500 hover:text-white transition-colors whitespace-nowrap"
+                   >
+                     <input type="hidden" name="targetUserId" value={node.author_id} />
+                     <input type="hidden" name="commentId" value={node.id} />
+                     정지
+                   </DeleteConfirmButton>
+                   <DeleteConfirmButton
+                     action={shadowbanUserByComment}
+                     message={`댓글 작성자(${node.author_id})를 즉시 [그림자 차단] 처리하시겠습니까?`}
+                     className="text-[11px] px-1.5 py-0.5 bg-purple-50 text-purple-600 border border-purple-200 rounded-sm hover:bg-purple-500 hover:text-white transition-colors whitespace-nowrap"
+                   >
+                     <input type="hidden" name="targetUserId" value={node.author_id} />
+                     <input type="hidden" name="commentId" value={node.id} />
+                     그림자
+                   </DeleteConfirmButton>
+                 </div>
               )}
             </div>
           </div>
@@ -673,7 +743,6 @@ export default async function PostDetailPage(props: any) {
                 </div>
               )}
 
-              {/* 💡 [핵심 수정 1] 대댓글이 누구를 가리키는지 정확한 모자이크 타겟팅 (parentAuthor 사용) */}
               <div className="peer-checked/edit:hidden">
                 <div className="text-[15px] mb-3 whitespace-pre-wrap text-gray-800 flex items-start gap-1.5">
                   {isReply && parentAuthor && !isDeleted && (
@@ -723,11 +792,9 @@ export default async function PostDetailPage(props: any) {
 
         <input type="checkbox" id={`reply-${node.id}`} className="hidden peer/reply" />
         <div className="hidden peer-checked/reply:block bg-gray-100 p-3 border-b border-gray-200">
-          {/* 💡 [핵심 수정 2] 대댓글 폼에 진짜 닉네임이 아닌 모자이크 처리된 닉네임(displayCommentAuthor) 전달 */}
           {!isCommentLocked && currentUser && !isDeleted && <CommentForm postId={postId} parentId={node.id} author={displayCommentAuthor} actionType="reply" submitAction={addComment} />}
         </div>
 
-        {/* 💡 [핵심 수정 3] 자식 노드를 그릴 때, 부모 닉네임으로 세탁된 닉네임(displayCommentAuthor)을 전달 */}
         {node.children && node.children.map((child: any) => renderCommentNode(child, depth + 1, displayCommentAuthor))}
       </div>
     );
@@ -854,6 +921,42 @@ export default async function PostDetailPage(props: any) {
         </div>
 
         <CopyLinkBox postId={postId} />
+
+        {/* 🚨 관리자 전용 즉결 심판 (게시글) - 깔끔하고 미니멀하게 재배치 */}
+        {isAdmin && post.author_id && (
+          <div className="mb-6 py-2 px-4 bg-gray-50 border border-gray-200 rounded flex flex-col sm:flex-row justify-between items-center gap-3 shadow-sm">
+            <div className="text-[13px] text-gray-600 flex items-center gap-2">
+              <span className="font-bold">작성자 ID :</span>
+              <span className="font-mono font-bold text-gray-800">{post.author_id}</span>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
+               <DeleteConfirmButton 
+                  action={deletePost}
+                  message={`[경고] 게시글을 즉시 파기합니다.\n작성자 ID: ${post.author_id}`}
+                  className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-[12px] font-bold rounded-sm transition-all text-center text-gray-600"
+               >
+                  🗑️ 즉시 삭제
+               </DeleteConfirmButton>
+               
+               <DeleteConfirmButton 
+                  action={suspendUserAction}
+                  message={`작성자(${post.author_id})를 즉시 [이용 정지] 처리하시겠습니까?`}
+                  className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-red-200 hover:bg-red-50 text-[12px] font-bold rounded-sm transition-all text-center text-red-500"
+               >
+                  🚨 정지
+               </DeleteConfirmButton>
+
+               <DeleteConfirmButton 
+                  action={shadowbanUserAction}
+                  message={`작성자(${post.author_id})를 즉시 [그림자 차단] 처리하시겠습니까?\n(본인은 정지당한 사실을 모릅니다)`}
+                  className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-purple-200 hover:bg-purple-50 text-[12px] font-bold rounded-sm transition-all text-center text-purple-600"
+               >
+                  👻 그림자
+               </DeleteConfirmButton>
+            </div>
+          </div>
+        )}
 
         {post.is_blinded && !isAdmin ? (
           <div className="bg-gray-100 p-12 text-center rounded-lg border border-gray-300 my-10 shadow-inner">
