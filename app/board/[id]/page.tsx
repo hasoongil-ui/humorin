@@ -673,11 +673,12 @@ export default async function PostDetailPage(props: any) {
                 </div>
               )}
 
+              {/* 💡 [핵심 수정 1] 대댓글이 누구를 가리키는지 정확한 모자이크 타겟팅 (parentAuthor 사용) */}
               <div className="peer-checked/edit:hidden">
                 <div className="text-[15px] mb-3 whitespace-pre-wrap text-gray-800 flex items-start gap-1.5">
                   {isReply && parentAuthor && !isDeleted && (
                     <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-gray-400 bg-gray-200/60 px-1.5 py-0.5 rounded-sm shrink-0 mt-0.5 border border-gray-200">
-                      ↳ @{isAnonymous ? '익명' : parentAuthor}
+                      ↳ @{parentAuthor}
                     </span>
                   )}
                   <span className={`${isDeleted ? 'text-gray-400 italic text-[14px]' : ''} leading-relaxed`}>
@@ -722,10 +723,12 @@ export default async function PostDetailPage(props: any) {
 
         <input type="checkbox" id={`reply-${node.id}`} className="hidden peer/reply" />
         <div className="hidden peer-checked/reply:block bg-gray-100 p-3 border-b border-gray-200">
-          {!isCommentLocked && currentUser && !isDeleted && <CommentForm postId={postId} parentId={node.id} author={node.author} actionType="reply" submitAction={addComment} />}
+          {/* 💡 [핵심 수정 2] 대댓글 폼에 진짜 닉네임이 아닌 모자이크 처리된 닉네임(displayCommentAuthor) 전달 */}
+          {!isCommentLocked && currentUser && !isDeleted && <CommentForm postId={postId} parentId={node.id} author={displayCommentAuthor} actionType="reply" submitAction={addComment} />}
         </div>
 
-        {node.children && node.children.map((child: any) => renderCommentNode(child, depth + 1, node.author))}
+        {/* 💡 [핵심 수정 3] 자식 노드를 그릴 때, 부모 닉네임으로 세탁된 닉네임(displayCommentAuthor)을 전달 */}
+        {node.children && node.children.map((child: any) => renderCommentNode(child, depth + 1, displayCommentAuthor))}
       </div>
     );
   };
