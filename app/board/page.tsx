@@ -3,7 +3,7 @@
 import { sql } from '@vercel/postgres';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
-import CategoryIcon from './CategoryIcon'; // 💡 1단계에서 만든 부품 상자를 연결합니다.
+import CategoryIcon from './CategoryIcon';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,9 +12,9 @@ function formatDate(dateString: any) {
   const kstDate = new Date(dbDate.getTime() + 9 * 60 * 60 * 1000);
   const nowUtc = new Date();
   const nowKst = new Date(nowUtc.getTime() + 9 * 60 * 60 * 1000);
-  
+
   const isToday = kstDate.getDate() === nowKst.getDate() && kstDate.getMonth() === nowKst.getMonth() && kstDate.getFullYear() === nowKst.getFullYear();
-  
+
   if (isToday) {
     return `${String(kstDate.getHours()).padStart(2, '0')}:${String(kstDate.getMinutes()).padStart(2, '0')}`;
   }
@@ -43,12 +43,12 @@ function extractData(fullTitle: string) {
 
 export default async function BoardPage(props: any) {
   const searchParams = await props.searchParams;
-  const bestType = searchParams.best || ''; 
+  const bestType = searchParams.best || '';
   const category = searchParams.category || 'all';
   const page = searchParams.page ? Number(searchParams.page) : 1;
-  
-  const keyword = searchParams.q || ''; 
-  const searchType = searchParams.searchType || 'title'; 
+
+  const keyword = searchParams.q || '';
+  const searchType = searchParams.searchType || 'title';
 
   let fromQuery = '';
   if (bestType === 'today') fromQuery = '?from=today';
@@ -58,8 +58,8 @@ export default async function BoardPage(props: any) {
 
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('humorin_user');
-  const userIdCookie = cookieStore.get('humorin_userid'); 
-  
+  const userIdCookie = cookieStore.get('humorin_userid');
+
   const currentUser = userCookie ? userCookie.value : null;
   const currentUserId = userIdCookie ? userIdCookie.value : null;
 
@@ -81,13 +81,13 @@ export default async function BoardPage(props: any) {
     store.delete('humorin_user');
     store.delete('humorin_userid');
   };
-  
-  const limit = 20; 
-  const offset = (page - 1) * limit; 
+
+  const limit = 20;
+  const offset = (page - 1) * limit;
 
   let posts = [];
-  let noticePosts: any[] = []; 
-  let totalCount = 0; 
+  let noticePosts: any[] = [];
+  let totalCount = 0;
   let topPost = null;
 
   let sidebarBoards = [];
@@ -113,12 +113,15 @@ export default async function BoardPage(props: any) {
   }
 
   const categoryPattern = category !== 'all' ? `%[${category}]%` : '%';
+  const isAll = category === 'all'; // 💡 '전체글 보기' 상태인지 확인
 
   if (category !== 'all' && !keyword && bestType === '' && page === 1) {
     const { rows: topRows } = await sql`
       SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count 
       FROM posts 
-      WHERE title LIKE ${categoryPattern} AND date >= NOW() - INTERVAL '48 hours' AND likes >= 3 AND COALESCE(status, 'published') = 'published'
+      WHERE title LIKE ${categoryPattern} 
+        AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%')
+        AND date >= NOW() - INTERVAL '48 hours' AND likes >= 3 AND COALESCE(status, 'published') = 'published'
       ORDER BY likes DESC, views DESC LIMIT 1
     `;
     if (topRows.length > 0) topPost = topRows[0];
@@ -129,42 +132,43 @@ export default async function BoardPage(props: any) {
     let countRes, rowsRes;
 
     if (searchType === 'title') {
-      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND title ILIKE ${searchPattern} AND COALESCE(status, 'published') = 'published'`;
-      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND title ILIKE ${searchPattern} AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
+      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     } else if (searchType === 'content') {
-      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND content ILIKE ${searchPattern} AND COALESCE(status, 'published') = 'published'`;
-      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND content ILIKE ${searchPattern} AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
+      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     } else if (searchType === 'author') {
-      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND author ILIKE ${searchPattern} AND COALESCE(status, 'published') = 'published'`;
-      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND author ILIKE ${searchPattern} AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
+      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     }
 
     totalCount = Number(countRes.rows[0].count);
     posts = rowsRes.rows;
 
-  } 
+  }
   else if (bestType === 'today') {
+    // 💡 투데이 베스트: 익명 다락방 글도 추천 10개 넘으면 당당하게 노출!
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published'`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
-  } 
+  }
   else if (bestType === '100') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published'`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
-  } 
+  }
   else if (bestType === '1000') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published'`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
-  } 
+  }
   else {
-    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND COALESCE(status, 'published') = 'published'`;
+    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
 
@@ -172,7 +176,7 @@ export default async function BoardPage(props: any) {
   const noticeIds = new Set(noticePosts.map(p => p.id));
   const renderPosts = posts.filter((p: any) => !noticeIds.has(p.id) && (!topPost || p.id !== topPost.id));
   const renderTopPost = topPost && !noticeIds.has(topPost.id) ? topPost : null;
-  const canWrite = bestType === ''; 
+  const canWrite = bestType === '';
 
   const getPageUrl = (pageNum: number) => {
     let url = `/board?page=${pageNum}`;
@@ -185,11 +189,11 @@ export default async function BoardPage(props: any) {
   const maxPageButtons = 5;
   let startPage = Math.max(1, page - 2);
   let endPage = Math.min(totalPages, startPage + maxPageButtons - 1);
-  
+
   if (endPage - startPage + 1 < maxPageButtons) {
     startPage = Math.max(1, endPage - maxPageButtons + 1);
   }
-  
+
   const visiblePages = [];
   for (let i = startPage; i <= endPage; i++) {
     visiblePages.push(i);
@@ -198,7 +202,7 @@ export default async function BoardPage(props: any) {
   return (
     <>
       <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row gap-5 p-4 md:py-6 mt-2 mb-20">
-        
+
         <aside className="w-full md:w-[240px] shrink-0 flex flex-col gap-4">
           <div className="bg-white border border-gray-200 shadow-sm rounded-sm p-4">
             {currentUser ? (
@@ -218,7 +222,7 @@ export default async function BoardPage(props: any) {
                     <div className="text-[11px] text-gray-400 font-bold mt-0.5 truncate">커뮤니티 유머인</div>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-3 gap-1 mb-3">
                   <Link href="/profile" className="py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-center text-xs font-bold text-gray-600 rounded-sm">내정보</Link>
                   <Link href="#" className="py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-center text-xs font-bold text-gray-600 rounded-sm">쪽지<span className="text-red-500 ml-0.5">0</span></Link>
@@ -269,16 +273,16 @@ export default async function BoardPage(props: any) {
         </aside>
 
         <main className="flex-1 min-w-0 bg-white border border-gray-200 shadow-sm rounded-sm p-4 md:p-6">
-          
+
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-gray-800 truncate pr-2">
-              {keyword ? `'${keyword}' 검색 결과 (${totalCount}건)` : 
-               bestType === 'today' ? '🔥 투데이 베스트 (추천 10+)' : 
-               bestType === '100' ? '💯 백베스트 (추천 100+)' : 
-               bestType === '1000' ? '👑 천베스트 (추천 1000+)' : 
-               category !== 'all' ? `${category}` : '전체글 보기'}
+              {keyword ? `'${keyword}' 검색 결과 (${totalCount}건)` :
+                bestType === 'today' ? '🔥 투데이 베스트 (추천 10+)' :
+                  bestType === '100' ? '💯 백베스트 (추천 100+)' :
+                    bestType === '1000' ? '👑 천베스트 (추천 1000+)' :
+                      category !== 'all' ? `${category}` : '전체글 보기'}
             </h2>
-            
+
             {canWrite && (
               <Link href={`/board/write?category=${category}`} className="shrink-0 px-4 py-2 bg-[#3b4890] text-white rounded-sm text-sm font-bold hover:bg-[#2a3042] transition-colors shadow-sm flex items-center gap-1 whitespace-nowrap">
                 글쓰기
@@ -298,6 +302,10 @@ export default async function BoardPage(props: any) {
 
             {noticePosts.map((post: any) => {
               const postData = extractData(post.title);
+              // 공지도 혹시 익명이면 모자이크
+              const isAnonymous = postData.cat === '익명 다락방';
+              const displayAuthor = isAnonymous ? '익명' : post.author;
+
               return (
                 <div key={`notice-${post.id}`} className="flex flex-col md:flex-row border-b border-indigo-200 py-3 bg-indigo-50/70 hover:bg-indigo-100 transition-colors items-center group">
                   <div className="hidden md:block w-12 text-center text-xs font-black text-indigo-600 shrink-0">공지</div>
@@ -319,7 +327,7 @@ export default async function BoardPage(props: any) {
                   </Link>
                   <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-[11px] md:text-[13px] text-indigo-500 justify-between items-center shrink-0">
                     <div className="md:w-24 text-left md:text-center font-bold text-indigo-700 truncate">
-                      {post.is_blinded ? '-' : post.author}
+                      {post.is_blinded ? '-' : displayAuthor}
                     </div>
                     <div className="md:w-[70px] md:text-center font-bold text-indigo-500">{formatDate(post.date)}</div>
                     <div className="md:w-12 md:text-center text-indigo-500">{post.is_blinded ? '-' : (post.views || 0)}</div>
@@ -333,12 +341,16 @@ export default async function BoardPage(props: any) {
 
             {renderTopPost && (() => {
               const topData = extractData(renderTopPost.title);
+              const isAnonymousTop = topData.cat === '익명 다락방';
+              const displayAuthorTop = isAnonymousTop ? '익명' : renderTopPost.author;
+              const displayAuthorIdTop = isAnonymousTop ? null : renderTopPost.author_id;
+
               return (
                 <div className="flex flex-col md:flex-row border-b border-gray-200 py-3 bg-blue-50/50 hover:bg-gray-50 transition-colors items-center group">
                   <div className="hidden md:block w-12 text-center text-xs text-gray-500 font-bold shrink-0">장원</div>
                   <Link href={`/board/${renderTopPost.id}${fromQuery}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                     <CategoryIcon category={topData.cat} />
-                    
+
                     {renderTopPost.is_blinded ? (
                       <span className="truncate mr-1 text-gray-400 md:text-gray-500">
                         블라인드 처리된 글입니다.
@@ -359,15 +371,15 @@ export default async function BoardPage(props: any) {
                     <div className="md:w-24 text-left md:text-center font-normal md:font-semibold text-gray-400 md:text-gray-700 truncate">
                       {renderTopPost.is_blinded ? (
                         <span>-</span>
-                      ) : renderTopPost.author_id ? (
+                      ) : displayAuthorIdTop ? (
                         <>
-                          <span className="md:hidden">{renderTopPost.author}</span>
-                          <Link href={`/user/${renderTopPost.author_id}`} className="hidden md:inline hover:text-[#3b4890] hover:underline cursor-pointer">
-                            {renderTopPost.author}
+                          <span className="md:hidden">{displayAuthorTop}</span>
+                          <Link href={`/user/${displayAuthorIdTop}`} className="hidden md:inline hover:text-[#3b4890] hover:underline cursor-pointer">
+                            {displayAuthorTop}
                           </Link>
                         </>
                       ) : (
-                        <span>{renderTopPost.author}</span>
+                        <span>{displayAuthorTop}</span>
                       )}
                     </div>
                     <div className="md:w-[70px] md:text-center text-gray-400">{formatDate(renderTopPost.date)}</div>
@@ -385,12 +397,16 @@ export default async function BoardPage(props: any) {
             ) : (
               renderPosts.map((post: any) => {
                 const postData = extractData(post.title);
+                const isAnonymous = postData.cat === '익명 다락방';
+                const displayAuthor = isAnonymous ? '익명' : post.author;
+                const displayAuthorId = isAnonymous ? null : post.author_id;
+
                 return (
                   <div key={post.id} className="flex flex-col md:flex-row border-b border-gray-200 py-2.5 hover:bg-gray-50 transition-colors items-center group">
                     <div className="hidden md:block w-12 text-center text-[13px] text-gray-400 shrink-0">{post.id}</div>
                     <Link href={`/board/${post.id}${fromQuery}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                       <CategoryIcon category={postData.cat} />
-                      
+
                       {post.is_blinded ? (
                         <span className="truncate mr-1 text-gray-400 md:text-gray-500">
                           블라인드 처리된 글입니다.
@@ -411,15 +427,15 @@ export default async function BoardPage(props: any) {
                       <div className="md:w-24 text-left md:text-center font-normal md:font-medium text-gray-400 md:text-gray-600 truncate">
                         {post.is_blinded ? (
                           <span>-</span>
-                        ) : post.author_id ? (
+                        ) : displayAuthorId ? (
                           <>
-                            <span className="md:hidden">{post.author}</span>
-                            <Link href={`/user/${post.author_id}`} className="hidden md:inline hover:text-[#3b4890] hover:underline cursor-pointer">
-                              {post.author}
+                            <span className="md:hidden">{displayAuthor}</span>
+                            <Link href={`/user/${displayAuthorId}`} className="hidden md:inline hover:text-[#3b4890] hover:underline cursor-pointer">
+                              {displayAuthor}
                             </Link>
                           </>
                         ) : (
-                          <span>{post.author}</span>
+                          <span>{displayAuthor}</span>
                         )}
                       </div>
                       <div className="md:w-[70px] md:text-center">{formatDate(post.date)}</div>
@@ -449,10 +465,9 @@ export default async function BoardPage(props: any) {
             </form>
           </div>
 
-          {/* 💡 [수술 3] 페이지네이션 및 하단 버튼 반응형 완벽 개선 (끝 버튼 삭제로 DB 렉 폭탄 방어) */}
           <div className="flex flex-col md:flex-row justify-between items-center mt-4 gap-4 w-full">
-            <div className="hidden md:block md:flex-1 shrink-0"></div> 
-            
+            <div className="hidden md:block md:flex-1 shrink-0"></div>
+
             <div className="flex justify-center items-center gap-1 flex-wrap shrink-0">
               {page > 1 && (
                 <>
@@ -477,7 +492,6 @@ export default async function BoardPage(props: any) {
                     <span className="hidden sm:inline">다음</span>
                     <span className="sm:hidden">{">"}</span>
                   </Link>
-                  {/* 🚨 악성 부하를 일으키는 '끝(>>)' 버튼은 대형 커뮤니티 표준에 따라 영구 삭제됨 */}
                 </>
               )}
             </div>

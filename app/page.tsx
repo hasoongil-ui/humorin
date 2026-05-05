@@ -82,7 +82,9 @@ export default async function HomePage() {
   } catch (e) { }
 
   const bestQuery = sql`SELECT id, title, author, date, best_at, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 ORDER BY best_at DESC NULLS LAST, date DESC LIMIT 10`;
-  const allPostsQuery = sql`SELECT id, title, author, date, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts ORDER BY date DESC LIMIT 10`;
+
+  // 🚨 [핵심 수정 완료] 메인 화면 전체 새글 보기에서 익명 다락방 글 완벽 차단!
+  const allPostsQuery = sql`SELECT id, title, author, date, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title NOT LIKE '[익명 다락방]%' ORDER BY date DESC LIMIT 10`;
 
   const boardQueries = mainBoards.map(board => {
     const pattern = `[${board.name}]%`;

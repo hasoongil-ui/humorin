@@ -1,20 +1,21 @@
+// 파일 위치: app/board/[id]/page.tsx
 // @ts-nocheck
 import { sql } from '@vercel/postgres';
-import sanitizeHtml from 'sanitize-html'; 
+import sanitizeHtml from 'sanitize-html';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import { PostLikeButton, PostDislikeButton, CommentLikeButton, CommentDislikeButton, PostScrapButton, PostReportButton, CommentReportButton, EditCommentForm, PostShareButton, CopyLinkBox } from './InteractiveButtons'; 
+import { PostLikeButton, PostDislikeButton, CommentLikeButton, CommentDislikeButton, PostScrapButton, PostReportButton, CommentReportButton, EditCommentForm, PostShareButton, CopyLinkBox } from './InteractiveButtons';
 import CommentForm from './CommentForm';
-import VideoVolumeFix from './VideoVolumeFix'; 
+import VideoVolumeFix from './VideoVolumeFix';
 import DeleteConfirmButton from './DeleteConfirmButton';
 import { Metadata } from 'next';
-import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3'; 
+import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 
 function getSeoDatetime(dateString: any) {
   if (!dateString) return '';
-  try { return new Date(dateString).toISOString(); } catch(e) { return ''; }
+  try { return new Date(dateString).toISOString(); } catch (e) { return ''; }
 }
 
 function getDisplayDate(dateString: any) {
@@ -28,7 +29,7 @@ function getDisplayDate(dateString: any) {
     const hh = String(kstDate.getHours()).padStart(2, '0');
     const min = String(kstDate.getMinutes()).padStart(2, '0');
     return `${yy}.${mm}.${dd} ${hh}:${min}`;
-  } catch(e) { return ''; }
+  } catch (e) { return ''; }
 }
 
 function extractData(fullTitle: string) {
@@ -38,8 +39,8 @@ function extractData(fullTitle: string) {
 }
 
 const extractTextOnly = (htmlText: string) => {
-  const noHtml = htmlText.replace(/<[^>]*>?/gm, ''); 
-  return noHtml.replace(/[^\uAC00-\uD7A3a-zA-Z0-9]/g, '').toLowerCase(); 
+  const noHtml = htmlText.replace(/<[^>]*>?/gm, '');
+  return noHtml.replace(/[^\uAC00-\uD7A3a-zA-Z0-9]/g, '').toLowerCase();
 };
 
 export async function generateMetadata(props: any): Promise<Metadata> {
@@ -58,9 +59,9 @@ export async function generateMetadata(props: any): Promise<Metadata> {
     const postContent = post.content || '';
 
     const plainText = postContent.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
-    const description = plainText.length > 0 
-      ? (plainText.length > 80 ? plainText.substring(0, 80) + '...' : plainText) 
-      : cleanTitle; 
+    const description = plainText.length > 0
+      ? (plainText.length > 80 ? plainText.substring(0, 80) + '...' : plainText)
+      : cleanTitle;
 
     let ogImageUrl = null;
     let twitterImageUrl = null;
@@ -68,9 +69,9 @@ export async function generateMetadata(props: any): Promise<Metadata> {
     const imgMatch = postContent.match(/<img[^>]*src=["']([^"'>]+)["']/i);
     if (imgMatch && imgMatch[1]) {
       const rawUrl = imgMatch[1];
-      ogImageUrl = rawUrl; 
-      twitterImageUrl = `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&w=1200&h=630&fit=cover&a=top`; 
-    } 
+      ogImageUrl = rawUrl;
+      twitterImageUrl = `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&w=1200&h=630&fit=cover&a=top`;
+    }
     else {
       const ytMatch = postContent.match(/<iframe[^>]*src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube\.com\/embed\/|youtu\.be\/)([^"'>?]+)/i);
       if (ytMatch && ytMatch[1]) {
@@ -93,9 +94,9 @@ export async function generateMetadata(props: any): Promise<Metadata> {
       openGraph: {
         title: cleanTitle,
         description: description,
-        url: postUrl, 
+        url: postUrl,
         siteName: '유머인',
-        images: ogImageUrl ? [{ url: ogImageUrl }] : [], 
+        images: ogImageUrl ? [{ url: ogImageUrl }] : [],
         videos: videoUrl ? [{ url: videoUrl }] : [],
         type: 'article',
       },
@@ -103,7 +104,7 @@ export async function generateMetadata(props: any): Promise<Metadata> {
         card: 'summary_large_image',
         title: cleanTitle,
         description: description,
-        images: twitterImageUrl ? [twitterImageUrl] : [], 
+        images: twitterImageUrl ? [twitterImageUrl] : [],
       }
     };
   } catch (error) {
@@ -113,17 +114,17 @@ export async function generateMetadata(props: any): Promise<Metadata> {
 
 export default async function PostDetailPage(props: any) {
   const params = await props.params;
-  const searchParams = await props.searchParams; 
+  const searchParams = await props.searchParams;
   const postId = params.id;
-  const fromLocation = searchParams?.from; 
+  const fromLocation = searchParams?.from;
 
   const cookieStore = await cookies();
-  const userCookie = cookieStore.get('humorin_user');      
-  const userIdCookie = cookieStore.get('humorin_userid');  
+  const userCookie = cookieStore.get('humorin_user');
+  const userIdCookie = cookieStore.get('humorin_userid');
 
   const currentUser = userCookie ? userCookie.value : null;
   const currentUserId = userIdCookie ? userIdCookie.value : null;
-  
+
   let isAdmin = currentUserId === 'admin';
   if (currentUserId && !isAdmin) {
     try {
@@ -131,7 +132,7 @@ export default async function PostDetailPage(props: any) {
       if (adminRows.length > 0 && adminRows[0].is_admin) {
         isAdmin = true;
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   await sql`UPDATE posts SET views = COALESCE(views, 0) + 1 WHERE id = ${postId}`;
@@ -146,6 +147,15 @@ export default async function PostDetailPage(props: any) {
   const isAuthor = currentUserId === post.author_id || (!post.author_id && currentUser === post.author);
   const postData = extractData(post.title);
 
+  // 💡 [핵심] 익명 다락방 여부 판독
+  const isAnonymous = postData.cat === '익명 다락방';
+  const displayAuthorPost = isAnonymous ? '익명' : post.author;
+  const displayAuthorIdPost = isAnonymous ? null : post.author_id;
+
+  // 💡 [블라인드/에브리타임 알고리즘] 댓글러 닉네임 자동 넘버링 맵 생성
+  const anonymousMap = new Map();
+  let anonCounter = 1;
+
   let isGlobalCommentLocked = false;
   let isBoardCommentLocked = false;
   try {
@@ -154,7 +164,7 @@ export default async function PostDetailPage(props: any) {
 
     const { rows: boardLocks } = await sql`SELECT is_comment_locked FROM boards WHERE name = ${postData.cat}`;
     if (boardLocks.length > 0 && boardLocks[0].is_comment_locked) isBoardCommentLocked = true;
-  } catch (e) {}
+  } catch (e) { }
 
   const isCommentLocked = (isGlobalCommentLocked || isBoardCommentLocked) && !isAdmin;
 
@@ -170,11 +180,11 @@ export default async function PostDetailPage(props: any) {
   const commentTree = buildTree(comments, null);
 
   let hasLiked = false;
-  let hasDisliked = false; 
-  let hasScrapped = false; 
+  let hasDisliked = false;
+  let hasScrapped = false;
   let userCommentLikes: number[] = [];
-  let userCommentDislikes: number[] = []; 
-  
+  let userCommentDislikes: number[] = [];
+
   if (currentUserId) {
     const { rows: likeRows } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
     if (likeRows.length > 0) hasLiked = true;
@@ -182,12 +192,12 @@ export default async function PostDetailPage(props: any) {
     try {
       const { rows: dislikeRows } = await sql`SELECT * FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
       if (dislikeRows.length > 0) hasDisliked = true;
-    } catch (e) {}
+    } catch (e) { }
 
     try {
       const { rows: scrapRows } = await sql`SELECT * FROM scraps WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
       if (scrapRows.length > 0) hasScrapped = true;
-    } catch (e) {}
+    } catch (e) { }
 
     const { rows: clRows } = await sql`SELECT comment_id FROM comment_likes WHERE author_id = ${currentUserId}`;
     userCommentLikes = clRows.map(row => row.comment_id);
@@ -195,18 +205,18 @@ export default async function PostDetailPage(props: any) {
     try {
       const { rows: cdlRows } = await sql`SELECT comment_id FROM comment_dislikes WHERE author_id = ${currentUserId}`;
       userCommentDislikes = cdlRows.map(row => row.comment_id);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   const deletePost = async () => {
     'use server';
-    if (!isAdmin && !isAuthor) return; 
+    if (!isAdmin && !isAuthor) return;
 
     try {
       const { rows: commentRows } = await sql`SELECT content, image_data FROM comments WHERE post_id = ${postId}`;
       let allTextToSearch = post.content || '';
       commentRows.forEach(c => {
-         allTextToSearch += ' ' + (c.content || '') + ' ' + (c.image_data || '');
+        allTextToSearch += ' ' + (c.content || '') + ' ' + (c.image_data || '');
       });
 
       const uniqueKeys = new Set<string>();
@@ -239,7 +249,7 @@ export default async function PostDetailPage(props: any) {
     await sql`DELETE FROM likes WHERE post_id = ${postId}`;
     await sql`DELETE FROM post_dislikes WHERE post_id = ${postId}`;
     await sql`DELETE FROM scraps WHERE post_id = ${postId}`;
-    
+
     await sql`DELETE FROM comment_likes WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ${postId})`;
     await sql`DELETE FROM comment_dislikes WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ${postId})`;
     await sql`DELETE FROM comments WHERE post_id = ${postId}`;
@@ -248,14 +258,14 @@ export default async function PostDetailPage(props: any) {
     if (post.author_id) {
       await sql`UPDATE users SET points = GREATEST(COALESCE(points, 0) - 10, 0) WHERE user_id = ${post.author_id}`;
     }
-    
+
     redirect('/board');
   };
 
   const toggleLike = async () => {
     'use server';
     if (!currentUserId) redirect('/login');
-    
+
     if (isAdmin) {
       await sql`
         UPDATE posts 
@@ -265,18 +275,16 @@ export default async function PostDetailPage(props: any) {
             best1000_at = CASE WHEN COALESCE(likes, 0) + 10 >= 1000 AND best1000_at IS NULL THEN NOW() ELSE best1000_at END
         WHERE id = ${postId}
       `;
-      return; 
+      return;
     }
 
     const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
-      
-      // 🚨 [테러 방어막 1] 게시글 추천: 12시간 대기 '또는' 댓글 1개(5점) 작성 시 통과
+
       if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
-        console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 게시글 추천 공격을 차단했습니다.`);
-        return; 
+        return;
       }
     }
 
@@ -300,13 +308,13 @@ export default async function PostDetailPage(props: any) {
   const toggleDislike = async () => {
     'use server';
     if (!currentUserId) redirect('/login');
-    
+
     if (isAdmin) {
       let blindThreshold = 5;
       try {
         const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
         if (rows.length > 0) blindThreshold = Number(rows[0].value) || 5;
-      } catch(e) {}
+      } catch (e) { }
 
       await sql`
         UPDATE posts 
@@ -314,18 +322,16 @@ export default async function PostDetailPage(props: any) {
             is_blinded = CASE WHEN COALESCE(dislikes, 0) + 10 >= ${blindThreshold} THEN true ELSE is_blinded END
         WHERE id = ${postId}
       `;
-      return; 
+      return;
     }
 
     const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
-      
-      // 🚨 [테러 방어막 1] 게시글 비공감: 12시간 대기 '또는' 댓글 1개(5점) 작성 시 통과
+
       if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
-        console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 비공감 공격을 차단했습니다.`);
-        return; 
+        return;
       }
     }
 
@@ -361,32 +367,29 @@ export default async function PostDetailPage(props: any) {
       if ((settings[0]?.value === 'true' || boardLocks[0]?.is_comment_locked) && !isAdmin) {
         isActionLocked = true;
       }
-    } catch (e) {}
-    
+    } catch (e) { }
+
     if (isActionLocked) return;
 
-    const content = (formData.get('content') as string) || ''; 
+    const content = (formData.get('content') as string) || '';
     const parentId = formData.get('parentId') as string;
     const imageUrl = (formData.get('imageUrl') || formData.get('image_data') || formData.get('image')) as string;
-    const botTrap = formData.get('bot_trap') as string; 
-    
+    const botTrap = formData.get('bot_trap') as string;
+
     if (botTrap) {
-      console.log('🚨 [스팸 봇 차단 완료] 댓글 허니팟 함정에 걸려들었습니다.');
       return { success: true };
     }
 
-    // 🚨 [테러 방어막 2] 뉴비 계정 외부 링크(광고) 삽입 금지 (댓글)
     if (!isAdmin) {
       try {
         const { rows: userRows } = await sql`SELECT points FROM users WHERE user_id = ${currentUserId}`;
         const userPoints = userRows[0]?.points || 0;
         const hasLink = content.includes('http://') || content.includes('https://') || content.includes('www.') || content.includes('.com');
-        
+
         if (userPoints < 10 && hasLink) {
-          console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 광고 링크 작성을 서버단에서 찢어버렸습니다.`);
-          return { error: 'newbie_link', message: '스팸 방지를 위해 활동 점수 10점 미만은 링크를 포함할 수 없습니다.' }; 
+          return { error: 'newbie_link', message: '스팸 방지를 위해 활동 점수 10점 미만은 링크를 포함할 수 없습니다.' };
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     let forbiddenWords: string[] = [];
@@ -395,17 +398,16 @@ export default async function PostDetailPage(props: any) {
       if (fwRows.length > 0 && fwRows[0].value) {
         forbiddenWords = fwRows[0].value.split(',').map((w: string) => w.trim()).filter((w: string) => w !== '');
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const cleanContent = extractTextOnly(content);
     for (const word of forbiddenWords) {
       if (cleanContent.includes(word)) {
-        console.log(`🚨 [금칙어 차단] 차단된 단어: ${word}`);
-        return { error: 'forbidden_word', word: word }; 
+        return { error: 'forbidden_word', word: word };
       }
     }
 
-    if (!content.trim() && !imageUrl) return; 
+    if (!content.trim() && !imageUrl) return;
 
     if (parentId) {
       await sql`INSERT INTO comments (post_id, author, author_id, content, parent_id, image_data) VALUES (${postId}, ${currentUser}, ${currentUserId}, ${content}, ${parentId}, ${imageUrl || null})`;
@@ -423,18 +425,16 @@ export default async function PostDetailPage(props: any) {
     const content = formData.get('content') as string;
     const imageUrl = formData.get('imageUrl') as string;
 
-    // 🚨 [테러 방어막 2] 뉴비 계정 수정 꼼수를 통한 외부 링크(광고) 삽입 금지
     if (!isAdmin) {
       try {
         const { rows: userRows } = await sql`SELECT points FROM users WHERE user_id = ${currentUserId}`;
         const userPoints = userRows[0]?.points || 0;
         const hasLink = content.includes('http://') || content.includes('https://') || content.includes('www.') || content.includes('.com');
-        
+
         if (userPoints < 10 && hasLink) {
-          console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 수정 우회 광고 링크 작성을 차단했습니다.`);
-          return { error: 'newbie_link', message: '스팸 방지를 위해 활동 점수 10점 미만은 링크를 포함할 수 없습니다.' }; 
+          return { error: 'newbie_link', message: '스팸 방지를 위해 활동 점수 10점 미만은 링크를 포함할 수 없습니다.' };
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     let forbiddenWords: string[] = [];
@@ -443,13 +443,12 @@ export default async function PostDetailPage(props: any) {
       if (fwRows.length > 0 && fwRows[0].value) {
         forbiddenWords = fwRows[0].value.split(',').map((w: string) => w.trim()).filter((w: string) => w !== '');
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const cleanContent = extractTextOnly(content || '');
     for (const word of forbiddenWords) {
       if (cleanContent.includes(word)) {
-        console.log(`🚨 [금칙어 차단] 수정 우회 시도 차단됨: ${word}`);
-        return { error: 'forbidden_word', word: word }; 
+        return { error: 'forbidden_word', word: word };
       }
     }
 
@@ -468,14 +467,14 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!currentUserId) return;
     const commentId = formData.get('commentId') as string;
-    
+
     const { rows = [] } = await sql`SELECT author_id, author FROM comments WHERE id = ${commentId}`;
     if (rows.length > 0) {
       const commentAuthorId = rows[0].author_id;
       if (isAdmin || commentAuthorId === currentUserId) {
-        
+
         const { rows: childRows } = await sql`SELECT id FROM comments WHERE parent_id = ${commentId}`;
-        
+
         if (childRows.length > 0) {
           await sql`UPDATE comments SET content = '작성자가 삭제한 댓글입니다.', author = '알 수 없음', author_id = null, image_data = null WHERE id = ${commentId}`;
         } else {
@@ -490,21 +489,19 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!currentUserId) return;
     const commentId = formData.get('commentId') as string;
-    
+
     if (isAdmin) {
       await sql`UPDATE comments SET likes = COALESCE(likes, 0) + 10 WHERE id = ${commentId}`;
-      return; 
+      return;
     }
 
     const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
-      
-      // 🚨 [테러 방어막 1] 댓글 추천: 12시간 대기 '또는' 댓글 1개(5점) 작성 시 통과
+
       if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
-        console.log(`🛡️ [테러 방어] 깡통 계정(${currentUserId})의 댓글 추천 공격을 차단했습니다.`);
-        return; 
+        return;
       }
     }
 
@@ -528,7 +525,7 @@ export default async function PostDetailPage(props: any) {
       try {
         const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
         if (rows.length > 0) blindThreshold = Number(rows[0].value) || 5;
-      } catch(e) {}
+      } catch (e) { }
 
       await sql`
         UPDATE comments 
@@ -536,17 +533,16 @@ export default async function PostDetailPage(props: any) {
             is_blinded = CASE WHEN COALESCE(dislikes, 0) + 10 >= ${blindThreshold} THEN true ELSE is_blinded END
         WHERE id = ${commentId}
       `;
-      return; 
+      return;
     }
 
     const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
-      
-      // 🚨 [테러 방어막 1] 댓글 비공감: 12시간 대기 '또는' 댓글 1개(5점) 작성 시 통과
+
       if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
-        return; 
+        return;
       }
     }
 
@@ -579,15 +575,33 @@ export default async function PostDetailPage(props: any) {
     const isReply = depth > 0;
     const paddingLeft = isReply ? `${Math.min(depth * 1.5, 4)}rem` : '0';
     const isCommentAuthor = currentUserId === node.author_id || (!node.author_id && currentUser === node.author);
-    const canDeleteComment = isCommentAuthor || isAdmin; 
+    const canDeleteComment = isCommentAuthor || isAdmin;
     const hasUserLikedComment = userCommentLikes.includes(node.id);
-    const hasUserDislikedComment = userCommentDislikes.includes(node.id); 
-    
+    const hasUserDislikedComment = userCommentDislikes.includes(node.id);
+
     const isDeleted = node.content === '작성자가 삭제한 댓글입니다.';
-    
+
+    // 💡 [블라인드/에브리타임 알고리즘] 댓글러 익명 자동 넘버링 로직
+    let displayCommentAuthor = node.author;
+    let displayCommentAuthorId = node.author_id;
+
+    if (isAnonymous && !isDeleted) {
+      displayCommentAuthorId = null; // 링크 차단
+      if (node.author_id === post.author_id && post.author_id) {
+        displayCommentAuthor = '글쓴이';
+      } else if (node.author_id) {
+        if (!anonymousMap.has(node.author_id)) {
+          anonymousMap.set(node.author_id, anonCounter++);
+        }
+        displayCommentAuthor = `익명${anonymousMap.get(node.author_id)}`;
+      } else {
+        displayCommentAuthor = '익명';
+      }
+    }
+
     let bgColorClass = isReply ? 'bg-gray-50/70' : 'bg-white';
     let badge = null;
-    
+
     if (!isDeleted) {
       if (node.likes >= 30) {
         bgColorClass = 'bg-green-100/40 border-green-300';
@@ -604,17 +618,17 @@ export default async function PostDetailPage(props: any) {
     return (
       <div key={node.id} className="w-full">
         <div className={`p-4 border-b border-gray-100 relative group transition-colors duration-300 ${bgColorClass}`} style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '1rem' }}>
-          
+
           <input type="checkbox" id={`edit-${node.id}`} className="hidden peer/edit" />
 
           <div className="flex justify-between items-start mb-2 mt-1">
             <div className="font-bold text-[13.5px] flex items-center gap-2 flex-wrap">
-              {node.author_id ? (
-                <Link href={`/user/${node.author_id}`} className="hover:text-[#3b4890] hover:underline cursor-pointer transition-colors">
-                  {node.author}
+              {displayCommentAuthorId ? (
+                <Link href={`/user/${displayCommentAuthorId}`} className="hover:text-[#3b4890] hover:underline cursor-pointer transition-colors">
+                  {displayCommentAuthor}
                 </Link>
               ) : (
-                <span className={isDeleted ? 'text-gray-400 italic' : ''}>{node.author}</span>
+                <span className={`${isDeleted ? 'text-gray-400 italic' : ''} ${displayCommentAuthor === '글쓴이' ? 'text-rose-500 font-black' : ''}`}>{displayCommentAuthor}</span>
               )}
               {badge}
               {!isDeleted && (
@@ -623,14 +637,14 @@ export default async function PostDetailPage(props: any) {
                 </time>
               )}
             </div>
-            
+
             <div className="flex items-center gap-3">
               {isCommentAuthor && !isDeleted && (
                 <label htmlFor={`edit-${node.id}`} className="cursor-pointer text-[12px] text-gray-400 hover:text-indigo-600 hover:underline">수정</label>
               )}
               {canDeleteComment && !isDeleted && (
-                <DeleteConfirmButton 
-                  action={deleteComment} 
+                <DeleteConfirmButton
+                  action={deleteComment}
                   message={"이 댓글을 정말 삭제하시겠습니까?\n삭제된 댓글은 복구할 수 없습니다."}
                   className="text-[12px] text-red-400 hover:text-red-600 hover:underline"
                 >
@@ -658,12 +672,12 @@ export default async function PostDetailPage(props: any) {
                   </form>
                 </div>
               )}
-              
+
               <div className="peer-checked/edit:hidden">
                 <div className="text-[15px] mb-3 whitespace-pre-wrap text-gray-800 flex items-start gap-1.5">
                   {isReply && parentAuthor && !isDeleted && (
                     <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-gray-400 bg-gray-200/60 px-1.5 py-0.5 rounded-sm shrink-0 mt-0.5 border border-gray-200">
-                      ↳ @{parentAuthor}
+                      ↳ @{isAnonymous ? '익명' : parentAuthor}
                     </span>
                   )}
                   <span className={`${isDeleted ? 'text-gray-400 italic text-[14px]' : ''} leading-relaxed`}>
@@ -679,11 +693,11 @@ export default async function PostDetailPage(props: any) {
 
               {isCommentAuthor && !isDeleted && (
                 <div className="hidden peer-checked/edit:block mb-4 mt-2">
-                  <EditCommentForm 
-                    commentId={node.id} 
-                    initialContent={node.content} 
-                    initialImage={node.image_data} 
-                    editAction={editComment} 
+                  <EditCommentForm
+                    commentId={node.id}
+                    initialContent={node.content}
+                    initialImage={node.image_data}
+                    editAction={editComment}
                   />
                 </div>
               )}
@@ -705,12 +719,12 @@ export default async function PostDetailPage(props: any) {
             )}
           </div>
         </div>
-        
+
         <input type="checkbox" id={`reply-${node.id}`} className="hidden peer/reply" />
         <div className="hidden peer-checked/reply:block bg-gray-100 p-3 border-b border-gray-200">
           {!isCommentLocked && currentUser && !isDeleted && <CommentForm postId={postId} parentId={node.id} author={node.author} actionType="reply" submitAction={addComment} />}
         </div>
-        
+
         {node.children && node.children.map((child: any) => renderCommentNode(child, depth + 1, node.author))}
       </div>
     );
@@ -730,13 +744,13 @@ export default async function PostDetailPage(props: any) {
   const cleanContent = sanitizeHtml(finalContent, {
     allowedTags: ['p', 'br', 'b', 'i', 'em', 'strong', 'a', 'img', 'video', 'iframe', 'u', 's', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'blockquote', 'pre', 'span'],
     allowedAttributes: {
-      '*': ['class', 'style'], 
+      '*': ['class', 'style'],
       'a': ['href', 'target', 'rel'],
       'img': ['src', 'alt', 'width', 'height'],
       'video': ['src', 'controls', 'preload', 'playsinline', 'muted', 'width', 'height'],
       'iframe': ['src', 'frameborder', 'allowfullscreen', 'width', 'height']
     },
-    allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'youtu.be'] 
+    allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'youtu.be']
   });
 
   let backToListUrl = '/board';
@@ -749,7 +763,7 @@ export default async function PostDetailPage(props: any) {
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
       <VideoVolumeFix />
-      
+
       <style>{`
         /* 1. 이미지: CLS(화면 덜컹거림) 방어용 본문/댓글 통합 스켈레톤 적용 */
         
@@ -804,25 +818,25 @@ export default async function PostDetailPage(props: any) {
       `}</style>
 
       <main className="max-w-[1000px] mx-auto p-5 md:p-8 mt-4 mb-20 overflow-hidden">
-        
+
         <div className="border-b-2 border-gray-800 pb-4 mb-4">
           <h1 className="text-2xl md:text-3xl font-black mb-4"><span className="text-[#3b4890] mr-2">[{postData.cat}]</span>{postData.cleanTitle}</h1>
           <div className="flex justify-between items-center text-gray-500 text-sm font-bold flex-wrap gap-y-2">
-            
+
             <div className="flex items-center gap-2">
-              {post.author_id ? (
-                <Link href={`/user/${post.author_id}`} className="text-[14px] hover:text-[#3b4890] hover:underline cursor-pointer transition-colors">
-                  {post.author}
+              {displayAuthorIdPost ? (
+                <Link href={`/user/${displayAuthorIdPost}`} className="text-[14px] hover:text-[#3b4890] hover:underline cursor-pointer transition-colors">
+                  {displayAuthorPost}
                 </Link>
-              ) : (<span className="text-[14px]">{post.author}</span>)}
-              
+              ) : (<span className="text-[14px]">{displayAuthorPost}</span>)}
+
               <span className="text-gray-300">|</span>
-              
+
               <time dateTime={getSeoDatetime(post.date)} className="text-[12px] font-medium text-gray-400 tracking-tight">
                 {getDisplayDate(post.date)}
               </time>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <div className="text-gray-400 text-[12px] font-medium flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
@@ -835,12 +849,12 @@ export default async function PostDetailPage(props: any) {
 
           </div>
         </div>
-        
+
         <CopyLinkBox postId={postId} />
-        
+
         {post.is_blinded && !isAdmin ? (
           <div className="bg-gray-100 p-12 text-center rounded-lg border border-gray-300 my-10 shadow-inner">
-            <p className="text-gray-600 font-bold text-lg leading-relaxed">보고 싶어 하지 않은 분들이 많아<br/>블라인드 처리된 게시글입니다.</p>
+            <p className="text-gray-600 font-bold text-lg leading-relaxed">보고 싶어 하지 않은 분들이 많아<br />블라인드 처리된 게시글입니다.</p>
           </div>
         ) : (
           <div className="post-content-area">
@@ -861,11 +875,11 @@ export default async function PostDetailPage(props: any) {
                 </form>
               </div>
             )}
-            
+
             <div className="min-h-[300px] text-[17px] whitespace-pre-wrap leading-relaxed ql-editor" dangerouslySetInnerHTML={{ __html: cleanContent }} />
           </div>
         )}
-        
+
         <div className="mt-16 flex justify-center items-center gap-6 sm:gap-10 border-t pt-10 px-2">
           <PostLikeButton postId={postId} initialLikes={post.likes || 0} initialHasLiked={hasLiked} toggleAction={toggleLike} isAdmin={isAdmin} />
           <PostDislikeButton postId={postId} initialDislikes={post.dislikes || 0} initialHasDisliked={hasDisliked} toggleAction={toggleDislike} isAdmin={isAdmin} />
@@ -876,14 +890,14 @@ export default async function PostDetailPage(props: any) {
           <PostScrapButton postId={postId} initialHasScrapped={hasScrapped} toggleScrapAction={toggleScrap} />
           <PostReportButton postId={postId} currentUserId={currentUserId} isAdmin={isAdmin} />
         </div>
-        
+
         <div className="mt-6 border-t pt-6 flex justify-between">
           <div className="flex gap-2">
             {isAuthor && <Link href={`/board/${postId}/edit`} className="px-6 py-2 border font-bold text-sm rounded-sm">수정</Link>}
-            
+
             {(isAuthor || isAdmin) && (
-              <DeleteConfirmButton 
-                action={deletePost} 
+              <DeleteConfirmButton
+                action={deletePost}
                 message={"게시글을 정말 삭제하시겠습니까?\n첨부된 미디어와 데이터는 즉시 파기되며 복구할 수 없습니다."}
                 className="px-6 py-2 bg-[#e06c75] text-white font-bold text-sm rounded-sm hover:bg-red-500 transition-colors"
               >
@@ -895,11 +909,11 @@ export default async function PostDetailPage(props: any) {
         </div>
 
         <div className="mt-16 bg-gray-50 p-5 border rounded-sm shadow-sm">
-           <h3 className="font-bold text-lg border-b pb-3 border-gray-200">댓글 <span className="text-[#e74c3c]">{comments.length}</span></h3>
-           <div className="mt-4">{commentTree.map(node => renderCommentNode(node, 0))}</div>
-           <div className="mt-8">
-             {currentUser ? <CommentForm postId={postId} actionType="main" submitAction={addComment} /> : <div className="p-4 bg-white border border-gray-200 text-center font-bold text-sm text-gray-500 rounded-sm shadow-sm">로그인이 필요합니다.</div>}
-           </div>
+          <h3 className="font-bold text-lg border-b pb-3 border-gray-200">댓글 <span className="text-[#e74c3c]">{comments.length}</span></h3>
+          <div className="mt-4">{commentTree.map(node => renderCommentNode(node, 0))}</div>
+          <div className="mt-8">
+            {currentUser ? <CommentForm postId={postId} actionType="main" submitAction={addComment} /> : <div className="p-4 bg-white border border-gray-200 text-center font-bold text-sm text-gray-500 rounded-sm shadow-sm">로그인이 필요합니다.</div>}
+          </div>
         </div>
       </main>
     </div>
