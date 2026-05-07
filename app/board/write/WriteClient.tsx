@@ -29,8 +29,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const [isEditorReady, setIsEditorReady] = useState(false);
 
   const [botTrap, setBotTrap] = useState('');
-  const [isNotice, setIsNotice] = useState(false); // 전체 공지
-  const [isBoardNotice, setIsBoardNotice] = useState(false); // 게시판 전용 공지 (추가됨)
+  const [isNotice, setIsNotice] = useState(false); 
+  const [isBoardNotice, setIsBoardNotice] = useState(false); 
   const router = useRouter();
 
   const quillRef = useRef<any>(null);
@@ -488,14 +488,13 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const res = await fetch('/api/post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // 변경: is_board_notice 변수를 백엔드로 추가 전송합니다.
         body: JSON.stringify({
           title: title,
           content: content,
           author: currentUser,
           category: category,
           is_notice: isNotice,
-          is_board_notice: isBoardNotice, // <-- 새로 추가됨
+          is_board_notice: isBoardNotice, 
           bot_trap: botTrap
         }),
       });
@@ -561,7 +560,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before { content: '36'; }
         .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16'; } 
 
-        .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
+        /* 💡 핵심 수술: 작은 이미지 억지 늘림 원천 차단 및 블로그형 중앙 정렬 */
+        .ql-editor img { max-width: 100%; width: auto !important; height: auto; border-radius: 8px; display: block; margin: 15px auto !important; }
+        @media (min-width: 768px) { .ql-editor img { max-width: 800px !important; } }
+        
         .ql-editor video.humorin-mp4, .ql-editor iframe.humorin-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
         @media (max-width: 768px) { .ql-editor video.humorin-mp4, .ql-editor iframe.humorin-youtube { aspect-ratio: 16/9; height: auto; max-height: 70vh; } }
         
@@ -610,11 +612,9 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             </div>
           </div>
 
-          {/* 변경: 관리자 전용 공지 선택 영역 (모바일에서도 줄바꿈 안전하게 flex-col sm:flex-row 적용) */}
           {isAdmin && (
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-3 py-2.5 bg-indigo-50 border border-indigo-100 rounded-sm mt-1">
 
-              {/* 게시판 전용 공지 체크박스 */}
               <div className="flex items-center">
                 <input
                   type="checkbox"
@@ -622,7 +622,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
                   checked={isBoardNotice}
                   onChange={(e) => {
                     setIsBoardNotice(e.target.checked);
-                    if (e.target.checked) setIsNotice(false); // 둘 중 하나만 선택되도록 처리
+                    if (e.target.checked) setIsNotice(false); 
                   }}
                   className="w-4 h-4 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-600 cursor-pointer"
                 />
@@ -631,7 +631,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
                 </label>
               </div>
 
-              {/* 전체 게시판 공지 체크박스 */}
               <div className="flex items-center sm:ml-4">
                 <input
                   type="checkbox"
@@ -639,7 +638,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
                   checked={isNotice}
                   onChange={(e) => {
                     setIsNotice(e.target.checked);
-                    if (e.target.checked) setIsBoardNotice(false); // 둘 중 하나만 선택되도록 처리
+                    if (e.target.checked) setIsBoardNotice(false); 
                   }}
                   className="w-4 h-4 text-rose-500 rounded border-rose-300 focus:ring-rose-500 cursor-pointer"
                 />

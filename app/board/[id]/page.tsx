@@ -589,7 +589,6 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 🚨 댓글용 관리자 즉결 심판 액션
   const suspendUserByComment = async (formData: FormData) => {
     'use server';
     if (!isAdmin) return;
@@ -626,12 +625,11 @@ export default async function PostDetailPage(props: any) {
 
     const isDeleted = node.content === '작성자가 삭제한 댓글입니다.' || node.content === '삭제된 댓글입니다.';
 
-    // 💡 [블라인드/에브리타임 알고리즘] 댓글러 익명 자동 넘버링 로직
     let displayCommentAuthor = node.author;
     let displayCommentAuthorId = node.author_id;
 
     if (isAnonymous && !isDeleted) {
-      displayCommentAuthorId = null; // 링크 차단
+      displayCommentAuthorId = null; 
       if (node.author_id === post.author_id && post.author_id) {
         displayCommentAuthor = '글쓴이';
       } else if (node.author_id) {
@@ -683,7 +681,6 @@ export default async function PostDetailPage(props: any) {
               )}
             </div>
 
-            {/* 댓글 우측 상단 컨트롤 영역 (수정/삭제 및 관리자 버튼) */}
             <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
               {isCommentAuthor && !isDeleted && (
                 <label htmlFor={`edit-${node.id}`} className="cursor-pointer text-[12px] text-gray-400 hover:text-indigo-600 hover:underline">수정</label>
@@ -699,7 +696,6 @@ export default async function PostDetailPage(props: any) {
                 </DeleteConfirmButton>
               )}
 
-              {/* 🚨 댓글 작성자 즉결 심판 (관리자 전용) */}
               {isAdmin && !isDeleted && node.author_id && (
                 <div className="flex items-center gap-1.5 ml-1 pl-2 border-l border-red-200">
                   <DeleteConfirmButton
@@ -837,19 +833,19 @@ export default async function PostDetailPage(props: any) {
       <style>{`
         /* 1. 이미지: CLS(화면 덜컹거림) 방어용 본문/댓글 통합 스켈레톤 적용 */
         
-        /* 본문 에디터 안의 이미지 */
+        /* 💡 핵심 수술: 작은 이미지가 억지로 100% 늘어나는 현상을 방지하고 블로그처럼 중앙 정렬 */
         .ql-editor img {
           display: block;
-          max-width: 720px !important; 
-          width: 100%; 
+          max-width: 800px !important; 
+          width: auto !important; /* 억지 늘림 원천 차단 */
           height: auto;
-          margin: 0 auto 15px auto;
+          margin: 15px auto; /* 상하 여백 및 가운데 정렬 */
           border-radius: 8px;
         }
 
-        /* 💡 본문 이미지 & 댓글 이미지 공통 스켈레톤 애니메이션 */
+        /* 💡 본문 이미지 & 댓글 이미지 공통 스켈레톤 애니메이션 (유지) */
         .ql-editor img, .humorin-comment-img {
-          min-height: 250px; /* 이미지가 오기 전 최소 공간 강제 확보 */
+          min-height: 250px; 
           background-color: #f8fafc;
           background-image: linear-gradient(90deg, #f8fafc 0px, #f1f5f9 50%, #f8fafc 100%);
           background-size: 200% 100%;
@@ -861,12 +857,12 @@ export default async function PostDetailPage(props: any) {
           100% { background-position: -100% 0; }
         }
 
-        /* 2. 동영상/유튜브: 기존 황금비율 650px 유지하여 깨짐 방지 */
+        /* 2. 동영상/유튜브: 기존 황금비율 유지하여 깨짐 방지 */
         .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube,
         .ql-editor video, .ql-editor video.humorin-mp4 {
           display: block;
           width: 100%;
-          max-width: 650px; 
+          max-width: 800px; /* 이미지와 동일하게 800px로 통일 */
           margin: 10px auto 30px auto;
           border-radius: 8px;
           background-color: #000;
@@ -876,7 +872,7 @@ export default async function PostDetailPage(props: any) {
         .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube { aspect-ratio: 16 / 9; height: auto; }
         .ql-editor video, .ql-editor video.humorin-mp4 { height: auto; max-height: 70vh; object-fit: contain; aspect-ratio: auto; }
 
-        /* 3. 스마트폰 모드: 100% 가득 채움 */
+        /* 3. 스마트폰 모드: 모바일에서는 다시 100% 가득 채우도록 방어막 가동 */
         @media (max-width: 768px) {
           .ql-editor img, .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube, .ql-editor video, .ql-editor video.humorin-mp4 {
             max-width: 100% !important;
@@ -922,7 +918,6 @@ export default async function PostDetailPage(props: any) {
 
         <CopyLinkBox postId={postId} />
 
-        {/* 🚨 관리자 전용 즉결 심판 (게시글) - 깔끔하고 미니멀하게 재배치 */}
         {isAdmin && post.author_id && (
           <div className="mb-6 py-2 px-4 bg-gray-50 border border-gray-200 rounded flex flex-col sm:flex-row justify-between items-center gap-3 shadow-sm">
             <div className="text-[13px] text-gray-600 flex items-center gap-2">

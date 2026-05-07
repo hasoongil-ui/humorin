@@ -347,7 +347,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
         ['image', 'video', 'link'], 
         [{ 'font': [false, 'pretendard', 'notosanskr', 'gowundodum', 'hahmlet'] }],
         [{ 'size': ['10px', '12px', '14px', '15px', false, '18px', '20px', '24px', '30px', '36px'] }], 
-        ['undo', 'redo'], // 💡 '되돌리기' 아이콘을 앞쪽으로 옮겼습니다.
+        ['undo', 'redo'], 
         [{ 'header': [1, 2, 3, 4, false] }], 
         ['bold', 'italic', 'underline', 'strike'], 
         [{ 'color': [] }, { 'background': [] }], 
@@ -471,10 +471,13 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
         .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before { content: '36'; }
         .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16'; } 
 
-        .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
-        .ql-editor iframe.humorin-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
-        .ql-editor video.humorin-mp4 { width: 100%; max-width: 800px; height: auto; max-height: 70vh; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
-        @media (max-width: 768px) { .ql-editor iframe.humorin-youtube { aspect-ratio: 16/9; height: auto; } .ql-editor video.humorin-mp4 { height: auto; max-height: 70vh; } }
+        /* 💡 핵심 수술: 작은 이미지 억지 늘림 원천 차단 및 블로그형 중앙 정렬 */
+        .ql-editor img { max-width: 100%; width: auto !important; height: auto; border-radius: 8px; display: block; margin: 15px auto !important; }
+        @media (min-width: 768px) { .ql-editor img { max-width: 800px !important; } }
+        
+        .ql-editor video.humorin-mp4, .ql-editor iframe.humorin-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
+        @media (max-width: 768px) { .ql-editor video.humorin-mp4, .ql-editor iframe.humorin-youtube { aspect-ratio: 16/9; height: auto; max-height: 70vh; } }
+        
         .ql-toolbar.ql-snow { position: sticky; top: 0; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
       `}} />
 
