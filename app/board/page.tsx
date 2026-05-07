@@ -98,22 +98,24 @@ export default async function BoardPage(props: any) {
     console.error("사이드바 게시판 불러오기 실패");
   }
 
-  if (page === 1 && !keyword) {
+  const categoryPattern = category !== 'all' ? `%[${category}]%` : '%';
+  const isAll = category === 'all';
+
+  // 💡 핵심 수정 구역: 공지사항을 불러올 때 전체공지 + (현재 게시판일 경우에만) 게시판 공지를 불러옵니다!
+  if (page === 1 && !keyword && bestType === '') {
     try {
       const { rows } = await sql`
         SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count 
         FROM posts 
-        WHERE is_notice = true AND COALESCE(status, 'published') = 'published'
-        ORDER BY date DESC
+        WHERE (is_notice = true OR (${isAll}::boolean = false AND is_board_notice = true AND title LIKE ${categoryPattern}))
+          AND COALESCE(status, 'published') = 'published'
+        ORDER BY is_notice DESC, is_board_notice DESC, date DESC
       `;
       noticePosts = rows;
     } catch (e) {
-      console.log("공지사항 컬럼이 아직 없습니다.");
+      console.log("공지사항 불러오기 에러:", e);
     }
   }
-
-  const categoryPattern = category !== 'all' ? `%[${category}]%` : '%';
-  const isAll = category === 'all'; // 💡 '전체글 보기' 상태인지 확인
 
   if (category !== 'all' && !keyword && bestType === '' && page === 1) {
     const { rows: topRows } = await sql`
@@ -147,7 +149,6 @@ export default async function BoardPage(props: any) {
 
   }
   else if (bestType === 'today') {
-    // 💡 투데이 베스트: 익명 다락방 글도 추천 10개 넘으면 당당하게 노출!
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published'`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
@@ -300,38 +301,45 @@ export default async function BoardPage(props: any) {
               <div className="w-12 text-center text-rose-500 shrink-0">공감</div>
             </div>
 
+            {/* 💡 핵심 수정 구역: 공지사항 색상 분리 렌더링 (전체공지는 빨간색, 게시판공지는 파란색) */}
             {noticePosts.map((post: any) => {
               const postData = extractData(post.title);
-              // 공지도 혹시 익명이면 모자이크
               const isAnonymous = postData.cat === '익명 다락방';
               const displayAuthor = isAnonymous ? '익명' : post.author;
 
+              const isGlobal = post.is_notice;
+              const bgColor = isGlobal ? 'bg-rose-50/70 hover:bg-rose-100 border-rose-200' : 'bg-indigo-50/70 hover:bg-indigo-100 border-indigo-200';
+              const textColor = isGlobal ? 'text-rose-600' : 'text-indigo-600';
+              const titleColor = isGlobal ? 'text-rose-900' : 'text-indigo-900';
+              const badgeText = isGlobal ? '공지' : '📌';
+              const iconText = isGlobal ? '📢' : '📌';
+
               return (
-                <div key={`notice-${post.id}`} className="flex flex-col md:flex-row border-b border-indigo-200 py-3 bg-indigo-50/70 hover:bg-indigo-100 transition-colors items-center group">
-                  <div className="hidden md:block w-12 text-center text-xs font-black text-indigo-600 shrink-0">공지</div>
+                <div key={`notice-${post.id}`} className={`flex flex-col md:flex-row border-b py-3 transition-colors items-center group ${bgColor}`}>
+                  <div className={`hidden md:block w-12 text-center text-xs font-black shrink-0 ${textColor}`}>{badgeText}</div>
                   <Link href={`/board/${post.id}${fromQuery}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
-                    <span className="mr-2 text-[14px]">📢</span>
+                    <span className="mr-2 text-[14px]">{iconText}</span>
                     {post.is_blinded ? (
                       <span className="truncate mr-1 text-gray-400 md:text-gray-500">블라인드 처리된 글입니다.</span>
                     ) : (
                       <>
-                        <span className="truncate group-hover:underline mr-1 font-black text-indigo-900">{postData.cleanTitle}</span>
+                        <span className={`truncate group-hover:underline mr-1 font-black ${titleColor}`}>{postData.cleanTitle}</span>
                         {hasImage(post.content) && (
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 ml-0.5 text-indigo-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-3.5 h-3.5 ml-0.5 shrink-0 ${isGlobal ? 'text-rose-400' : 'text-indigo-400'}`}><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
                         )}
                         {post.comment_count > 0 && (
-                          <span className="ml-1 text-[11px] sm:text-[12px] font-black text-indigo-600 shrink-0">[{post.comment_count}]</span>
+                          <span className={`ml-1 text-[11px] sm:text-[12px] font-black shrink-0 ${textColor}`}>[{post.comment_count}]</span>
                         )}
                       </>
                     )}
                   </Link>
-                  <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-[11px] md:text-[13px] text-indigo-500 justify-between items-center shrink-0">
-                    <div className="md:w-24 text-left md:text-center font-bold text-indigo-700 truncate">
+                  <div className={`flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-[11px] md:text-[13px] justify-between items-center shrink-0 ${textColor}`}>
+                    <div className={`md:w-24 text-left md:text-center font-bold truncate`}>
                       {post.is_blinded ? '-' : displayAuthor}
                     </div>
-                    <div className="md:w-[70px] md:text-center font-bold text-indigo-500">{formatDate(post.date)}</div>
-                    <div className="md:w-12 md:text-center text-indigo-500">{post.is_blinded ? '-' : (post.views || 0)}</div>
-                    <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${post.is_blinded ? 'text-indigo-300' : (post.likes > 0 ? 'text-indigo-600' : 'text-indigo-400')}`}>
+                    <div className="md:w-[70px] md:text-center font-bold opacity-80">{formatDate(post.date)}</div>
+                    <div className="md:w-12 md:text-center opacity-80">{post.is_blinded ? '-' : (post.views || 0)}</div>
+                    <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${post.is_blinded ? 'opacity-50' : (post.likes > 0 ? '' : 'opacity-70')}`}>
                       {post.is_blinded ? '-' : (post.likes || 0)}
                     </div>
                   </div>

@@ -29,6 +29,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
   const [isEditorReady, setIsEditorReady] = useState(false);
   
   const [isNotice, setIsNotice] = useState(post?.is_notice || false);
+  const [isBoardNotice, setIsBoardNotice] = useState(post?.is_board_notice || false);
 
   const router = useRouter();
   
@@ -36,7 +37,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
   const accumulatedImageSizeRef = useRef(0);
-  const MAX_TOTAL_IMAGE_SIZE = 30 * 1024 * 1024; // 30MB 방어막
+  const MAX_TOTAL_IMAGE_SIZE = 30 * 1024 * 1024; 
 
   useEffect(() => {
     if (isGlobalLocked && !isAdmin) {
@@ -149,7 +150,6 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
     return () => editor.off('text-change', handleTextChange);
   }, [isEditorReady]);
 
-  // 🚀 [마법의 파이프라인] 병렬 압축 + 순차 용량검사 + 병렬 업로드 + 원샷 삽입
   const processAndUploadImages = async (fileArray: File[]) => {
     if (!quillRef.current) return;
     
@@ -182,7 +182,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
           const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
           return new File([compressedBlob], newFileName, { type: 'image/webp' });
         } catch (e) {
-          return file; // 압축 실패 시 원본 폴백
+          return file; 
         }
       });
 
@@ -347,14 +347,14 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
         ['image', 'video', 'link'], 
         [{ 'font': [false, 'pretendard', 'notosanskr', 'gowundodum', 'hahmlet'] }],
         [{ 'size': ['10px', '12px', '14px', '15px', false, '18px', '20px', '24px', '30px', '36px'] }], 
+        ['undo', 'redo'], // 💡 '되돌리기' 아이콘을 앞쪽으로 옮겼습니다.
         [{ 'header': [1, 2, 3, 4, false] }], 
         ['bold', 'italic', 'underline', 'strike'], 
         [{ 'color': [] }, { 'background': [] }], 
         [{ 'align': [] }], 
         [{ 'list': 'ordered'}, { 'list': 'bullet' }], 
         ['blockquote', 'code-block'], 
-        ['clean'], 
-        ['undo', 'redo'] 
+        ['clean']
       ],
       handlers: { 
         image: imageHandler,
@@ -414,6 +414,7 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
       formData.append('content', content);
       formData.append('category', category);
       formData.append('is_notice', isNotice ? 'true' : 'false');
+      formData.append('is_board_notice', isBoardNotice ? 'true' : 'false');
 
       const res = await updateAction(formData);
       
@@ -451,7 +452,6 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
         .ql-editor { line-height: 1.8; min-height: 500px; }
         
         .ql-snow .ql-picker.ql-font { width: 130px; }
-        
         .ql-snow .ql-picker.ql-font .ql-picker-label::before, .ql-snow .ql-picker.ql-font .ql-picker-item::before { content: '나눔고딕'; font-family: 'Nanum Gothic'; }
         
         .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="pretendard"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="pretendard"]::before { content: '프리텐다드'; font-family: 'Pretendard'; }
@@ -472,15 +472,9 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
         .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16'; } 
 
         .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; display: inline-block; vertical-align: top; }
-        
         .ql-editor iframe.humorin-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; }
         .ql-editor video.humorin-mp4 { width: 100%; max-width: 800px; height: auto; max-height: 70vh; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
-        
-        @media (max-width: 768px) { 
-          .ql-editor iframe.humorin-youtube { aspect-ratio: 16/9; height: auto; } 
-          .ql-editor video.humorin-mp4 { height: auto; max-height: 70vh; }
-        }
-        
+        @media (max-width: 768px) { .ql-editor iframe.humorin-youtube { aspect-ratio: 16/9; height: auto; } .ql-editor video.humorin-mp4 { height: auto; max-height: 70vh; } }
         .ql-toolbar.ql-snow { position: sticky; top: 0; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
       `}} />
 
@@ -513,23 +507,43 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
           </div>
 
           {isAdmin && (
-            <div className="flex items-center gap-2 px-1 py-2 bg-indigo-50 border border-indigo-100 rounded-sm mt-1">
-              <input 
-                type="checkbox" 
-                id="edit_is_notice" 
-                checked={isNotice} 
-                onChange={(e) => setIsNotice(e.target.checked)}
-                className="w-4 h-4 ml-2 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-600 cursor-pointer"
-              />
-              <label htmlFor="edit_is_notice" className="text-[13px] font-black text-indigo-700 cursor-pointer flex items-center gap-1.5 select-none">
-                <span className="text-base">📢</span> 이 글을 모든 게시판 최상단에 강제 고정합니다 (공지사항)
-              </label>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-3 py-2.5 bg-indigo-50 border border-indigo-100 rounded-sm mt-1">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="edit_is_board_notice"
+                  checked={isBoardNotice}
+                  onChange={(e) => {
+                    setIsBoardNotice(e.target.checked);
+                    if (e.target.checked) setIsNotice(false); 
+                  }}
+                  className="w-4 h-4 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-600 cursor-pointer"
+                />
+                <label htmlFor="edit_is_board_notice" className="text-[13px] font-black text-indigo-700 cursor-pointer flex items-center gap-1.5 select-none ml-2">
+                  <span className="text-base">📌</span> [현재 게시판] 최상단 고정
+                </label>
+              </div>
+              <div className="flex items-center sm:ml-4">
+                <input
+                  type="checkbox"
+                  id="edit_is_notice"
+                  checked={isNotice}
+                  onChange={(e) => {
+                    setIsNotice(e.target.checked);
+                    if (e.target.checked) setIsBoardNotice(false); 
+                  }}
+                  className="w-4 h-4 text-rose-500 rounded border-rose-300 focus:ring-rose-500 cursor-pointer"
+                />
+                <label htmlFor="edit_is_notice" className="text-[13px] font-black text-rose-600 cursor-pointer flex items-center gap-1.5 select-none ml-2">
+                  <span className="text-base">📢</span> [전체 게시판] 최상단 고정
+                </label>
+              </div>
             </div>
           )}
 
           <div className="bg-white rounded-sm mt-4 border border-gray-300" ref={editorContainerRef}>
             {isEditorReady ? (
-              <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={handleContentChange} placeholder="내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다." />
+              <ReactQuillWrapper forwardedRef={quillRef} theme="snow" modules={modules} value={content} onChange={handleContentChange} placeholder="내용을 작성해 주십시오." />
             ) : (
               <div className="h-[600px] flex items-center justify-center bg-gray-50 text-gray-400 font-bold text-lg animate-pulse">
                 기존 게시글을 불러오는 중입니다...
@@ -545,13 +559,9 @@ export default function EditClient({ currentUser, post, isAdmin, isGlobalLocked,
 
           <div className="flex justify-center gap-2 pt-6 border-t border-gray-100 mt-4">
             <button type="button" onClick={() => router.back()} disabled={isSubmitting} className="px-8 py-3 bg-white border border-gray-300 text-gray-700 rounded-sm font-bold hover:bg-gray-50 disabled:opacity-50 transition-colors">취소</button>
-            
             <button 
               type="button" 
-              onMouseDown={(e) => {
-                e.preventDefault(); 
-                handleSubmit(e); 
-              }}
+              onMouseDown={(e) => { e.preventDefault(); handleSubmit(e); }}
               onClick={(e) => handleSubmit(e)}
               disabled={isUploading || isSubmitting || !isEditorReady} 
               className="px-12 py-3 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-all disabled:bg-gray-400 flex items-center justify-center gap-2"

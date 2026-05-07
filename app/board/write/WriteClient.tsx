@@ -29,7 +29,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const [isEditorReady, setIsEditorReady] = useState(false);
 
   const [botTrap, setBotTrap] = useState('');
-  const [isNotice, setIsNotice] = useState(false);
+  const [isNotice, setIsNotice] = useState(false); // 전체 공지
+  const [isBoardNotice, setIsBoardNotice] = useState(false); // 게시판 전용 공지 (추가됨)
   const router = useRouter();
 
   const quillRef = useRef<any>(null);
@@ -404,7 +405,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         ['image', 'video', 'link'],
         [{ 'font': [false, 'pretendard', 'notosanskr', 'gowundodum', 'hahmlet'] }],
         [{ 'size': ['10px', '12px', '14px', '15px', false, '18px', '20px', '24px', '30px', '36px'] }],
-        ['undo', 'redo'], // 💡 실행 취소/다시 실행 아이콘을 B(볼드체) 앞으로 전진 배치 완료!
+        ['undo', 'redo'],
         [{ 'header': [1, 2, 3, 4, false] }],
         ['bold', 'italic', 'underline', 'strike'],
         [{ 'color': [] }, { 'background': [] }],
@@ -462,9 +463,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       alert('내용을 작성해 주십시오.'); return;
     }
 
-    // 🚨 [테러 방어막 2 - 오작동 버그 픽스 완료!]
-    // 이미지/동영상 태그를 지운 순수 텍스트만 스캔하여 정상 뉴비의 사진 업로드는 허용하고, 
-    // 악성 봇이 숨겨놓은 URL 광고 링크만 정확히 찢어발깁니다.
     if (!isAdmin && userPoints < 10) {
       const contentWithoutMedia = content.replace(/<(img|video|iframe)[^>]*>/gi, '');
       const hasLink = contentWithoutMedia.includes('http://') || contentWithoutMedia.includes('https://') || contentWithoutMedia.includes('www.') || contentWithoutMedia.includes('.com');
@@ -474,7 +472,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         return;
       }
     }
-    // -------------------------------------------------------------
 
     if (content.includes('data:image/')) {
       alert('게시글에 용량을 초과하는 텍스트 이미지(Base64)가 포함되어 있습니다.\n해당 이미지를 삭제하신 후 다시 첨부해 주십시오.'); return;
@@ -491,7 +488,16 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const res = await fetch('/api/post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title, content: content, author: currentUser, category: category, is_notice: isNotice, bot_trap: botTrap }),
+        // 변경: is_board_notice 변수를 백엔드로 추가 전송합니다.
+        body: JSON.stringify({
+          title: title,
+          content: content,
+          author: currentUser,
+          category: category,
+          is_notice: isNotice,
+          is_board_notice: isBoardNotice, // <-- 새로 추가됨
+          bot_trap: botTrap
+        }),
       });
 
       if (res.ok) {
@@ -604,18 +610,44 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             </div>
           </div>
 
+          {/* 변경: 관리자 전용 공지 선택 영역 (모바일에서도 줄바꿈 안전하게 flex-col sm:flex-row 적용) */}
           {isAdmin && (
-            <div className="flex items-center gap-2 px-1 py-2 bg-indigo-50 border border-indigo-100 rounded-sm mt-1">
-              <input
-                type="checkbox"
-                id="is_notice"
-                checked={isNotice}
-                onChange={(e) => setIsNotice(e.target.checked)}
-                className="w-4 h-4 ml-2 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-600 cursor-pointer"
-              />
-              <label htmlFor="is_notice" className="text-[13px] font-black text-indigo-700 cursor-pointer flex items-center gap-1.5 select-none">
-                <span className="text-base">📢</span> 이 글을 모든 게시판 최상단에 강제 고정합니다 (공지사항)
-              </label>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-3 py-2.5 bg-indigo-50 border border-indigo-100 rounded-sm mt-1">
+
+              {/* 게시판 전용 공지 체크박스 */}
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="is_board_notice"
+                  checked={isBoardNotice}
+                  onChange={(e) => {
+                    setIsBoardNotice(e.target.checked);
+                    if (e.target.checked) setIsNotice(false); // 둘 중 하나만 선택되도록 처리
+                  }}
+                  className="w-4 h-4 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-600 cursor-pointer"
+                />
+                <label htmlFor="is_board_notice" className="text-[13px] font-black text-indigo-700 cursor-pointer flex items-center gap-1.5 select-none ml-2">
+                  <span className="text-base">📌</span> [현재 게시판] 최상단 고정
+                </label>
+              </div>
+
+              {/* 전체 게시판 공지 체크박스 */}
+              <div className="flex items-center sm:ml-4">
+                <input
+                  type="checkbox"
+                  id="is_notice"
+                  checked={isNotice}
+                  onChange={(e) => {
+                    setIsNotice(e.target.checked);
+                    if (e.target.checked) setIsBoardNotice(false); // 둘 중 하나만 선택되도록 처리
+                  }}
+                  className="w-4 h-4 text-rose-500 rounded border-rose-300 focus:ring-rose-500 cursor-pointer"
+                />
+                <label htmlFor="is_notice" className="text-[13px] font-black text-rose-600 cursor-pointer flex items-center gap-1.5 select-none ml-2">
+                  <span className="text-base">📢</span> [전체 게시판] 최상단 고정
+                </label>
+              </div>
+
             </div>
           )}
 
