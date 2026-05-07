@@ -671,7 +671,15 @@ export default async function PostDetailPage(props: any) {
                   {displayCommentAuthor}
                 </Link>
               ) : (
-                <span className={`${isDeleted ? 'text-gray-400 italic' : ''} ${displayCommentAuthor === '글쓴이' ? 'text-rose-500 font-black' : ''}`}>{displayCommentAuthor}</span>
+                <span className={`${isDeleted ? 'text-gray-400 italic' : ''} ${displayCommentAuthor === '글쓴이' ? 'text-rose-500 font-black' : ''}`}>
+                  {displayCommentAuthor}
+                  {/* 💡 관리자 전용 엑스레이: 익명 게시판 댓글 작성자 실제 ID 표시 */}
+                  {isAnonymous && isAdmin && !isDeleted && node.author_id && (
+                    <span className="text-[11px] text-red-500 font-normal ml-1.5 tracking-tight">
+                      ({node.author_id})
+                    </span>
+                  )}
+                </span>
               )}
               {badge}
               {!isDeleted && (
