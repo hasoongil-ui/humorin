@@ -629,7 +629,7 @@ export default async function PostDetailPage(props: any) {
     let displayCommentAuthorId = node.author_id;
 
     if (isAnonymous && !isDeleted) {
-      displayCommentAuthorId = null; 
+      displayCommentAuthorId = null;
       if (node.author_id === post.author_id && post.author_id) {
         displayCommentAuthor = '글쓴이';
       } else if (node.author_id) {
@@ -831,21 +831,27 @@ export default async function PostDetailPage(props: any) {
       <VideoVolumeFix />
 
       <style>{`
-        /* 1. 이미지: CLS(화면 덜컹거림) 방어용 본문/댓글 통합 스켈레톤 적용 */
-        
-        /* 💡 핵심 수술: 작은 이미지가 억지로 100% 늘어나는 현상을 방지하고 블로그처럼 중앙 정렬 */
+        /* 1. 이미지: CLS(화면 덜컹거림) 방어 및 블로그형 중앙 정렬 */
         .ql-editor img {
           display: block;
-          max-width: 800px !important; 
-          width: auto !important; /* 억지 늘림 원천 차단 */
+          max-width: 100%; /* 모바일에서는 최대 100%까지만 */
           height: auto;
-          margin: 15px auto; /* 상하 여백 및 가운데 정렬 */
+          margin: 15px auto; /* 블로그처럼 상하 여백 + 가운데 정렬 */
           border-radius: 8px;
+          /* 💡 독소 코드였던 width: auto !important; 를 삭제했습니다. 
+             이제 작은 이미지는 알아서 작게, 큰 이미지는 최대폭에 맞춰 예쁘게 나옵니다! */
         }
 
-        /* 💡 본문 이미지 & 댓글 이미지 공통 스켈레톤 애니메이션 (유지) */
+        /* PC 환경에서는 최대 가로폭 800px 제한 */
+        @media (min-width: 768px) {
+          .ql-editor img {
+            max-width: 800px;
+          }
+        }
+
+        /* 💡 본문 이미지 & 댓글 이미지 공통 스켈레톤 애니메이션 (로딩 복구) */
         .ql-editor img, .humorin-comment-img {
-          min-height: 250px; 
+          min-height: 200px; /* 로딩 전 최소 공간 확보 */
           background-color: #f8fafc;
           background-image: linear-gradient(90deg, #f8fafc 0px, #f1f5f9 50%, #f8fafc 100%);
           background-size: 200% 100%;
@@ -857,22 +863,22 @@ export default async function PostDetailPage(props: any) {
           100% { background-position: -100% 0; }
         }
 
-        /* 2. 동영상/유튜브: 기존 황금비율 유지하여 깨짐 방지 */
+        /* 2. 동영상/유튜브: 기존 황금비율 650px 유지하여 깨짐 방지 */
         .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube,
         .ql-editor video, .ql-editor video.humorin-mp4 {
           display: block;
           width: 100%;
-          max-width: 800px; /* 이미지와 동일하게 800px로 통일 */
+          max-width: 650px; 
           margin: 10px auto 30px auto;
           border-radius: 8px;
           background-color: #000;
           border: none;
         }
-        
+
         .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube { aspect-ratio: 16 / 9; height: auto; }
         .ql-editor video, .ql-editor video.humorin-mp4 { height: auto; max-height: 70vh; object-fit: contain; aspect-ratio: auto; }
 
-        /* 3. 스마트폰 모드: 모바일에서는 다시 100% 가득 채우도록 방어막 가동 */
+        /* 3. 스마트폰 모드: 100% 가득 채움 방어막 */
         @media (max-width: 768px) {
           .ql-editor img, .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube, .ql-editor video, .ql-editor video.humorin-mp4 {
             max-width: 100% !important;
