@@ -1,9 +1,11 @@
+// 파일 위치: app/board/[id]/edit/page.tsx
 // @ts-nocheck
 import { sql } from '@vercel/postgres';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import EditClient from './EditClient';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,14 +20,35 @@ export default async function EditPage(props: any) {
   if (!currentUser) redirect('/login');
 
   let isAdmin = currentUserId === 'admin';
+  let userStatus = 'active'; // 💡 유저 상태 추적
+
   try {
-    if (!isAdmin && currentUserId) {
-      const { rows: adminRows } = await sql`SELECT is_admin FROM users WHERE user_id = ${currentUserId}`;
-      if (adminRows.length > 0 && adminRows[0].is_admin) {
-        isAdmin = true;
+    if (currentUserId) {
+      const { rows: userRows } = await sql`SELECT is_admin, status FROM users WHERE user_id = ${currentUserId}`;
+      if (userRows.length > 0) {
+        if (userRows[0].is_admin) isAdmin = true;
+        userStatus = userRows[0].status || 'active';
       }
     }
   } catch(e) {}
+
+  // 🚨 [철통 방어 1] 정지된 유저(banned)는 수정 화면 접근 원천 차단
+  if (userStatus === 'banned' && !isAdmin) {
+    return (
+      <div className="min-h-[70vh] bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="bg-white p-8 sm:p-12 rounded-lg shadow-md border border-red-200 text-center max-w-lg w-full">
+          <div className="text-red-500 text-6xl mb-6">🚨</div>
+          <h2 className="text-2xl sm:text-3xl font-black text-gray-800 mb-4">이용이 정지된 계정입니다</h2>
+          <p className="text-[15px] text-gray-600 font-medium leading-relaxed mb-8">
+            관리자에 의해 게시글 수정 권한이 영구 제한되었습니다.
+          </p>
+          <Link href={`/board/${postId}`} className="inline-block px-8 py-3.5 bg-[#414a66] text-white font-bold rounded-sm hover:bg-[#2a3042] transition-colors shadow-sm">
+            게시글로 돌아가기
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const { rows } = await sql`SELECT * FROM posts WHERE id = ${postId}`;
   const post = rows[0];
@@ -53,29 +76,47 @@ export default async function EditPage(props: any) {
     const content = formData.get('content') as string;
     const category = formData.get('category') as string;
     
-    // 클라이언트에서 보낸 2개의 공지 상태값을 모두 받습니다.
     const isNoticeRaw = formData.get('is_notice') as string;
     const isBoardNoticeRaw = formData.get('is_board_notice') as string;
     
     let finalIsNotice = false;
     let finalIsBoardNotice = false;
 
-    // 관리자일 때만 공지 상태 변경을 허용합니다.
     if (isAdmin) {
       if (isNoticeRaw === 'true') finalIsNotice = true;
       if (isBoardNoticeRaw === 'true') finalIsBoardNotice = true;
     }
 
+    // 🚨 [철통 방어 2] 서버 액션 단계에서 한 번 더 상태 검증
+    let actionStatus = 'active';
+    if (!isAdmin && currentUserId) {
+      try {
+        const { rows } = await sql`SELECT status FROM users WHERE user_id = ${currentUserId}`;
+        if (rows.length > 0) actionStatus = rows[0].status || 'active';
+      } catch (e) {}
+    }
+
+    if (actionStatus === 'banned') return { error: '이용이 정지된 계정입니다.' };
+    const isShadowBanned = (actionStatus === 'shadow_banned');
+
     try {
       const cleanTitle = title.replace(/^\[.*?\]\s*/, '');
       const newTitle = `[${category}] ${cleanTitle}`;
       
-      // DB 업데이트 쿼리에 is_board_notice = ${finalIsBoardNotice} 도 함께 갱신합니다.
-      await sql`
-        UPDATE posts 
-        SET title = ${newTitle}, content = ${content}, is_notice = ${finalIsNotice}, is_board_notice = ${finalIsBoardNotice} 
-        WHERE id = ${postId}
-      `;
+      // 💡 그림자 차단 유저는 수정을 시도할 때 강제로 블라인드(is_blinded = true) 낙인을 다시 찍습니다.
+      if (isShadowBanned) {
+        await sql`
+          UPDATE posts 
+          SET title = ${newTitle}, content = ${content}, is_notice = ${finalIsNotice}, is_board_notice = ${finalIsBoardNotice}, is_blinded = true
+          WHERE id = ${postId}
+        `;
+      } else {
+        await sql`
+          UPDATE posts 
+          SET title = ${newTitle}, content = ${content}, is_notice = ${finalIsNotice}, is_board_notice = ${finalIsBoardNotice} 
+          WHERE id = ${postId}
+        `;
+      }
       
       revalidatePath(`/board`);
       revalidatePath(`/board/${postId}`);

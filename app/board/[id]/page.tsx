@@ -276,11 +276,13 @@ export default async function PostDetailPage(props: any) {
       return;
     }
 
-    const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
+    // 🚨 공감 시 상태 검사 추가
+    const { rows: userRows } = await sql`SELECT points, created_at, status FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
-      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
+      if (user.status === 'banned' && !isAdmin) return; // 정지 유저 공감 무시
 
+      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
       if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
         return;
       }
@@ -323,11 +325,13 @@ export default async function PostDetailPage(props: any) {
       return;
     }
 
-    const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
+    // 🚨 비추천 시 상태 검사 추가
+    const { rows: userRows } = await sql`SELECT points, created_at, status FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
-      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
+      if (user.status === 'banned' && !isAdmin) return; // 정지 유저 비추천 무시
 
+      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
       if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
         return;
       }
@@ -378,17 +382,26 @@ export default async function PostDetailPage(props: any) {
       return { success: true };
     }
 
+    let userStatus = 'active';
+    let userPoints = 0;
+
     if (!isAdmin) {
       try {
-        const { rows: userRows } = await sql`SELECT points FROM users WHERE user_id = ${currentUserId}`;
-        const userPoints = userRows[0]?.points || 0;
-        const hasLink = content.includes('http://') || content.includes('https://') || content.includes('www.') || content.includes('.com');
+        const { rows: userRows } = await sql`SELECT points, status FROM users WHERE user_id = ${currentUserId}`;
+        userPoints = userRows[0]?.points || 0;
+        userStatus = userRows[0]?.status || 'active';
 
+        // 🚨 정지된 유저의 댓글 쓰기 조용히 무시 (차단)
+        if (userStatus === 'banned') return;
+
+        const hasLink = content.includes('http://') || content.includes('https://') || content.includes('www.') || content.includes('.com');
         if (userPoints < 10 && hasLink) {
           return { error: 'newbie_link', message: '스팸 방지를 위해 활동 점수 10점 미만은 링크를 포함할 수 없습니다.' };
         }
       } catch (e) { }
     }
+
+    const isShadowBanned = (userStatus === 'shadow_banned');
 
     let forbiddenWords: string[] = [];
     try {
@@ -407,10 +420,11 @@ export default async function PostDetailPage(props: any) {
 
     if (!content.trim() && !imageUrl) return;
 
+    // 💡 그림자 차단 유저는 작성 시 강제로 블라인드 처리(is_blinded = true) 됩니다.
     if (parentId) {
-      await sql`INSERT INTO comments (post_id, author, author_id, content, parent_id, image_data) VALUES (${postId}, ${currentUser}, ${currentUserId}, ${content}, ${parentId}, ${imageUrl || null})`;
+      await sql`INSERT INTO comments (post_id, author, author_id, content, parent_id, image_data, is_blinded) VALUES (${postId}, ${currentUser}, ${currentUserId}, ${content}, ${parentId}, ${imageUrl || null}, ${isShadowBanned})`;
     } else {
-      await sql`INSERT INTO comments (post_id, author, author_id, content, image_data) VALUES (${postId}, ${currentUser}, ${currentUserId}, ${content}, ${imageUrl || null})`;
+      await sql`INSERT INTO comments (post_id, author, author_id, content, image_data, is_blinded) VALUES (${postId}, ${currentUser}, ${currentUserId}, ${content}, ${imageUrl || null}, ${isShadowBanned})`;
     }
     await sql`UPDATE users SET points = COALESCE(points, 0) + 5 WHERE user_id = ${currentUserId}`;
     revalidatePath(`/board/${postId}`);
@@ -423,10 +437,17 @@ export default async function PostDetailPage(props: any) {
     const content = formData.get('content') as string;
     const imageUrl = formData.get('imageUrl') as string;
 
+    let userStatus = 'active';
+
     if (!isAdmin) {
       try {
-        const { rows: userRows } = await sql`SELECT points FROM users WHERE user_id = ${currentUserId}`;
+        const { rows: userRows } = await sql`SELECT points, status FROM users WHERE user_id = ${currentUserId}`;
         const userPoints = userRows[0]?.points || 0;
+        userStatus = userRows[0]?.status || 'active';
+
+        // 🚨 정지된 유저의 댓글 수정 조용히 무시 (차단)
+        if (userStatus === 'banned') return;
+
         const hasLink = content.includes('http://') || content.includes('https://') || content.includes('www.') || content.includes('.com');
 
         if (userPoints < 10 && hasLink) {
@@ -434,6 +455,8 @@ export default async function PostDetailPage(props: any) {
         }
       } catch (e) { }
     }
+
+    const isShadowBanned = (userStatus === 'shadow_banned');
 
     let forbiddenWords: string[] = [];
     try {
@@ -455,7 +478,12 @@ export default async function PostDetailPage(props: any) {
     const { rows = [] } = await sql`SELECT author_id FROM comments WHERE id = ${commentId}`;
     if (rows.length > 0) {
       if (rows[0].author_id === currentUserId || isAdmin) {
-        await sql`UPDATE comments SET content = ${content}, image_data = ${imageUrl || null} WHERE id = ${commentId}`;
+        // 💡 그림자 차단 유저가 댓글을 수정하면 다시 블라인드 처리 쾅!
+        if (isShadowBanned) {
+          await sql`UPDATE comments SET content = ${content}, image_data = ${imageUrl || null}, is_blinded = true WHERE id = ${commentId}`;
+        } else {
+          await sql`UPDATE comments SET content = ${content}, image_data = ${imageUrl || null} WHERE id = ${commentId}`;
+        }
       }
     }
     revalidatePath(`/board/${postId}`);
@@ -493,11 +521,13 @@ export default async function PostDetailPage(props: any) {
       return;
     }
 
-    const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
+    // 🚨 댓글 추천 시 상태 검사 추가
+    const { rows: userRows } = await sql`SELECT points, created_at, status FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
-      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
+      if (user.status === 'banned' && !isAdmin) return; // 정지 유저 공감 무시
 
+      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
       if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
         return;
       }
@@ -534,11 +564,13 @@ export default async function PostDetailPage(props: any) {
       return;
     }
 
-    const { rows: userRows } = await sql`SELECT points, created_at FROM users WHERE user_id = ${currentUserId}`;
+    // 🚨 댓글 비추천 시 상태 검사 추가
+    const { rows: userRows } = await sql`SELECT points, created_at, status FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
-      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
+      if (user.status === 'banned' && !isAdmin) return; // 정지 유저 비추천 무시
 
+      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
       if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
         return;
       }
@@ -573,7 +605,7 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!isAdmin || !post.author_id) return;
 
-    await sql`UPDATE users SET status = 'suspended' WHERE user_id = ${post.author_id}`;
+    await sql`UPDATE users SET status = 'banned' WHERE user_id = ${post.author_id}`;
     await sql`UPDATE posts SET is_blinded = true WHERE id = ${postId}`;
 
     revalidatePath(`/board/${postId}`);
@@ -583,7 +615,7 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!isAdmin || !post.author_id) return;
 
-    await sql`UPDATE users SET status = 'shadowban' WHERE user_id = ${post.author_id}`;
+    await sql`UPDATE users SET status = 'shadow_banned' WHERE user_id = ${post.author_id}`;
     await sql`UPDATE posts SET is_blinded = true WHERE id = ${postId}`;
 
     revalidatePath(`/board/${postId}`);
@@ -596,7 +628,7 @@ export default async function PostDetailPage(props: any) {
     const commentId = formData.get('commentId') as string;
 
     if (targetUserId) {
-      await sql`UPDATE users SET status = 'suspended' WHERE user_id = ${targetUserId}`;
+      await sql`UPDATE users SET status = 'banned' WHERE user_id = ${targetUserId}`;
       await sql`UPDATE comments SET is_blinded = true WHERE id = ${commentId}`;
     }
     revalidatePath(`/board/${postId}`);
@@ -609,7 +641,7 @@ export default async function PostDetailPage(props: any) {
     const commentId = formData.get('commentId') as string;
 
     if (targetUserId) {
-      await sql`UPDATE users SET status = 'shadowban' WHERE user_id = ${targetUserId}`;
+      await sql`UPDATE users SET status = 'shadow_banned' WHERE user_id = ${targetUserId}`;
       await sql`UPDATE comments SET is_blinded = true WHERE id = ${commentId}`;
     }
     revalidatePath(`/board/${postId}`);
@@ -815,7 +847,7 @@ export default async function PostDetailPage(props: any) {
       }
     );
 
-    // 2. 💡 유튜브 153 오류(보안 정책) 방어막 추가!
+    // 2. 💡 유튜브 153 오류(보안 정책) 방어막 추가 (그대로 유지)
     finalContent = finalContent.replace(
       /<iframe([^>]+)>/gi,
       (match, attributes) => {
@@ -836,7 +868,6 @@ export default async function PostDetailPage(props: any) {
       'a': ['href', 'target', 'rel'],
       'img': ['src', 'alt', 'width', 'height'],
       'video': ['src', 'controls', 'preload', 'playsinline', 'muted', 'width', 'height'],
-      // 💡 아래에 referrerpolicy(출처 증명) 허용을 추가했습니다!
       'iframe': ['src', 'frameborder', 'allowfullscreen', 'width', 'height', 'referrerpolicy']
     },
     allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'youtu.be']
@@ -861,8 +892,6 @@ export default async function PostDetailPage(props: any) {
           height: auto;
           margin: 15px auto; /* 블로그처럼 상하 여백 + 가운데 정렬 */
           border-radius: 8px;
-          /* 💡 독소 코드였던 width: auto !important; 를 삭제했습니다. 
-             이제 작은 이미지는 알아서 작게, 큰 이미지는 최대폭에 맞춰 예쁘게 나옵니다! */
         }
 
         /* PC 환경에서는 최대 가로폭 800px 제한 */
