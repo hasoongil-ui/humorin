@@ -29,8 +29,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const [isEditorReady, setIsEditorReady] = useState(false);
 
   const [botTrap, setBotTrap] = useState('');
-  const [isNotice, setIsNotice] = useState(false); 
-  const [isBoardNotice, setIsBoardNotice] = useState(false); 
+  const [isNotice, setIsNotice] = useState(false);
+  const [isBoardNotice, setIsBoardNotice] = useState(false);
   const router = useRouter();
 
   const quillRef = useRef<any>(null);
@@ -117,6 +117,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             node.setAttribute('src', value);
             node.setAttribute('frameborder', '0');
             node.setAttribute('allowfullscreen', 'true');
+            // 👇 💡 유튜브 153 오류 방어막 추가 (글쓰기 에디터 미리보기용 프리패스)
+            node.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
             node.style.display = 'block';
             node.style.width = '100%';
             node.style.maxWidth = '800px';
@@ -494,7 +496,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           author: currentUser,
           category: category,
           is_notice: isNotice,
-          is_board_notice: isBoardNotice, 
+          is_board_notice: isBoardNotice,
           bot_trap: botTrap
         }),
       });
@@ -622,7 +624,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
                   checked={isBoardNotice}
                   onChange={(e) => {
                     setIsBoardNotice(e.target.checked);
-                    if (e.target.checked) setIsNotice(false); 
+                    if (e.target.checked) setIsNotice(false);
                   }}
                   className="w-4 h-4 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-600 cursor-pointer"
                 />
@@ -638,7 +640,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
                   checked={isNotice}
                   onChange={(e) => {
                     setIsNotice(e.target.checked);
-                    if (e.target.checked) setIsBoardNotice(false); 
+                    if (e.target.checked) setIsBoardNotice(false);
                   }}
                   className="w-4 h-4 text-rose-500 rounded border-rose-300 focus:ring-rose-500 cursor-pointer"
                 />
