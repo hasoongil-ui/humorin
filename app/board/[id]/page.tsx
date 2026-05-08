@@ -806,11 +806,25 @@ export default async function PostDetailPage(props: any) {
 
   let finalContent = post.content || '';
   if (finalContent) {
+    // 1. 기존 MP4 비디오 방어막 (그대로 유지)
     finalContent = finalContent.replace(
       /<video([^>]*)src="([^"]+)"([^>]*)>/gi,
       (match, beforeSrc, srcUrl, afterSrc) => {
         const newSrc = srcUrl.includes('#t=') ? srcUrl : `${srcUrl}#t=0.001`;
         return `<video controls="true" preload="metadata" playsinline="true" muted="true" class="humorin-mp4" src="${newSrc}">`;
+      }
+    );
+
+    // 2. 💡 유튜브 153 오류(보안 정책) 방어막 추가!
+    finalContent = finalContent.replace(
+      /<iframe([^>]+)>/gi,
+      (match, attributes) => {
+        if (attributes.includes('youtube.com') || attributes.includes('youtu.be')) {
+          if (!attributes.includes('referrerpolicy')) {
+            return `<iframe${attributes} referrerpolicy="strict-origin-when-cross-origin">`;
+          }
+        }
+        return match;
       }
     );
   }
@@ -822,7 +836,8 @@ export default async function PostDetailPage(props: any) {
       'a': ['href', 'target', 'rel'],
       'img': ['src', 'alt', 'width', 'height'],
       'video': ['src', 'controls', 'preload', 'playsinline', 'muted', 'width', 'height'],
-      'iframe': ['src', 'frameborder', 'allowfullscreen', 'width', 'height']
+      // 💡 아래에 referrerpolicy(출처 증명) 허용을 추가했습니다!
+      'iframe': ['src', 'frameborder', 'allowfullscreen', 'width', 'height', 'referrerpolicy']
     },
     allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'youtu.be']
   });
