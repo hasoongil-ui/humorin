@@ -265,26 +265,18 @@ export default async function PostDetailPage(props: any) {
     if (!currentUserId) redirect('/login');
 
     if (isAdmin) {
-      await sql`
-        UPDATE posts 
-        SET likes = COALESCE(likes, 0) + 10,
-            best_at = CASE WHEN COALESCE(likes, 0) + 10 >= 10 AND best_at IS NULL THEN NOW() ELSE best_at END,
-            best100_at = CASE WHEN COALESCE(likes, 0) + 10 >= 100 AND best100_at IS NULL THEN NOW() ELSE best100_at END,
-            best1000_at = CASE WHEN COALESCE(likes, 0) + 10 >= 1000 AND best1000_at IS NULL THEN NOW() ELSE best1000_at END
-        WHERE id = ${postId}
-      `;
+      await sql`UPDATE posts SET likes = COALESCE(likes, 0) + 10 WHERE id = ${postId}`;
       return;
     }
 
     const { rows: userRows } = await sql`SELECT points, created_at, status FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
-      if (user.status === 'suspended' && !isAdmin) return;
+      const statusStr = String(user.status || 'active').trim().toLowerCase();
+      if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
 
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
-      if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
-        return;
-      }
+      if (hoursSinceJoined < 12 && (user.points || 0) < 5) return;
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
@@ -293,14 +285,7 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE posts SET likes = GREATEST(COALESCE(likes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO likes (post_id, author, author_id) VALUES (${postId}, ${currentUser}, ${currentUserId})`;
-      await sql`
-        UPDATE posts 
-        SET likes = COALESCE(likes, 0) + 1,
-            best_at = CASE WHEN COALESCE(likes, 0) + 1 >= 10 AND best_at IS NULL THEN NOW() ELSE best_at END,
-            best100_at = CASE WHEN COALESCE(likes, 0) + 1 >= 100 AND best100_at IS NULL THEN NOW() ELSE best100_at END,
-            best1000_at = CASE WHEN COALESCE(likes, 0) + 1 >= 1000 AND best1000_at IS NULL THEN NOW() ELSE best1000_at END
-        WHERE id = ${postId}
-      `;
+      await sql`UPDATE posts SET likes = COALESCE(likes, 0) + 1 WHERE id = ${postId}`;
     }
   };
 
@@ -309,30 +294,18 @@ export default async function PostDetailPage(props: any) {
     if (!currentUserId) redirect('/login');
 
     if (isAdmin) {
-      let blindThreshold = 5;
-      try {
-        const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
-        if (rows.length > 0) blindThreshold = Number(rows[0].value) || 5;
-      } catch (e) { }
-
-      await sql`
-        UPDATE posts 
-        SET dislikes = COALESCE(dislikes, 0) + 10,
-            is_blinded = CASE WHEN COALESCE(dislikes, 0) + 10 >= ${blindThreshold} THEN true ELSE is_blinded END
-        WHERE id = ${postId}
-      `;
+      await sql`UPDATE posts SET dislikes = COALESCE(dislikes, 0) + 10 WHERE id = ${postId}`;
       return;
     }
 
     const { rows: userRows } = await sql`SELECT points, created_at, status FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
-      if (user.status === 'suspended' && !isAdmin) return;
+      const statusStr = String(user.status || 'active').trim().toLowerCase();
+      if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
 
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
-      if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
-        return;
-      }
+      if (hoursSinceJoined < 12 && (user.points || 0) < 5) return;
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
@@ -376,21 +349,20 @@ export default async function PostDetailPage(props: any) {
     const imageUrl = (formData.get('imageUrl') || formData.get('image_data') || formData.get('image')) as string;
     const botTrap = formData.get('bot_trap') as string;
 
-    if (botTrap) {
-      return { success: true };
-    }
+    if (botTrap) return { success: true };
 
-    let userStatus = 'active';
+    let rawStatus = 'active';
     let userPoints = 0;
 
     if (!isAdmin) {
       try {
         const { rows: userRows } = await sql`SELECT points, status FROM users WHERE user_id = ${currentUserId}`;
         userPoints = userRows[0]?.points || 0;
-        userStatus = userRows[0]?.status || 'active';
+        rawStatus = userRows[0]?.status || 'active';
 
-        // 🚨 정지 유저는 댓글 무시
-        if (userStatus === 'suspended') return;
+        // 🚨 다중 그물망으로 정지 여부 완벽 검사
+        const statusStr = String(rawStatus).trim().toLowerCase();
+        if (['banned', 'suspended', '정지'].includes(statusStr)) return;
 
         const hasLink = content.includes('http://') || content.includes('https://') || content.includes('www.') || content.includes('.com');
         if (userPoints < 10 && hasLink) {
@@ -399,8 +371,9 @@ export default async function PostDetailPage(props: any) {
       } catch (e) { }
     }
 
-    // 💡 그림자 차단 유저는 자동으로 is_blinded = true 먹여버림
-    const isShadowBanned = (userStatus === 'shadowban');
+    // 💡 다중 그물망으로 그림자 여부 완벽 검사
+    const finalStatusStr = String(rawStatus).trim().toLowerCase();
+    const isShadowBanned = ['shadowban', 'shadow_banned', '그림자'].includes(finalStatusStr);
 
     let forbiddenWords: string[] = [];
     try {
@@ -412,9 +385,7 @@ export default async function PostDetailPage(props: any) {
 
     const cleanContent = extractTextOnly(content);
     for (const word of forbiddenWords) {
-      if (cleanContent.includes(word)) {
-        return { error: 'forbidden_word', word: word };
-      }
+      if (cleanContent.includes(word)) return { error: 'forbidden_word', word: word };
     }
 
     if (!content.trim() && !imageUrl) return;
@@ -435,25 +406,26 @@ export default async function PostDetailPage(props: any) {
     const content = formData.get('content') as string;
     const imageUrl = formData.get('imageUrl') as string;
 
-    let userStatus = 'active';
+    let rawStatus = 'active';
 
     if (!isAdmin) {
       try {
         const { rows: userRows } = await sql`SELECT points, status FROM users WHERE user_id = ${currentUserId}`;
         const userPoints = userRows[0]?.points || 0;
-        userStatus = userRows[0]?.status || 'active';
+        rawStatus = userRows[0]?.status || 'active';
 
-        if (userStatus === 'suspended') return;
+        const statusStr = String(rawStatus).trim().toLowerCase();
+        if (['banned', 'suspended', '정지'].includes(statusStr)) return;
 
         const hasLink = content.includes('http://') || content.includes('https://') || content.includes('www.') || content.includes('.com');
-
         if (userPoints < 10 && hasLink) {
           return { error: 'newbie_link', message: '스팸 방지를 위해 활동 점수 10점 미만은 링크를 포함할 수 없습니다.' };
         }
       } catch (e) { }
     }
 
-    const isShadowBanned = (userStatus === 'shadowban');
+    const finalStatusStr = String(rawStatus).trim().toLowerCase();
+    const isShadowBanned = ['shadowban', 'shadow_banned', '그림자'].includes(finalStatusStr);
 
     let forbiddenWords: string[] = [];
     try {
@@ -465,9 +437,7 @@ export default async function PostDetailPage(props: any) {
 
     const cleanContent = extractTextOnly(content || '');
     for (const word of forbiddenWords) {
-      if (cleanContent.includes(word)) {
-        return { error: 'forbidden_word', word: word };
-      }
+      if (cleanContent.includes(word)) return { error: 'forbidden_word', word: word };
     }
 
     if (!content.trim() && !imageUrl) return;
@@ -520,13 +490,11 @@ export default async function PostDetailPage(props: any) {
     const { rows: userRows } = await sql`SELECT points, created_at, status FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
-      if (user.status === 'suspended' && !isAdmin) return;
+      const statusStr = String(user.status || 'active').trim().toLowerCase();
+      if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
 
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
-
-      if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
-        return;
-      }
+      if (hoursSinceJoined < 12 && (user.points || 0) < 5) return;
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_likes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
@@ -551,25 +519,18 @@ export default async function PostDetailPage(props: any) {
         if (rows.length > 0) blindThreshold = Number(rows[0].value) || 5;
       } catch (e) { }
 
-      await sql`
-        UPDATE comments 
-        SET dislikes = COALESCE(dislikes, 0) + 10,
-            is_blinded = CASE WHEN COALESCE(dislikes, 0) + 10 >= ${blindThreshold} THEN true ELSE is_blinded END
-        WHERE id = ${commentId}
-      `;
+      await sql`UPDATE comments SET dislikes = COALESCE(dislikes, 0) + 10, is_blinded = CASE WHEN COALESCE(dislikes, 0) + 10 >= ${blindThreshold} THEN true ELSE is_blinded END WHERE id = ${commentId}`;
       return;
     }
 
     const { rows: userRows } = await sql`SELECT points, created_at, status FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
-      if (user.status === 'suspended' && !isAdmin) return;
+      const statusStr = String(user.status || 'active').trim().toLowerCase();
+      if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
 
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
-
-      if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
-        return;
-      }
+      if (hoursSinceJoined < 12 && (user.points || 0) < 5) return;
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_dislikes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
@@ -597,23 +558,20 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
+  // 관리자 정지/그림자 처리 (이후 DB 표준화를 위해 banned, shadow_banned 로 통일)
   const suspendUserAction = async () => {
     'use server';
     if (!isAdmin || !post.author_id) return;
-    
-    await sql`UPDATE users SET status = 'suspended' WHERE user_id = ${post.author_id}`;
+    await sql`UPDATE users SET status = 'banned' WHERE user_id = ${post.author_id}`;
     await sql`UPDATE posts SET is_blinded = true WHERE id = ${postId}`;
-    
     revalidatePath(`/board/${postId}`);
   };
 
   const shadowbanUserAction = async () => {
     'use server';
     if (!isAdmin || !post.author_id) return;
-    
-    await sql`UPDATE users SET status = 'shadowban' WHERE user_id = ${post.author_id}`;
+    await sql`UPDATE users SET status = 'shadow_banned' WHERE user_id = ${post.author_id}`;
     await sql`UPDATE posts SET is_blinded = true WHERE id = ${postId}`;
-    
     revalidatePath(`/board/${postId}`);
   };
 
@@ -622,9 +580,8 @@ export default async function PostDetailPage(props: any) {
     if (!isAdmin) return;
     const targetUserId = formData.get('targetUserId') as string;
     const commentId = formData.get('commentId') as string;
-    
     if (targetUserId) {
-      await sql`UPDATE users SET status = 'suspended' WHERE user_id = ${targetUserId}`;
+      await sql`UPDATE users SET status = 'banned' WHERE user_id = ${targetUserId}`;
       await sql`UPDATE comments SET is_blinded = true WHERE id = ${commentId}`;
     }
     revalidatePath(`/board/${postId}`);
@@ -635,9 +592,8 @@ export default async function PostDetailPage(props: any) {
     if (!isAdmin) return;
     const targetUserId = formData.get('targetUserId') as string;
     const commentId = formData.get('commentId') as string;
-    
     if (targetUserId) {
-      await sql`UPDATE users SET status = 'shadowban' WHERE user_id = ${targetUserId}`;
+      await sql`UPDATE users SET status = 'shadow_banned' WHERE user_id = ${targetUserId}`;
       await sql`UPDATE comments SET is_blinded = true WHERE id = ${commentId}`;
     }
     revalidatePath(`/board/${postId}`);
@@ -749,7 +705,7 @@ export default async function PostDetailPage(props: any) {
             </div>
           </div>
 
-          {/* 🚨 [핵심 수술 1: 댓글 그림자 마법] 본인이 쓴 글(!isCommentAuthor)이 아니면서 블라인드일 때만 회색창을 띄웁니다! */}
+          {/* 🚨 그림자 UI 마법 (작성자 본인에게는 회색창 없이 정상적으로 노출) */}
           {node.is_blinded && !isAdmin && !isCommentAuthor ? (
             <div className="text-[14px] mb-3 text-gray-500 italic bg-gray-100 p-3 rounded-md border border-gray-300 shadow-inner flex items-center gap-2">
               보고 싶어 하지 않은 분들이 많아 블라인드 처리된 댓글입니다.
@@ -827,7 +783,6 @@ export default async function PostDetailPage(props: any) {
 
   let finalContent = post.content || '';
   if (finalContent) {
-    // MP4 방어
     finalContent = finalContent.replace(
       /<video([^>]*)src="([^"]+)"([^>]*)>/gi,
       (match, beforeSrc, srcUrl, afterSrc) => {
@@ -874,7 +829,6 @@ export default async function PostDetailPage(props: any) {
       <VideoVolumeFix />
 
       <style>{`
-        /* 1. 이미지 최적화 및 중앙 정렬 */
         .ql-editor img {
           display: block;
           max-width: 720px !important; 
@@ -884,7 +838,6 @@ export default async function PostDetailPage(props: any) {
           border-radius: 8px;
         }
 
-        /* 💡 이미지 스켈레톤 애니메이션 유지 */
         .ql-editor img, .humorin-comment-img {
           min-height: 250px; 
           background-color: #f8fafc;
@@ -992,7 +945,7 @@ export default async function PostDetailPage(props: any) {
           </div>
         )}
 
-        {/* 🚨 [핵심 수술 2: 게시글 그림자 마법] 본인이 쓴 글(!isAuthor)이 아니면서 블라인드일 때만 회색창을 띄웁니다! */}
+        {/* 🚨 작성자 본인에게는 회색 블라인드 창을 숨깁니다! */}
         {post.is_blinded && !isAdmin && !isAuthor ? (
           <div className="bg-gray-100 p-12 text-center rounded-lg border border-gray-300 my-10 shadow-inner">
             <p className="text-gray-600 font-bold text-lg leading-relaxed">보고 싶어 하지 않은 분들이 많아<br />블라인드 처리된 게시글입니다.</p>

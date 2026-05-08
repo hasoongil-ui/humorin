@@ -49,16 +49,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: '로그인한 회원만 글을 쓸 수 있습니다.' }, { status: 401 });
     }
 
-    // 🚨 [핵심 방어막] 유저 상태 검사 (DB 단어 일치: suspended, shadowban)
+    // 🚨 [핵심 방어막] 다중 그물망으로 DB의 모든 상태 단어를 잡아냅니다!
     const { rows: userCheck } = await client.sql`SELECT status FROM users WHERE user_id = ${currentUserId}`;
-    const userStatus = userCheck.length > 0 ? userCheck[0].status : 'active';
+    const rawStatus = userCheck.length > 0 ? userCheck[0].status : 'active';
+    const statusStr = String(rawStatus || 'active').trim().toLowerCase();
     
-    if (userStatus === 'suspended' && currentUserId !== 'admin') {
-      return NextResponse.json({ error: 'suspended', message: '이용이 정지된 계정입니다.' }, { status: 403 });
-    }
+    const isBanned = ['banned', 'suspended', '정지'].includes(statusStr);
+    const isShadowBanned = ['shadow_banned', 'shadowban', '그림자'].includes(statusStr);
 
-    // 💡 그림자 차단(shadowban) 마법: 정상 등록인 척하지만 is_blinded = true 로 덮어씌움
-    const isShadowBanned = (userStatus === 'shadowban');
+    if (isBanned && currentUserId !== 'admin') {
+      return NextResponse.json({ error: 'banned', message: '이용이 정지된 계정입니다.' }, { status: 403 });
+    }
 
     const finalAuthor = currentUser || author || '익명';
     const titleWithCategory = `[${category}] ${title}`;
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 1. 게시글 실제 저장 (is_blinded 적용)
+    // DB 저장 (그림자 유저의 글은 강제로 is_blinded = true 처리)
     await client.sql`
       INSERT INTO posts (title, content, author, author_id, is_notice, is_board_notice, is_blinded)
       VALUES (${titleWithCategory}, ${content}, ${finalAuthor}, ${currentUserId}, ${finalIsNotice}, ${finalIsBoardNotice}, ${isShadowBanned});
@@ -91,9 +92,7 @@ export async function POST(request: Request) {
         INSERT INTO access_logs (user_id, action_type, ip_address) 
         VALUES (${currentUserId || 'anonymous'}, 'WRITE_POST', ${currentIp})
       `;
-    } catch (logError) {
-      console.error('글쓰기 로그 기록 실패 (무시):', logError);
-    }
+    } catch (logError) { }
     
     if (currentUserId) {
       await client.sql`

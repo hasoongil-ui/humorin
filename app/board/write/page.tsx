@@ -23,7 +23,7 @@ export default async function WritePage() {
   let editorPlaceholder = '내용을 작성해 주십시오. 유튜브 영상은 주소를 이곳에 붙여넣기(Ctrl+V) 하시면 자동으로 추가됩니다.';
   
   let userPoints = 0;
-  let userStatus = 'active'; // 💡 상태값 가져오기 추가
+  let rawStatus = 'active';
 
   try {
     const { rows: settings } = await sql`SELECT key, value FROM site_settings WHERE key IN ('global_write_lock', 'editor_placeholder')`;
@@ -40,15 +40,18 @@ export default async function WritePage() {
       const { rows: userRows } = await sql`SELECT points, status FROM users WHERE user_id = ${currentUserId}`;
       if (userRows.length > 0) {
         userPoints = userRows[0].points || 0;
-        userStatus = userRows[0].status || 'active';
+        rawStatus = userRows[0].status || 'active';
       }
     }
   } catch (error) {
     console.error("DB 로드 실패:", error);
   }
 
-  // 🚨 [정지 유저 컷컷!] 화면 접근 원천 차단 (그림자는 통과시킴)
-  if (userStatus === 'suspended' && !isAdmin) {
+  // 🚨 [정지 유저 차단] 다중 그물망 검사
+  const statusStr = String(rawStatus || 'active').trim().toLowerCase();
+  const isBanned = ['banned', 'suspended', '정지'].includes(statusStr);
+
+  if (isBanned && !isAdmin) {
     return (
       <div className="min-h-[70vh] bg-gray-50 flex flex-col items-center justify-center p-4">
         <div className="bg-white p-8 sm:p-12 rounded-lg shadow-md border border-red-200 text-center max-w-lg w-full">
