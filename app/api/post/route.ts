@@ -11,7 +11,6 @@ const extractTextOnly = (htmlText: string) => {
 };
 
 export async function POST(request: Request) {
-  // 1. 프론트엔드에서 보낸 is_board_notice(게시판 공지) 값을 추가로 받습니다.
   const { title, content, category, author, is_notice, is_board_notice, bot_trap } = await request.json(); 
   
   if (bot_trap) {
@@ -47,17 +46,26 @@ export async function POST(request: Request) {
     const signature = signatureCookie ? signatureCookie.value : null;
 
     if (!currentUserId || !currentUser) {
-      console.log('🚨 [비인가 접근 차단] 로그인 없는 글쓰기 봇 공격 발견!');
       return NextResponse.json({ message: '로그인한 회원만 글을 쓸 수 있습니다.' }, { status: 401 });
     }
+
+    // 🚨 [핵심 방어막] 유저 상태 검사 (DB 단어 일치: suspended, shadowban)
+    const { rows: userCheck } = await client.sql`SELECT status FROM users WHERE user_id = ${currentUserId}`;
+    const userStatus = userCheck.length > 0 ? userCheck[0].status : 'active';
+    
+    if (userStatus === 'suspended' && currentUserId !== 'admin') {
+      return NextResponse.json({ error: 'suspended', message: '이용이 정지된 계정입니다.' }, { status: 403 });
+    }
+
+    // 💡 그림자 차단(shadowban) 마법: 정상 등록인 척하지만 is_blinded = true 로 덮어씌움
+    const isShadowBanned = (userStatus === 'shadowban');
 
     const finalAuthor = currentUser || author || '익명';
     const titleWithCategory = `[${category}] ${title}`;
 
     let finalIsNotice = false;
-    let finalIsBoardNotice = false; // 2. 서버 검증용 게시판 공지 변수 추가
+    let finalIsBoardNotice = false;
     
-    // 3. 권한 검증: 전체 공지(is_notice)나 게시판 공지(is_board_notice) 요청이 들어오면 반드시 관리자인지 확인
     if ((is_notice || is_board_notice) && currentUserId && signature) {
       const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(currentUserId).digest('hex');
       if (signature === expectedSignature) {
@@ -69,10 +77,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. DB 저장: is_board_notice 컬럼에 검증이 끝난 finalIsBoardNotice 값을 추가로 밀어 넣습니다.
+    // 1. 게시글 실제 저장 (is_blinded 적용)
     await client.sql`
-      INSERT INTO posts (title, content, author, author_id, is_notice, is_board_notice)
-      VALUES (${titleWithCategory}, ${content}, ${finalAuthor}, ${currentUserId}, ${finalIsNotice}, ${finalIsBoardNotice});
+      INSERT INTO posts (title, content, author, author_id, is_notice, is_board_notice, is_blinded)
+      VALUES (${titleWithCategory}, ${content}, ${finalAuthor}, ${currentUserId}, ${finalIsNotice}, ${finalIsBoardNotice}, ${isShadowBanned});
     `;
     
     try {

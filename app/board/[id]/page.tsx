@@ -276,11 +276,10 @@ export default async function PostDetailPage(props: any) {
       return;
     }
 
-    // 🚨 공감 시 상태 검사 추가
     const { rows: userRows } = await sql`SELECT points, created_at, status FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
-      if (user.status === 'banned' && !isAdmin) return; // 정지 유저 공감 무시
+      if (user.status === 'suspended' && !isAdmin) return;
 
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
       if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
@@ -325,11 +324,10 @@ export default async function PostDetailPage(props: any) {
       return;
     }
 
-    // 🚨 비추천 시 상태 검사 추가
     const { rows: userRows } = await sql`SELECT points, created_at, status FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
-      if (user.status === 'banned' && !isAdmin) return; // 정지 유저 비추천 무시
+      if (user.status === 'suspended' && !isAdmin) return;
 
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
       if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
@@ -391,8 +389,8 @@ export default async function PostDetailPage(props: any) {
         userPoints = userRows[0]?.points || 0;
         userStatus = userRows[0]?.status || 'active';
 
-        // 🚨 정지된 유저의 댓글 쓰기 조용히 무시 (차단)
-        if (userStatus === 'banned') return;
+        // 🚨 정지 유저는 댓글 무시
+        if (userStatus === 'suspended') return;
 
         const hasLink = content.includes('http://') || content.includes('https://') || content.includes('www.') || content.includes('.com');
         if (userPoints < 10 && hasLink) {
@@ -401,7 +399,8 @@ export default async function PostDetailPage(props: any) {
       } catch (e) { }
     }
 
-    const isShadowBanned = (userStatus === 'shadow_banned');
+    // 💡 그림자 차단 유저는 자동으로 is_blinded = true 먹여버림
+    const isShadowBanned = (userStatus === 'shadowban');
 
     let forbiddenWords: string[] = [];
     try {
@@ -420,7 +419,6 @@ export default async function PostDetailPage(props: any) {
 
     if (!content.trim() && !imageUrl) return;
 
-    // 💡 그림자 차단 유저는 작성 시 강제로 블라인드 처리(is_blinded = true) 됩니다.
     if (parentId) {
       await sql`INSERT INTO comments (post_id, author, author_id, content, parent_id, image_data, is_blinded) VALUES (${postId}, ${currentUser}, ${currentUserId}, ${content}, ${parentId}, ${imageUrl || null}, ${isShadowBanned})`;
     } else {
@@ -445,8 +443,7 @@ export default async function PostDetailPage(props: any) {
         const userPoints = userRows[0]?.points || 0;
         userStatus = userRows[0]?.status || 'active';
 
-        // 🚨 정지된 유저의 댓글 수정 조용히 무시 (차단)
-        if (userStatus === 'banned') return;
+        if (userStatus === 'suspended') return;
 
         const hasLink = content.includes('http://') || content.includes('https://') || content.includes('www.') || content.includes('.com');
 
@@ -456,7 +453,7 @@ export default async function PostDetailPage(props: any) {
       } catch (e) { }
     }
 
-    const isShadowBanned = (userStatus === 'shadow_banned');
+    const isShadowBanned = (userStatus === 'shadowban');
 
     let forbiddenWords: string[] = [];
     try {
@@ -478,7 +475,6 @@ export default async function PostDetailPage(props: any) {
     const { rows = [] } = await sql`SELECT author_id FROM comments WHERE id = ${commentId}`;
     if (rows.length > 0) {
       if (rows[0].author_id === currentUserId || isAdmin) {
-        // 💡 그림자 차단 유저가 댓글을 수정하면 다시 블라인드 처리 쾅!
         if (isShadowBanned) {
           await sql`UPDATE comments SET content = ${content}, image_data = ${imageUrl || null}, is_blinded = true WHERE id = ${commentId}`;
         } else {
@@ -502,7 +498,7 @@ export default async function PostDetailPage(props: any) {
         const { rows: childRows } = await sql`SELECT id FROM comments WHERE parent_id = ${commentId}`;
 
         if (childRows.length > 0) {
-          await sql`UPDATE comments SET content = '삭제된 댓글입니다.', author = '알 수 없음', author_id = null, image_data = null WHERE id = ${commentId}`;
+          await sql`UPDATE comments SET content = '작성자가 삭제한 댓글입니다.', author = '알 수 없음', author_id = null, image_data = null WHERE id = ${commentId}`;
         } else {
           await sql`DELETE FROM comments WHERE id = ${commentId}`;
         }
@@ -521,13 +517,13 @@ export default async function PostDetailPage(props: any) {
       return;
     }
 
-    // 🚨 댓글 추천 시 상태 검사 추가
     const { rows: userRows } = await sql`SELECT points, created_at, status FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
-      if (user.status === 'banned' && !isAdmin) return; // 정지 유저 공감 무시
+      if (user.status === 'suspended' && !isAdmin) return;
 
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
+
       if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
         return;
       }
@@ -564,13 +560,13 @@ export default async function PostDetailPage(props: any) {
       return;
     }
 
-    // 🚨 댓글 비추천 시 상태 검사 추가
     const { rows: userRows } = await sql`SELECT points, created_at, status FROM users WHERE user_id = ${currentUserId}`;
     if (userRows.length > 0) {
       const user = userRows[0];
-      if (user.status === 'banned' && !isAdmin) return; // 정지 유저 비추천 무시
+      if (user.status === 'suspended' && !isAdmin) return;
 
       const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
+
       if (hoursSinceJoined < 12 && (user.points || 0) < 5) {
         return;
       }
@@ -604,20 +600,20 @@ export default async function PostDetailPage(props: any) {
   const suspendUserAction = async () => {
     'use server';
     if (!isAdmin || !post.author_id) return;
-
-    await sql`UPDATE users SET status = 'banned' WHERE user_id = ${post.author_id}`;
+    
+    await sql`UPDATE users SET status = 'suspended' WHERE user_id = ${post.author_id}`;
     await sql`UPDATE posts SET is_blinded = true WHERE id = ${postId}`;
-
+    
     revalidatePath(`/board/${postId}`);
   };
 
   const shadowbanUserAction = async () => {
     'use server';
     if (!isAdmin || !post.author_id) return;
-
-    await sql`UPDATE users SET status = 'shadow_banned' WHERE user_id = ${post.author_id}`;
+    
+    await sql`UPDATE users SET status = 'shadowban' WHERE user_id = ${post.author_id}`;
     await sql`UPDATE posts SET is_blinded = true WHERE id = ${postId}`;
-
+    
     revalidatePath(`/board/${postId}`);
   };
 
@@ -626,9 +622,9 @@ export default async function PostDetailPage(props: any) {
     if (!isAdmin) return;
     const targetUserId = formData.get('targetUserId') as string;
     const commentId = formData.get('commentId') as string;
-
+    
     if (targetUserId) {
-      await sql`UPDATE users SET status = 'banned' WHERE user_id = ${targetUserId}`;
+      await sql`UPDATE users SET status = 'suspended' WHERE user_id = ${targetUserId}`;
       await sql`UPDATE comments SET is_blinded = true WHERE id = ${commentId}`;
     }
     revalidatePath(`/board/${postId}`);
@@ -639,9 +635,9 @@ export default async function PostDetailPage(props: any) {
     if (!isAdmin) return;
     const targetUserId = formData.get('targetUserId') as string;
     const commentId = formData.get('commentId') as string;
-
+    
     if (targetUserId) {
-      await sql`UPDATE users SET status = 'shadow_banned' WHERE user_id = ${targetUserId}`;
+      await sql`UPDATE users SET status = 'shadowban' WHERE user_id = ${targetUserId}`;
       await sql`UPDATE comments SET is_blinded = true WHERE id = ${commentId}`;
     }
     revalidatePath(`/board/${postId}`);
@@ -655,7 +651,7 @@ export default async function PostDetailPage(props: any) {
     const hasUserLikedComment = userCommentLikes.includes(node.id);
     const hasUserDislikedComment = userCommentDislikes.includes(node.id);
 
-    const isDeleted = node.content === '작성자가 삭제한 댓글입니다.' || node.content === '삭제된 댓글입니다.';
+    const isDeleted = node.content === '작성자가 삭제한 댓글입니다.';
 
     let displayCommentAuthor = node.author;
     let displayCommentAuthorId = node.author_id;
@@ -703,15 +699,7 @@ export default async function PostDetailPage(props: any) {
                   {displayCommentAuthor}
                 </Link>
               ) : (
-                <span className={`${isDeleted ? 'text-gray-400 italic' : ''} ${displayCommentAuthor === '글쓴이' ? 'text-rose-500 font-black' : ''}`}>
-                  {displayCommentAuthor}
-                  {/* 💡 관리자 전용 엑스레이: 익명 게시판 댓글 작성자 실제 ID 표시 */}
-                  {isAnonymous && isAdmin && !isDeleted && node.author_id && (
-                    <span className="text-[11px] text-red-500 font-normal ml-1.5 tracking-tight">
-                      ({node.author_id})
-                    </span>
-                  )}
-                </span>
+                <span className={`${isDeleted ? 'text-gray-400 italic' : ''} ${displayCommentAuthor === '글쓴이' ? 'text-rose-500 font-black' : ''}`}>{displayCommentAuthor}</span>
               )}
               {badge}
               {!isDeleted && (
@@ -735,33 +723,34 @@ export default async function PostDetailPage(props: any) {
                   삭제
                 </DeleteConfirmButton>
               )}
-
+              
               {isAdmin && !isDeleted && node.author_id && (
-                <div className="flex items-center gap-1.5 ml-1 pl-2 border-l border-red-200">
-                  <DeleteConfirmButton
-                    action={suspendUserByComment}
-                    message={`댓글 작성자(${node.author_id})를 즉시 [이용 정지] 처리하시겠습니까?`}
-                    className="text-[11px] px-1.5 py-0.5 bg-red-50 text-red-600 border border-red-200 rounded-sm hover:bg-red-500 hover:text-white transition-colors whitespace-nowrap"
-                  >
-                    <input type="hidden" name="targetUserId" value={node.author_id} />
-                    <input type="hidden" name="commentId" value={node.id} />
-                    정지
-                  </DeleteConfirmButton>
-                  <DeleteConfirmButton
-                    action={shadowbanUserByComment}
-                    message={`댓글 작성자(${node.author_id})를 즉시 [그림자 차단] 처리하시겠습니까?`}
-                    className="text-[11px] px-1.5 py-0.5 bg-purple-50 text-purple-600 border border-purple-200 rounded-sm hover:bg-purple-500 hover:text-white transition-colors whitespace-nowrap"
-                  >
-                    <input type="hidden" name="targetUserId" value={node.author_id} />
-                    <input type="hidden" name="commentId" value={node.id} />
-                    그림자
-                  </DeleteConfirmButton>
-                </div>
+                 <div className="flex items-center gap-1.5 ml-1 pl-2 border-l border-red-200">
+                   <DeleteConfirmButton
+                     action={suspendUserByComment}
+                     message={`댓글 작성자(${node.author_id})를 즉시 [이용 정지] 처리하시겠습니까?`}
+                     className="text-[11px] px-1.5 py-0.5 bg-red-50 text-red-600 border border-red-200 rounded-sm hover:bg-red-500 hover:text-white transition-colors whitespace-nowrap"
+                   >
+                     <input type="hidden" name="targetUserId" value={node.author_id} />
+                     <input type="hidden" name="commentId" value={node.id} />
+                     정지
+                   </DeleteConfirmButton>
+                   <DeleteConfirmButton
+                     action={shadowbanUserByComment}
+                     message={`댓글 작성자(${node.author_id})를 즉시 [그림자 차단] 처리하시겠습니까?`}
+                     className="text-[11px] px-1.5 py-0.5 bg-purple-50 text-purple-600 border border-purple-200 rounded-sm hover:bg-purple-500 hover:text-white transition-colors whitespace-nowrap"
+                   >
+                     <input type="hidden" name="targetUserId" value={node.author_id} />
+                     <input type="hidden" name="commentId" value={node.id} />
+                     그림자
+                   </DeleteConfirmButton>
+                 </div>
               )}
             </div>
           </div>
 
-          {node.is_blinded && !isAdmin ? (
+          {/* 🚨 [핵심 수술 1: 댓글 그림자 마법] 본인이 쓴 글(!isCommentAuthor)이 아니면서 블라인드일 때만 회색창을 띄웁니다! */}
+          {node.is_blinded && !isAdmin && !isCommentAuthor ? (
             <div className="text-[14px] mb-3 text-gray-500 italic bg-gray-100 p-3 rounded-md border border-gray-300 shadow-inner flex items-center gap-2">
               보고 싶어 하지 않은 분들이 많아 블라인드 처리된 댓글입니다.
             </div>
@@ -838,7 +827,7 @@ export default async function PostDetailPage(props: any) {
 
   let finalContent = post.content || '';
   if (finalContent) {
-    // 1. 기존 MP4 비디오 방어막 (그대로 유지)
+    // MP4 방어
     finalContent = finalContent.replace(
       /<video([^>]*)src="([^"]+)"([^>]*)>/gi,
       (match, beforeSrc, srcUrl, afterSrc) => {
@@ -847,7 +836,7 @@ export default async function PostDetailPage(props: any) {
       }
     );
 
-    // 2. 💡 유튜브 153 오류(보안 정책) 방어막 추가 (그대로 유지)
+    // 유튜브 153 오류 방어
     finalContent = finalContent.replace(
       /<iframe([^>]+)>/gi,
       (match, attributes) => {
@@ -885,25 +874,19 @@ export default async function PostDetailPage(props: any) {
       <VideoVolumeFix />
 
       <style>{`
-        /* 1. 이미지: CLS(화면 덜컹거림) 방어 및 블로그형 중앙 정렬 */
+        /* 1. 이미지 최적화 및 중앙 정렬 */
         .ql-editor img {
           display: block;
-          max-width: 100%; /* 모바일에서는 최대 100%까지만 */
+          max-width: 720px !important; 
+          width: 100%; 
           height: auto;
-          margin: 15px auto; /* 블로그처럼 상하 여백 + 가운데 정렬 */
+          margin: 0 auto 15px auto;
           border-radius: 8px;
         }
 
-        /* PC 환경에서는 최대 가로폭 800px 제한 */
-        @media (min-width: 768px) {
-          .ql-editor img {
-            max-width: 800px;
-          }
-        }
-
-        /* 💡 본문 이미지 & 댓글 이미지 공통 스켈레톤 애니메이션 (로딩 복구) */
+        /* 💡 이미지 스켈레톤 애니메이션 유지 */
         .ql-editor img, .humorin-comment-img {
-          min-height: 200px; /* 로딩 전 최소 공간 확보 */
+          min-height: 250px; 
           background-color: #f8fafc;
           background-image: linear-gradient(90deg, #f8fafc 0px, #f1f5f9 50%, #f8fafc 100%);
           background-size: 200% 100%;
@@ -915,7 +898,6 @@ export default async function PostDetailPage(props: any) {
           100% { background-position: -100% 0; }
         }
 
-        /* 2. 동영상/유튜브: 기존 황금비율 650px 유지하여 깨짐 방지 */
         .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube,
         .ql-editor video, .ql-editor video.humorin-mp4 {
           display: block;
@@ -926,11 +908,10 @@ export default async function PostDetailPage(props: any) {
           background-color: #000;
           border: none;
         }
-
+        
         .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube { aspect-ratio: 16 / 9; height: auto; }
         .ql-editor video, .ql-editor video.humorin-mp4 { height: auto; max-height: 70vh; object-fit: contain; aspect-ratio: auto; }
 
-        /* 3. 스마트폰 모드: 100% 가득 채움 방어막 */
         @media (max-width: 768px) {
           .ql-editor img, .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube, .ql-editor video, .ql-editor video.humorin-mp4 {
             max-width: 100% !important;
@@ -982,36 +963,37 @@ export default async function PostDetailPage(props: any) {
               <span className="font-bold">작성자 ID :</span>
               <span className="font-mono font-bold text-gray-800">{post.author_id}</span>
             </div>
-
+            
             <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
-              <DeleteConfirmButton
-                action={deletePost}
-                message={`[경고] 게시글을 즉시 파기합니다.\n작성자 ID: ${post.author_id}`}
-                className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-[12px] font-bold rounded-sm transition-all text-center text-gray-600"
-              >
-                🗑️ 즉시 삭제
-              </DeleteConfirmButton>
+               <DeleteConfirmButton 
+                  action={deletePost}
+                  message={`[경고] 게시글을 즉시 파기합니다.\n작성자 ID: ${post.author_id}`}
+                  className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-[12px] font-bold rounded-sm transition-all text-center text-gray-600"
+               >
+                  🗑️ 즉시 삭제
+               </DeleteConfirmButton>
+               
+               <DeleteConfirmButton 
+                  action={suspendUserAction}
+                  message={`작성자(${post.author_id})를 즉시 [이용 정지] 처리하시겠습니까?`}
+                  className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-red-200 hover:bg-red-50 text-[12px] font-bold rounded-sm transition-all text-center text-red-500"
+               >
+                  🚨 정지
+               </DeleteConfirmButton>
 
-              <DeleteConfirmButton
-                action={suspendUserAction}
-                message={`작성자(${post.author_id})를 즉시 [이용 정지] 처리하시겠습니까?`}
-                className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-red-200 hover:bg-red-50 text-[12px] font-bold rounded-sm transition-all text-center text-red-500"
-              >
-                🚨 정지
-              </DeleteConfirmButton>
-
-              <DeleteConfirmButton
-                action={shadowbanUserAction}
-                message={`작성자(${post.author_id})를 즉시 [그림자 차단] 처리하시겠습니까?\n(본인은 정지당한 사실을 모릅니다)`}
-                className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-purple-200 hover:bg-purple-50 text-[12px] font-bold rounded-sm transition-all text-center text-purple-600"
-              >
-                👻 그림자
-              </DeleteConfirmButton>
+               <DeleteConfirmButton 
+                  action={shadowbanUserAction}
+                  message={`작성자(${post.author_id})를 즉시 [그림자 차단] 처리하시겠습니까?\n(본인은 정지당한 사실을 모릅니다)`}
+                  className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-purple-200 hover:bg-purple-50 text-[12px] font-bold rounded-sm transition-all text-center text-purple-600"
+               >
+                  👻 그림자
+               </DeleteConfirmButton>
             </div>
           </div>
         )}
 
-        {post.is_blinded && !isAdmin ? (
+        {/* 🚨 [핵심 수술 2: 게시글 그림자 마법] 본인이 쓴 글(!isAuthor)이 아니면서 블라인드일 때만 회색창을 띄웁니다! */}
+        {post.is_blinded && !isAdmin && !isAuthor ? (
           <div className="bg-gray-100 p-12 text-center rounded-lg border border-gray-300 my-10 shadow-inner">
             <p className="text-gray-600 font-bold text-lg leading-relaxed">보고 싶어 하지 않은 분들이 많아<br />블라인드 처리된 게시글입니다.</p>
           </div>
