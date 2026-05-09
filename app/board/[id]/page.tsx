@@ -623,21 +623,30 @@ export default async function PostDetailPage(props: any) {
       }
     }
 
+    // 💡 [여기서부터 완벽하게 교체된 금메달 도파민 시스템입니다]
     let bgColorClass = isReply ? 'bg-gray-50/70' : 'bg-white';
     let badge = null;
 
     if (!isDeleted) {
-      if (node.likes >= 30) {
-        bgColorClass = 'bg-green-100/40 border-green-300';
-        badge = <span className="px-2 py-0.5 bg-green-500 text-white text-[11px] rounded-full shadow-sm font-black tracking-wide">🌳 유머인 숲 성지</span>;
-      } else if (node.likes >= 10) {
-        bgColorClass = 'bg-emerald-50 border-emerald-200';
-        badge = <span className="px-2 py-0.5 bg-emerald-500 text-white text-[11px] rounded-full shadow-sm font-bold">🌲 튼튼한 나무</span>;
-      } else if (node.likes >= 3) {
+      const likesCount = node.likes || 0;
+      const medalCount = Math.floor(likesCount / 10);
+      let medalIcons = '';
+      if (medalCount > 0) {
+        medalIcons = '🥇'.repeat(Math.min(medalCount, 5)); 
+      }
+
+      if (likesCount >= 30) {
+        bgColorClass = 'bg-yellow-50/80 border-yellow-300';
+        badge = <span className="px-2 py-0.5 bg-yellow-500 text-white text-[11px] rounded-full shadow-sm font-black tracking-wide">🏆 베스트 {medalIcons}</span>;
+      } else if (likesCount >= 10) {
+        bgColorClass = 'bg-sky-50/80 border-sky-200';
+        badge = <span className="px-2 py-0.5 bg-sky-500 text-white text-[11px] rounded-full shadow-sm font-bold tracking-wide">인기 {medalIcons}</span>;
+      } else if (likesCount >= 3) {
         bgColorClass = 'bg-blue-50/60 border-blue-200';
-        badge = <span className="px-2 py-0.5 bg-blue-400 text-white text-[11px] rounded-full shadow-sm font-bold">🌱 공감 새싹</span>;
+        badge = <span className="px-2 py-0.5 bg-blue-400 text-white text-[11px] rounded-full shadow-sm font-bold tracking-wide">🌱 공감</span>;
       }
     }
+    // 💡 [교체 완료 지점]
 
     return (
       <div key={node.id} className="w-full">
