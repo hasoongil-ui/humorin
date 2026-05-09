@@ -118,7 +118,7 @@ async function updateMainBanner(formData: FormData) {
       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
     `;
   } catch (error) { }
-  revalidatePath('/'); 
+  revalidatePath('/');
   revalidatePath('/admin');
 }
 
@@ -240,15 +240,17 @@ export default async function AdminDashboardPage(props: any) {
           <Link href="/" className="text-2xl font-black text-white tracking-tighter hover:text-indigo-400 transition-colors">HUMORIN <span className="text-xs text-indigo-400 align-top">ADMIN</span></Link>
         </div>
         <nav className="flex-1 py-4 overflow-y-auto">
-          <ul className="space-y-1">
-            <li><Link href="/admin" className="flex items-center gap-3 px-6 py-3 bg-[#3b4890] text-white font-bold border-l-4 border-indigo-300"><span>👥</span> 회원 관리</Link></li>
-            <li><Link href="/admin/logs" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100 text-gray-300"><span>📜</span> 로그 관리</Link></li>
-            <li><Link href="/admin/posts" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>📝</span> 게시글 관리</Link></li>
-            <li><Link href="/admin/comments" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>💬</span> 댓글 관리</Link></li>
-            <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>⚙️</span> 설정/게시판 관리</Link></li>
-            <li><Link href="/admin/blind" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>🚨</span> 블라인드 관리</Link></li>
-            <li className="mt-4 border-t border-gray-700 pt-4">
-              <Link href="/admin/monitor" target="_blank" className="flex items-center justify-between px-6 py-3 font-black text-emerald-400 bg-slate-800 hover:bg-slate-700 transition-colors border-l-4 border-emerald-500 shadow-inner">
+          {/* 💡 space-y-2 로 메뉴 간격을 넓히고, text-[16px] 로 글씨를 대폭 키웠습니다! */}
+          <ul className="space-y-2">
+            <li><Link href="/admin" className="flex items-center gap-3 px-6 py-3.5 bg-[#3b4890] text-white font-black text-[16px] border-l-4 border-indigo-300 tracking-wide"><span>👥</span> 회원 관리</Link></li>
+            <li><Link href="/admin/logs" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>📜</span> 로그 관리</Link></li>
+            <li><Link href="/admin/posts" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>📝</span> 게시글 관리</Link></li>
+            <li><Link href="/admin/comments" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>💬</span> 댓글 관리</Link></li>
+            <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>⚙️</span> 설정/게시판 관리</Link></li>
+            <li><Link href="/admin/blind" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>🚨</span> 블라인드 관리</Link></li>
+
+            <li className="mt-6 border-t border-gray-700 pt-6">
+              <Link href="/admin/monitor" target="_blank" className="flex items-center justify-between px-6 py-4 font-black text-emerald-400 text-[15px] bg-slate-800 hover:bg-slate-700 transition-colors border-l-4 border-emerald-500 shadow-inner tracking-wide">
                 <div className="flex items-center gap-3"><span>🖥️</span> 서버 모니터링</div>
                 <span className="text-xs">↗</span>
               </Link>
@@ -420,8 +422,8 @@ export default async function AdminDashboardPage(props: any) {
                                 <input type="hidden" name="userid" value={user.userid} />
                                 <input type="hidden" name="is_admin" value={user.is_admin ? 'true' : 'false'} />
                                 <button type="submit" className={`px-3 py-1.5 text-[12px] font-bold rounded-sm transition-colors shadow-sm ${user.is_admin
-                                    ? 'bg-purple-100 border border-purple-300 text-purple-700 hover:bg-purple-200'
-                                    : 'bg-gray-800 border border-gray-900 text-white hover:bg-gray-700'
+                                  ? 'bg-purple-100 border border-purple-300 text-purple-700 hover:bg-purple-200'
+                                  : 'bg-gray-800 border border-gray-900 text-white hover:bg-gray-700'
                                   }`}>
                                   {user.is_admin ? '권한 회수' : '👑 부관리자 임명'}
                                 </button>

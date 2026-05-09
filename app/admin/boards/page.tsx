@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
-import SafeButton from '../SafeButton'; 
+import SafeButton from '../SafeButton';
 
 async function toggleGlobalLock(formData: FormData) {
   'use server';
@@ -13,7 +13,7 @@ async function toggleGlobalLock(formData: FormData) {
   const newValue = currentValue === 'true' ? 'false' : 'true';
   try {
     await sql`UPDATE site_settings SET value = ${newValue} WHERE key = ${key}`;
-  } catch (e) {}
+  } catch (e) { }
   revalidatePath('/admin/boards');
 }
 
@@ -26,7 +26,7 @@ async function addBoard(formData: FormData) {
     if (name && group_name) {
       await sql`INSERT INTO boards (name, group_name, sort_order) VALUES (${name}, ${group_name}, ${sort_order})`;
     }
-  } catch (e) {}
+  } catch (e) { }
   revalidatePath('/admin/boards');
 }
 
@@ -38,7 +38,7 @@ async function updateBoard(formData: FormData) {
   const is_write_locked = formData.get('is_write_locked') === 'on';
   const is_comment_locked = formData.get('is_comment_locked') === 'on';
   const sort_order = Number(formData.get('sort_order')) || 999;
-  
+
   const is_main_visible = formData.get('is_main_visible') === 'on';
   const main_sort_order = Number(formData.get('main_sort_order')) || 999;
 
@@ -55,7 +55,7 @@ async function updateBoard(formData: FormData) {
         main_sort_order = ${main_sort_order}
       WHERE id = ${id}
     `;
-  } catch (e) {}
+  } catch (e) { }
   revalidatePath('/admin/boards');
 }
 
@@ -64,7 +64,7 @@ async function deleteBoard(formData: FormData) {
   const id = formData.get('id') as string;
   try {
     await sql`DELETE FROM boards WHERE id = ${id}`;
-  } catch (e) {}
+  } catch (e) { }
   revalidatePath('/admin/boards');
 }
 
@@ -76,7 +76,7 @@ async function addForbiddenWord(formData: FormData) {
   try {
     const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'forbidden_words'`;
     let currentWords = rows.length > 0 ? rows[0].value : '';
-    
+
     const wordsArray = currentWords ? currentWords.split(',').map((w: string) => w.trim()) : [];
     if (!wordsArray.includes(newWord)) {
       wordsArray.push(newWord);
@@ -87,7 +87,7 @@ async function addForbiddenWord(formData: FormData) {
         ON CONFLICT (key) DO UPDATE SET value = ${newString};
       `;
     }
-    revalidatePath('/admin/boards'); 
+    revalidatePath('/admin/boards');
   } catch (e) {
     console.error(e);
   }
@@ -104,11 +104,11 @@ async function removeForbiddenWord(formData: FormData) {
 
     let currentWords = rows[0].value;
     let wordsArray = currentWords.split(',').map((w: string) => w.trim());
-    wordsArray = wordsArray.filter((w: string) => w !== wordToRemove); 
+    wordsArray = wordsArray.filter((w: string) => w !== wordToRemove);
     const newString = wordsArray.join(',');
 
     await sql`UPDATE site_settings SET value = ${newString} WHERE key = 'forbidden_words'`;
-    revalidatePath('/admin/boards'); 
+    revalidatePath('/admin/boards');
   } catch (e) {
     console.error(e);
   }
@@ -117,12 +117,12 @@ async function removeForbiddenWord(formData: FormData) {
 export default async function AdminBoardsPage() {
   const cookieStore = await cookies();
   const currentUserId = cookieStore.get('humorin_userid')?.value;
-  if (currentUserId !== 'admin') redirect('/'); 
+  if (currentUserId !== 'admin') redirect('/');
 
   let globalWriteLock = 'false';
   let globalCommentLock = 'false';
   let boardList = [];
-  let forbiddenWordsList: string[] = []; 
+  let forbiddenWordsList: string[] = [];
 
   try {
     const { rows: settings } = await sql`SELECT * FROM site_settings`;
@@ -136,7 +136,7 @@ export default async function AdminBoardsPage() {
 
     const { rows: boards } = await sql`SELECT * FROM boards ORDER BY sort_order ASC, id ASC`;
     boardList = boards;
-  } catch (e) {}
+  } catch (e) { }
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
@@ -145,12 +145,21 @@ export default async function AdminBoardsPage() {
           <Link href="/" className="text-2xl font-black text-white tracking-tighter hover:text-indigo-400 transition-colors">HUMORIN <span className="text-xs text-indigo-400 align-top">ADMIN</span></Link>
         </div>
         <nav className="flex-1 py-4 overflow-y-auto">
-          <ul className="space-y-1">
-            <li><Link href="/admin" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>👥</span> 회원 관리</Link></li>
-            <li><Link href="/admin/posts" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>📝</span> 게시글 관리</Link></li>
-            <li><Link href="/admin/comments" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>💬</span> 댓글 관리</Link></li>
-            <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3 bg-[#3b4890] text-white font-bold border-l-4 border-indigo-300"><span>⚙️</span> 설정/게시판 관리</Link></li>
-            <li><Link href="/admin/blind" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>🚨</span> 블라인드 관리</Link></li>
+          {/* 💡 space-y-2 로 메뉴 간격을 넓히고, text-[16px] 로 글씨를 대폭 키웠습니다! */}
+          <ul className="space-y-2">
+            <li><Link href="/admin" className="flex items-center gap-3 px-6 py-3.5 bg-[#3b4890] text-white font-black text-[16px] border-l-4 border-indigo-300 tracking-wide"><span>👥</span> 회원 관리</Link></li>
+            <li><Link href="/admin/logs" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>📜</span> 로그 관리</Link></li>
+            <li><Link href="/admin/posts" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>📝</span> 게시글 관리</Link></li>
+            <li><Link href="/admin/comments" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>💬</span> 댓글 관리</Link></li>
+            <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>⚙️</span> 설정/게시판 관리</Link></li>
+            <li><Link href="/admin/blind" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>🚨</span> 블라인드 관리</Link></li>
+
+            <li className="mt-6 border-t border-gray-700 pt-6">
+              <Link href="/admin/monitor" target="_blank" className="flex items-center justify-between px-6 py-4 font-black text-emerald-400 text-[15px] bg-slate-800 hover:bg-slate-700 transition-colors border-l-4 border-emerald-500 shadow-inner tracking-wide">
+                <div className="flex items-center gap-3"><span>🖥️</span> 서버 모니터링</div>
+                <span className="text-xs">↗</span>
+              </Link>
+            </li>
           </ul>
         </nav>
       </aside>
@@ -161,7 +170,7 @@ export default async function AdminBoardsPage() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
-          
+
           <div className="bg-white p-6 rounded-sm shadow-sm border border-red-200">
             <h2 className="text-lg font-black text-red-600 mb-4 flex items-center gap-2">🚨 전체 셧다운 (긴급 상황)</h2>
             <div className="flex gap-4">
@@ -219,11 +228,11 @@ export default async function AdminBoardsPage() {
             </div>
 
             <form action={addForbiddenWord} className="flex gap-2">
-              <input 
-                type="text" 
-                name="newWord" 
-                required 
-                placeholder="추가할 금칙어 입력 (예: 불법도박)" 
+              <input
+                type="text"
+                name="newWord"
+                required
+                placeholder="추가할 금칙어 입력 (예: 불법도박)"
                 className="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-sm outline-none focus:border-[#3b4890] font-bold text-[14px] shadow-sm"
               />
               <button type="submit" className="px-6 py-3 bg-[#414a66] text-white font-black text-[14px] rounded-sm hover:bg-[#2a3042] transition-colors shadow-sm whitespace-nowrap">
@@ -260,7 +269,7 @@ export default async function AdminBoardsPage() {
                 <p className="text-xs text-gray-500 mt-1">이곳에서 그룹명(대분류)과 게시판 이름을 자유롭게 수정할 수 있습니다.</p>
               </div>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse whitespace-nowrap table-fixed">
                 <colgroup>
@@ -287,46 +296,46 @@ export default async function AdminBoardsPage() {
                   {boardList.map((board: any) => (
                     <tr key={board.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="px-3 py-2 text-center text-gray-400 font-bold text-xs">{board.id}</td>
-                      
+
                       {/* 🛡️ [수술 2] 그룹명과 게시판 이름을 텍스트박스(input)로 뚫었습니다! */}
                       <td className="p-0 h-full">
                         <form action={updateBoard} className="grid w-full h-full" style={{ gridTemplateColumns: '15fr 15fr 10fr 10fr 10fr 10fr 15fr' }}>
                           <input type="hidden" name="id" value={board.id} />
-                          
+
                           <div className="flex flex-col justify-center border-r border-gray-100 px-2 py-2 h-full">
                             <input type="text" name="group_name" defaultValue={board.group_name} className="w-full border border-gray-300 p-1 text-[11px] font-bold rounded-sm outline-none focus:border-[#3b4890]" />
                           </div>
-                          
+
                           <div className="flex flex-col justify-center border-r border-gray-100 px-2 py-2 h-full">
                             <input type="text" name="name" defaultValue={board.name} className="w-full border border-gray-300 p-1 text-[13px] font-black text-[#3b4890] rounded-sm outline-none focus:border-[#3b4890]" />
                           </div>
-                          
+
                           <div className="flex flex-col items-center justify-center border-r border-gray-100 px-2 py-2 h-full bg-gray-50/30">
                             <input type="number" name="sort_order" defaultValue={board.sort_order} className="w-14 border border-gray-300 p-1 text-xs font-bold text-center rounded-sm outline-none" />
                           </div>
-                          
+
                           <div className="flex flex-col gap-1 items-center justify-center border-r border-gray-100 px-2 py-2 h-full bg-gray-50/30">
                             <label className="flex items-center gap-1 text-[10px] text-gray-500 font-bold cursor-pointer"><input type="checkbox" name="is_write_locked" defaultChecked={board.is_write_locked} className="w-3.5 h-3.5 accent-red-500" /> 글 잠금</label>
                             <label className="flex items-center gap-1 text-[10px] text-gray-500 font-bold cursor-pointer"><input type="checkbox" name="is_comment_locked" defaultChecked={board.is_comment_locked} className="w-3.5 h-3.5 accent-red-500" /> 댓글잠금</label>
                           </div>
-                          
+
                           <div className="flex items-center justify-center border-r border-indigo-50 px-2 py-2 h-full bg-indigo-50/30">
                             <label className="flex items-center justify-center gap-1 text-[11px] font-black text-indigo-600 cursor-pointer">
                               <input type="checkbox" name="is_main_visible" defaultChecked={board.is_main_visible} className="w-4 h-4 accent-indigo-600" /> ON
                             </label>
                           </div>
-                          
+
                           <div className="flex items-center justify-center border-r border-indigo-50 px-2 py-2 h-full bg-indigo-50/30">
                             <input type="number" name="main_sort_order" defaultValue={board.main_sort_order} className="w-14 border border-indigo-300 p-1 text-xs font-bold text-center rounded-sm outline-none text-indigo-900" />
                           </div>
-                          
+
                           <div className="flex justify-center items-center gap-1 px-3 py-2 h-full">
                             <button type="submit" className="px-3 py-1.5 bg-indigo-600 text-white text-[11px] font-bold rounded-sm shadow-sm hover:bg-indigo-700 whitespace-nowrap">수정적용</button>
-                            <SafeButton 
-                              label="삭제" 
-                              confirmMessage="정말 이 게시판을 삭제하시겠습니까?\n(게시판만 삭제되며 작성된 글은 삭제되지 않습니다)" 
-                              formAction={deleteBoard} 
-                              className="px-3 py-1.5 bg-white border border-gray-300 text-red-500 text-[11px] font-bold rounded-sm shadow-sm hover:bg-red-50 hover:border-red-200" 
+                            <SafeButton
+                              label="삭제"
+                              confirmMessage="정말 이 게시판을 삭제하시겠습니까?\n(게시판만 삭제되며 작성된 글은 삭제되지 않습니다)"
+                              formAction={deleteBoard}
+                              className="px-3 py-1.5 bg-white border border-gray-300 text-red-500 text-[11px] font-bold rounded-sm shadow-sm hover:bg-red-50 hover:border-red-200"
                             />
                           </div>
                         </form>

@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
-import SafeButton from '../SafeButton'; 
+import SafeButton from '../SafeButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,14 +13,14 @@ function formatDate(dateString: any) {
   try {
     const d = new Date(dateString);
     return `${d.getFullYear().toString().slice(2)}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  } catch(e) { return '-'; }
+  } catch (e) { return '-'; }
 }
 
 async function handleBulkAction(formData: FormData) {
   'use server';
   const action = formData.get('action') as string;
   const selectedIds = formData.getAll('selected_ids');
-  
+
   if (!selectedIds || selectedIds.length === 0) return;
 
   try {
@@ -34,7 +34,7 @@ async function handleBulkAction(formData: FormData) {
       }
     }
   } catch (e) {
-    console.error("댓글 벌크 액션 에러:", e); 
+    console.error("댓글 벌크 액션 에러:", e);
   }
   revalidatePath('/admin/comments');
 }
@@ -42,7 +42,7 @@ async function handleBulkAction(formData: FormData) {
 export default async function AdminCommentsPage(props: any) {
   const cookieStore = await cookies();
   const currentUserId = cookieStore.get('humorin_userid')?.value;
-  
+
   let isAdmin = currentUserId === 'admin';
   if (currentUserId && !isAdmin) {
     try {
@@ -50,10 +50,10 @@ export default async function AdminCommentsPage(props: any) {
       if (adminRows.length > 0 && adminRows[0].is_admin) {
         isAdmin = true;
       }
-    } catch (e) {}
+    } catch (e) { }
   }
-  
-  if (!isAdmin) redirect('/'); 
+
+  if (!isAdmin) redirect('/');
 
   const searchParams = await props.searchParams;
   const currentPage = Number(searchParams?.page) || 1;
@@ -129,12 +129,21 @@ export default async function AdminCommentsPage(props: any) {
           <Link href="/" className="text-2xl font-black text-white tracking-tighter hover:text-indigo-400 transition-colors">HUMORIN <span className="text-xs text-indigo-400 align-top">ADMIN</span></Link>
         </div>
         <nav className="flex-1 py-4 overflow-y-auto">
-          <ul className="space-y-1">
-            <li><Link href="/admin" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>👥</span> 회원 관리</Link></li>
-            <li><Link href="/admin/posts" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>📝</span> 게시글 관리</Link></li>
-            <li><Link href="/admin/comments" className="flex items-center gap-3 px-6 py-3 bg-[#3b4890] text-white font-bold border-l-4 border-indigo-300"><span>💬</span> 댓글 관리</Link></li>
-            <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>⚙️</span> 설정/게시판 관리</Link></li>
-            <li><Link href="/admin/blind" className="flex items-center gap-3 px-6 py-3 font-bold hover:bg-[#3b4890] transition-colors opacity-70 hover:opacity-100"><span>🚨</span> 블라인드 관리</Link></li>
+          {/* 💡 space-y-2 로 메뉴 간격을 넓히고, text-[16px] 로 글씨를 대폭 키웠습니다! */}
+          <ul className="space-y-2">
+            <li><Link href="/admin" className="flex items-center gap-3 px-6 py-3.5 bg-[#3b4890] text-white font-black text-[16px] border-l-4 border-indigo-300 tracking-wide"><span>👥</span> 회원 관리</Link></li>
+            <li><Link href="/admin/logs" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>📜</span> 로그 관리</Link></li>
+            <li><Link href="/admin/posts" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>📝</span> 게시글 관리</Link></li>
+            <li><Link href="/admin/comments" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>💬</span> 댓글 관리</Link></li>
+            <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>⚙️</span> 설정/게시판 관리</Link></li>
+            <li><Link href="/admin/blind" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] hover:text-white transition-colors opacity-80 hover:opacity-100 tracking-wide"><span>🚨</span> 블라인드 관리</Link></li>
+
+            <li className="mt-6 border-t border-gray-700 pt-6">
+              <Link href="/admin/monitor" target="_blank" className="flex items-center justify-between px-6 py-4 font-black text-emerald-400 text-[15px] bg-slate-800 hover:bg-slate-700 transition-colors border-l-4 border-emerald-500 shadow-inner tracking-wide">
+                <div className="flex items-center gap-3"><span>🖥️</span> 서버 모니터링</div>
+                <span className="text-xs">↗</span>
+              </Link>
+            </li>
           </ul>
         </nav>
       </aside>
@@ -172,12 +181,12 @@ export default async function AdminCommentsPage(props: any) {
               <div className="flex items-center gap-2">
                 <button type="submit" name="action" value="show" className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-sm hover:bg-emerald-100 flex items-center gap-1">👁️ 선택 공개</button>
                 <button type="submit" name="action" value="hide" className="px-3 py-1.5 bg-gray-800 border border-gray-700 text-gray-200 text-xs font-bold rounded-sm hover:bg-gray-900 flex items-center gap-1">🕵️ 선택 숨김</button>
-                <SafeButton 
-                  label="🗑️ 선택 삭제" 
-                  confirmMessage="선택한 댓글을 완전히 삭제하시겠습니까?" 
-                  name="action" 
-                  value="delete" 
-                  className="px-3 py-1.5 bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold rounded-sm hover:bg-rose-100 flex items-center gap-1" 
+                <SafeButton
+                  label="🗑️ 선택 삭제"
+                  confirmMessage="선택한 댓글을 완전히 삭제하시겠습니까?"
+                  name="action"
+                  value="delete"
+                  className="px-3 py-1.5 bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold rounded-sm hover:bg-rose-100 flex items-center gap-1"
                 />
               </div>
             </div>
