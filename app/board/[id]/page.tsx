@@ -558,7 +558,6 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 관리자 정지/그림자 처리 (이후 DB 표준화를 위해 banned, shadow_banned 로 통일)
   const suspendUserAction = async () => {
     'use server';
     if (!isAdmin || !post.author_id) return;
@@ -705,7 +704,6 @@ export default async function PostDetailPage(props: any) {
             </div>
           </div>
 
-          {/* 🚨 그림자 UI 마법 (작성자 본인에게는 회색창 없이 정상적으로 노출) */}
           {node.is_blinded && !isAdmin && !isCommentAuthor ? (
             <div className="text-[14px] mb-3 text-gray-500 italic bg-gray-100 p-3 rounded-md border border-gray-300 shadow-inner flex items-center gap-2">
               보고 싶어 하지 않은 분들이 많아 블라인드 처리된 댓글입니다.
@@ -791,7 +789,6 @@ export default async function PostDetailPage(props: any) {
       }
     );
 
-    // 유튜브 153 오류 방어
     finalContent = finalContent.replace(
       /<iframe([^>]+)>/gi,
       (match, attributes) => {
@@ -827,53 +824,6 @@ export default async function PostDetailPage(props: any) {
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
       <VideoVolumeFix />
-
-      <style>{`
-        .ql-editor img {
-          display: block;
-          max-width: 720px !important; 
-          width: 100%; 
-          height: auto;
-          margin: 0 auto 15px auto;
-          border-radius: 8px;
-        }
-
-        .ql-editor img, .humorin-comment-img {
-          min-height: 250px; 
-          background-color: #f8fafc;
-          background-image: linear-gradient(90deg, #f8fafc 0px, #f1f5f9 50%, #f8fafc 100%);
-          background-size: 200% 100%;
-          animation: shimmer 1.5s infinite;
-        }
-
-        @keyframes shimmer {
-          0% { background-position: 100% 0; }
-          100% { background-position: -100% 0; }
-        }
-
-        .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube,
-        .ql-editor video, .ql-editor video.humorin-mp4 {
-          display: block;
-          width: 100%;
-          max-width: 650px; 
-          margin: 10px auto 30px auto;
-          border-radius: 8px;
-          background-color: #000;
-          border: none;
-        }
-        
-        .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube { aspect-ratio: 16 / 9; height: auto; }
-        .ql-editor video, .ql-editor video.humorin-mp4 { height: auto; max-height: 70vh; object-fit: contain; aspect-ratio: auto; }
-
-        @media (max-width: 768px) {
-          .ql-editor img, .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube, .ql-editor video, .ql-editor video.humorin-mp4 {
-            max-width: 100% !important;
-          }
-        }
-
-        .ql-editor p { min-height: 1.5em; }
-        .ql-editor p br { display: block; }
-      `}</style>
 
       <main className="max-w-[1000px] mx-auto p-5 md:p-8 mt-4 mb-20 overflow-hidden">
 
@@ -945,7 +895,6 @@ export default async function PostDetailPage(props: any) {
           </div>
         )}
 
-        {/* 🚨 작성자 본인에게는 회색 블라인드 창을 숨깁니다! */}
         {post.is_blinded && !isAdmin && !isAuthor ? (
           <div className="bg-gray-100 p-12 text-center rounded-lg border border-gray-300 my-10 shadow-inner">
             <p className="text-gray-600 font-bold text-lg leading-relaxed">보고 싶어 하지 않은 분들이 많아<br />블라인드 처리된 게시글입니다.</p>

@@ -24,3 +24,73 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ====================================================================
+   🚨 [유머인 마스터 에디터 디자인 통합 통제실]
+   - 용도: 글쓰기, 수정, 댓글 등 '모든 곳'의 이미지/영상 크기 깨짐 방어
+==================================================================== */
+
+/* 1. 본문 이미지 & 댓글 이미지 공통: 억지로 늘어나지 않게 철통 방어 */
+.ql-editor img, .humorin-comment-img {
+  display: block !important;
+  max-width: 100% !important; /* 스마트폰 화면 밖으로 삐져나가는 것 강제 차단 */
+  width: auto !important;     /* 💡 핵심: 억지로 100% 팽창하는 버그 원천 차단. 원본 크기 유지! */
+  height: auto !important;
+  border-radius: 8px !important;
+}
+
+/* 본문 이미지는 네이버 블로그처럼 중앙 정렬 */
+.ql-editor img {
+  margin: 0 auto 15px auto !important; 
+}
+
+/* 댓글 이미지는 자연스럽게 왼쪽 정렬 및 위아래 여백만 */
+.humorin-comment-img {
+  margin: 10px 0 !important;
+}
+
+/* 2. 로딩 스켈레톤 (작은 이미지가 세로로 억지로 늘어나는 부작용을 막기 위해 min-height 제거) */
+.ql-editor img, .humorin-comment-img {
+  background-color: #f8fafc;
+  background-image: linear-gradient(90deg, #f8fafc 0px, #f1f5f9 50%, #f8fafc 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+/* 3. 유튜브 및 동영상(MP4) 비율 유지 및 팽창 방어 */
+.ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube,
+.ql-editor video, .ql-editor video.humorin-mp4 {
+  display: block !important;
+  width: 100% !important;
+  max-width: 650px !important; 
+  margin: 10px auto 30px auto !important;
+  border-radius: 8px !important;
+  background-color: #000 !important;
+  border: none !important;
+}
+
+.ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube { 
+  aspect-ratio: 16 / 9; 
+  height: auto !important; 
+}
+.ql-editor video, .ql-editor video.humorin-mp4 { 
+  height: auto !important; 
+  max-height: 70vh !important; 
+  object-fit: contain; 
+}
+
+/* 모바일 환경 100% 최적화 룰 */
+@media (max-width: 768px) {
+  .ql-editor img, .humorin-comment-img, .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube, .ql-editor video, .ql-editor video.humorin-mp4 {
+    max-width: 100% !important;
+  }
+}
+
+.ql-editor p { min-height: 1.5em; }
+.ql-editor p br { display: block; }
+/* ==================================================================== */
