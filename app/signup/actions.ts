@@ -50,23 +50,35 @@ export async function registerUserAction(formData: FormData) {
   if (emailStatus !== 'ok') return { error: 'email_exists' };
 
   try {
-    // 💡 [수술 1] 아까 만든 문지기(proxy)가 달아준 '진짜 IP' 명찰을 여기서 읽어옵니다!
     const headersList = await headers();
     const userIp = headersList.get('x-user-ip') || '알수없음';
 
-    // 🛡️ [수술 2] 관리자가 차단한 IP(블랙리스트)인지 가입 전에 미리 검사합니다!
+    // 🛡️ [기존 수술] 관리자가 수동으로 차단한 블랙리스트 IP 검사
     const { rows: settings } = await sql`SELECT value FROM site_settings WHERE key = 'banned_ips'`;
     if (settings.length > 0 && settings[0].value) {
       const bannedIps = settings[0].value.split(',');
       if (bannedIps.includes(userIp)) {
         console.error(`🚨 [차단된 IP 가입 시도 감지] IP: ${userIp}`);
-        return { error: 'db_error' }; // 해커에게는 가짜로 DB 에러라고 뻥칩니다.
+        return { error: 'db_error' };
+      }
+    }
+
+    // 🚨 [🔥새로운 수술🔥] 동일 IP 24시간 내 연속 가입 방어막 (3회 초과 시 컷!)
+    if (userIp !== '알수없음') {
+      const { rows: ipCheck } = await sql`
+        SELECT COUNT(*) as count FROM users 
+        WHERE ip = ${userIp} AND created_at > NOW() - INTERVAL '24 hours'
+      `;
+      // 만약 같은 IP로 최근 하루 동안 3개 이상 가입했다면 즉시 차단!
+      if (ipCheck.length > 0 && Number(ipCheck[0].count) >= 3) {
+        console.error(`🚨 [IP 무한 가입 테러 차단] IP: ${userIp} (24시간 내 3회 초과)`);
+        return { error: 'ip_limit' }; // 에러 신호를 화면으로 던집니다.
       }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 💡 [수술 3] DB에 유저 정보 넣을 때 추출한 IP(userIp)도 함께 밀어 넣습니다!
+    // 유저 정보 저장 (IP 포함)
     await sql`
       INSERT INTO users (user_id, password, nickname, email, ip)
       VALUES (${userId}, ${hashedPassword}, ${nickname}, ${email}, ${userIp})

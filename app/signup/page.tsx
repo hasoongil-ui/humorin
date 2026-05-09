@@ -128,6 +128,8 @@ export default function SignupPage() {
       else if (result.error === 'nick_exists') setNickError('❌ 이미 사용 중인 닉네임입니다.');
       else if (result.error === 'email_exists') setEmailError('❌ 이미 가입된 이메일입니다.'); 
       else if (result.error === 'id_forbidden' || result.error === 'nick_forbidden') setSubmitError('사용할 수 없는 금칙어가 포함되어 있습니다.');
+      // 💡 [새로 추가된 에러 처리] 동일 IP 무한 가입 차단!
+      else if (result.error === 'ip_limit') setSubmitError('🚨 비정상적인 가입 시도가 감지되었습니다. (하루 생성 한도 3회 초과)'); 
       else setSubmitError('회원 가입 처리 중 오류가 발생했습니다.');
     }
   };
@@ -143,25 +145,6 @@ export default function SignupPage() {
           <Link href="/" className="text-4xl font-black text-[#3b4890] tracking-tighter inline-block mb-2">HUMORIN</Link>
           <h2 className="text-xl font-bold text-gray-800 mt-2">회원 가입</h2>
         </div>
-
-        {/* 💡 [네이버 심사 지옥 탈출!] 회원가입 화면의 네이버 버튼 숨김 처리 시작 
-        <button
-          type="button"
-          onClick={handleNaverLogin}
-          className="w-full py-3.5 mb-6 bg-[#03C75A] hover:bg-[#02b351] text-white font-bold rounded-sm text-[16px] transition-colors flex justify-center items-center gap-2 shadow-sm"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M16.0732 11.206L7.90483 0H0V24H7.92683V12.794L16.0952 24H24V0H16.0732V11.206Z" fill="white"/>
-          </svg>
-          네이버 아이디로 1초 만에 가입하기
-        </button>
-
-        <div className="relative flex items-center py-2 mb-6">
-          <div className="flex-grow border-t border-gray-200"></div>
-          <span className="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold">또는 이메일로 가입</span>
-          <div className="flex-grow border-t border-gray-200"></div>
-        </div>
-        네이버 버튼 숨김 처리 끝 */}
 
         {submitError && (
           <div className="mb-6 p-3 bg-red-50 text-red-600 text-sm font-bold text-center rounded-sm border border-red-200">
