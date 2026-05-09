@@ -12,7 +12,7 @@ const isAnimatedWebP = (file: File): Promise<boolean> => {
             const arr = new Uint8Array(reader.result as ArrayBuffer);
             // 파일의 앞부분 헤더를 스캔하여 'ANIM' 청크(움짤 식별자)가 있는지 확인
             for (let i = 0; i < arr.length - 4; i++) {
-                if (arr[i] === 0x41 && arr[i+1] === 0x4E && arr[i+2] === 0x49 && arr[i+3] === 0x4D) {
+                if (arr[i] === 0x41 && arr[i + 1] === 0x4E && arr[i + 2] === 0x49 && arr[i + 3] === 0x4D) {
                     return resolve(true); // "이건 WebP 움짤이다!"
                 }
             }
@@ -35,7 +35,7 @@ const compressImageToWebP = (file: File): Promise<File> => {
                 const canvas = document.createElement('canvas');
                 let width = img.width;
                 let height = img.height;
-                const MAX_WIDTH = 800; 
+                const MAX_WIDTH = 800;
 
                 if (width > MAX_WIDTH) {
                     height = Math.round((height * MAX_WIDTH) / width);
@@ -56,11 +56,11 @@ const compressImageToWebP = (file: File): Promise<File> => {
                                 });
                                 resolve(newFile);
                             } else {
-                                resolve(file); 
+                                resolve(file);
                             }
                         },
                         'image/webp',
-                        0.8 
+                        0.8
                     );
                 } else {
                     resolve(file);
@@ -77,7 +77,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
+
     const [botTrap, setBotTrap] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const uniqueId = parentId ? `image-${parentId}` : 'image-main';
@@ -91,22 +91,22 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
 
         // 🚨 투트랙 용량 통제소: GIF이거나, 엑스레이로 판독된 WebP 움짤인 경우
         if (file.type === 'image/gif' || isWebPAnim) {
-            // [트랙 1] 움짤(GIF/WebP)은 5MB 이하만 첨부 가능! (압축 시 멈춤 현상 방지)
-            if (file.size > 5 * 1024 * 1024) {
-                alert('🚨 움짤(GIF 및 WebP 애니메이션)은 서버 쾌적화를 위해 5MB 이하만 첨부 가능합니다.');
+            // [트랙 1] 움짤(GIF/WebP)은 2MB 이하만 첨부 가능! (압축 시 멈춤 현상 방지)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('🚨 움짤(GIF 및 WebP 애니메이션)은 서버 쾌적화를 위해 2MB 이하만 첨부 가능합니다.');
                 if (fileInputRef.current) fileInputRef.current.value = '';
                 return;
             }
             setImageFile(file);
             setPreviewUrl(URL.createObjectURL(file));
         } else {
-            // [트랙 2] 일반 사진(일반 WebP 포함)은 10MB까지 허용 후 150KB로 압축
-            if (file.size > 10 * 1024 * 1024) {
-                alert('일반 이미지는 최대 10MB까지 선택 가능합니다.');
+            // [트랙 2] 일반 사진(일반 WebP 포함)은 3MB까지 허용 후 150KB로 압축
+            if (file.size > 3 * 1024 * 1024) {
+                alert('일반 이미지는 최대 3MB까지 선택 가능합니다.');
                 if (fileInputRef.current) fileInputRef.current.value = '';
                 return;
             }
-            
+
             try {
                 const compressedFile = await compressImageToWebP(file);
                 setImageFile(compressedFile);
@@ -141,7 +141,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
                 const { uploadUrl, publicUrl } = await ticketRes.json();
                 if (uploadUrl) {
                     await fetch(uploadUrl, { method: 'PUT', body: imageFile, headers: { 'Content-Type': imageFile.type } });
-                    finalImageUrl = publicUrl; 
+                    finalImageUrl = publicUrl;
                 }
             } catch (error) {
                 alert('이미지 업로드 중 오류가 발생했습니다.');
@@ -178,17 +178,17 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
 
     return (
         <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden flex flex-col mt-2">
-            
+
             <div className="absolute opacity-0 -z-50 h-0 w-0 overflow-hidden" aria-hidden="true">
                 <label htmlFor={`humorin_secret_trap_${uniqueId}`}>웹사이트 주소</label>
-                <input 
-                    type="text" 
-                    id={`humorin_secret_trap_${uniqueId}`} 
-                    name="humorin_secret_trap" 
-                    value={botTrap} 
-                    onChange={(e) => setBotTrap(e.target.value)} 
-                    tabIndex={-1} 
-                    autoComplete="off" 
+                <input
+                    type="text"
+                    id={`humorin_secret_trap_${uniqueId}`}
+                    name="humorin_secret_trap"
+                    value={botTrap}
+                    onChange={(e) => setBotTrap(e.target.value)}
+                    tabIndex={-1}
+                    autoComplete="off"
                 />
             </div>
 
@@ -201,7 +201,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
             <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                maxLength={1500} 
+                maxLength={1500}
                 rows={3}
                 disabled={isSubmitting}
                 className="w-full p-3 text-[14px] outline-none resize-y"
@@ -231,7 +231,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
                         {previewUrl ? '이미지 변경' : '이미지 첨부'}
                     </label>
                 </div>
-                
+
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <span className={`text-[10px] sm:text-[11px] font-black tracking-tighter ${content.length >= 1500 ? 'text-rose-500' : 'text-gray-400'}`}>
                         {content.length.toLocaleString()} / 1,500
