@@ -102,7 +102,6 @@ async function updateEditorPlaceholder(formData: FormData) {
   revalidatePath('/admin');
 }
 
-// 💡 메인 배너 문구 업데이트 액션
 async function updateMainBanner(formData: FormData) {
   'use server';
   if (!(await verifyAdmin())) throw new Error("Unauthorized");
@@ -119,7 +118,7 @@ async function updateMainBanner(formData: FormData) {
       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
     `;
   } catch (error) { }
-  revalidatePath('/'); // 메인 페이지 즉시 새로고침
+  revalidatePath('/'); 
   revalidatePath('/admin');
 }
 
@@ -189,18 +188,19 @@ export default async function AdminDashboardPage(props: any) {
     let countResult;
     let queryResult;
 
+    // 💡 팝업창에서 최근 작성글(latest_post_title)을 뽑아올 수 있도록 쿼리 업그레이드!
     if (q && type === 'userid') {
       countResult = await sql`SELECT COUNT(*) FROM users WHERE user_id ILIKE ${'%' + q + '%'}`;
-      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count FROM users u WHERE u.user_id ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count, (SELECT title FROM posts p WHERE p.author = u.user_id ORDER BY date DESC LIMIT 1) as latest_post_title FROM users u WHERE u.user_id ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
     } else if (q && type === 'nickname') {
       countResult = await sql`SELECT COUNT(*) FROM users WHERE nickname ILIKE ${'%' + q + '%'}`;
-      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count FROM users u WHERE u.nickname ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count, (SELECT title FROM posts p WHERE p.author = u.user_id ORDER BY date DESC LIMIT 1) as latest_post_title FROM users u WHERE u.nickname ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
     } else if (q && type === 'ip') {
       countResult = await sql`SELECT COUNT(*) FROM users WHERE ip ILIKE ${'%' + q + '%'}`;
-      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count FROM users u WHERE u.ip ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count, (SELECT title FROM posts p WHERE p.author = u.user_id ORDER BY date DESC LIMIT 1) as latest_post_title FROM users u WHERE u.ip ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
     } else {
       countResult = await sql`SELECT COUNT(*) FROM users`;
-      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count FROM users u ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count, (SELECT title FROM posts p WHERE p.author = u.user_id ORDER BY date DESC LIMIT 1) as latest_post_title FROM users u ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
     }
 
     const currentSearchTotal = Number(countResult.rows[0].count);
@@ -356,13 +356,14 @@ export default async function AdminDashboardPage(props: any) {
             </div>
           </div>
 
+          {/* 💡 폰트 사이즈 대폭 키움! */}
           <div className="bg-white rounded-sm border border-gray-200 shadow-sm overflow-hidden flex flex-col">
             <div className="overflow-auto w-full max-h-[65vh]">
-              <table className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[1150px]">
-                <colgroup><col style={{ width: '5%' }} /><col style={{ width: '13%' }} /><col style={{ width: '14%' }} /><col style={{ width: '10%' }} /><col style={{ width: '8%' }} /><col style={{ width: '8%' }} /><col style={{ width: '42%' }} /></colgroup>
+              <table className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[1300px]">
+                <colgroup><col style={{ width: '5%' }} /><col style={{ width: '13%' }} /><col style={{ width: '14%' }} /><col style={{ width: '12%' }} /><col style={{ width: '8%' }} /><col style={{ width: '8%' }} /><col style={{ width: '40%' }} /></colgroup>
                 <thead className="sticky top-0 z-10">
-                  <tr className="bg-gray-50 border-b-2 border-gray-300 text-[11px] text-gray-600 font-black tracking-wider uppercase shadow-sm">
-                    <th className="px-3 py-2.5 text-center">No</th><th className="px-3 py-2.5">회원 정보</th><th className="px-3 py-2.5">가입/로그인</th><th className="px-3 py-2.5 text-center text-red-600">접속 IP</th><th className="px-3 py-2.5 text-center">활동</th><th className="px-3 py-2.5 text-center">상태</th><th className="px-3 py-2.5 text-center border-l border-gray-200">관리 액션</th>
+                  <tr className="bg-gray-50 border-b-2 border-gray-300 text-[13px] text-gray-700 font-black tracking-wider shadow-sm">
+                    <th className="px-4 py-3.5 text-center">No</th><th className="px-4 py-3.5">회원 정보</th><th className="px-4 py-3.5">가입/로그인</th><th className="px-4 py-3.5 text-center text-red-600">접속 IP</th><th className="px-4 py-3.5 text-center">활동</th><th className="px-4 py-3.5 text-center">상태</th><th className="px-4 py-3.5 text-center border-l border-gray-200">관리 액션</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -370,59 +371,57 @@ export default async function AdminDashboardPage(props: any) {
                     const isBannedIp = bannedIpsArray.includes(user.ip);
                     return (
                       <tr key={user.userid} className={`border-b border-gray-100 transition-colors ${isBannedIp ? 'bg-red-50/50' : 'hover:bg-indigo-50/50 bg-white'}`}>
-                        <td className="px-3 py-1.5 text-center text-gray-400 font-medium text-[11px]">{offset + index + 1}</td>
-                        <td className="px-3 py-1.5 whitespace-normal break-words">
-                          {/* 💡 방금 만든 팝업창 부품으로 교체! */}
+                        <td className="px-4 py-3 text-center text-gray-500 font-bold text-[13px]">{offset + index + 1}</td>
+                        <td className="px-4 py-3 whitespace-normal break-words">
                           <UserInfoModal user={user} />
-
-                          <div className="text-gray-500 text-[11px] mt-0.5 leading-tight line-clamp-2" title={user.nickname}>{user.nickname}</div>
+                          <div className="text-gray-500 text-[13px] mt-1 leading-tight line-clamp-2" title={user.nickname}>{user.nickname}</div>
                         </td>
-                        <td className="px-3 py-1.5 text-[11px] text-gray-500">
-                          <div className="mb-0.5"><span className="text-gray-400 w-6 inline-block">가입</span>{user.created_at}</div>
-                          <div><span className="text-gray-400 w-6 inline-block">최근</span>{user.last_login}</div>
+                        <td className="px-4 py-3 text-[13px] text-gray-500 font-medium">
+                          <div className="mb-1"><span className="text-gray-400 w-8 inline-block font-bold">가입</span>{user.created_at}</div>
+                          <div><span className="text-gray-400 w-8 inline-block font-bold">최근</span>{user.last_login}</div>
                         </td>
-                        <td className="px-3 py-1.5 text-center text-[11px] font-black tracking-tighter text-red-500">
+                        <td className="px-4 py-3 text-center text-[13px] font-black tracking-tighter text-red-500">
                           {user.ip || '알수없음'}
-                          {isBannedIp && <div className="text-[9px] text-red-600 mt-0.5 border border-red-200 bg-red-100 rounded-sm inline-block px-1">차단됨</div>}
+                          {isBannedIp && <div className="text-[11px] text-red-600 mt-1 border border-red-200 bg-red-100 rounded-sm inline-block px-1.5 py-0.5">차단됨</div>}
                         </td>
-                        <td className="px-3 py-1.5 text-center">
-                          <div className="text-[11px] font-bold text-gray-600 mb-0.5">글 {Number(user.post_count)}</div>
-                          <div className="text-[11px] font-bold text-rose-500">{user.points || 0} P</div>
+                        <td className="px-4 py-3 text-center">
+                          <div className="text-[13px] font-bold text-gray-600 mb-1">글 {Number(user.post_count)}</div>
+                          <div className="text-[13px] font-black text-rose-500">{user.points || 0} P</div>
                         </td>
-                        <td className="px-3 py-1.5 text-center">
-                          {user.status === 'active' && <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-sm border border-emerald-100">정상</span>}
-                          {user.status === 'banned' && <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm border border-rose-100">정지</span>}
-                          {user.status === 'shadow_banned' && <span className="text-[10px] font-black text-gray-600 bg-gray-100 px-2 py-0.5 rounded-sm border border-gray-200">그림자</span>}
+                        <td className="px-4 py-3 text-center">
+                          {user.status === 'active' && <span className="text-[12px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-sm border border-emerald-100">정상</span>}
+                          {user.status === 'banned' && <span className="text-[12px] font-black text-rose-600 bg-rose-50 px-2.5 py-1 rounded-sm border border-rose-100">정지</span>}
+                          {user.status === 'shadow_banned' && <span className="text-[12px] font-black text-gray-600 bg-gray-100 px-2.5 py-1 rounded-sm border border-gray-200">그림자</span>}
                         </td>
-                        <td className="px-3 py-1.5 border-l border-gray-100">
-                          <div className="flex justify-center items-center gap-1.5 flex-wrap">
-                            <form action={updateUserStatus} className="flex items-center gap-1">
+                        <td className="px-4 py-3 border-l border-gray-100">
+                          <div className="flex justify-center items-center gap-2 flex-wrap">
+                            <form action={updateUserStatus} className="flex items-center gap-1.5">
                               <input type="hidden" name="userid" value={user.userid} />
-                              <select name="status" defaultValue={user.status} className="text-[11px] font-bold px-1 py-1 rounded-sm border outline-none cursor-pointer w-14 text-gray-600">
+                              <select name="status" defaultValue={user.status} className="text-[12px] font-bold px-1.5 py-1.5 rounded-sm border outline-none cursor-pointer w-20 text-gray-700">
                                 <option value="active">정상</option><option value="shadow_banned">그림자</option><option value="banned">정지</option>
                               </select>
-                              <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-white border border-gray-300 rounded-sm hover:bg-gray-50 text-gray-700">상태변경</button>
+                              <button type="submit" className="px-3 py-1.5 text-[12px] font-bold bg-white border border-gray-300 rounded-sm hover:bg-gray-50 text-gray-700">상태변경</button>
                             </form>
-                            <form action={updateUserPoints} className="flex items-center gap-1 border-l pl-1.5">
+                            <form action={updateUserPoints} className="flex items-center gap-1.5 border-l pl-2">
                               <input type="hidden" name="userid" value={user.userid} />
-                              <input type="number" name="points" defaultValue={user.points || 0} className="text-[11px] font-bold px-1 py-1 rounded-sm border outline-none w-14 text-gray-800" />
-                              <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-blue-50 border border-blue-200 rounded-sm hover:bg-blue-100 text-blue-700">P수정</button>
+                              <input type="number" name="points" defaultValue={user.points || 0} className="text-[12px] font-bold px-1.5 py-1.5 rounded-sm border outline-none w-20 text-gray-800" />
+                              <button type="submit" className="px-3 py-1.5 text-[12px] font-bold bg-blue-50 border border-blue-200 rounded-sm hover:bg-blue-100 text-blue-700">P수정</button>
                             </form>
-                            <form action={resetPassword} className="border-l pl-1.5">
+                            <form action={resetPassword} className="border-l pl-2">
                               <input type="hidden" name="userid" value={user.userid} />
-                              <button type="submit" className="px-2 py-1 text-[10px] font-bold bg-amber-50 border border-amber-300 rounded-sm hover:bg-amber-100 text-amber-700">비번리셋</button>
+                              <button type="submit" className="px-3 py-1.5 text-[12px] font-bold bg-amber-50 border border-amber-300 rounded-sm hover:bg-amber-100 text-amber-700">비번리셋</button>
                             </form>
-                            <form action={banIpAddress} className="border-l pl-1.5">
+                            <form action={banIpAddress} className="border-l pl-2">
                               <input type="hidden" name="ip" value={user.ip} />
                               <BanButton ip={user.ip} isBannedIp={isBannedIp} />
                             </form>
                             {user.userid !== 'admin' && (
-                              <form action={toggleAdminRole} className="border-l pl-1.5">
+                              <form action={toggleAdminRole} className="border-l pl-2">
                                 <input type="hidden" name="userid" value={user.userid} />
                                 <input type="hidden" name="is_admin" value={user.is_admin ? 'true' : 'false'} />
-                                <button type="submit" className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-colors shadow-sm ${user.is_admin
-                                  ? 'bg-purple-100 border border-purple-300 text-purple-700 hover:bg-purple-200'
-                                  : 'bg-gray-800 border border-gray-900 text-white hover:bg-gray-700'
+                                <button type="submit" className={`px-3 py-1.5 text-[12px] font-bold rounded-sm transition-colors shadow-sm ${user.is_admin
+                                    ? 'bg-purple-100 border border-purple-300 text-purple-700 hover:bg-purple-200'
+                                    : 'bg-gray-800 border border-gray-900 text-white hover:bg-gray-700'
                                   }`}>
                                   {user.is_admin ? '권한 회수' : '👑 부관리자 임명'}
                                 </button>
@@ -433,16 +432,16 @@ export default async function AdminDashboardPage(props: any) {
                       </tr>
                     );
                   })}
-                  {userList.length === 0 && <tr><td colSpan={7} className="text-center py-10 text-gray-400 font-bold">조건에 맞는 회원이 없습니다.</td></tr>}
+                  {userList.length === 0 && <tr><td colSpan={7} className="text-center py-10 text-gray-500 font-bold text-sm">조건에 맞는 회원이 없습니다.</td></tr>}
                 </tbody>
               </table>
             </div>
 
-            <div className="p-3 border-t border-gray-200 bg-gray-50 flex justify-center flex-shrink-0">
-              <div className="flex gap-2">
-                <Link href={`/admin?page=${currentPage - 1}${q ? `&q=${q}&type=${type}` : ''}`} className={`px-3 py-1 border border-gray-300 bg-white text-gray-500 text-[11px] font-bold rounded-sm hover:bg-gray-50 ${currentPage <= 1 ? 'pointer-events-none opacity-40' : ''}`}>◀ 이전</Link>
-                <div className="px-4 py-1 font-black text-gray-700 text-[12px]">{currentPage} <span className="text-gray-400 font-medium">/ {totalPages}</span></div>
-                <Link href={`/admin?page=${currentPage + 1}${q ? `&q=${q}&type=${type}` : ''}`} className={`px-3 py-1 border border-gray-300 bg-white text-gray-500 text-[11px] font-bold rounded-sm hover:bg-gray-50 ${currentPage >= totalPages ? 'pointer-events-none opacity-40' : ''}`}>다음 ▶</Link>
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-center flex-shrink-0">
+              <div className="flex gap-3">
+                <Link href={`/admin?page=${currentPage - 1}${q ? `&q=${q}&type=${type}` : ''}`} className={`px-4 py-1.5 border border-gray-300 bg-white text-gray-600 text-[13px] font-bold rounded-sm hover:bg-gray-50 ${currentPage <= 1 ? 'pointer-events-none opacity-40' : ''}`}>◀ 이전</Link>
+                <div className="px-5 py-1.5 font-black text-gray-800 text-[14px]">{currentPage} <span className="text-gray-400 font-medium">/ {totalPages}</span></div>
+                <Link href={`/admin?page=${currentPage + 1}${q ? `&q=${q}&type=${type}` : ''}`} className={`px-4 py-1.5 border border-gray-300 bg-white text-gray-600 text-[13px] font-bold rounded-sm hover:bg-gray-50 ${currentPage >= totalPages ? 'pointer-events-none opacity-40' : ''}`}>다음 ▶</Link>
               </div>
             </div>
           </div>
