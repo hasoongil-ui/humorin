@@ -3,28 +3,101 @@
 import { useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 
+// 🛠️ [미나의 초경량 압축기] 스마트폰에서 서버로 가기 전에 150KB 수준으로 쥐어짭니다
+const compressImageToWebP = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+        // 움짤(GIF)은 압축하면 멈추므로 원본 그대로 패스 (아래에서 5MB로 컷합니다)
+        if (file.type === 'image/gif') {
+            resolve(file);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const MAX_WIDTH = 800; 
+
+                if (width > MAX_WIDTH) {
+                    height = Math.round((height * MAX_WIDTH) / width);
+                    width = MAX_WIDTH;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob) {
+                                const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+                                const newFile = new File([blob], newFileName, {
+                                    type: 'image/webp',
+                                });
+                                resolve(newFile);
+                            } else {
+                                resolve(file); 
+                            }
+                        },
+                        'image/webp',
+                        0.8 
+                    );
+                } else {
+                    resolve(file);
+                }
+            };
+            img.onerror = () => resolve(file);
+        };
+        reader.onerror = () => resolve(file);
+    });
+};
+
 export default function CommentForm({ postId, parentId, author, actionType, submitAction }: any) {
     const [content, setContent] = useState('');
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    // 🛡️ [수술 1] 봇을 낚기 위한 '투명 함정' 상태값 추가
     const [botTrap, setBotTrap] = useState('');
-    
     const fileInputRef = useRef<HTMLInputElement>(null);
-
     const uniqueId = parentId ? `image-${parentId}` : 'image-main';
 
-    const handleFileChange = (e: any) => {
+    const handleFileChange = async (e: any) => {
         const file = e.target.files?.[0];
-        if (file) {
-            if (file.size > 1048576) {
-                alert('1MB 이하의 이미지만 첨부 가능합니다.');
+        if (!file) return;
+
+        // 🚨 투트랙 용량 통제소 가동
+        if (file.type === 'image/gif') {
+            // [트랙 1] 대표님 기획 적용: 움짤(GIF)은 5MB 이하만 첨부 가능!
+            if (file.size > 5 * 1024 * 1024) {
+                alert('🚨 움짤(GIF)은 서버 쾌적화를 위해 5MB 이하만 첨부 가능합니다.');
+                if (fileInputRef.current) fileInputRef.current.value = '';
                 return;
             }
             setImageFile(file);
             setPreviewUrl(URL.createObjectURL(file));
+        } else {
+            // [트랙 2] 일반 사진은 10MB까지 허용 (폰에서 150KB로 압축할 거니까 안심!)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('일반 이미지는 최대 10MB까지 선택 가능합니다.');
+                if (fileInputRef.current) fileInputRef.current.value = '';
+                return;
+            }
+            
+            try {
+                const compressedFile = await compressImageToWebP(file);
+                setImageFile(compressedFile);
+                setPreviewUrl(URL.createObjectURL(compressedFile));
+            } catch (error) {
+                setImageFile(file);
+                setPreviewUrl(URL.createObjectURL(file));
+            }
         }
     };
 
@@ -64,14 +137,10 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
         formData.append('content', content);
         if (parentId) formData.append('parentId', parentId);
         formData.append('imageUrl', finalImageUrl);
-        
-        // 🛡️ [수술 2] 서버로 몰래 투명 함정 데이터 보내기
         formData.append('bot_trap', botTrap);
 
-        // 🛡️ [수술 3] 서버에서 금칙어 검사를 통과했는지 결과값 받기
         const result = await submitAction(formData);
 
-        // 만약 금칙어에 걸렸다면 경고창 띄우고 중단!
         if (result && result.error === 'forbidden_word') {
             alert(`🚨 작성하신 댓글에 금지된 단어 [ ${result.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
             setIsSubmitting(false);
@@ -93,7 +162,6 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
     return (
         <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden flex flex-col mt-2">
             
-            {/* 🛡️ [수술 4] 봇을 유인하는 시크릿 함정 (Honeypot) - 화면에는 안 보이지만 봇은 이걸 채웁니다! */}
             <div className="absolute opacity-0 -z-50 h-0 w-0 overflow-hidden" aria-hidden="true">
                 <label htmlFor={`humorin_secret_trap_${uniqueId}`}>웹사이트 주소</label>
                 <input 

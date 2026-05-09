@@ -360,7 +360,6 @@ export default async function PostDetailPage(props: any) {
         userPoints = userRows[0]?.points || 0;
         rawStatus = userRows[0]?.status || 'active';
 
-        // 🚨 다중 그물망으로 정지 여부 완벽 검사
         const statusStr = String(rawStatus).trim().toLowerCase();
         if (['banned', 'suspended', '정지'].includes(statusStr)) return;
 
@@ -371,7 +370,6 @@ export default async function PostDetailPage(props: any) {
       } catch (e) { }
     }
 
-    // 💡 다중 그물망으로 그림자 여부 완벽 검사
     const finalStatusStr = String(rawStatus).trim().toLowerCase();
     const isShadowBanned = ['shadowban', 'shadow_banned', '그림자'].includes(finalStatusStr);
 
@@ -704,7 +702,7 @@ export default async function PostDetailPage(props: any) {
             </div>
           </div>
 
-          {node.is_blinded && !isAdmin && !isCommentAuthor ? (
+          {post.is_blinded && !isAdmin && !isAuthor ? (
             <div className="text-[14px] mb-3 text-gray-500 italic bg-gray-100 p-3 rounded-md border border-gray-300 shadow-inner flex items-center gap-2">
               보고 싶어 하지 않은 분들이 많아 블라인드 처리된 댓글입니다.
             </div>

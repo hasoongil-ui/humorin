@@ -27,29 +27,31 @@ body {
 
 /* ====================================================================
    🚨 [유머인 마스터 에디터 디자인 통합 통제실]
-   - 용도: 글쓰기, 수정, 댓글 등 '모든 곳'의 이미지/영상 크기 깨짐 방어
 ==================================================================== */
 
-/* 1. 본문 이미지 & 댓글 이미지 공통: 억지로 늘어나지 않게 철통 방어 */
-.ql-editor img, .humorin-comment-img {
+/* 본문 이미지: 네이버 블로그처럼 시원시원하고 예쁘게 */
+.ql-editor img {
   display: block !important;
-  max-width: 100% !important; /* 스마트폰 화면 밖으로 삐져나가는 것 강제 차단 */
-  width: auto !important;     /* 💡 핵심: 억지로 100% 팽창하는 버그 원천 차단. 원본 크기 유지! */
+  max-width: 100% !important; 
+  width: auto !important;     
   height: auto !important;
+  margin: 0 auto 15px auto !important; 
   border-radius: 8px !important;
 }
 
-/* 본문 이미지는 네이버 블로그처럼 중앙 정렬 */
-.ql-editor img {
-  margin: 0 auto 15px auto !important; 
-}
-
-/* 댓글 이미지는 자연스럽게 왼쪽 정렬 및 위아래 여백만 */
+/* 💡 네이버 스타일 댓글 이미지 통일 (고양이 축소 & 일관성 유지) */
 .humorin-comment-img {
-  margin: 10px 0 !important;
+  display: block !important;
+  max-width: 250px !important; /* 네이버 댓글과 비슷하게 가로 길이를 아담하게 통일 */
+  width: auto !important;
+  height: auto !important;
+  max-height: 350px !important; /* 세로로 너무 긴 사진 방어 */
+  border-radius: 6px !important;
+  border: 1px solid #e5e7eb !important; /* 네이버스러운 깔끔한 테두리 */
+  margin: 10px 0 5px 0 !important;
 }
 
-/* 2. 로딩 스켈레톤 (작은 이미지가 세로로 억지로 늘어나는 부작용을 막기 위해 min-height 제거) */
+/* 로딩 스켈레톤 (깜빡임 효과 - min-height 악성 코드 완전 제거 완료) */
 .ql-editor img, .humorin-comment-img {
   background-color: #f8fafc;
   background-image: linear-gradient(90deg, #f8fafc 0px, #f1f5f9 50%, #f8fafc 100%);
@@ -62,7 +64,7 @@ body {
   100% { background-position: -100% 0; }
 }
 
-/* 3. 유튜브 및 동영상(MP4) 비율 유지 및 팽창 방어 */
+/* 유튜브 및 동영상 비율 유지 방어 */
 .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube,
 .ql-editor video, .ql-editor video.humorin-mp4 {
   display: block !important;
@@ -84,7 +86,7 @@ body {
   object-fit: contain; 
 }
 
-/* 모바일 환경 100% 최적화 룰 */
+/* 스마트폰 화면 대응 */
 @media (max-width: 768px) {
   .ql-editor img, .humorin-comment-img, .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube, .ql-editor video, .ql-editor video.humorin-mp4 {
     max-width: 100% !important;
