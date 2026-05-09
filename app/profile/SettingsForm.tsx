@@ -9,24 +9,21 @@ export default function SettingsForm({
   currentUserId, 
   currentNickname, 
   isNaverUser,
-  currentEmail // 💡 [수술 핵심] 껍데기(page.tsx)에서 이메일 정보도 받아옵니다!
+  currentEmail
 }: { 
   currentUserId: string, 
   currentNickname: string, 
   isNaverUser?: boolean,
   currentEmail?: string 
 }) {
-  // 닉네임 상태
   const [nickname, setNickname] = useState('');
   const [nickError, setNickError] = useState('');
   const [nickOk, setNickOk] = useState(false);
 
-  // 💡 이메일 상태 추가
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [emailOk, setEmailOk] = useState(false);
 
-  // 💡 비밀번호 상태 추가
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -34,9 +31,8 @@ export default function SettingsForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const nickRegex = /^[가-힣a-zA-Z0-9\s]{2,8}$/;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // 💡 이메일 판독기
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; 
 
-  // 닉네임 검사
   const handleNickBlur = async () => {
     const val = nickname.trim();
     if (!val) { setNickError(''); setNickOk(false); return; }
@@ -62,7 +58,6 @@ export default function SettingsForm({
     }
   };
 
-  // 💡 이메일 검사
   const handleEmailBlur = async () => {
     const val = email.trim();
     if (!val) { setEmailError(''); setEmailOk(false); return; }
@@ -84,7 +79,6 @@ export default function SettingsForm({
     }
   };
 
-  // 💡 비밀번호 실시간 검사
   const validatePassword = (pw: string, confirmPw: string) => {
     if (!pw && !confirmPw) { setPasswordError(''); return; }
     if (pw && pw.length < 8) {
@@ -101,8 +95,16 @@ export default function SettingsForm({
       alert("입력하신 정보에 오류가 있습니다. 빨간색 경고 메시지를 확인해 주세요!");
       return; 
     }
+
+    // 🚨 [크롬 자동완성 테러 방어막 1] 제출 직전에 폼 안에 들어있는 이메일이 진짜 이메일인지 스캔합니다.
+    if (email && email.trim() !== '') {
+      if (!emailRegex.test(email.trim())) {
+        setEmailError('❌ 올바른 이메일 형식이 아닙니다. (크롬 자동입력 오류일 수 있습니다.)');
+        alert("이메일 형식이 올바르지 않습니다.\n혹시 '새 이메일 주소' 칸에 아이디가 잘못 입력되어 있는지 확인해 주세요!");
+        return;
+      }
+    }
     
-    // 최종 제출 직전 한 번 더 8자리 & 일치 여부 검사 (절대 뚫림 방지)
     if (password || passwordConfirm) {
       if (password.length < 8) {
         setPasswordError('❌ 비밀번호는 8자리 이상이어야 합니다.'); return;
@@ -122,11 +124,10 @@ export default function SettingsForm({
 
   return (
     <div>
-      <form action={handleSubmit} className="space-y-6">
+      <form action={handleSubmit} className="space-y-6" autoComplete="off">
         <input type="hidden" name="currentUserId" value={currentUserId || ''} />
         <input type="hidden" name="currentNickname" value={currentNickname || ''} />
 
-        {/* 닉네임 수정 영역 */}
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-2">새 닉네임</label>
           <input 
@@ -137,6 +138,7 @@ export default function SettingsForm({
               setNickname(e.target.value); setNickError(''); setNickOk(false);
             }}
             onBlur={handleNickBlur}
+            autoComplete="off"
             className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${nickError ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
           />
           {nickError && <p className="text-red-500 text-[12px] font-bold mt-1.5">{nickError}</p>}
@@ -144,7 +146,6 @@ export default function SettingsForm({
           {nickOk && nickname !== currentNickname && <p className="text-green-600 text-[12px] font-bold mt-1.5">✅ 멋진 닉네임이네요! 변경 가능합니다.</p>}
         </div>
 
-        {/* 이메일 수정 영역 */}
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-2">새 이메일 주소</label>
           <input 
@@ -155,6 +156,7 @@ export default function SettingsForm({
               setEmail(e.target.value); setEmailError(''); setEmailOk(false);
             }}
             onBlur={handleEmailBlur}
+            autoComplete="new-password" 
             className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${emailError ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
           />
           {emailError && <p className="text-red-500 text-[12px] font-bold mt-1.5">{emailError}</p>}
@@ -181,6 +183,7 @@ export default function SettingsForm({
                   setPassword(e.target.value);
                   validatePassword(e.target.value, passwordConfirm);
                 }}
+                autoComplete="new-password"
                 placeholder="변경할 비밀번호 입력 (8자리 이상)" 
                 className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" 
               />
@@ -194,6 +197,7 @@ export default function SettingsForm({
                   setPasswordConfirm(e.target.value);
                   validatePassword(password, e.target.value);
                 }}
+                autoComplete="new-password"
                 placeholder="비밀번호 다시 입력" 
                 className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${passwordError ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
               />

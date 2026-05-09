@@ -3,14 +3,14 @@
 import { sql } from '@vercel/postgres';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import bcrypt from 'bcryptjs'; // 💡 [수술 핵심] 털려도 복구 불가능한 단방향 암호화 요원!
+import bcrypt from 'bcryptjs'; 
 
 export async function updateProfileAction(formData: FormData) {
   const currentUserId = formData.get('currentUserId') as string;
   const currentNickname = formData.get('currentNickname') as string;
   const newNickname = formData.get('newNickname') as string;
-  const newEmail = formData.get('newEmail') as string; // 💡 넘어온 이메일
-  const newPassword = formData.get('newPassword') as string; // 💡 넘어온 비밀번호
+  const newEmail = formData.get('newEmail') as string; 
+  const newPassword = formData.get('newPassword') as string; 
 
   if (!currentUserId && !currentNickname) return;
 
@@ -38,13 +38,18 @@ export async function updateProfileAction(formData: FormData) {
 
     // 💡 2. 이메일 변경 (서버단 2차 철통 방어 검사)
     if (newEmail && newEmail.trim() !== '') {
-      const checkEmail = await sql`SELECT user_id FROM users WHERE email = ${newEmail.trim()}`;
-      // 중복되는 이메일이 없을 때만 업데이트!
-      if (checkEmail.rows.length === 0) {
-        if (currentUserId) {
-          await sql`UPDATE users SET email = ${newEmail.trim()} WHERE user_id = ${currentUserId}`;
-        } else {
-          await sql`UPDATE users SET email = ${newEmail.trim()} WHERE nickname = ${currentNickname}`;
+      // 🚨 [크롬 자동완성 테러 방어막 2] 서버단에서도 형식을 깐깐하게 검사합니다.
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      
+      // 골뱅이(@)가 없는 불량 이메일(크롬 자동입력)은 DB 덮어쓰기를 가차없이 취소합니다.
+      if (emailRegex.test(newEmail.trim())) {
+        const checkEmail = await sql`SELECT user_id FROM users WHERE email = ${newEmail.trim()}`;
+        if (checkEmail.rows.length === 0) {
+          if (currentUserId) {
+            await sql`UPDATE users SET email = ${newEmail.trim()} WHERE user_id = ${currentUserId}`;
+          } else {
+            await sql`UPDATE users SET email = ${newEmail.trim()} WHERE nickname = ${currentNickname}`;
+          }
         }
       }
     }
@@ -53,12 +58,10 @@ export async function updateProfileAction(formData: FormData) {
     if (newPassword && newPassword.trim() !== '') {
        const pw = newPassword.trim();
        
-       // 해커가 프론트엔드를 우회해서 4자리로 쏴도 서버가 입구 컷!
        if (pw.length < 8) {
          throw new Error("비밀번호는 8자리 이상이어야 합니다."); 
        }
        
-       // 대기업급 단방향 암호화 적용!
        const hashedPassword = await bcrypt.hash(pw, 10);
        
        if (currentUserId) {
