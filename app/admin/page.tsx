@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
 import crypto from 'crypto';
 import BanButton from './BanButton';
+import bcrypt from 'bcryptjs';
+import UserInfoModal from './UserInfoModal';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +46,11 @@ async function resetPassword(formData: FormData) {
   'use server';
   if (!(await verifyAdmin())) throw new Error("Unauthorized");
   const targetUser = formData.get('userid') as string;
-  try { await sql`UPDATE users SET password = '000000' WHERE user_id = ${targetUser}`; } catch (error) { }
+  try {
+    // 💡 날것의 비밀번호가 아닌, 강력하게 암호화된 '00000000' (8자리)를 밀어 넣습니다!
+    const hashedResetPassword = await bcrypt.hash('00000000', 10);
+    await sql`UPDATE users SET password = ${hashedResetPassword} WHERE user_id = ${targetUser}`;
+  } catch (error) { }
   revalidatePath('/admin');
 }
 
@@ -366,10 +372,9 @@ export default async function AdminDashboardPage(props: any) {
                       <tr key={user.userid} className={`border-b border-gray-100 transition-colors ${isBannedIp ? 'bg-red-50/50' : 'hover:bg-indigo-50/50 bg-white'}`}>
                         <td className="px-3 py-1.5 text-center text-gray-400 font-medium text-[11px]">{offset + index + 1}</td>
                         <td className="px-3 py-1.5 whitespace-normal break-words">
-                          <div className="font-bold text-[#3b4890] text-[12px] truncate flex items-center gap-1.5" title={user.userid}>
-                            {user.userid}
-                            {user.is_admin && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 border border-purple-200 text-[9px] rounded-sm font-black tracking-tighter">ADMIN</span>}
-                          </div>
+                          {/* 💡 방금 만든 팝업창 부품으로 교체! */}
+                          <UserInfoModal user={user} />
+
                           <div className="text-gray-500 text-[11px] mt-0.5 leading-tight line-clamp-2" title={user.nickname}>{user.nickname}</div>
                         </td>
                         <td className="px-3 py-1.5 text-[11px] text-gray-500">
@@ -416,8 +421,8 @@ export default async function AdminDashboardPage(props: any) {
                                 <input type="hidden" name="userid" value={user.userid} />
                                 <input type="hidden" name="is_admin" value={user.is_admin ? 'true' : 'false'} />
                                 <button type="submit" className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-colors shadow-sm ${user.is_admin
-                                    ? 'bg-purple-100 border border-purple-300 text-purple-700 hover:bg-purple-200'
-                                    : 'bg-gray-800 border border-gray-900 text-white hover:bg-gray-700'
+                                  ? 'bg-purple-100 border border-purple-300 text-purple-700 hover:bg-purple-200'
+                                  : 'bg-gray-800 border border-gray-900 text-white hover:bg-gray-700'
                                   }`}>
                                   {user.is_admin ? '권한 회수' : '👑 부관리자 임명'}
                                 </button>
