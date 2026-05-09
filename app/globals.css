@@ -29,19 +29,18 @@ body {
    🚨 [유머인 마스터 에디터 디자인 통합 통제실]
 ==================================================================== */
 
-/* 💡 1. 본문 이미지: 네이버 블로그처럼 시원시원하고 예쁘게 */
+/* 💡 1. 본문 이미지: 네이버 블로그 완벽 복구 (웹툰 쥐똥 현상 해결!) */
 .ql-editor img {
   display: block !important;
   max-width: 100% !important; 
-  max-height: 500px !important; /* 🚨 핵심 수정: 75vh에서 500px로 절대치 고정! 세로 괴물 완벽 차단 */
+  /* 🚨 500px 천장(max-height)과 object-fit 코드를 영구 삭제하여 세로 길이를 무제한 해방! */
   width: auto !important;     
   height: auto !important;
   margin: 0 auto 15px auto !important; 
   border-radius: 8px !important;
-  object-fit: contain !important; /* 🚨 원본 비율을 강제 유지하여 찌그러짐 방지 */
 }
 
-/* 💡 2. 댓글 이미지: 고양이 사진처럼 너무 커지지 않게 아담하게 고정! */
+/* 💡 2. 댓글 이미지: 여기는 쥐똥이 아니라 고양이를 막아야 하므로 350px 천장 유지 */
 .humorin-comment-img {
   display: block !important;
   max-width: 250px !important; 
