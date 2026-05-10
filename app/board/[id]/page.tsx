@@ -293,7 +293,6 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!currentUserId) redirect('/login');
 
-    // 💡 [핵심 복구 1] 일반 유저가 누를 때도 관리자가 설정한 블라인드 임계값을 체크하도록 불러옴
     let blindThreshold = 10;
     try {
       const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
@@ -321,7 +320,7 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE posts SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO post_dislikes (post_id, author_id) VALUES (${postId}, ${currentUserId})`;
-      // 💡 [핵심 복구 2] 일반 유저의 비공감도 누적되어 임계점 도달 시 즉시 블라인드 처리!
+      // 💡 직전 코드 유지: 강제 새로고침(revalidatePath) 없이 DB에만 사일런트 업데이트 (덜컹거림 0%)
       await sql`UPDATE posts SET dislikes = COALESCE(dislikes, 0) + 1, is_blinded = CASE WHEN COALESCE(dislikes, 0) + 1 >= ${blindThreshold} THEN true ELSE is_blinded END WHERE id = ${postId}`;
     }
   };
@@ -518,7 +517,6 @@ export default async function PostDetailPage(props: any) {
     if (!currentUserId) return;
     const commentId = formData.get('commentId') as string;
 
-    // 💡 [핵심 복구 3] 댓글 역시 일반 유저가 누를 때 관리자가 설정한 블라인드 임계값을 체크하도록 불러옴
     let blindThreshold = 10;
     try {
       const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
@@ -546,7 +544,7 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE comments SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${commentId}`;
     } else {
       await sql`INSERT INTO comment_dislikes (comment_id, author_id) VALUES (${commentId}, ${currentUserId})`;
-      // 💡 [핵심 복구 4] 일반 유저의 댓글 비공감도 누적되어 임계점 도달 시 즉시 블라인드 처리!
+      // 💡 직전 코드 유지: 강제 새로고침(revalidatePath) 없이 DB에만 사일런트 업데이트 (덜컹거림 0%)
       await sql`UPDATE comments SET dislikes = COALESCE(dislikes, 0) + 1, is_blinded = CASE WHEN COALESCE(dislikes, 0) + 1 >= ${blindThreshold} THEN true ELSE is_blinded END WHERE id = ${commentId}`;
     }
   };
@@ -646,7 +644,8 @@ export default async function PostDetailPage(props: any) {
 
       if (likesCount >= 30) {
         bgColorClass = 'bg-yellow-50/80 border-yellow-300';
-        badge = <span className="px-2 py-0.5 bg-yellow-500 text-white text-[11px] rounded-full shadow-sm font-black tracking-wide">🏆 베스트 {medalIcons}</span>;
+        // 💡 핵심 수술: 시안 1 프리미엄 샤인 엔진(medal-shimmer) 장착 완료!
+        badge = <span className="px-2 py-0.5 medal-shimmer text-[11px] rounded-full shadow-sm font-black tracking-wide">🏆 베스트 {medalIcons}</span>;
       } else if (likesCount >= 10) {
         bgColorClass = 'bg-sky-50/80 border-sky-200';
         badge = <span className="px-2 py-0.5 bg-sky-500 text-white text-[11px] rounded-full shadow-sm font-bold tracking-wide">인기 {medalIcons}</span>;
