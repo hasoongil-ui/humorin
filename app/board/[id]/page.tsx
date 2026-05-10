@@ -293,8 +293,15 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!currentUserId) redirect('/login');
 
+    // 💡 [핵심 복구 1] 일반 유저가 누를 때도 관리자가 설정한 블라인드 임계값을 체크하도록 불러옴
+    let blindThreshold = 10;
+    try {
+      const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
+      if (rows.length > 0) blindThreshold = Number(rows[0].value) || 10;
+    } catch (e) { }
+
     if (isAdmin) {
-      await sql`UPDATE posts SET dislikes = COALESCE(dislikes, 0) + 10 WHERE id = ${postId}`;
+      await sql`UPDATE posts SET dislikes = COALESCE(dislikes, 0) + 10, is_blinded = CASE WHEN COALESCE(dislikes, 0) + 10 >= ${blindThreshold} THEN true ELSE is_blinded END WHERE id = ${postId}`;
       return;
     }
 
@@ -314,7 +321,8 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE posts SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO post_dislikes (post_id, author_id) VALUES (${postId}, ${currentUserId})`;
-      await sql`UPDATE posts SET dislikes = COALESCE(dislikes, 0) + 1 WHERE id = ${postId}`;
+      // 💡 [핵심 복구 2] 일반 유저의 비공감도 누적되어 임계점 도달 시 즉시 블라인드 처리!
+      await sql`UPDATE posts SET dislikes = COALESCE(dislikes, 0) + 1, is_blinded = CASE WHEN COALESCE(dislikes, 0) + 1 >= ${blindThreshold} THEN true ELSE is_blinded END WHERE id = ${postId}`;
     }
   };
 
@@ -510,13 +518,14 @@ export default async function PostDetailPage(props: any) {
     if (!currentUserId) return;
     const commentId = formData.get('commentId') as string;
 
-    if (isAdmin) {
-      let blindThreshold = 5;
-      try {
-        const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
-        if (rows.length > 0) blindThreshold = Number(rows[0].value) || 5;
-      } catch (e) { }
+    // 💡 [핵심 복구 3] 댓글 역시 일반 유저가 누를 때 관리자가 설정한 블라인드 임계값을 체크하도록 불러옴
+    let blindThreshold = 10;
+    try {
+      const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
+      if (rows.length > 0) blindThreshold = Number(rows[0].value) || 10;
+    } catch (e) { }
 
+    if (isAdmin) {
       await sql`UPDATE comments SET dislikes = COALESCE(dislikes, 0) + 10, is_blinded = CASE WHEN COALESCE(dislikes, 0) + 10 >= ${blindThreshold} THEN true ELSE is_blinded END WHERE id = ${commentId}`;
       return;
     }
@@ -537,7 +546,8 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE comments SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${commentId}`;
     } else {
       await sql`INSERT INTO comment_dislikes (comment_id, author_id) VALUES (${commentId}, ${currentUserId})`;
-      await sql`UPDATE comments SET dislikes = COALESCE(dislikes, 0) + 1 WHERE id = ${commentId}`;
+      // 💡 [핵심 복구 4] 일반 유저의 댓글 비공감도 누적되어 임계점 도달 시 즉시 블라인드 처리!
+      await sql`UPDATE comments SET dislikes = COALESCE(dislikes, 0) + 1, is_blinded = CASE WHEN COALESCE(dislikes, 0) + 1 >= ${blindThreshold} THEN true ELSE is_blinded END WHERE id = ${commentId}`;
     }
   };
 
@@ -623,7 +633,6 @@ export default async function PostDetailPage(props: any) {
       }
     }
 
-    // 💡 [여기서부터 완벽하게 교체된 금메달 도파민 시스템입니다]
     let bgColorClass = isReply ? 'bg-gray-50/70' : 'bg-white';
     let badge = null;
 
@@ -646,7 +655,6 @@ export default async function PostDetailPage(props: any) {
         badge = <span className="px-2 py-0.5 bg-blue-400 text-white text-[11px] rounded-full shadow-sm font-bold tracking-wide">🌱 공감</span>;
       }
     }
-    // 💡 [교체 완료 지점]
 
     return (
       <div key={node.id} className="w-full">
@@ -711,7 +719,7 @@ export default async function PostDetailPage(props: any) {
             </div>
           </div>
 
-          {post.is_blinded && !isAdmin && !isAuthor ? (
+          {node.is_blinded && !isAdmin && !isCommentAuthor ? (
             <div className="text-[14px] mb-3 text-gray-500 italic bg-gray-100 p-3 rounded-md border border-gray-300 shadow-inner flex items-center gap-2">
               보고 싶어 하지 않은 분들이 많아 블라인드 처리된 댓글입니다.
             </div>
