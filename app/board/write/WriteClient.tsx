@@ -117,7 +117,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             node.setAttribute('src', value);
             node.setAttribute('frameborder', '0');
             node.setAttribute('allowfullscreen', 'true');
-            // 👇 💡 유튜브 153 오류 방어막 추가 (글쓰기 에디터 미리보기용 프리패스)
             node.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
             node.style.display = 'block';
             node.style.width = '100%';
@@ -154,6 +153,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
     try {
       const compressPromises = fileArray.filter(f => f.type.startsWith('image/')).map(async (file) => {
+        // 움짤(GIF, WebP 애니메이션)은 압축하지 않고 원본 패스
         if (file.type === 'image/gif' || file.type === 'image/webp') return file;
         try {
           const img = new Image();
@@ -162,15 +162,17 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const isLongImage = img.height > img.width * 2;
           URL.revokeObjectURL(img.src);
 
+          // 🚨 핵심 수술 1: 갤럭시/아이폰 메모리 튕김 완벽 방지
+          // useWebWorker: false 로 꺼서 폰이 기절하는 것을 차단!
           const options = isLongImage
-            ? { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: true, initialQuality: 0.95, fileType: 'image/webp' }
-            : { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.92, fileType: 'image/webp' };
+            ? { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: false, initialQuality: 0.9, fileType: 'image/webp' }
+            : { maxSizeMB: 0.3, maxWidthOrHeight: 1200, useWebWorker: false, initialQuality: 0.85, fileType: 'image/webp' };
 
           const compressedBlob = await imageCompression(file, options);
           const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
           return new File([compressedBlob], newFileName, { type: 'image/webp' });
         } catch (e) {
-          return file;
+          return file; // 압축 실패 시 멈추지 않고 원본 파일로 안전하게 패스
         }
       });
 
@@ -196,14 +198,17 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           img.src = URL.createObjectURL(file);
         });
 
+        // 🚨 핵심 수술 2: 안드로이드 갤러리/클라우드 파일의 빈 MIME 타입 대비책
+        const safeContentType = file.type || 'image/webp';
+
         const ticketRes = await fetch('/api/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: file.name, contentType: file.type }),
+          body: JSON.stringify({ filename: file.name, contentType: safeContentType }),
         });
         const { uploadUrl, publicUrl } = await ticketRes.json();
         if (uploadUrl) {
-          await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+          await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': safeContentType } });
           return { url: publicUrl, width: dimensions.w, height: dimensions.h };
         }
         return null;
@@ -360,7 +365,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'video/mp4,video/webm');
+    // 🚨 핵심 수술 3: 갤럭시 입구컷 완전 해제
+    input.setAttribute('accept', 'video/*'); 
     input.click();
     input.onchange = async () => {
       const file = input.files ? input.files[0] : null;
@@ -379,14 +385,17 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       setIsUploading(true);
       try {
+        // 🚨 핵심 수술 4: 갤럭시 동영상 타입 빈칸 방어
+        const safeContentType = file.type || 'video/mp4';
+
         const ticketRes = await fetch('/api/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: file.name, contentType: file.type }),
+          body: JSON.stringify({ filename: file.name, contentType: safeContentType }),
         });
         const { uploadUrl, publicUrl } = await ticketRes.json();
         if (uploadUrl) {
-          await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+          await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': safeContentType } });
 
           editor.insertEmbed(insertIndex, 'mp4Video', publicUrl, 'silent');
           editor.insertText(insertIndex + 1, '\n', 'silent');
@@ -562,7 +571,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before { content: '36'; }
         .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16'; } 
 
-        /* 💡 핵심 수술: 작은 이미지 억지 늘림 원천 차단 및 블로그형 중앙 정렬 */
         .ql-editor img { max-width: 100%; width: auto !important; height: auto; border-radius: 8px; display: block; margin: 15px auto !important; }
         @media (min-width: 768px) { .ql-editor img { max-width: 800px !important; } }
         
