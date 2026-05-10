@@ -24,7 +24,11 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState(boards && boards.length > 0 ? boards[0].name : '흥미로운 이야기');
-  const [isUploading, setIsUploading] = useState(false);
+  
+  // 💡 상태를 세분화하여 유저에게 진행 과정을 투명하게 보여줌
+  const [isCompressing, setIsCompressing] = useState(false); // 압축 중 상태
+  const [isUploading, setIsUploading] = useState(false);     // 서버 업로드 중 상태
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditorReady, setIsEditorReady] = useState(false);
 
@@ -148,12 +152,11 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       return;
     }
 
-    setIsUploading(true);
+    setIsCompressing(true); // 💡 압축 시작 알림
     let insertIndex = forcedIndex !== undefined ? forcedIndex : (editor.getSelection()?.index || editor.getLength());
 
     try {
       const compressPromises = fileArray.filter(f => f.type.startsWith('image/')).map(async (file) => {
-        // 움짤(GIF, WebP 애니메이션)은 압축하지 않고 원본 패스
         if (file.type === 'image/gif' || file.type === 'image/webp') return file;
         try {
           const img = new Image();
@@ -162,8 +165,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const isLongImage = img.height > img.width * 2;
           URL.revokeObjectURL(img.src);
 
-          // 🚨 핵심 수술 1: 갤럭시/아이폰 메모리 튕김 완벽 방지
-          // useWebWorker: false 로 꺼서 폰이 기절하는 것을 차단!
           const options = isLongImage
             ? { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: false, initialQuality: 0.9, fileType: 'image/webp' }
             : { maxSizeMB: 0.3, maxWidthOrHeight: 1200, useWebWorker: false, initialQuality: 0.85, fileType: 'image/webp' };
@@ -172,11 +173,14 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
           return new File([compressedBlob], newFileName, { type: 'image/webp' });
         } catch (e) {
-          return file; // 압축 실패 시 멈추지 않고 원본 파일로 안전하게 패스
+          return file; 
         }
       });
 
       const processedFiles = (await Promise.all(compressPromises)).filter(Boolean) as File[];
+
+      setIsCompressing(false); // 압축 끝
+      setIsUploading(true);    // 💡 업로드 시작 알림
 
       const approvedFiles: File[] = [];
       for (const file of processedFiles) {
@@ -198,7 +202,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           img.src = URL.createObjectURL(file);
         });
 
-        // 🚨 핵심 수술 2: 안드로이드 갤러리/클라우드 파일의 빈 MIME 타입 대비책
         const safeContentType = file.type || 'image/webp';
 
         const ticketRes = await fetch('/api/upload', {
@@ -226,6 +229,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     } catch (error) {
       alert('이미지 업로드 중 오류가 발생했습니다.');
     } finally {
+      setIsCompressing(false);
       setIsUploading(false);
     }
   };
@@ -365,7 +369,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
-    // 🚨 핵심 수술 3: 갤럭시 입구컷 완전 해제
     input.setAttribute('accept', 'video/*'); 
     input.click();
     input.onchange = async () => {
@@ -385,7 +388,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       setIsUploading(true);
       try {
-        // 🚨 핵심 수술 4: 갤럭시 동영상 타입 빈칸 방어
         const safeContentType = file.type || 'video/mp4';
 
         const ticketRes = await fetch('/api/upload', {
@@ -487,7 +489,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     if (content.includes('data:image/')) {
       alert('게시글에 용량을 초과하는 텍스트 이미지(Base64)가 포함되어 있습니다.\n해당 이미지를 삭제하신 후 다시 첨부해 주십시오.'); return;
     }
-    if (isUploading || isSubmitting) return;
+    if (isCompressing || isUploading || isSubmitting) return;
 
     if (currentLength > MAX_CONTENT_LENGTH) {
       alert(`게시글 글자 수 제한(${MAX_CONTENT_LENGTH.toLocaleString()}자)을 초과했습니다.`); return;
@@ -582,7 +584,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
         <h1 className="text-xl font-bold text-gray-800 mb-6 border-b border-gray-300 pb-3 flex items-center gap-2">
-          글쓰기 {isUploading && <span className="text-sm font-medium text-gray-500 ml-4">(업로드 처리 중...)</span>}
+          글쓰기 
+          {/* 💡 투명한 상태 알림창 추가 */}
+          {isCompressing && <span className="text-[13px] font-bold text-blue-500 ml-4 animate-pulse">📷 사진 용량 최적화 중... (최대 10초)</span>}
+          {isUploading && <span className="text-[13px] font-bold text-emerald-500 ml-4 animate-pulse">🚀 서버로 전송 중...</span>}
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -692,11 +697,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
                 handleSubmit(e);
               }}
               onClick={(e) => handleSubmit(e)}
-              disabled={isUploading || isSubmitting || !isEditorReady}
+              disabled={isCompressing || isUploading || isSubmitting || !isEditorReady}
               className="px-12 py-3 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-all disabled:bg-gray-400 flex items-center justify-center gap-2"
             >
-              {isSubmitting && <Loader2 className="animate-spin" size={18} />}
-              {isSubmitting ? '등록 중...' : isUploading ? '파일 대기...' : '등록'}
+              {(isCompressing || isUploading || isSubmitting) && <Loader2 className="animate-spin" size={18} />}
+              {/* 💡 버튼에도 현재 상태를 직관적으로 표시 */}
+              {isSubmitting ? '등록 중...' : isCompressing ? '사진 최적화 중...' : isUploading ? '서버 전송 중...' : '등록'}
             </button>
           </div>
         </form>
