@@ -29,18 +29,23 @@ body {
    🚨 [유머인 마스터 에디터 디자인 통합 통제실]
 ==================================================================== */
 
-/* 💡 1. 본문 이미지: 네이버 블로그 완벽 복구 (웹툰 쥐똥 현상 해결!) */
+/* 💡 1. 본문 이미지: 웹툰 무제한 해방 + 덜컹거림 방어 + 에디터 튕김 0% */
 .ql-editor img {
   display: block !important;
   max-width: 100% !important; 
-  /* 🚨 500px 천장(max-height)과 object-fit 코드를 영구 삭제하여 세로 길이를 무제한 해방! */
+  /* 🚨 웹툰의 세로 길이를 무제한 해방하여 원본 비율 완벽 유지 */
   width: auto !important;     
   height: auto !important;
   margin: 0 auto 15px auto !important; 
   border-radius: 8px !important;
+
+  /* 🛡️ [무독성 CLS 방어막] 에디터 버그를 일으키지 않는 순수 CSS 스켈레톤 */
+  background-color: #f8fafc !important; /* 로딩 전 연한 프리미엄 회색 공간 */
+  min-height: 200px !important; /* 빈 공간을 미리 확보하여 텍스트 치고 올라옴 철벽 방어 */
+  object-fit: contain !important; /* 작은 이미지가 억지로 늘어나 깨지는 현상 완벽 방지 */
 }
 
-/* 💡 2. 댓글 이미지: 여기는 쥐똥이 아니라 고양이를 막아야 하므로 350px 천장 유지 */
+/* 💡 2. 댓글 이미지: 고양이 테러 방어 (350px 천장) + 덜컹거림 방어 */
 .humorin-comment-img {
   display: block !important;
   max-width: 250px !important; 
@@ -51,9 +56,13 @@ body {
   border: 1px solid #e5e7eb !important; 
   margin: 10px 0 5px 0 !important;
   object-fit: contain !important; 
+
+  /* 🛡️ [댓글창 CLS 방어막] */
+  background-color: #f8fafc !important; 
+  min-height: 100px !important; /* 댓글은 작을 수 있으므로 100px의 지지대만 세움 */
 }
 
-/* 유튜브 및 동영상 비율 유지 방어 */
+/* 💡 3. 유튜브 및 동영상 비율 유지 방어 (기존 로직 100% 보존 - 충돌 제로) */
 .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube,
 .ql-editor video, .ql-editor video.humorin-mp4 {
   display: block !important;
@@ -75,7 +84,7 @@ body {
   object-fit: contain; 
 }
 
-/* 스마트폰 화면 대응 */
+/* 📱 스마트폰 화면 대응 */
 @media (max-width: 768px) {
   .ql-editor img, .humorin-comment-img, .ql-editor iframe.ql-video, .ql-editor iframe.humorin-youtube, .ql-editor video, .ql-editor video.humorin-mp4 {
     max-width: 100% !important;
@@ -86,7 +95,7 @@ body {
 .ql-editor p br { display: block; }
 /* ==================================================================== */
 
-/* ✨ 베스트 메달 프리미엄 샤인 효과 (서버 부하 0%) */
+/* ✨ 베스트 메달 프리미엄 샤인 효과 (기존 로직 100% 보존) */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
