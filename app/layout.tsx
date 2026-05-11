@@ -16,8 +16,9 @@ export const metadata: Metadata = {
     template: "%s | 유머인",
   },
   description: siteDescription,
+  // 💡 이곳(메타 키워드)이 다양한 검색어 조합을 잡는 핵심 전초기지입니다. (100% 정상)
   keywords: [
-    "유머인", "오늘의재미", "유머", "이슈", "감동", "포럼", "커뮤니티", "유머인사이트", "humorin"
+    "유머인", "오늘의재미", "유머", "이슈", "감동", "포럼", "커뮤니티", "유머인사이트", "humorin", "humorin.kr"
   ],
   manifest: "/manifest.json",
 
@@ -52,7 +53,7 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "유머인 로고",
+        alt: "유머인 공식 로고",
       },
     ],
   },
@@ -64,7 +65,6 @@ export const metadata: Metadata = {
     images: ["/og-image.png"],
   },
   
-  // 👇 바로 이 부분만 캐시 폭파용 꼬리표(?v=2)를 달았습니다!
   icons: {
     icon: '/favicon.ico?v=2',
     apple: '/apple-touch-icon.png?v=2', 
@@ -77,12 +77,34 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   
+  // 🚨 [어뷰징 0% - 네이버/구글 통합 강제 인식 스키마]
+  // 1. WebSite: 일반적인 웹사이트 정보 제출 (구글용)
+  // 2. Organization: 공식 브랜드/기관임을 증명하여 "유머인"을 고유명사로 강제 인식 (네이버용)
+  // ※ alternateName에는 어뷰징 꼬투리를 잡히지 않도록 오직 '영문 도메인/명칭'만 삽입.
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "WebSite",
-    "name": "유머인",
-    "alternateName": ["HUMORIN", "유머인 커뮤니티", "오늘의재미"],
-    "url": siteUrl,
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${siteUrl}/#website`,
+        "url": siteUrl,
+        "name": "유머인", 
+        "alternateName": ["humorin", "humorin.kr"], 
+        "description": siteDescription,
+        "inLanguage": "ko-KR"
+      },
+      {
+        "@type": "Organization",
+        "@id": `${siteUrl}/#organization`,
+        "name": "유머인",
+        "alternateName": ["humorin", "humorin.kr"],
+        "url": siteUrl,
+        "logo": {
+          "@type": "ImageObject",
+          "url": `${siteUrl}/og-image.png`
+        }
+      }
+    ]
   };
 
   return (
