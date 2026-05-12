@@ -265,7 +265,13 @@ export default async function PostDetailPage(props: any) {
     if (!currentUserId) redirect('/login');
 
     if (isAdmin) {
-      await sql`UPDATE posts SET likes = COALESCE(likes, 0) + 10 WHERE id = ${postId}`;
+      // 🚨 [복원 및 강화] 관리자 공감 10회 적용 시 실시간 시간 업데이트 보존
+      await sql`UPDATE posts SET 
+        likes = COALESCE(likes, 0) + 10,
+        best_at = CASE WHEN COALESCE(likes, 0) + 10 >= 10 AND best_at IS NULL THEN NOW() ELSE best_at END,
+        best100_at = CASE WHEN COALESCE(likes, 0) + 10 >= 100 AND best100_at IS NULL THEN NOW() ELSE best100_at END,
+        best1000_at = CASE WHEN COALESCE(likes, 0) + 10 >= 1000 AND best1000_at IS NULL THEN NOW() ELSE best1000_at END
+      WHERE id = ${postId}`;
       return;
     }
 
@@ -285,7 +291,13 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE posts SET likes = GREATEST(COALESCE(likes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO likes (post_id, author, author_id) VALUES (${postId}, ${currentUser}, ${currentUserId})`;
-      await sql`UPDATE posts SET likes = COALESCE(likes, 0) + 1 WHERE id = ${postId}`;
+      // 🚨 [복원 및 강화] 유저 공감 시 실시간 시간 업데이트 (안전하게 >= 연산자 사용)
+      await sql`UPDATE posts SET 
+        likes = COALESCE(likes, 0) + 1,
+        best_at = CASE WHEN COALESCE(likes, 0) + 1 >= 10 AND best_at IS NULL THEN NOW() ELSE best_at END,
+        best100_at = CASE WHEN COALESCE(likes, 0) + 1 >= 100 AND best100_at IS NULL THEN NOW() ELSE best100_at END,
+        best1000_at = CASE WHEN COALESCE(likes, 0) + 1 >= 1000 AND best1000_at IS NULL THEN NOW() ELSE best1000_at END
+      WHERE id = ${postId}`;
     }
   };
 
@@ -293,8 +305,6 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!currentUserId) redirect('/login');
 
-    // 🚨 [수술 1] 비공감 전용 임계값 적용! 
-    // DB에 값이 없으면 무조건 '100회'로 설정하여 멘탈 방어막을 칩니다.
     let dislikeBlindThreshold = 100; 
     try {
       const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'dislike_blind_threshold'`;
@@ -302,7 +312,15 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
 
     if (isAdmin) {
-      await sql`UPDATE posts SET dislikes = COALESCE(dislikes, 0) + 10, is_blinded = CASE WHEN COALESCE(dislikes, 0) + 10 >= ${dislikeBlindThreshold} THEN true ELSE is_blinded END WHERE id = ${postId}`;
+      // 🛡️ [신규 맹점 보완] 관리자가 살린 글(is_safe)은 절대 다시 블라인드 되지 않음
+      await sql`UPDATE posts SET 
+        dislikes = COALESCE(dislikes, 0) + 10, 
+        is_blinded = CASE 
+          WHEN is_safe THEN false 
+          WHEN COALESCE(dislikes, 0) + 10 >= ${dislikeBlindThreshold} THEN true 
+          ELSE is_blinded 
+        END 
+      WHERE id = ${postId}`;
       return;
     }
 
@@ -322,8 +340,15 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE posts SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO post_dislikes (post_id, author_id) VALUES (${postId}, ${currentUserId})`;
-      // 변경된 비공감 기준(dislikeBlindThreshold)으로 블라인드 여부 판독
-      await sql`UPDATE posts SET dislikes = COALESCE(dislikes, 0) + 1, is_blinded = CASE WHEN COALESCE(dislikes, 0) + 1 >= ${dislikeBlindThreshold} THEN true ELSE is_blinded END WHERE id = ${postId}`;
+      // 🛡️ [신규 맹점 보완] 관리자가 살린 글(is_safe)은 절대 다시 블라인드 되지 않음
+      await sql`UPDATE posts SET 
+        dislikes = COALESCE(dislikes, 0) + 1, 
+        is_blinded = CASE 
+          WHEN is_safe THEN false 
+          WHEN COALESCE(dislikes, 0) + 1 >= ${dislikeBlindThreshold} THEN true 
+          ELSE is_blinded 
+        END 
+      WHERE id = ${postId}`;
     }
   };
 
@@ -519,7 +544,6 @@ export default async function PostDetailPage(props: any) {
     if (!currentUserId) return;
     const commentId = formData.get('commentId') as string;
 
-    // 🚨 [수술 2] 댓글 비공감 전용 임계값 적용!
     let dislikeBlindThreshold = 100; 
     try {
       const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'dislike_blind_threshold'`;
@@ -527,7 +551,14 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
 
     if (isAdmin) {
-      await sql`UPDATE comments SET dislikes = COALESCE(dislikes, 0) + 10, is_blinded = CASE WHEN COALESCE(dislikes, 0) + 10 >= ${dislikeBlindThreshold} THEN true ELSE is_blinded END WHERE id = ${commentId}`;
+      await sql`UPDATE comments SET 
+        dislikes = COALESCE(dislikes, 0) + 10, 
+        is_blinded = CASE 
+          WHEN is_safe THEN false 
+          WHEN COALESCE(dislikes, 0) + 10 >= ${dislikeBlindThreshold} THEN true 
+          ELSE is_blinded 
+        END 
+      WHERE id = ${commentId}`;
       return;
     }
 
@@ -547,7 +578,14 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE comments SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${commentId}`;
     } else {
       await sql`INSERT INTO comment_dislikes (comment_id, author_id) VALUES (${commentId}, ${currentUserId})`;
-      await sql`UPDATE comments SET dislikes = COALESCE(dislikes, 0) + 1, is_blinded = CASE WHEN COALESCE(dislikes, 0) + 1 >= ${dislikeBlindThreshold} THEN true ELSE is_blinded END WHERE id = ${commentId}`;
+      await sql`UPDATE comments SET 
+        dislikes = COALESCE(dislikes, 0) + 1, 
+        is_blinded = CASE 
+          WHEN is_safe THEN false 
+          WHEN COALESCE(dislikes, 0) + 1 >= ${dislikeBlindThreshold} THEN true 
+          ELSE is_blinded 
+        END 
+      WHERE id = ${commentId}`;
     }
   };
 
