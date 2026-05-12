@@ -265,11 +265,10 @@ export default async function PostDetailPage(props: any) {
     if (!currentUserId) redirect('/login');
 
     if (isAdmin) {
-      // 🚨 [진짜 SQL 원상복구] JS 계산을 모두 제거하고 DB 자체 엔진(Atomic)으로 완벽하게 처리합니다.
-      // 관리자는 한 번에 10개가 올라가므로, 0~9 사이였을 때 10 이상이 되면 즉시 도장을 찍습니다.
+      // 🚨 [진짜 완벽 SQL 복원] 관리자가 눌러서 10개가 돌파되는 찰나에 실시간 시간(NOW) 강제 주입
       await sql`UPDATE posts SET 
         likes = COALESCE(likes, 0) + 10,
-        best_at = CASE WHEN COALESCE(likes, 0) < 10 THEN NOW() ELSE best_at END,
+        best_at = CASE WHEN COALESCE(likes, 0) < 10 AND COALESCE(likes, 0) + 10 >= 10 THEN NOW() ELSE best_at END,
         best100_at = CASE WHEN COALESCE(likes, 0) < 100 AND COALESCE(likes, 0) + 10 >= 100 THEN NOW() ELSE best100_at END,
         best1000_at = CASE WHEN COALESCE(likes, 0) < 1000 AND COALESCE(likes, 0) + 10 >= 1000 THEN NOW() ELSE best1000_at END
       WHERE id = ${postId}`;
@@ -288,14 +287,11 @@ export default async function PostDetailPage(props: any) {
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
     if (checkRows.length > 0) {
-      // 추천 취소 시 (-1)
       await sql`DELETE FROM likes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
       await sql`UPDATE posts SET likes = GREATEST(COALESCE(likes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
-      // 새로운 추천 추가 시 (+1)
       await sql`INSERT INTO likes (post_id, author, author_id) VALUES (${postId}, ${currentUser}, ${currentUserId})`;
-      
-      // 🚨 [진짜 SQL 원상복구] DB가 알아서 '기존 값이 9개면 10개가 되니까 지금 시간(NOW) 찍어라'를 단일 쿼리로 처리합니다. DB 부하 0!
+      // 🚨 [진짜 완벽 SQL 복원] 일반 유저가 눌러서 9개 -> 10개가 되는 찰나에 실시간 시간(NOW) 강제 주입
       await sql`UPDATE posts SET 
         likes = COALESCE(likes, 0) + 1,
         best_at = CASE WHEN COALESCE(likes, 0) = 9 THEN NOW() ELSE best_at END,
@@ -316,6 +312,7 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
 
     if (isAdmin) {
+      // 🛡️ [마스터 복원] is_safe 사면권 방어막 적용
       await sql`UPDATE posts SET 
         dislikes = COALESCE(dislikes, 0) + 10, 
         is_blinded = CASE 
@@ -343,6 +340,7 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE posts SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO post_dislikes (post_id, author_id) VALUES (${postId}, ${currentUserId})`;
+      // 🛡️ [마스터 복원] is_safe 사면권 방어막 적용
       await sql`UPDATE posts SET 
         dislikes = COALESCE(dislikes, 0) + 1, 
         is_blinded = CASE 
@@ -553,6 +551,7 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
 
     if (isAdmin) {
+      // 🛡️ [마스터 복원] is_safe 사면권 방어막 적용
       await sql`UPDATE comments SET 
         dislikes = COALESCE(dislikes, 0) + 10, 
         is_blinded = CASE 
@@ -580,6 +579,7 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE comments SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${commentId}`;
     } else {
       await sql`INSERT INTO comment_dislikes (comment_id, author_id) VALUES (${commentId}, ${currentUserId})`;
+      // 🛡️ [마스터 복원] is_safe 사면권 방어막 적용
       await sql`UPDATE comments SET 
         dislikes = COALESCE(dislikes, 0) + 1, 
         is_blinded = CASE 
