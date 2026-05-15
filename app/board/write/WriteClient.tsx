@@ -25,9 +25,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const [content, setContent] = useState('');
   const [category, setCategory] = useState(boards && boards.length > 0 ? boards[0].name : '흥미로운 이야기');
   
-  // 💡 상태를 세분화하여 유저에게 진행 과정을 투명하게 보여줌
-  const [isCompressing, setIsCompressing] = useState(false); // 압축 중 상태
-  const [isUploading, setIsUploading] = useState(false);     // 서버 업로드 중 상태
+  const [isCompressing, setIsCompressing] = useState(false); 
+  const [isUploading, setIsUploading] = useState(false);     
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditorReady, setIsEditorReady] = useState(false);
@@ -75,15 +74,57 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             let node = super.create(value);
             if (typeof value === 'object' && value.url) {
               node.setAttribute('src', value.url);
+              
               if (value.width) node.setAttribute('width', value.width);
               if (value.height) node.setAttribute('height', value.height);
-              if (value.width && value.height) {
-                node.style.aspectRatio = `${value.width} / ${value.height}`;
+              
+              if (value.isSliced) {
+                 node.classList.add('humorin-sliced-img');
+                 node.style.setProperty('display', 'block', 'important');
+                 node.style.setProperty('margin-left', 'auto', 'important');
+                 node.style.setProperty('margin-right', 'auto', 'important');
+                 node.style.setProperty('border-radius', '0', 'important');
+                 node.style.setProperty('border', 'none', 'important');
+                 node.style.setProperty('padding', '0', 'important');
+                 node.style.setProperty('vertical-align', 'top', 'important');
+                 
+                 // 💡 [핵심 추가] 가로 길이 원본 고정 자물쇠 (억지로 늘어나는 현상 100% 방지)
+                 if (value.width) {
+                     node.style.setProperty('max-width', `min(100%, ${value.width}px)`, 'important');
+                 }
+
+                 if (value.isFirstSlice) {
+                     node.style.setProperty('border-top-left-radius', '8px', 'important');
+                     node.style.setProperty('border-top-right-radius', '8px', 'important');
+                     node.style.setProperty('margin-top', '15px', 'important');
+                 } else {
+                     node.style.setProperty('margin-top', '0', 'important');
+                 }
+
+                 if (value.isLastSlice) {
+                     node.style.setProperty('border-bottom-left-radius', '8px', 'important');
+                     node.style.setProperty('border-bottom-right-radius', '8px', 'important');
+                     node.style.setProperty('margin-bottom', '15px', 'important');
+                 } else {
+                     node.style.setProperty('margin-bottom', '-1px', 'important'); // 서브픽셀 하얀 실선 방어
+                 }
               }
             } else if (typeof value === 'string') {
               node.setAttribute('src', value);
             }
             return node;
+          }
+          
+          // 💡 수정(Edit) 시 속성 증발 방어 로직
+          static value(node: any) {
+            return {
+              url: node.getAttribute('src'),
+              width: node.getAttribute('width'),
+              height: node.getAttribute('height'),
+              isSliced: node.classList.contains('humorin-sliced-img'),
+              isFirstSlice: node.style.marginTop === '15px',
+              isLastSlice: node.style.marginBottom === '15px'
+            };
           }
         }
         CustomImage.blotName = 'image';
@@ -142,45 +183,87 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     });
   }, [isGlobalLocked, isAdmin, router]);
 
+  // 💡 [WebP 완벽 보존] 15,000px 단위 분할
+  const sliceHugeImage = async (file: File, img: HTMLImageElement): Promise<File[]> => {
+    const sliceHeight = 15000; 
+    const numSlices = Math.ceil(img.height / sliceHeight);
+    const slices: File[] = [];
+
+    for (let i = 0; i < numSlices; i++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      const currentSliceHeight = (i === numSlices - 1) ? img.height - (i * sliceHeight) : sliceHeight;
+      canvas.height = currentSliceHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, i * sliceHeight, img.width, currentSliceHeight, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/webp', 0.9));
+        if (blob) {
+          const newFileName = `${file.name.replace(/\.[^/.]+$/, "")}_part${i + 1}.webp`;
+          const sliceFile = new File([blob], newFileName, { type: 'image/webp' });
+          (sliceFile as any).isSliced = true;
+          (sliceFile as any).isFirstSlice = (i === 0);
+          (sliceFile as any).isLastSlice = (i === numSlices - 1); 
+          slices.push(sliceFile);
+        }
+      }
+    }
+    return slices;
+  };
+
   const processAndUploadImages = async (fileArray: File[], forcedIndex?: number) => {
     if (!quillRef.current) return;
 
     const editor = quillRef.current.getEditor();
     const currentImageCount = editor.root.querySelectorAll('img').length;
-    if (currentImageCount + fileArray.length > 20) {
-      alert(`🚨 사진은 게시글당 최대 20장까지만 첨부할 수 있습니다.\n(현재 ${currentImageCount}장 포함됨)`);
+    
+    // 조각 분할을 고려하여 넉넉하게 50장 한도
+    if (currentImageCount + fileArray.length > 50) {
+      alert(`🚨 사진은 게시글당 최대 50장까지만 첨부할 수 있습니다.\n(현재 ${currentImageCount}장 포함됨)`);
       return;
     }
 
-    setIsCompressing(true); // 💡 압축 시작 알림
+    setIsCompressing(true); 
     let insertIndex = forcedIndex !== undefined ? forcedIndex : (editor.getSelection()?.index || editor.getLength());
 
     try {
-      const compressPromises = fileArray.filter(f => f.type.startsWith('image/')).map(async (file) => {
-        if (file.type === 'image/gif' || file.type === 'image/webp') return file;
+      const processedFiles: File[] = [];
+      const imageFiles = fileArray.filter(f => f.type.startsWith('image/'));
+
+      for (const file of imageFiles) {
+        if (file.type === 'image/gif' || file.type === 'image/webp') {
+          processedFiles.push(file);
+          continue;
+        }
+
         try {
           const img = new Image();
           img.src = URL.createObjectURL(file);
           await new Promise((resolve) => { img.onload = resolve; });
-          const isLongImage = img.height > img.width * 2;
-          URL.revokeObjectURL(img.src);
+          
+          // 💡 15,000px 초과 시에만 분할 발동! 이하는 단 한 장의 원본 압축으로 통과
+          if (img.height > 15000) {
+            const slices = await sliceHugeImage(file, img);
+            URL.revokeObjectURL(img.src);
+            processedFiles.push(...slices);
+          } else {
+            const isLongImage = img.height > img.width * 2;
+            URL.revokeObjectURL(img.src);
+            const options = isLongImage
+              ? { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: false, initialQuality: 0.9, fileType: 'image/webp' }
+              : { maxSizeMB: 0.3, maxWidthOrHeight: 1200, useWebWorker: false, initialQuality: 0.85, fileType: 'image/webp' };
 
-          const options = isLongImage
-            ? { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: false, initialQuality: 0.9, fileType: 'image/webp' }
-            : { maxSizeMB: 0.3, maxWidthOrHeight: 1200, useWebWorker: false, initialQuality: 0.85, fileType: 'image/webp' };
-
-          const compressedBlob = await imageCompression(file, options);
-          const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
-          return new File([compressedBlob], newFileName, { type: 'image/webp' });
+            const compressedBlob = await imageCompression(file, options);
+            const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+            processedFiles.push(new File([compressedBlob], newFileName, { type: 'image/webp' }));
+          }
         } catch (e) {
-          return file; 
+          processedFiles.push(file);
         }
-      });
+      }
 
-      const processedFiles = (await Promise.all(compressPromises)).filter(Boolean) as File[];
-
-      setIsCompressing(false); // 압축 끝
-      setIsUploading(true);    // 💡 업로드 시작 알림
+      setIsCompressing(false); 
+      setIsUploading(true);    
 
       const approvedFiles: File[] = [];
       for (const file of processedFiles) {
@@ -203,6 +286,9 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         });
 
         const safeContentType = file.type || 'image/webp';
+        const isSliced = (file as any).isSliced === true;
+        const isFirstSlice = (file as any).isFirstSlice === true;
+        const isLastSlice = (file as any).isLastSlice === true;
 
         const ticketRes = await fetch('/api/upload', {
           method: 'POST',
@@ -212,17 +298,30 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         const { uploadUrl, publicUrl } = await ticketRes.json();
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': safeContentType } });
-          return { url: publicUrl, width: dimensions.w, height: dimensions.h };
+          return { url: publicUrl, width: dimensions.w, height: dimensions.h, isSliced, isFirstSlice, isLastSlice };
         }
         return null;
       });
 
-      const uploadedImages = (await Promise.all(uploadPromises)).filter(Boolean) as { url: string, width: number, height: number }[];
+      const uploadedImages = (await Promise.all(uploadPromises)).filter(Boolean) as { url: string, width: number, height: number, isSliced: boolean, isFirstSlice: boolean, isLastSlice: boolean }[];
 
       uploadedImages.forEach(img => {
-        editor.insertEmbed(insertIndex, 'image', { url: img.url, width: img.width, height: img.height }, 'silent');
-        editor.insertText(insertIndex + 1, '\n', 'silent');
-        insertIndex += 2;
+        editor.insertEmbed(insertIndex, 'image', { 
+            url: img.url, 
+            width: img.width, 
+            height: img.height, 
+            isSliced: img.isSliced, 
+            isFirstSlice: img.isFirstSlice,
+            isLastSlice: img.isLastSlice 
+        }, 'silent');
+        
+        // 💡 분할된 이미지들은 엔터를 생략하여 같은 <p> 태그 안에 강제 병합시킵니다.
+        if (!img.isSliced || img.isLastSlice) {
+          editor.insertText(insertIndex + 1, '\n', 'silent');
+          insertIndex += 2;
+        } else {
+          insertIndex += 1; 
+        }
       });
       editor.setSelection(insertIndex, 'silent');
 
@@ -573,7 +672,28 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before { content: '36'; }
         .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16'; } 
 
+        /* 💡 가로 늘어짐 방지: width: auto !important 를 완벽하게 부활시켰습니다 */
         .ql-editor img { max-width: 100%; width: auto !important; height: auto; border-radius: 8px; display: block; margin: 15px auto !important; }
+        
+        /* 💡 조각 이미지를 위한 기본 설정 (에디터 속성 오버라이드 방어) */
+        .ql-editor img.humorin-sliced-img {
+            margin: 0 auto !important;
+            border-radius: 0 !important;
+            display: block !important;
+            padding: 0 !important;
+            border: 0 !important;
+            vertical-align: top !important;
+        }
+
+        /* 💡 빈틈 완벽 멸망 CSS: 조각 이미지를 품은 문단(<p>)의 불필요한 줄간격과 텍스트 여백을 0으로 짓눌러 영구 차단합니다 */
+        .ql-editor p:has(img.humorin-sliced-img) {
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 0 !important;
+            font-size: 0 !important;
+            text-align: center;
+        }
+
         @media (min-width: 768px) { .ql-editor img { max-width: 800px !important; } }
         
         .ql-editor video.humorin-mp4, .ql-editor iframe.humorin-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
@@ -585,7 +705,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
         <h1 className="text-xl font-bold text-gray-800 mb-6 border-b border-gray-300 pb-3 flex items-center gap-2">
           글쓰기 
-          {/* 💡 투명한 상태 알림창 추가 */}
           {isCompressing && <span className="text-[13px] font-bold text-blue-500 ml-4 animate-pulse">📷 사진 용량 최적화 중... (최대 10초)</span>}
           {isUploading && <span className="text-[13px] font-bold text-emerald-500 ml-4 animate-pulse">🚀 서버로 전송 중...</span>}
         </h1>
@@ -701,7 +820,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
               className="px-12 py-3 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-all disabled:bg-gray-400 flex items-center justify-center gap-2"
             >
               {(isCompressing || isUploading || isSubmitting) && <Loader2 className="animate-spin" size={18} />}
-              {/* 💡 버튼에도 현재 상태를 직관적으로 표시 */}
               {isSubmitting ? '등록 중...' : isCompressing ? '사진 최적화 중...' : isUploading ? '서버 전송 중...' : '등록'}
             </button>
           </div>
