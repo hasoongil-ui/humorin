@@ -265,7 +265,6 @@ export default async function PostDetailPage(props: any) {
     if (!currentUserId) redirect('/login');
 
     if (isAdmin) {
-      // 🚨 [진짜 완벽 SQL 복원] 관리자가 눌러서 10개가 돌파되는 찰나에 실시간 시간(NOW) 강제 주입
       await sql`UPDATE posts SET 
         likes = COALESCE(likes, 0) + 10,
         best_at = CASE WHEN COALESCE(likes, 0) < 10 AND COALESCE(likes, 0) + 10 >= 10 THEN NOW() ELSE best_at END,
@@ -291,7 +290,6 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE posts SET likes = GREATEST(COALESCE(likes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO likes (post_id, author, author_id) VALUES (${postId}, ${currentUser}, ${currentUserId})`;
-      // 🚨 [진짜 완벽 SQL 복원] 일반 유저가 눌러서 9개 -> 10개가 되는 찰나에 실시간 시간(NOW) 강제 주입
       await sql`UPDATE posts SET 
         likes = COALESCE(likes, 0) + 1,
         best_at = CASE WHEN COALESCE(likes, 0) = 9 THEN NOW() ELSE best_at END,
@@ -312,7 +310,6 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
 
     if (isAdmin) {
-      // 🛡️ [마스터 복원] is_safe 사면권 방어막 적용
       await sql`UPDATE posts SET 
         dislikes = COALESCE(dislikes, 0) + 10, 
         is_blinded = CASE 
@@ -340,7 +337,6 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE posts SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${postId}`;
     } else {
       await sql`INSERT INTO post_dislikes (post_id, author_id) VALUES (${postId}, ${currentUserId})`;
-      // 🛡️ [마스터 복원] is_safe 사면권 방어막 적용
       await sql`UPDATE posts SET 
         dislikes = COALESCE(dislikes, 0) + 1, 
         is_blinded = CASE 
@@ -551,7 +547,6 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
 
     if (isAdmin) {
-      // 🛡️ [마스터 복원] is_safe 사면권 방어막 적용
       await sql`UPDATE comments SET 
         dislikes = COALESCE(dislikes, 0) + 10, 
         is_blinded = CASE 
@@ -579,7 +574,6 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE comments SET dislikes = GREATEST(COALESCE(dislikes, 0) - 1, 0) WHERE id = ${commentId}`;
     } else {
       await sql`INSERT INTO comment_dislikes (comment_id, author_id) VALUES (${commentId}, ${currentUserId})`;
-      // 🛡️ [마스터 복원] is_safe 사면권 방어막 적용
       await sql`UPDATE comments SET 
         dislikes = COALESCE(dislikes, 0) + 1, 
         is_blinded = CASE 
@@ -973,6 +967,51 @@ export default async function PostDetailPage(props: any) {
                 </form>
               </div>
             )}
+
+            {/* 🚨 CLS 방어 및 틈새 이중 압착을 위한 뷰어 전용 렌더링 엔진 CSS 주입 */}
+            <style dangerouslySetInnerHTML={{
+              __html: `
+              /* 1. CLS(덜컹거림) 및 로딩 지연 완벽 방어 */
+              .post-content-area .ql-editor img {
+                max-width: 100% !important;
+                width: unset !important; /* 글로벌로 오염된 width: auto 강제 무효화 및 HTML 원래 속성 복구 */
+                height: auto !important; 
+              }
+              
+              /* 2. 조각 이미지(15000px 이상) 틈새 0px 이중 진공 압착 */
+              .post-content-area .ql-editor p:has(img.humorin-sliced-img) {
+                margin: 0 !important;
+                padding: 0 !important;
+                line-height: 0 !important;
+                font-size: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+              }
+
+              .post-content-area .ql-editor img.humorin-sliced-img {
+                margin: 0 auto !important;
+                border-radius: 0 !important;
+                display: block !important;
+              }
+
+              .post-content-area .ql-editor p:has(img.humorin-sliced-img) img:first-of-type {
+                border-top-left-radius: 8px !important;
+                border-top-right-radius: 8px !important;
+                margin-top: 15px !important;
+              }
+
+              .post-content-area .ql-editor p:has(img.humorin-sliced-img) img:last-of-type {
+                border-bottom-left-radius: 8px !important;
+                border-bottom-right-radius: 8px !important;
+                margin-bottom: 15px !important;
+              }
+
+              .post-content-area .ql-editor p:has(img.humorin-sliced-img) img:not(:last-of-type) {
+                margin-bottom: -1px !important;
+              }
+              `
+            }} />
 
             <div className="min-h-[300px] text-[17px] whitespace-pre-wrap leading-relaxed ql-editor" dangerouslySetInnerHTML={{ __html: cleanContent }} />
           </div>
