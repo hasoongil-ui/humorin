@@ -125,6 +125,13 @@ export default async function AdminDashboardPage(props: any) {
             <li><Link href="/admin/comments" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] transition-colors"><span>💬</span> 댓글 관리</Link></li>
             <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] transition-colors"><span>⚙️</span> 설정/게시판 관리</Link></li>
             <li><Link href="/admin/blind" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] transition-colors"><span>🚨</span> 블라인드 관리</Link></li>
+            {/* 💡 완벽하게 복구된 서버 모니터링 메뉴 (디자인 100% 동기화) */}
+            <li>
+              <Link href="/admin/monitor" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between px-6 py-3.5 font-bold text-[16px] text-emerald-400 hover:bg-[#3b4890] hover:text-emerald-300 transition-colors">
+                <div className="flex items-center gap-3"><span>🖥️</span> 서버 모니터링</div>
+                <span className="text-[12px] font-black">↗</span>
+              </Link>
+            </li>
           </ul>
         </nav>
       </aside>
@@ -148,7 +155,6 @@ export default async function AdminDashboardPage(props: any) {
             <div className="bg-white p-4 rounded-sm border border-red-200 shadow-sm flex flex-col gap-4 relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500"></div>
               <h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-red-500">🚫</span> 영구 차단 IP 관리 (사면권)</h2>
-              {/* 💡 핵심 수술: IP 박스 스크롤바 장착 (max-h-[160px] overflow-y-auto content-start) */}
               <div className="bg-red-50/50 p-3 rounded-sm border border-red-100 flex flex-wrap content-start gap-2 min-h-[60px] max-h-[160px] overflow-y-auto">
                 {bannedIpsArray.length > 0 ? bannedIpsArray.map(ip => (
                   <form action={unbanIpAddress} key={ip} className="inline-flex">
@@ -176,27 +182,27 @@ export default async function AdminDashboardPage(props: any) {
                 </form>
               </div>
               <div className="bg-emerald-50/30 p-2 rounded-sm border border-emerald-100 max-h-[160px] overflow-y-auto">
-                 {heavyPosts.length > 0 ? (
-                   <ul className="space-y-1.5 pr-1">
-                     {heavyPosts.map((post, idx) => (
-                       <li key={post.id} className="flex items-center justify-between bg-white border border-emerald-100 p-1.5 rounded-sm shadow-sm">
-                         <div className="flex items-center gap-2 truncate pr-2">
-                           <span className={`text-[11px] font-black rounded-sm px-1.5 py-0.5 ${idx < 5 ? 'text-white bg-emerald-500' : 'text-emerald-600 bg-emerald-100'}`}>{idx + 1}위</span>
-                           <span className="text-[12px] font-bold text-gray-800 truncate" title={post.title}>{post.title}</span>
-                         </div>
-                         <div className="flex items-center gap-2 shrink-0">
-                           <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-sm flex items-center gap-1">📷 {post.img_count}장</span>
-                           <Link href={`/board/${post.id}`} target="_blank" className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-sm hover:bg-emerald-700">🔍 확인</Link>
-                         </div>
-                       </li>
-                     ))}
-                   </ul>
-                 ) : (
-                   <div className="py-6 text-center">
-                     <p className="text-[12px] font-bold text-gray-400">레이더가 대기 중입니다.</p>
-                     <p className="text-[10px] text-gray-300 mt-1">조회할 기간을 선택하고 버튼을 눌러주십시오.</p>
-                   </div>
-                 )}
+                {heavyPosts.length > 0 ? (
+                  <ul className="space-y-1.5 pr-1">
+                    {heavyPosts.map((post, idx) => (
+                      <li key={post.id} className="flex items-center justify-between bg-white border border-emerald-100 p-1.5 rounded-sm shadow-sm">
+                        <div className="flex items-center gap-2 truncate pr-2">
+                          <span className={`text-[11px] font-black rounded-sm px-1.5 py-0.5 ${idx < 5 ? 'text-white bg-emerald-500' : 'text-emerald-600 bg-emerald-100'}`}>{idx + 1}위</span>
+                          <span className="text-[12px] font-bold text-gray-800 truncate" title={post.title}>{post.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-sm flex items-center gap-1">📷 {post.img_count}장</span>
+                          <Link href={`/board/${post.id}`} target="_blank" className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-sm hover:bg-emerald-700">🔍 확인</Link>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="py-6 text-center">
+                    <p className="text-[12px] font-bold text-gray-400">레이더가 대기 중입니다.</p>
+                    <p className="text-[10px] text-gray-300 mt-1">조회할 기간을 선택하고 버튼을 눌러주십시오.</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -233,14 +239,14 @@ export default async function AdminDashboardPage(props: any) {
           <div className="bg-white p-3 rounded-sm border border-gray-200 shadow-sm mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h2 className="text-sm font-black text-[#3b4890] flex items-center gap-1"><span>🔍</span> 악성 유저 추적 검색</h2>
             <form method="GET" action="/admin" className="flex items-center gap-2">
-                <select name="type" defaultValue={type} className="text-xs font-bold border border-gray-300 p-1.5 rounded-sm outline-none bg-white text-gray-700">
-                  <option value="userid">아이디</option><option value="nickname">닉네임</option><option value="ip">접속 IP</option>
-                </select>
-                <input type="text" name="q" defaultValue={q} placeholder="검색어 입력..." className="text-xs font-bold border border-gray-300 p-1.5 rounded-sm outline-none w-48 focus:border-[#3b4890]" />
-                <button type="submit" className="px-4 py-1.5 bg-[#414a66] text-white text-xs font-bold rounded-sm hover:bg-[#2a3042] shadow-sm">검색</button>
+              <select name="type" defaultValue={type} className="text-xs font-bold border border-gray-300 p-1.5 rounded-sm outline-none bg-white text-gray-700">
+                <option value="userid">아이디</option><option value="nickname">닉네임</option><option value="ip">접속 IP</option>
+              </select>
+              <input type="text" name="q" defaultValue={q} placeholder="검색어 입력..." className="text-xs font-bold border border-gray-300 p-1.5 rounded-sm outline-none w-48 focus:border-[#3b4890]" />
+              <button type="submit" className="px-4 py-1.5 bg-[#414a66] text-white text-xs font-bold rounded-sm hover:bg-[#2a3042] shadow-sm">검색</button>
             </form>
           </div>
-          
+
           <div className="bg-white rounded-sm border border-gray-200 shadow-sm overflow-hidden flex flex-col">
             <div className="overflow-auto w-full max-h-[65vh]">
               <table className="w-full text-left border-collapse whitespace-nowrap table-fixed min-w-[1300px]">
@@ -296,7 +302,7 @@ export default async function AdminDashboardPage(props: any) {
                 </tbody>
               </table>
             </div>
-            
+
             <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-center flex-shrink-0">
               <div className="flex gap-3">
                 <Link href={`/admin?page=${currentPage - 1}${q ? `&q=${q}&type=${type}` : ''}`} className={`px-4 py-1.5 border border-gray-300 bg-white text-gray-600 text-[13px] font-bold rounded-sm hover:bg-gray-50 ${currentPage <= 1 ? 'pointer-events-none opacity-40' : ''}`}>◀ 이전</Link>
