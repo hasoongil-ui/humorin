@@ -86,15 +86,26 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
         let file = e.target.files?.[0]; // 💡 재할당 가능하도록 let으로 변경
         if (!file) return;
 
-        // 💡 [갤럭시 스마트폰 확장자 증발 방어막 패치]
-        // 정규식으로 실제 이미지 확장자(.jpg, .png 등)가 있는지 정밀 검사
+        // 💡 [최신 기기 엑박 방어막 패치: 스마트 확장자 감별기]
         const hasValidExtension = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
         
-        // 확장자가 없거나(img.humorin.kr 등) 브라우저가 타입을 모른다면 강제로 .jpg 인식 처리
+        // 확장자가 없거나 브라우저가 타입을 모른다면 강제 jpg 대신 진짜 타입을 찾아줍니다.
         if (!file.type || file.type === 'application/octet-stream' || !hasValidExtension) {
-            const newFileName = hasValidExtension ? file.name : `${file.name}.jpg`;
+            let correctType = 'image/jpeg';
+            let newFileName = file.name;
+
+            // 파일 이름의 꼬리표(확장자)를 읽어 진짜 신분을 찾아줍니다.
+            if (/\.webp$/i.test(file.name)) correctType = 'image/webp';
+            else if (/\.png$/i.test(file.name)) correctType = 'image/png';
+            else if (/\.gif$/i.test(file.name)) correctType = 'image/gif';
+            else if (/\.(jpg|jpeg)$/i.test(file.name)) correctType = 'image/jpeg';
+            else if (!hasValidExtension) {
+                newFileName = `${file.name}.jpg`; // 진짜 확장자가 없을 때만 jpg 구명조끼를 입힙니다.
+            }
+
+            // 에러 없는 가장 안전한 방식(new File)으로 신분증을 완벽하게 갱신합니다.
             file = new File([file], newFileName, {
-                type: 'image/jpeg',
+                type: correctType,
                 lastModified: file.lastModified || Date.now(),
             });
         }
