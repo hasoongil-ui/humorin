@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 
-// 🚨 [궁극의 패치 1] 파일의 유전자(Magic Bytes)를 투시하여 진짜 정체를 밝혀내는 엔진
+// 🚨 [매직 바이트 투시 엔진] 파일 원본을 건드리지 않고 진짜 유전자만 판독
 const getTrueMimeType = (file: File): Promise<string> => {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -11,24 +11,20 @@ const getTrueMimeType = (file: File): Promise<string> => {
             const arr = new Uint8Array(e.target?.result as ArrayBuffer);
             if (arr.length < 12) return resolve(file.type || 'image/jpeg');
 
-            // 바이트 코드를 16진수로 변환
             const hex = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
-
             if (hex.startsWith('89504E47')) resolve('image/png');
-            else if (hex.startsWith('47494638')) resolve('image/gif'); // GIF8 감지
-            else if (hex.startsWith('FFD8FF')) resolve('image/jpeg'); // JPG 감지
-            else if (hex.startsWith('52494646') && hex.substring(16, 24) === '57454250') resolve('image/webp'); // RIFF...WEBP 감지
-            else resolve(file.type || 'image/jpeg'); // 알 수 없을 땐 기본값
+            else if (hex.startsWith('47494638')) resolve('image/gif'); 
+            else if (hex.startsWith('FFD8FF')) resolve('image/jpeg'); 
+            else if (hex.startsWith('52494646') && hex.substring(16, 24) === '57454250') resolve('image/webp'); 
+            else resolve(file.type || 'image/jpeg'); 
         };
         reader.onerror = () => resolve(file.type || 'image/jpeg');
-        reader.readAsArrayBuffer(file.slice(0, 12)); // 앞부분 12바이트만 0.001초 만에 스캔
+        reader.readAsArrayBuffer(file.slice(0, 12)); 
     });
 };
 
-// 🚨 [신규 엔진 2] WebP 파일 내부를 투시하여 움짤(ANIM)인지 판독하는 함수
 const isAnimatedWebP = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
-        if (file.type !== 'image/webp') return resolve(false);
         const reader = new FileReader();
         reader.onload = () => {
             const arr = new Uint8Array(reader.result as ArrayBuffer);
@@ -44,7 +40,6 @@ const isAnimatedWebP = (file: File): Promise<boolean> => {
     });
 };
 
-// 🛠️ [미나의 초경량 압축기]
 const compressImageToWebP = (file: File): Promise<File> => {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -73,9 +68,7 @@ const compressImageToWebP = (file: File): Promise<File> => {
                         (blob) => {
                             if (blob) {
                                 const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
-                                const newFile = new File([blob], newFileName, {
-                                    type: 'image/webp',
-                                });
+                                const newFile = new File([blob], newFileName, { type: 'image/webp' });
                                 resolve(newFile);
                             } else {
                                 resolve(file);
@@ -97,6 +90,7 @@ const compressImageToWebP = (file: File): Promise<File> => {
 export default function CommentForm({ postId, parentId, author, actionType, submitAction }: any) {
     const [content, setContent] = useState('');
     const [imageFile, setImageFile] = useState<File | null>(null);
+    const [uploadMeta, setUploadMeta] = useState({ name: '', type: '' }); // 💡 서버에 보낼 진짜 신분증(메모장)
     const [previewUrl, setPreviewUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [botTrap, setBotTrap] = useState('');
@@ -104,36 +98,29 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
     const uniqueId = parentId ? `image-${parentId}` : 'image-main';
 
     const handleFileChange = async (e: any) => {
-        let file = e.target.files?.[0];
+        const file = e.target.files?.[0]; // 🚨 절대 let으로 바꾸거나 원본을 훼손하지 않습니다!
         if (!file) return;
 
-        // 💡 [폴드2 엑박 완벽 박멸: Magic Bytes 투시 및 교정 로직]
-        const trueType = await getTrueMimeType(file); // 유전자를 투시해 진짜 타입을 알아냅니다.
-        
+        // 💡 1. 파일 원본은 그대로 두고, 진짜 유전자 정보만 스캔해서 메모장에 적어둡니다.
+        const trueType = await getTrueMimeType(file);
         let correctExtension = trueType.split('/')[1] || 'jpg';
         if (correctExtension === 'jpeg') correctExtension = 'jpg';
-
-        // 갤럭시가 속여놓은 가짜 확장자를 벗겨내고, 진짜 유전자에 맞는 올바른 이름표를 달아줍니다.
+        
         const baseName = file.name.replace(/\.[^/.]+$/, "");
-        const newFileName = `${baseName}.${correctExtension}`;
+        const safeFileName = `${baseName}.${correctExtension}`;
 
-        // 껍데기(이름, 타입)와 뱃속(데이터)이 100% 일치하는 완벽한 무결점 파일로 재조립!
-        file = new File([file], newFileName, {
-            type: trueType,
-            lastModified: file.lastModified || Date.now(),
-        });
+        const isWebPAnim = trueType === 'image/webp' ? await isAnimatedWebP(file) : false;
 
-        // 🚨 이후 로직은 기존과 10000% 동일하게 안전하게 흘러갑니다.
-        const isWebPAnim = await isAnimatedWebP(file);
-
-        if (file.type === 'image/gif' || isWebPAnim) {
+        // 🚨 2. 안드로이드 권한 증발을 막기 위해 원본(file)을 그대로 사용합니다.
+        if (trueType === 'image/gif' || isWebPAnim) {
             if (file.size > 2 * 1024 * 1024) {
                 alert('🚨 움짤(GIF 및 WebP 애니메이션)은 서버 쾌적화를 위해 2MB 이하만 첨부 가능합니다.');
                 if (fileInputRef.current) fileInputRef.current.value = '';
                 return;
             }
-            setImageFile(file);
-            setPreviewUrl(URL.createObjectURL(file)); // 폴드2에서도 이제 절대 엑박이 뜨지 않습니다!
+            setImageFile(file); // 원본 보존!
+            setUploadMeta({ name: safeFileName, type: trueType }); // 진짜 신분증 기억!
+            setPreviewUrl(URL.createObjectURL(file)); // 권한이 살아있어 엑박 절대 안 뜸!
         } else {
             if (file.size > 3 * 1024 * 1024) {
                 alert('일반 이미지는 최대 3MB까지 선택 가능합니다.');
@@ -142,11 +129,15 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
             }
 
             try {
+                // 일반 사진은 압축기 통과 (압축된 파일은 새롭게 생성된 안전한 Blob이므로 문제없음)
                 const compressedFile = await compressImageToWebP(file);
                 setImageFile(compressedFile);
+                setUploadMeta({ name: compressedFile.name, type: compressedFile.type });
                 setPreviewUrl(URL.createObjectURL(compressedFile));
             } catch (error) {
+                // 압축 실패 시에도 원본 보존
                 setImageFile(file);
+                setUploadMeta({ name: safeFileName, type: trueType });
                 setPreviewUrl(URL.createObjectURL(file));
             }
         }
@@ -154,6 +145,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
 
     const removeImage = () => {
         setImageFile(null);
+        setUploadMeta({ name: '', type: '' });
         setPreviewUrl('');
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
@@ -167,14 +159,15 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
 
         if (imageFile) {
             try {
+                // 💡 서버에는 원본 파일(imageFile)과 함께, 우리가 스캔해 둔 진짜 신분증(uploadMeta)을 전달!
                 const ticketRes = await fetch('/api/upload', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ filename: imageFile.name, contentType: imageFile.type }),
+                    body: JSON.stringify({ filename: uploadMeta.name, contentType: uploadMeta.type }),
                 });
                 const { uploadUrl, publicUrl } = await ticketRes.json();
                 if (uploadUrl) {
-                    await fetch(uploadUrl, { method: 'PUT', body: imageFile, headers: { 'Content-Type': imageFile.type } });
+                    await fetch(uploadUrl, { method: 'PUT', body: imageFile, headers: { 'Content-Type': uploadMeta.type } });
                     finalImageUrl = publicUrl;
                 }
             } catch (error) {
@@ -200,6 +193,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
 
         setContent('');
         setImageFile(null);
+        setUploadMeta({ name: '', type: '' });
         setPreviewUrl('');
         if (fileInputRef.current) fileInputRef.current.value = '';
         setIsSubmitting(false);
