@@ -3,43 +3,27 @@
 import { useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 
-// 🚨 [매직 바이트 투시 엔진] 파일 원본을 건드리지 않고 진짜 유전자만 판독
-const getTrueMimeType = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const arr = new Uint8Array(e.target?.result as ArrayBuffer);
-            if (arr.length < 12) return resolve(file.type || 'image/jpeg');
-
-            const hex = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
-            if (hex.startsWith('89504E47')) resolve('image/png');
-            else if (hex.startsWith('47494638')) resolve('image/gif'); 
-            else if (hex.startsWith('FFD8FF')) resolve('image/jpeg'); 
-            else if (hex.startsWith('52494646') && hex.substring(16, 24) === '57454250') resolve('image/webp'); 
-            else resolve(file.type || 'image/jpeg'); 
-        };
-        reader.onerror = () => resolve(file.type || 'image/jpeg');
-        reader.readAsArrayBuffer(file.slice(0, 12)); 
-    });
-};
-
+// 🚨 [신규 엔진] WebP 파일 내부를 투시하여 움짤(ANIM)인지 판독하는 함수
 const isAnimatedWebP = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
+        if (file.type !== 'image/webp') return resolve(false);
         const reader = new FileReader();
         reader.onload = () => {
             const arr = new Uint8Array(reader.result as ArrayBuffer);
+            // 파일의 앞부분 헤더를 스캔하여 'ANIM' 청크(움짤 식별자)가 있는지 확인
             for (let i = 0; i < arr.length - 4; i++) {
                 if (arr[i] === 0x41 && arr[i + 1] === 0x4E && arr[i + 2] === 0x49 && arr[i + 3] === 0x4D) {
-                    return resolve(true);
+                    return resolve(true); // "이건 WebP 움짤이다!"
                 }
             }
-            resolve(false);
+            resolve(false); // "일반 WebP 사진이다"
         };
         reader.onerror = () => resolve(false);
-        reader.readAsArrayBuffer(file.slice(0, 256));
+        reader.readAsArrayBuffer(file.slice(0, 256)); // 속도 저하를 막기 위해 파일 앞부분만 0.01초 만에 스캔
     });
 };
 
+// 🛠️ [미나의 초경량 압축기]
 const compressImageToWebP = (file: File): Promise<File> => {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -68,7 +52,9 @@ const compressImageToWebP = (file: File): Promise<File> => {
                         (blob) => {
                             if (blob) {
                                 const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
-                                const newFile = new File([blob], newFileName, { type: 'image/webp' });
+                                const newFile = new File([blob], newFileName, {
+                                    type: 'image/webp',
+                                });
                                 resolve(newFile);
                             } else {
                                 resolve(file);
@@ -90,7 +76,6 @@ const compressImageToWebP = (file: File): Promise<File> => {
 export default function CommentForm({ postId, parentId, author, actionType, submitAction }: any) {
     const [content, setContent] = useState('');
     const [imageFile, setImageFile] = useState<File | null>(null);
-    const [uploadMeta, setUploadMeta] = useState({ name: '', type: '' }); // 💡 서버에 보낼 진짜 신분증(메모장)
     const [previewUrl, setPreviewUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [botTrap, setBotTrap] = useState('');
@@ -98,30 +83,37 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
     const uniqueId = parentId ? `image-${parentId}` : 'image-main';
 
     const handleFileChange = async (e: any) => {
-        const file = e.target.files?.[0]; // 🚨 절대 let으로 바꾸거나 원본을 훼손하지 않습니다!
+        let file = e.target.files?.[0]; // 💡 재할당 가능하도록 let으로 변경
         if (!file) return;
 
-        // 💡 1. 파일 원본은 그대로 두고, 진짜 유전자 정보만 스캔해서 메모장에 적어둡니다.
-        const trueType = await getTrueMimeType(file);
-        let correctExtension = trueType.split('/')[1] || 'jpg';
-        if (correctExtension === 'jpeg') correctExtension = 'jpg';
+        // 💡 [갤럭시 스마트폰 확장자 증발 방어막 패치]
+        // 정규식으로 실제 이미지 확장자(.jpg, .png 등)가 있는지 정밀 검사
+        const hasValidExtension = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
         
-        const baseName = file.name.replace(/\.[^/.]+$/, "");
-        const safeFileName = `${baseName}.${correctExtension}`;
+        // 확장자가 없거나(img.humorin.kr 등) 브라우저가 타입을 모른다면 강제로 .jpg 인식 처리
+        if (!file.type || file.type === 'application/octet-stream' || !hasValidExtension) {
+            const newFileName = hasValidExtension ? file.name : `${file.name}.jpg`;
+            file = new File([file], newFileName, {
+                type: 'image/jpeg',
+                lastModified: file.lastModified || Date.now(),
+            });
+        }
 
-        const isWebPAnim = trueType === 'image/webp' ? await isAnimatedWebP(file) : false;
+        // 🚨 새로 추가된 WebP 움짤 엑스레이 스캔!
+        const isWebPAnim = await isAnimatedWebP(file);
 
-        // 🚨 2. 안드로이드 권한 증발을 막기 위해 원본(file)을 그대로 사용합니다.
-        if (trueType === 'image/gif' || isWebPAnim) {
+        // 🚨 투트랙 용량 통제소: GIF이거나, 엑스레이로 판독된 WebP 움짤인 경우
+        if (file.type === 'image/gif' || isWebPAnim) {
+            // [트랙 1] 움짤(GIF/WebP)은 2MB 이하만 첨부 가능!
             if (file.size > 2 * 1024 * 1024) {
                 alert('🚨 움짤(GIF 및 WebP 애니메이션)은 서버 쾌적화를 위해 2MB 이하만 첨부 가능합니다.');
                 if (fileInputRef.current) fileInputRef.current.value = '';
                 return;
             }
-            setImageFile(file); // 원본 보존!
-            setUploadMeta({ name: safeFileName, type: trueType }); // 진짜 신분증 기억!
-            setPreviewUrl(URL.createObjectURL(file)); // 권한이 살아있어 엑박 절대 안 뜸!
+            setImageFile(file);
+            setPreviewUrl(URL.createObjectURL(file));
         } else {
+            // [트랙 2] 일반 사진(일반 WebP 포함)은 3MB까지 허용 후 압축
             if (file.size > 3 * 1024 * 1024) {
                 alert('일반 이미지는 최대 3MB까지 선택 가능합니다.');
                 if (fileInputRef.current) fileInputRef.current.value = '';
@@ -129,15 +121,11 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
             }
 
             try {
-                // 일반 사진은 압축기 통과 (압축된 파일은 새롭게 생성된 안전한 Blob이므로 문제없음)
                 const compressedFile = await compressImageToWebP(file);
                 setImageFile(compressedFile);
-                setUploadMeta({ name: compressedFile.name, type: compressedFile.type });
                 setPreviewUrl(URL.createObjectURL(compressedFile));
             } catch (error) {
-                // 압축 실패 시에도 원본 보존
                 setImageFile(file);
-                setUploadMeta({ name: safeFileName, type: trueType });
                 setPreviewUrl(URL.createObjectURL(file));
             }
         }
@@ -145,7 +133,6 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
 
     const removeImage = () => {
         setImageFile(null);
-        setUploadMeta({ name: '', type: '' });
         setPreviewUrl('');
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
@@ -159,15 +146,14 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
 
         if (imageFile) {
             try {
-                // 💡 서버에는 원본 파일(imageFile)과 함께, 우리가 스캔해 둔 진짜 신분증(uploadMeta)을 전달!
                 const ticketRes = await fetch('/api/upload', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ filename: uploadMeta.name, contentType: uploadMeta.type }),
+                    body: JSON.stringify({ filename: imageFile.name, contentType: imageFile.type }),
                 });
                 const { uploadUrl, publicUrl } = await ticketRes.json();
                 if (uploadUrl) {
-                    await fetch(uploadUrl, { method: 'PUT', body: imageFile, headers: { 'Content-Type': uploadMeta.type } });
+                    await fetch(uploadUrl, { method: 'PUT', body: imageFile, headers: { 'Content-Type': imageFile.type } });
                     finalImageUrl = publicUrl;
                 }
             } catch (error) {
@@ -193,7 +179,6 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
 
         setContent('');
         setImageFile(null);
-        setUploadMeta({ name: '', type: '' });
         setPreviewUrl('');
         if (fileInputRef.current) fileInputRef.current.value = '';
         setIsSubmitting(false);

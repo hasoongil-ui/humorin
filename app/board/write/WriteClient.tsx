@@ -24,10 +24,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState(boards && boards.length > 0 ? boards[0].name : '흥미로운 이야기');
-  
-  const [isCompressing, setIsCompressing] = useState(false); 
-  const [isUploading, setIsUploading] = useState(false);     
-  
+
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditorReady, setIsEditorReady] = useState(false);
 
@@ -74,47 +74,47 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             let node = super.create(value);
             if (typeof value === 'object' && value.url) {
               node.setAttribute('src', value.url);
-              
+
               if (value.width) node.setAttribute('width', value.width);
               if (value.height) node.setAttribute('height', value.height);
-              
+
               if (value.isSliced) {
-                 node.classList.add('humorin-sliced-img');
-                 node.style.setProperty('display', 'block', 'important');
-                 node.style.setProperty('margin-left', 'auto', 'important');
-                 node.style.setProperty('margin-right', 'auto', 'important');
-                 node.style.setProperty('border-radius', '0', 'important');
-                 node.style.setProperty('border', 'none', 'important');
-                 node.style.setProperty('padding', '0', 'important');
-                 node.style.setProperty('vertical-align', 'top', 'important');
-                 
-                 // 💡 [핵심 추가] 가로 길이 원본 고정 자물쇠 (억지로 늘어나는 현상 100% 방지)
-                 if (value.width) {
-                     node.style.setProperty('max-width', `min(100%, ${value.width}px)`, 'important');
-                 }
+                node.classList.add('humorin-sliced-img');
+                node.style.setProperty('display', 'block', 'important');
+                node.style.setProperty('margin-left', 'auto', 'important');
+                node.style.setProperty('margin-right', 'auto', 'important');
+                node.style.setProperty('border-radius', '0', 'important');
+                node.style.setProperty('border', 'none', 'important');
+                node.style.setProperty('padding', '0', 'important');
+                node.style.setProperty('vertical-align', 'top', 'important');
 
-                 if (value.isFirstSlice) {
-                     node.style.setProperty('border-top-left-radius', '8px', 'important');
-                     node.style.setProperty('border-top-right-radius', '8px', 'important');
-                     node.style.setProperty('margin-top', '15px', 'important');
-                 } else {
-                     node.style.setProperty('margin-top', '0', 'important');
-                 }
+                // 💡 [핵심 추가] 가로 길이 원본 고정 자물쇠 (억지로 늘어나는 현상 100% 방지)
+                if (value.width) {
+                  node.style.setProperty('max-width', `min(100%, ${value.width}px)`, 'important');
+                }
 
-                 if (value.isLastSlice) {
-                     node.style.setProperty('border-bottom-left-radius', '8px', 'important');
-                     node.style.setProperty('border-bottom-right-radius', '8px', 'important');
-                     node.style.setProperty('margin-bottom', '15px', 'important');
-                 } else {
-                     node.style.setProperty('margin-bottom', '-1px', 'important'); // 서브픽셀 하얀 실선 방어
-                 }
+                if (value.isFirstSlice) {
+                  node.style.setProperty('border-top-left-radius', '8px', 'important');
+                  node.style.setProperty('border-top-right-radius', '8px', 'important');
+                  node.style.setProperty('margin-top', '15px', 'important');
+                } else {
+                  node.style.setProperty('margin-top', '0', 'important');
+                }
+
+                if (value.isLastSlice) {
+                  node.style.setProperty('border-bottom-left-radius', '8px', 'important');
+                  node.style.setProperty('border-bottom-right-radius', '8px', 'important');
+                  node.style.setProperty('margin-bottom', '15px', 'important');
+                } else {
+                  node.style.setProperty('margin-bottom', '-1px', 'important'); // 서브픽셀 하얀 실선 방어
+                }
               }
             } else if (typeof value === 'string') {
               node.setAttribute('src', value);
             }
             return node;
           }
-          
+
           // 💡 수정(Edit) 시 속성 증발 방어 로직
           static value(node: any) {
             return {
@@ -185,7 +185,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
   // 💡 [WebP 완벽 보존] 15,000px 단위 분할
   const sliceHugeImage = async (file: File, img: HTMLImageElement): Promise<File[]> => {
-    const sliceHeight = 15000; 
+    const sliceHeight = 15000;
     const numSlices = Math.ceil(img.height / sliceHeight);
     const slices: File[] = [];
 
@@ -203,7 +203,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const sliceFile = new File([blob], newFileName, { type: 'image/webp' });
           (sliceFile as any).isSliced = true;
           (sliceFile as any).isFirstSlice = (i === 0);
-          (sliceFile as any).isLastSlice = (i === numSlices - 1); 
+          (sliceFile as any).isLastSlice = (i === numSlices - 1);
           slices.push(sliceFile);
         }
       }
@@ -216,14 +216,14 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
     const editor = quillRef.current.getEditor();
     const currentImageCount = editor.root.querySelectorAll('img').length;
-    
+
     // 조각 분할을 고려하여 넉넉하게 50장 한도
     if (currentImageCount + fileArray.length > 50) {
       alert(`🚨 사진은 게시글당 최대 50장까지만 첨부할 수 있습니다.\n(현재 ${currentImageCount}장 포함됨)`);
       return;
     }
 
-    setIsCompressing(true); 
+    setIsCompressing(true);
     let insertIndex = forcedIndex !== undefined ? forcedIndex : (editor.getSelection()?.index || editor.getLength());
 
     try {
@@ -240,7 +240,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const img = new Image();
           img.src = URL.createObjectURL(file);
           await new Promise((resolve) => { img.onload = resolve; });
-          
+
           // 💡 15,000px 초과 시에만 분할 발동! 이하는 단 한 장의 원본 압축으로 통과
           if (img.height > 15000) {
             const slices = await sliceHugeImage(file, img);
@@ -262,8 +262,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         }
       }
 
-      setIsCompressing(false); 
-      setIsUploading(true);    
+      setIsCompressing(false);
+      setIsUploading(true);
 
       const approvedFiles: File[] = [];
       for (const file of processedFiles) {
@@ -306,21 +306,21 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const uploadedImages = (await Promise.all(uploadPromises)).filter(Boolean) as { url: string, width: number, height: number, isSliced: boolean, isFirstSlice: boolean, isLastSlice: boolean }[];
 
       uploadedImages.forEach(img => {
-        editor.insertEmbed(insertIndex, 'image', { 
-            url: img.url, 
-            width: img.width, 
-            height: img.height, 
-            isSliced: img.isSliced, 
-            isFirstSlice: img.isFirstSlice,
-            isLastSlice: img.isLastSlice 
+        editor.insertEmbed(insertIndex, 'image', {
+          url: img.url,
+          width: img.width,
+          height: img.height,
+          isSliced: img.isSliced,
+          isFirstSlice: img.isFirstSlice,
+          isLastSlice: img.isLastSlice
         }, 'silent');
-        
+
         // 💡 분할된 이미지들은 엔터를 생략하여 같은 <p> 태그 안에 강제 병합시킵니다.
         if (!img.isSliced || img.isLastSlice) {
           editor.insertText(insertIndex + 1, '\n', 'silent');
           insertIndex += 2;
         } else {
-          insertIndex += 1; 
+          insertIndex += 1;
         }
       });
       editor.setSelection(insertIndex, 'silent');
@@ -468,7 +468,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'video/*'); 
+    input.setAttribute('accept', 'video/*');
     input.click();
     input.onchange = async () => {
       const file = input.files ? input.files[0] : null;
@@ -704,7 +704,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
         <h1 className="text-xl font-bold text-gray-800 mb-6 border-b border-gray-300 pb-3 flex items-center gap-2">
-          글쓰기 
+          글쓰기
           {isCompressing && <span className="text-[13px] font-bold text-blue-500 ml-4 animate-pulse">📷 사진 용량 최적화 중... (최대 10초)</span>}
           {isUploading && <span className="text-[13px] font-bold text-emerald-500 ml-4 animate-pulse">🚀 서버로 전송 중...</span>}
         </h1>
