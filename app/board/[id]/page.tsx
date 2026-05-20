@@ -832,10 +832,10 @@ export default async function PostDetailPage(props: any) {
   if (finalContent) {
     finalContent = finalContent.replace(
       /<video([^>]*)src="([^"]+)"([^>]*)>/gi,
-              (match, beforeSrc, srcUrl, afterSrc) => {
-                const newSrc = srcUrl.includes('#t=') ? srcUrl : `${srcUrl}#t=0.001`;
-                return `<video ${beforeSrc} controls="true" preload="metadata" playsinline="true" muted="true" class="humorin-mp4" src="${newSrc}" ${afterSrc}>`;
-              }
+      (match, beforeSrc, srcUrl, afterSrc) => {
+        const newSrc = srcUrl.includes('#t=') ? srcUrl : `${srcUrl}#t=0.001`;
+        return `<video ${beforeSrc} controls="true" preload="metadata" playsinline="true" muted="true" class="humorin-mp4" src="${newSrc}" ${afterSrc}>`;
+      }
     );
 
     finalContent = finalContent.replace(
@@ -1019,7 +1019,7 @@ export default async function PostDetailPage(props: any) {
               `
             }} />
 
-            <div className="min-h-[300px] text-[17px] whitespace-pre-wrap leading-relaxed ql-editor" dangerouslySetInnerHTML={{ __html: cleanContent }} />
+            <div className="min-h-[300px] text-[17px] whitespace-pre-wrap leading-relaxed break-words break-all ql-editor" dangerouslySetInnerHTML={{ __html: cleanContent }} />
           </div>
         )}
 
