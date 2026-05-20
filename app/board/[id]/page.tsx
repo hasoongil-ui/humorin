@@ -832,10 +832,10 @@ export default async function PostDetailPage(props: any) {
   if (finalContent) {
     finalContent = finalContent.replace(
       /<video([^>]*)src="([^"]+)"([^>]*)>/gi,
-              (match, beforeSrc, srcUrl, afterSrc) => {
-                const newSrc = srcUrl.includes('#t=') ? srcUrl : `${srcUrl}#t=0.001`;
-                return `<video ${beforeSrc} controls="true" preload="metadata" playsinline="true" muted="true" class="humorin-mp4" src="${newSrc}" ${afterSrc}>`;
-              }
+      (match, beforeSrc, srcUrl, afterSrc) => {
+        const newSrc = srcUrl.includes('#t=') ? srcUrl : `${srcUrl}#t=0.001`;
+        return `<video ${beforeSrc} controls="true" preload="metadata" playsinline="true" muted="true" class="humorin-mp4" src="${newSrc}" ${afterSrc}>`;
+      }
     );
 
     finalContent = finalContent.replace(
@@ -861,6 +861,19 @@ export default async function PostDetailPage(props: any) {
       'iframe': ['src', 'frameborder', 'allowfullscreen', 'width', 'height', 'referrerpolicy']
     },
     allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'youtu.be']
+  });
+
+  const finalHtml = cleanContent.replace(/<(img|video|iframe)([^>]+)>/gi, (match, tagName, attributes) => {
+    const wMatch = attributes.match(/width=["']?(\d+)["']?/i);
+    const hMatch = attributes.match(/height=["']?(\d+)["']?/i);
+    if (wMatch && hMatch) {
+      if (attributes.match(/style=["']/i)) {
+        return `<${tagName}${attributes.replace(/style=["']/, `style="aspect-ratio: ${wMatch[1]} / ${hMatch[1]}; `)}>`;
+      } else {
+        return `<${tagName} style="aspect-ratio: ${wMatch[1]} / ${hMatch[1]};"${attributes}>`;
+      }
+    }
+    return match;
   });
 
   let backToListUrl = '/board';
@@ -1019,7 +1032,7 @@ export default async function PostDetailPage(props: any) {
               `
             }} />
 
-            <div className="min-h-[300px] text-[17px] whitespace-pre-wrap leading-relaxed ql-editor" dangerouslySetInnerHTML={{ __html: cleanContent }} />
+            <div className="min-h-[300px] text-[17px] whitespace-pre-wrap leading-relaxed ql-editor" dangerouslySetInnerHTML={{ __html: finalHtml }} />
           </div>
         )}
 
