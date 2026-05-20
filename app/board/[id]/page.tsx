@@ -303,7 +303,7 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!currentUserId) redirect('/login');
 
-    let dislikeBlindThreshold = 100; 
+    let dislikeBlindThreshold = 100;
     try {
       const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'dislike_blind_threshold'`;
       if (rows.length > 0) dislikeBlindThreshold = Number(rows[0].value) || 100;
@@ -540,7 +540,7 @@ export default async function PostDetailPage(props: any) {
     if (!currentUserId) return;
     const commentId = formData.get('commentId') as string;
 
-    let dislikeBlindThreshold = 100; 
+    let dislikeBlindThreshold = 100;
     try {
       const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'dislike_blind_threshold'`;
       if (rows.length > 0) dislikeBlindThreshold = Number(rows[0].value) || 100;
@@ -675,7 +675,7 @@ export default async function PostDetailPage(props: any) {
       const medalCount = Math.floor(likesCount / 10);
       let medalIcons = '';
       if (medalCount > 0) {
-        medalIcons = '🥇'.repeat(Math.min(medalCount, 5)); 
+        medalIcons = '🥇'.repeat(Math.min(medalCount, 5));
       }
 
       if (likesCount >= 30) {
@@ -727,28 +727,28 @@ export default async function PostDetailPage(props: any) {
                   삭제
                 </DeleteConfirmButton>
               )}
-              
+
               {isAdmin && !isDeleted && node.author_id && (
-                 <div className="flex items-center gap-1.5 ml-1 pl-2 border-l border-red-200">
-                   <DeleteConfirmButton
-                     action={suspendUserByComment}
-                     message={`댓글 작성자(${node.author_id})를 즉시 [이용 정지] 처리하시겠습니까?`}
-                     className="text-[11px] px-1.5 py-0.5 bg-red-50 text-red-600 border border-red-200 rounded-sm hover:bg-red-500 hover:text-white transition-colors whitespace-nowrap"
-                   >
-                     <input type="hidden" name="targetUserId" value={node.author_id} />
-                     <input type="hidden" name="commentId" value={node.id} />
-                     정지
-                   </DeleteConfirmButton>
-                   <DeleteConfirmButton
-                     action={shadowbanUserByComment}
-                     message={`댓글 작성자(${node.author_id})를 즉시 [그림자 차단] 처리하시겠습니까?`}
-                     className="text-[11px] px-1.5 py-0.5 bg-purple-50 text-purple-600 border border-purple-200 rounded-sm hover:bg-purple-500 hover:text-white transition-colors whitespace-nowrap"
-                   >
-                     <input type="hidden" name="targetUserId" value={node.author_id} />
-                     <input type="hidden" name="commentId" value={node.id} />
-                     그림자
-                   </DeleteConfirmButton>
-                 </div>
+                <div className="flex items-center gap-1.5 ml-1 pl-2 border-l border-red-200">
+                  <DeleteConfirmButton
+                    action={suspendUserByComment}
+                    message={`댓글 작성자(${node.author_id})를 즉시 [이용 정지] 처리하시겠습니까?`}
+                    className="text-[11px] px-1.5 py-0.5 bg-red-50 text-red-600 border border-red-200 rounded-sm hover:bg-red-500 hover:text-white transition-colors whitespace-nowrap"
+                  >
+                    <input type="hidden" name="targetUserId" value={node.author_id} />
+                    <input type="hidden" name="commentId" value={node.id} />
+                    정지
+                  </DeleteConfirmButton>
+                  <DeleteConfirmButton
+                    action={shadowbanUserByComment}
+                    message={`댓글 작성자(${node.author_id})를 즉시 [그림자 차단] 처리하시겠습니까?`}
+                    className="text-[11px] px-1.5 py-0.5 bg-purple-50 text-purple-600 border border-purple-200 rounded-sm hover:bg-purple-500 hover:text-white transition-colors whitespace-nowrap"
+                  >
+                    <input type="hidden" name="targetUserId" value={node.author_id} />
+                    <input type="hidden" name="commentId" value={node.id} />
+                    그림자
+                  </DeleteConfirmButton>
+                </div>
               )}
             </div>
           </div>
@@ -915,31 +915,31 @@ export default async function PostDetailPage(props: any) {
               <span className="font-bold">작성자 ID :</span>
               <span className="font-mono font-bold text-gray-800">{post.author_id}</span>
             </div>
-            
-            <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
-               <DeleteConfirmButton 
-                  action={deletePost}
-                  message={`[경고] 게시글을 즉시 파기합니다.\n작성자 ID: ${post.author_id}`}
-                  className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-[12px] font-bold rounded-sm transition-all text-center text-gray-600"
-               >
-                  🗑️ 즉시 삭제
-               </DeleteConfirmButton>
-               
-               <DeleteConfirmButton 
-                  action={suspendUserAction}
-                  message={`작성자(${post.author_id})를 즉시 [이용 정지] 처리하시겠습니까?`}
-                  className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-red-200 hover:bg-red-50 text-[12px] font-bold rounded-sm transition-all text-center text-red-500"
-               >
-                  🚨 정지
-               </DeleteConfirmButton>
 
-               <DeleteConfirmButton 
-                  action={shadowbanUserAction}
-                  message={`작성자(${post.author_id})를 즉시 [그림자 차단] 처리하시겠습니까?\n(본인은 정지당한 사실을 모릅니다)`}
-                  className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-purple-200 hover:bg-purple-50 text-[12px] font-bold rounded-sm transition-all text-center text-purple-600"
-               >
-                  👻 그림자
-               </DeleteConfirmButton>
+            <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
+              <DeleteConfirmButton
+                action={deletePost}
+                message={`[경고] 게시글을 즉시 파기합니다.\n작성자 ID: ${post.author_id}`}
+                className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-[12px] font-bold rounded-sm transition-all text-center text-gray-600"
+              >
+                🗑️ 즉시 삭제
+              </DeleteConfirmButton>
+
+              <DeleteConfirmButton
+                action={suspendUserAction}
+                message={`작성자(${post.author_id})를 즉시 [이용 정지] 처리하시겠습니까?`}
+                className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-red-200 hover:bg-red-50 text-[12px] font-bold rounded-sm transition-all text-center text-red-500"
+              >
+                🚨 정지
+              </DeleteConfirmButton>
+
+              <DeleteConfirmButton
+                action={shadowbanUserAction}
+                message={`작성자(${post.author_id})를 즉시 [그림자 차단] 처리하시겠습니까?\n(본인은 정지당한 사실을 모릅니다)`}
+                className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-purple-200 hover:bg-purple-50 text-[12px] font-bold rounded-sm transition-all text-center text-purple-600"
+              >
+                👻 그림자
+              </DeleteConfirmButton>
             </div>
           </div>
         )}
@@ -974,8 +974,11 @@ export default async function PostDetailPage(props: any) {
               /* 1. CLS(덜컹거림) 및 로딩 지연 완벽 방어 */
               .post-content-area .ql-editor img {
                 max-width: 100% !important;
-                width: unset !important; /* 글로벌로 오염된 width: auto 강제 무효화 및 HTML 원래 속성 복구 */
+                width: auto !important; /* 고양이 테러 방어: 작은 이미지가 100%로 팽창하는 것 방지 */
                 height: auto !important; 
+                display: block !important; /* 🚨 덜컹거림 완벽 차단: 이미지를 블록화하여 브라우저가 높이를 미리 계산하도록 강제 */
+                margin: 15px auto !important; /* 이미지 상하 여백 및 중앙 정렬 */
+                border-radius: 8px !important; /* 부드러운 모서리 적용 */
               }
               
               /* 2. 조각 이미지(15000px 이상) 틈새 0px 이중 진공 압착 */
