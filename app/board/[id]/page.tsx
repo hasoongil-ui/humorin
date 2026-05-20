@@ -832,10 +832,10 @@ export default async function PostDetailPage(props: any) {
   if (finalContent) {
     finalContent = finalContent.replace(
       /<video([^>]*)src="([^"]+)"([^>]*)>/gi,
-      (match, beforeSrc, srcUrl, afterSrc) => {
-        const newSrc = srcUrl.includes('#t=') ? srcUrl : `${srcUrl}#t=0.001`;
-        return `<video controls="true" preload="metadata" playsinline="true" muted="true" class="humorin-mp4" src="${newSrc}">`;
-      }
+              (match, beforeSrc, srcUrl, afterSrc) => {
+                const newSrc = srcUrl.includes('#t=') ? srcUrl : `${srcUrl}#t=0.001`;
+                return `<video ${beforeSrc} controls="true" preload="metadata" playsinline="true" muted="true" class="humorin-mp4" src="${newSrc}" ${afterSrc}>`;
+              }
     );
 
     finalContent = finalContent.replace(
@@ -971,13 +971,17 @@ export default async function PostDetailPage(props: any) {
             {/* 🚨 CLS 방어 및 틈새 이중 압착을 위한 뷰어 전용 렌더링 엔진 CSS 주입 */}
             <style dangerouslySetInnerHTML={{
               __html: `
-              /* 1. CLS(덜컹거림) 및 로딩 지연 완벽 방어 */
-              .post-content-area .ql-editor img {
+              /* 1. CLS(덜컹거림) 및 로딩 지연 완벽 방어 (이미지, 동영상 통합) */
+              .post-content-area .ql-editor img,
+              .post-content-area .ql-editor video,
+              .post-content-area .ql-editor iframe {
                 max-width: 100% !important;
                 height: auto !important; 
                 display: block !important; 
                 margin: 15px auto !important; 
                 border-radius: 8px !important; 
+                background-color: #f3f4f6 !important; 
+                aspect-ratio: attr(width) / attr(height);
               }
               
               /* 2. 조각 이미지(15000px 이상) 틈새 0px 이중 진공 압착 */
