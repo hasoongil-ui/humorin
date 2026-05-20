@@ -974,11 +974,10 @@ export default async function PostDetailPage(props: any) {
               /* 1. CLS(덜컹거림) 및 로딩 지연 완벽 방어 */
               .post-content-area .ql-editor img {
                 max-width: 100% !important;
-                width: auto !important; /* 고양이 테러 방어: 작은 이미지가 100%로 팽창하는 것 방지 */
                 height: auto !important; 
-                display: block !important; /* 🚨 덜컹거림 완벽 차단: 이미지를 블록화하여 브라우저가 높이를 미리 계산하도록 강제 */
-                margin: 15px auto !important; /* 이미지 상하 여백 및 중앙 정렬 */
-                border-radius: 8px !important; /* 부드러운 모서리 적용 */
+                display: block !important; 
+                margin: 15px auto !important; 
+                border-radius: 8px !important; 
               }
               
               /* 2. 조각 이미지(15000px 이상) 틈새 0px 이중 진공 압착 */
