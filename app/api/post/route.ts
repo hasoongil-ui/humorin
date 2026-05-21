@@ -45,8 +45,15 @@ export async function POST(request: Request) {
     const currentUserId = userIdCookie ? userIdCookie.value : null;
     const signature = signatureCookie ? signatureCookie.value : null;
 
-    if (!currentUserId || !currentUser) {
+    // 🚨 [S급 지문인식기 모든 글쓰기에 전면 도입] 신분 위조(Spoofing) 완벽 차단!
+    if (!currentUserId || !currentUser || !signature) {
       return NextResponse.json({ message: '로그인한 회원만 글을 쓸 수 있습니다.' }, { status: 401 });
+    }
+
+    const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(currentUserId).digest('hex');
+    if (signature !== expectedSignature) {
+      console.error('🚨 불법 쿠키 위조(Spoofing) 감지됨!');
+      return NextResponse.json({ error: '인증 정보가 변조되었습니다.' }, { status: 403 });
     }
 
     // 🚨 [핵심 방어막] 다중 그물망으로 DB의 모든 상태 단어를 잡아냅니다!
@@ -67,14 +74,12 @@ export async function POST(request: Request) {
     let finalIsNotice = false;
     let finalIsBoardNotice = false;
     
-    if ((is_notice || is_board_notice) && currentUserId && signature) {
-      const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(currentUserId).digest('hex');
-      if (signature === expectedSignature) {
-        const { rows } = await client.sql`SELECT is_admin FROM users WHERE user_id = ${currentUserId}`;
-        if (currentUserId === 'admin' || (rows.length > 0 && rows[0].is_admin)) {
-          if (is_notice) finalIsNotice = true; 
-          if (is_board_notice) finalIsBoardNotice = true; 
-        }
+    // 지문 검사는 위에서 이미 끝났으므로, 여기서는 진짜 관리자 권한이 있는지만 확인합니다.
+    if (is_notice || is_board_notice) {
+      const { rows } = await client.sql`SELECT is_admin FROM users WHERE user_id = ${currentUserId}`;
+      if (currentUserId === 'admin' || (rows.length > 0 && rows[0].is_admin)) {
+        if (is_notice) finalIsNotice = true; 
+        if (is_board_notice) finalIsBoardNotice = true; 
       }
     }
 
