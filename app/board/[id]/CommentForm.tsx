@@ -3,6 +3,56 @@
 import { useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 
+const detectAndRestoreFile = (file: File): Promise<File> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const arr = new Uint8Array(reader.result as ArrayBuffer);
+      if (arr.length < 12) return resolve(file);
+
+      let realType = file.type;
+      let ext = '';
+
+      if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) {
+        realType = 'image/jpeg';
+        ext = 'jpg';
+      }
+      else if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) {
+        realType = 'image/png';
+        ext = 'png';
+      }
+      else if (arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x38) {
+        realType = 'image/gif';
+        ext = 'gif';
+      }
+      else if (
+        arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46 &&
+        arr[8] === 0x57 && arr[9] === 0x45 && arr[10] === 0x42 && arr[11] === 0x50
+      ) {
+        realType = 'image/webp';
+        ext = 'webp';
+      }
+
+      if (ext && (file.type !== realType || !file.type || file.type === 'application/octet-stream')) {
+        const hasValidExtension = new RegExp(`\\.${ext}$`, 'i').test(file.name);
+        const newFileName = hasValidExtension 
+          ? file.name 
+          : file.name.replace(/\.[^/.]+$/, "") + `.${ext}`;
+
+        const restoredFile = new File([file], newFileName, {
+          type: realType,
+          lastModified: file.lastModified || Date.now(),
+        });
+        resolve(restoredFile);
+      } else {
+        resolve(file);
+      }
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsArrayBuffer(file.slice(0, 32));
+  });
+};
+
 // 🚨 [신규 엔진] WebP 파일 내부를 투시하여 움짤(ANIM)인지 판독하는 함수
 const isAnimatedWebP = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -83,21 +133,11 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
     const uniqueId = parentId ? `image-${parentId}` : 'image-main';
 
     const handleFileChange = async (e: any) => {
-        let file = e.target.files?.[0]; // 💡 재할당 가능하도록 let으로 변경
-        if (!file) return;
+        let rawFile = e.target.files?.[0];
+        if (!rawFile) return;
 
-        // 💡 [갤럭시 스마트폰 확장자 증발 방어막 패치]
-        // 정규식으로 실제 이미지 확장자(.jpg, .png 등)가 있는지 정밀 검사
-        const hasValidExtension = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
-        
-        // 확장자가 없거나(img.humorin.kr 등) 브라우저가 타입을 모른다면 강제로 .jpg 인식 처리
-        if (!file.type || file.type === 'application/octet-stream' || !hasValidExtension) {
-            const newFileName = hasValidExtension ? file.name : `${file.name}.jpg`;
-            file = new File([file], newFileName, {
-                type: 'image/jpeg',
-                lastModified: file.lastModified || Date.now(),
-            });
-        }
+        // 🛡️ [바이너리 엑스레이 스캐너 가동] 변형된 파일을 진짜 포맷(WebP/GIF/JPEG/PNG)으로 100% 원본 복구!
+        const file = await detectAndRestoreFile(rawFile);
 
         // 🚨 새로 추가된 WebP 움짤 엑스레이 스캔!
         const isWebPAnim = await isAnimatedWebP(file);
