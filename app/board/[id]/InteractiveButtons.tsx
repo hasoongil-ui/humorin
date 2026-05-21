@@ -193,6 +193,73 @@ export function CommentReportButton({ commentId, currentUserId, isAdmin }: any) 
 // ---------------------------------------------------------
 // 🟢 3. 스마트 인라인 댓글 수정폼 컴포넌트
 // ---------------------------------------------------------
+const isAnimatedWebP = (file: File): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if (file.type !== 'image/webp') return resolve(false);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const arr = new Uint8Array(reader.result as ArrayBuffer);
+      for (let i = 0; i < arr.length - 4; i++) {
+        if (arr[i] === 0x41 && arr[i + 1] === 0x4E && arr[i + 2] === 0x49 && arr[i + 3] === 0x4D) {
+          return resolve(true);
+        }
+      }
+      resolve(false);
+    };
+    reader.onerror = () => resolve(false);
+    reader.readAsArrayBuffer(file.slice(0, 256));
+  });
+};
+
+const compressImageToWebP = (file: File): Promise<File> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const MAX_WIDTH = 800;
+
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+                const newFile = new File([blob], newFileName, {
+                  type: 'image/webp',
+                });
+                resolve(newFile);
+              } else {
+                resolve(file);
+              }
+            },
+            'image/webp',
+            0.8
+          );
+        } else {
+          resolve(file);
+        }
+      };
+      img.onerror = () => resolve(file);
+    };
+    reader.onerror = () => resolve(file);
+  });
+};
+
 export function EditCommentForm({ commentId, initialContent, initialImage, editAction }: any) {
   const [content, setContent] = useState(initialContent || '');
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -201,15 +268,50 @@ export function EditCommentForm({ commentId, initialContent, initialImage, editA
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: any) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 1048576) {
-        alert('1MB 이하의 이미지만 첨부 가능합니다.');
+  const handleFileChange = async (e: any) => {
+    let file = e.target.files?.[0];
+    if (!file) return;
+
+    // [갤럭시 스마트폰 확장자 증발 방어막 패치]
+    const hasValidExtension = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+    if (!file.type || file.type === 'application/octet-stream' || !hasValidExtension) {
+      const newFileName = hasValidExtension ? file.name : `${file.name}.jpg`;
+      file = new File([file], newFileName, {
+        type: 'image/jpeg',
+        lastModified: file.lastModified || Date.now(),
+      });
+    }
+
+    // 🚨 새로 추가된 WebP 움짤 엑스레이 스캔!
+    const isWebPAnim = await isAnimatedWebP(file);
+
+    // 🚨 투트랙 용량 통제소: GIF이거나, 엑스레이로 판독된 WebP 움짤인 경우
+    if (file.type === 'image/gif' || isWebPAnim) {
+      // [트랙 1] 움짤(GIF/WebP)은 2MB 이하만 첨부 가능!
+      if (file.size > 2 * 1024 * 1024) {
+        alert('🚨 움짤(GIF 및 WebP 애니메이션)은 서버 쾌적화를 위해 2MB 이하만 첨부 가능합니다.');
+        if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
       setImageFile(file);
       setPreviewUrl(URL.createObjectURL(file));
+      setIsDeleted(false);
+    } else {
+      // [트랙 2] 일반 사진(일반 WebP 포함)은 3MB까지 허용 후 압축
+      if (file.size > 3 * 1024 * 1024) {
+        alert('일반 이미지는 최대 3MB까지 선택 가능합니다.');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      try {
+        const compressedFile = await compressImageToWebP(file);
+        setImageFile(compressedFile);
+        setPreviewUrl(URL.createObjectURL(compressedFile));
+      } catch (error) {
+        setImageFile(file);
+        setPreviewUrl(URL.createObjectURL(file));
+      }
       setIsDeleted(false);
     }
   };

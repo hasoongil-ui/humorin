@@ -183,6 +183,25 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     });
   }, [isGlobalLocked, isAdmin, router]);
 
+  // 🚨 [신규 엔진] WebP 파일 내부를 투시하여 움짤(ANIM)인지 판독하는 함수
+  const isAnimatedWebP = (file: File): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (file.type !== 'image/webp') return resolve(false);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const arr = new Uint8Array(reader.result as ArrayBuffer);
+        for (let i = 0; i < arr.length - 4; i++) {
+          if (arr[i] === 0x41 && arr[i + 1] === 0x4E && arr[i + 2] === 0x49 && arr[i + 3] === 0x4D) {
+            return resolve(true);
+          }
+        }
+        resolve(false);
+      };
+      reader.onerror = () => resolve(false);
+      reader.readAsArrayBuffer(file.slice(0, 256));
+    });
+  };
+
   // 💡 [WebP 완벽 보존] 15,000px 단위 분할
   const sliceHugeImage = async (file: File, img: HTMLImageElement): Promise<File[]> => {
     const sliceHeight = 15000;
@@ -231,7 +250,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const imageFiles = fileArray.filter(f => f.type.startsWith('image/'));
 
       for (const file of imageFiles) {
-        if (file.type === 'image/gif' || file.type === 'image/webp') {
+        const isWebPAnim = file.type === 'image/webp' ? await isAnimatedWebP(file) : false;
+        if (file.type === 'image/gif' || isWebPAnim) {
           processedFiles.push(file);
           continue;
         }
@@ -498,7 +518,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         if (uploadUrl) {
           await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': safeContentType } });
 
-          editor.insertEmbed(insertIndex, 'mp4Video', publicUrl, 'silent');
+          // 💡 [썸네일 로딩 버그 패치] 비디오 첫 프레임(0.001초) 렌더링 강제 주입
+          editor.insertEmbed(insertIndex, 'mp4Video', publicUrl + '#t=0.001', 'silent');
           editor.insertText(insertIndex + 1, '\n', 'silent');
           editor.setSelection(insertIndex + 2, 'silent');
         }
