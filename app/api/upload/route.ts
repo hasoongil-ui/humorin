@@ -3,6 +3,10 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { cookies } from 'next/headers'; // 💡 문지기 부품 추가
 
+import crypto from 'crypto';
+
+const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
+
 const s3 = new S3Client({
   region: 'auto',
   endpoint: process.env.R2_ENDPOINT!,
@@ -14,13 +18,18 @@ const s3 = new S3Client({
 
 export async function POST(request: NextRequest) {
   try {
-    // 🚨 [보안 철벽 추가] 로그인한 유저인지 쿠키를 검사합니다!
+    // 🛡️ [수정] 업로드 발급 시에도 Hmac 지문인식기를 돌려 위조 쿠키 완전 원천 차단
     const cookieStore = await cookies();
     const userId = cookieStore.get('humorin_userid')?.value;
+    const signature = cookieStore.get('humorin_signature')?.value;
     
-    if (!userId) {
-      console.error('❌ 비로그인 불법 업로드 시도 차단됨!');
+    if (!userId || !signature) {
       return NextResponse.json({ error: '로그인한 회원만 업로드할 수 있습니다.' }, { status: 401 });
+    }
+    
+    const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(userId).digest('hex');
+    if (signature !== expectedSignature) {
+      return NextResponse.json({ error: '비정상적인 접근입니다.' }, { status: 403 });
     }
 
     const { filename, contentType } = await request.json();

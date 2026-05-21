@@ -16,10 +16,11 @@ async function verifyAdmin() {
   const userId = cookieStore.get('humorin_userid')?.value;
   const signature = cookieStore.get('humorin_signature')?.value;
   if (!userId) return false;
-  if (signature) {
-    const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(userId).digest('hex');
-    if (signature !== expectedSignature) return false;
-  }
+  // 🛡️ [수정] 서명이 아예 없거나 일치하지 않으면 즉각 추방 (우회 차단)
+  if (!signature) return false;
+  const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(userId).digest('hex');
+  if (signature !== expectedSignature) return false;
+
   try {
     if (userId === 'admin') return true;
     const { rows } = await sql`SELECT is_admin FROM users WHERE user_id = ${userId}`;

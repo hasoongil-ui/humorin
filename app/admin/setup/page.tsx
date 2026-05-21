@@ -4,24 +4,28 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 
-export default async function AdminSetupPage(props: any) {
-  const cookieStore = await cookies();
-  const currentUserId = cookieStore.get('humorin_userid')?.value;
-  
-  // 🛡️ [수술 완료] 무식한 문지기 교체! 아이디가 'admin'이 아니더라도 DB에서 권한증을 확인합니다.
-  let isAdmin = false;
-  if (currentUserId === 'admin') {
-    isAdmin = true;
-  } else if (currentUserId) {
-    try {
-      const { rows } = await sql`SELECT is_admin FROM users WHERE user_id = ${currentUserId}`;
-      if (rows.length > 0 && rows[0].is_admin) {
-        isAdmin = true;
-      }
-    } catch (e) {}
-  }
+import crypto from 'crypto';
 
-  // 관리자 권한이 없으면 메인 화면으로 돌려보냅니다.
+export const dynamic = 'force-dynamic';
+
+const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
+
+async function verifyAdmin() {
+  const cookieStore = await cookies();
+  const userId = cookieStore.get('humorin_userid')?.value;
+  const signature = cookieStore.get('humorin_signature')?.value;
+  if (!userId || !signature) return false;
+  const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(userId).digest('hex');
+  if (signature !== expectedSignature) return false;
+  try {
+    if (userId === 'admin') return true;
+    const { rows } = await sql`SELECT is_admin FROM users WHERE user_id = ${userId}`;
+    return rows.length > 0 && rows[0].is_admin;
+  } catch { return false; }
+}
+
+export default async function AdminSetupPage(props: any) {
+  const isAdmin = await verifyAdmin();
   if (!isAdmin) redirect('/'); 
 
   // 🛠️ 통제실 DB 건설 함수

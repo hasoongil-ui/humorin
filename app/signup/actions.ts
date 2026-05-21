@@ -5,6 +5,10 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import bcrypt from 'bcryptjs';
 
+import crypto from 'crypto';
+
+const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
+
 const FORBIDDEN_WORDS = ['admin', '관리자', '운영자', '유머인', 'humorin', '스탭', '매니저', '마스터', '시스템'];
 
 function isForbidden(text: string) {
@@ -87,6 +91,10 @@ export async function registerUserAction(formData: FormData) {
     const cookieStore = await cookies();
     cookieStore.set({ name: 'humorin_user', value: nickname, httpOnly: true, path: '/', maxAge: 60 * 60 * 24 * 7 });
     cookieStore.set({ name: 'humorin_userid', value: userId, httpOnly: true, path: '/', maxAge: 60 * 60 * 24 * 7 });
+    
+    // 🛡️ [수정] 회원가입 즉시 글쓰기가 가능하도록 Hmac 서명 쿠키 발급
+    const signature = crypto.createHmac('sha256', SECRET_KEY).update(userId).digest('hex');
+    cookieStore.set({ name: 'humorin_signature', value: signature, httpOnly: true, path: '/', maxAge: 60 * 60 * 24 * 7 });
     
   } catch (error) {
     console.error("DB 에러:", error);
