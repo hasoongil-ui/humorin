@@ -1,8 +1,8 @@
 import { headers } from 'next/headers';
 import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs'; 
-import crypto from 'crypto'; 
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
 
@@ -17,12 +17,11 @@ export async function POST(request: Request) {
 
     if (rows.length > 0) {
       const user = rows[0];
-      
-      const isPasswordMatch = await bcrypt.compare(password, user.password);
-      const isLegacyLogin = password === user.password;
 
-      if (isPasswordMatch || isLegacyLogin) {
-        
+      const isPasswordMatch = await bcrypt.compare(password, user.password);
+
+      if (isPasswordMatch) {
+
         // 1. 마지막 로그인 시간 업데이트
         await sql`
           UPDATE users 
@@ -51,10 +50,10 @@ export async function POST(request: Request) {
         }
 
         const response = NextResponse.json(
-          { success: true, message: '로그인 성공' }, 
+          { success: true, message: '로그인 성공' },
           { status: 200 }
         );
-        
+
         // 쿠키 설정
         response.cookies.set({
           name: 'humorin_user',
@@ -66,7 +65,7 @@ export async function POST(request: Request) {
 
         response.cookies.set({
           name: 'humorin_userid',
-          value: user.user_id, 
+          value: user.user_id,
           httpOnly: true,
           path: '/',
           maxAge: 60 * 60 * 24 * 7,
@@ -84,20 +83,20 @@ export async function POST(request: Request) {
         return response;
       } else {
         return NextResponse.json(
-          { success: false, message: '아이디 또는 비밀번호가 틀렸습니다.' }, 
+          { success: false, message: '아이디 또는 비밀번호가 틀렸습니다.' },
           { status: 401 }
         );
       }
     } else {
       return NextResponse.json(
-        { success: false, message: '아이디 또는 비밀번호가 틀렸습니다.' }, 
+        { success: false, message: '아이디 또는 비밀번호가 틀렸습니다.' },
         { status: 401 }
       );
     }
   } catch (error) {
     console.error('로그인 API 처리 중 대형 에러:', error);
     return NextResponse.json(
-      { success: false, message: '서버 오류가 발생했습니다.' }, 
+      { success: false, message: '서버 오류가 발생했습니다.' },
       { status: 500 }
     );
   }
