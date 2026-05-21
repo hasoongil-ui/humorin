@@ -5,8 +5,27 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
 import SafeButton from '../SafeButton';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
+
+const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
+
+async function verifyAdmin() {
+  const cookieStore = await cookies();
+  const userId = cookieStore.get('humorin_userid')?.value;
+  const signature = cookieStore.get('humorin_signature')?.value;
+  if (!userId) return false;
+  if (signature) {
+    const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(userId).digest('hex');
+    if (signature !== expectedSignature) return false;
+  }
+  try {
+    if (userId === 'admin') return true;
+    const { rows } = await sql`SELECT is_admin FROM users WHERE user_id = ${userId}`;
+    return rows.length > 0 && rows[0].is_admin;
+  } catch { return false; }
+}
 
 function formatDate(dateString: any) {
   if (!dateString) return '-';
@@ -54,9 +73,8 @@ async function handleBulkAction(formData: FormData) {
 }
 
 export default async function AdminPostsPage(props: any) {
-  const cookieStore = await cookies();
-  const currentUserId = cookieStore.get('humorin_userid')?.value;
-  if (currentUserId !== 'admin') redirect('/');
+  const isAdmin = await verifyAdmin();
+  if (!isAdmin) redirect('/');
 
   const searchParams = await props.searchParams;
   const currentPage = Number(searchParams?.page) || 1;

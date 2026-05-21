@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { cookies } from 'next/headers'; // 💡 문지기 부품 추가
 
 const s3 = new S3Client({
   region: 'auto',
@@ -13,13 +14,22 @@ const s3 = new S3Client({
 
 export async function POST(request: NextRequest) {
   try {
+    // 🚨 [보안 철벽 추가] 로그인한 유저인지 쿠키를 검사합니다!
+    const cookieStore = await cookies();
+    const userId = cookieStore.get('humorin_userid')?.value;
+    
+    if (!userId) {
+      console.error('❌ 비로그인 불법 업로드 시도 차단됨!');
+      return NextResponse.json({ error: '로그인한 회원만 업로드할 수 있습니다.' }, { status: 401 });
+    }
+
     const { filename, contentType } = await request.json();
 
     // 💡 [보안 철벽] 업로드 요청이 어디서 왔는지(출처) 확인하여 프사인지 게시판인지 완벽하게 자동 구분합니다.
     const referer = request.headers.get('referer') || '';
     const isProfileUpload = referer.includes('/profile');
 
-    console.log(`[업로드 요청] 파일명: ${filename}, 타입: ${contentType}, 프사폴더이동: ${isProfileUpload}`);
+    console.log(`[업로드 요청] 유저: ${userId}, 파일명: ${filename}, 타입: ${contentType}`);
 
     if (!filename || !contentType) {
       return NextResponse.json({ error: '파일 정보가 없습니다.' }, { status: 400 });
@@ -39,7 +49,8 @@ export async function POST(request: NextRequest) {
     // 한글/띄어쓰기로 인한 URL 깨짐 방지를 위해 파일명 강제 세탁
     const extension = filename.split('.').pop()?.toLowerCase() || 'bin';
     const safeRandomName = Math.random().toString(36).substring(2, 10);
-    let uniqueFileName = `${Date.now()}-${safeRandomName}.${extension}`;
+    // 💡 파일명 앞에 유저 ID를 붙여서 누가 올렸는지 꼬리표를 답니다.
+    let uniqueFileName = `${userId}-${Date.now()}-${safeRandomName}.${extension}`;
 
     // 💡 [핵심] 프로필 페이지에서 온 요청이면 프사 전용 폴더(profiles/)로 안전하게 격리합니다!
     if (isProfileUpload) {
