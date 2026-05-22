@@ -81,6 +81,7 @@ export default async function BoardPage(props: any) {
     const store = await cookies();
     store.delete('humorin_user');
     store.delete('humorin_userid');
+    store.delete('humorin_signature');
   };
 
   const limit = 20;

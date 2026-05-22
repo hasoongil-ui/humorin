@@ -26,6 +26,7 @@ export async function handleLogoutAction() {
   const cookieStore = await cookies();
   cookieStore.delete('humorin_user');
   cookieStore.delete('humorin_userid');
+  cookieStore.delete('humorin_signature');
   redirect('/');
 }
 
