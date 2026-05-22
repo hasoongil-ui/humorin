@@ -78,6 +78,13 @@ export async function generateMetadata(props: any): Promise<Metadata> {
         ogImageUrl = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
         twitterImageUrl = ogImageUrl;
       }
+      else {
+        const videoPosterMatch = postContent.match(/<video[^>]+poster=(["'])(.*?)\1/i);
+        if (videoPosterMatch && videoPosterMatch[2]) {
+          ogImageUrl = videoPosterMatch[2];
+          twitterImageUrl = videoPosterMatch[2];
+        }
+      }
     }
 
     const videoMatch = postContent.match(/<video[^>]*src=["']([^"'>]+)["']/i);
