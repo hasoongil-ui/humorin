@@ -4,6 +4,7 @@ import { sql } from '@vercel/postgres';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import CategoryIcon from './CategoryIcon';
+import HybridPrefetchTrigger from './HybridPrefetchTrigger';
 
 export const dynamic = 'force-dynamic';
 
@@ -317,7 +318,7 @@ export default async function BoardPage(props: any) {
               return (
                 <div key={`notice-${post.id}`} className={`flex flex-col md:flex-row border-b py-3 transition-colors items-center group ${bgColor} active:scale-[0.98] md:active:scale-100 active:bg-gray-50/50 md:active:bg-transparent touch-pan-y md:touch-auto`}>
                   <div className={`hidden md:block w-12 text-center text-xs font-black shrink-0 ${textColor}`}>{badgeText}</div>
-                  <Link href={`/board/${post.id}${fromQuery}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
+                  <Link href={`/board/${post.id}${fromQuery}`} prefetch={false} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                     <span className="mr-2 text-[14px]">{iconText}</span>
                     {post.is_blinded ? (
                       <span className="truncate mr-1 text-gray-400 md:text-gray-500">블라인드 처리된 글입니다.</span>
@@ -356,7 +357,7 @@ export default async function BoardPage(props: any) {
               return (
                 <div className="flex flex-col md:flex-row border-b border-gray-200 py-3 bg-blue-50/50 hover:bg-gray-50 transition-colors items-center group active:scale-[0.98] md:active:scale-100 active:bg-gray-50/50 md:active:bg-transparent touch-pan-y md:touch-auto">
                   <div className="hidden md:block w-12 text-center text-xs text-gray-500 font-bold shrink-0">장원</div>
-                  <Link href={`/board/${renderTopPost.id}${fromQuery}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
+                  <Link href={`/board/${renderTopPost.id}${fromQuery}`} prefetch={false} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                     <CategoryIcon category={topData.cat} />
 
                     {renderTopPost.is_blinded ? (
@@ -412,7 +413,7 @@ export default async function BoardPage(props: any) {
                 return (
                   <div key={post.id} className="flex flex-col md:flex-row border-b border-gray-200 py-2.5 hover:bg-gray-50 transition-colors items-center group active:scale-[0.98] md:active:scale-100 active:bg-gray-50/50 md:active:bg-transparent touch-pan-y md:touch-auto">
                     <div className="hidden md:block w-12 text-center text-[13px] text-gray-400 shrink-0">{post.id}</div>
-                    <Link href={`/board/${post.id}${fromQuery}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
+                    <Link href={`/board/${post.id}${fromQuery}`} prefetch={false} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                       <CategoryIcon category={postData.cat} />
 
                       {post.is_blinded ? (
@@ -515,6 +516,7 @@ export default async function BoardPage(props: any) {
 
         </main>
       </div>
+      <HybridPrefetchTrigger />
     </>
   );
 }

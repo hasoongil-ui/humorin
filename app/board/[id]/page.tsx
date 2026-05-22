@@ -849,6 +849,24 @@ export default async function PostDetailPage(props: any) {
         return match;
       }
     );
+
+    let imgCounter = 0;
+    finalContent = finalContent.replace(
+      /<img([^>]+)>/gi,
+      (match, attributes) => {
+        imgCounter++;
+        const cleanAttrs = attributes
+          .replace(/\bloading=(["'])(.*?)\1/gi, '')
+          .replace(/\bfetchpriority=(["'])(.*?)\1/gi, '')
+          .replace(/\bdecoding=(["'])(.*?)\1/gi, '');
+
+        if (imgCounter === 1) {
+          return `<img${cleanAttrs} fetchpriority="high" loading="eager" decoding="sync">`;
+        } else {
+          return `<img${cleanAttrs} loading="lazy" decoding="async">`;
+        }
+      }
+    );
   }
 
   const cleanContent = sanitizeHtml(finalContent, {
