@@ -13,36 +13,35 @@ export default function ProfileAvatar({ initialImage, fallbackChar, updateAction
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 🛡️ [방어막 1] 엄격한 확장자 검사 (알 수 없는 파일 완전 차단)
-    // 보안 및 악용: JPG, PNG, WEBP 딱 3개만 허용하여 해킹 파일 업로드 가능성을 차단합니다.
+    // 🛡️ [방어막 1] 엄격한 확장자 검사
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       alert('🚨 JPG, PNG, WEBP 형식의 이미지 파일만 업로드 가능합니다.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
-    // 🛡️ [방어막 2] 초강력 입구 컷: 10MB/2MB -> 500KB로 대폭 하향!
-    // 서버 최적화: 유저가 실수로 대형 파일을 넣어도 폰/브라우저가 멈추거나, 서버 스토리지 요금이 폭발하는 것을 미연에 방지합니다.
+    // 🛡️ [방어막 2] 초강력 입구 컷 (즉시 튕겨냄)
     if (file.size > 500 * 1024) {
       alert('🚨 프로필 사진은 최대 500KB까지만 업로드 가능합니다.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
-    // 🛡️ [방어막 3] 덩치 큰 움짤(WebP 애니메이션) 원천 차단! (💡 대장님이 잡아낸 빨간 줄 완벽 해결!)
-    // 예외 상황: WebP는 정지 화상과 움짤이 섞여 있습니다. 파일의 헤더(DNA)를 뜯어보고 '움직임' 신호가 있으면 가차 없이 튕겨냅니다.
+    // 💡 [UX 최적화] 모바일 연산 멈춤 착각을 막기 위해 여기서부터 즉시 스피너를 켭니다!
+    setIsUploading(true);
+
+    // 🛡️ [방어막 3] 덩치 큰 움짤(WebP 애니메이션) 원천 차단!
     if (file.type === 'image/webp') {
       const isAnimated = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => {
-          // 💡 [수술 핵심: 빨간 줄 해결!] e.target과 result가 비어있으면(null/undefined) 조용히 종료합니다.
           if (!e.target || !e.target.result) {
             resolve(false);
             return;
           }
-
           const arr = new Uint8Array(e.target.result as ArrayBuffer);
           let found = false;
-          // 헤더의 일부분만 스캔하여 '움직임' 신호(ANIM)를 찾습니다.
           for (let i = 0; i < arr.length - 3; i++) {
             if (arr[i] === 65 && arr[i+1] === 78 && arr[i+2] === 73 && arr[i+3] === 77) {
               found = true; break;
@@ -50,51 +49,56 @@ export default function ProfileAvatar({ initialImage, fallbackChar, updateAction
           }
           resolve(found);
         };
-        // 전체 파일이 아닌, 앞부분 딱 1KB(헤더)만 읽도록 최적화했습니다.
         reader.readAsArrayBuffer(file.slice(0, 1024)); 
       });
 
       if (isAnimated) {
         alert('🚨 움직이는 사진(움짤)은 프로필로 사용할 수 없습니다.\n일반 정지 사진을 선택해 주세요.');
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
     }
 
-    // 🛡️ [방어막 4] 기형적으로 세로가 긴 이미지(웹툰 캡처 등) 차단
-    // 서버 최적화: 세로로 너무 긴 이미지는 압축 효율이 떨어지고 서버 용량을 많이 먹습니다. 비율 검사로 컷합니다.
+    // 🛡️ [방어막 4] 기형적으로 세로가 긴 이미지 차단 (🚨 블랙홀 버그 완벽 픽스!)
     const img = new Image();
     img.src = URL.createObjectURL(file);
-    await new Promise((resolve) => { img.onload = resolve; });
-    // 가로 대비 세로가 2.5배 넘으면 기형적인 이미지로 판단!
-    const isLongImage = img.height > img.width * 2.5; 
+    const isLongImage = await new Promise((resolve) => { 
+      img.onload = () => {
+        resolve(img.height > img.width * 2.5);
+      };
+      // 💡 모바일 램 부족으로 디코딩 실패 시 뻗지 않고 비상 탈출!
+      img.onerror = () => {
+        resolve(false); 
+      };
+    });
     URL.revokeObjectURL(img.src);
     
     if (isLongImage) {
       alert('🚨 세로로 너무 긴 사진은 프로필로 사용할 수 없습니다. (정방형 비율 권장)');
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
-    setIsUploading(true);
-
     try {
       // 💡 [최종 검문소: 극한 다이어트 압축] 
-      // 입구를 뚫었더라도, 브라우저에서 강제로 가로세로 최대 400px, 80KB(0.08MB) 이하의 초경량으로 찌그러뜨립니다.
       const options = {
         maxSizeMB: 0.08, // 80KB
         maxWidthOrHeight: 400,
-        useWebWorker: true,
+        // 🚨 [치명적 버그 픽스] 모바일 멈춤 현상(Silent Crash) 방지를 위해 강제 false 적용!
+        useWebWorker: false, 
       };
       
       const compressedFile = await imageCompression(file, options);
 
-      // 🛡️ [최후의 보루] 혹시나 기형적인 파일이라 압축해도 크기가 크다면 최종 전송 컷!
       if (compressedFile.size > 200 * 1024) {
         alert('🚨 시스템 오류: 이미지가 최적화 한도를 초과했습니다. 다른 사진을 이용해 주세요.');
         setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
 
-      // 💡 Vercel 스토리지로 업로드
       const ticketRes = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,22 +108,19 @@ export default function ProfileAvatar({ initialImage, fallbackChar, updateAction
       const { uploadUrl, publicUrl } = await ticketRes.json();
       
       if (uploadUrl) {
-        // 실제 Vercel 스토리지에 사진을 꽂습니다.
         await fetch(uploadUrl, { method: 'PUT', body: compressedFile, headers: { 'Content-Type': compressedFile.type } });
         
-        // 업로드 성공 후 서버(DB)에 주소 저장 명령!
         const res = await updateAction(publicUrl);
         if (res?.error) {
           alert('프로필 사진 저장에 실패했습니다.');
         } else {
-          setImageUrl(publicUrl); // 화면의 프사를 바로 교체
+          setImageUrl(publicUrl);
         }
       }
     } catch (error) {
       alert('사진 업로드 중 오류가 발생했습니다.');
     } finally {
       setIsUploading(false);
-      // 같은 파일을 연속으로 올릴 수 있게 입력창을 초기화합니다.
       if (fileInputRef.current) fileInputRef.current.value = ''; 
     }
   };
@@ -141,7 +142,6 @@ export default function ProfileAvatar({ initialImage, fallbackChar, updateAction
           )}
         </div>
         
-        {/* 카메라 아이콘 버튼 */}
         <button 
           onClick={() => !isUploading && fileInputRef.current?.click()}
           className="absolute bottom-0 right-0 w-8 h-8 bg-[#3b4890] rounded-full border-2 border-[#2a3042] flex items-center justify-center text-white hover:bg-indigo-500 transition-colors shadow-lg z-10 group-hover:scale-110"
@@ -162,8 +162,7 @@ export default function ProfileAvatar({ initialImage, fallbackChar, updateAction
         />
       </div>
 
-      {/* 💡 [안내 문구 수정] 대장님이 주신 가이드를 완벽하게 반영했습니다. */}
-      <div className="mt-3 text-[11px] text-gray-300/80 font-medium leading-relaxed text-center">
+      <div className="mt-3 text-[11px] text-gray-400 font-medium leading-relaxed text-center">
         * 최대 500KB 이하 정지 사진만 가능 (JPG, PNG, WEBP)<br/>
         * 세로로 긴 사진 및 움직이는 사진(GIF) 불가
       </div>
