@@ -3,11 +3,15 @@
 import { useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 
+// 🛡️ [핵심 수술 완료] 안드로이드 Scoped Storage 권한 락 완벽 우회 엔진
 const detectAndRestoreFile = (file: File): Promise<File> => {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const arr = new Uint8Array(reader.result as ArrayBuffer);
+      // 💡 1. 안드로이드가 잠그기 전에 파일 전체를 RAM(ArrayBuffer)으로 통째로 복사
+      const fullArrayBuffer = reader.result as ArrayBuffer;
+      const arr = new Uint8Array(fullArrayBuffer);
+      
       if (arr.length < 12) return resolve(file);
 
       let realType = file.type;
@@ -33,23 +37,33 @@ const detectAndRestoreFile = (file: File): Promise<File> => {
         ext = 'webp';
       }
 
+      let newFileName = file.name;
+
       if (ext && (file.type !== realType || !file.type || file.type === 'application/octet-stream')) {
         const hasValidExtension = new RegExp(`\\.${ext}$`, 'i').test(file.name);
-        const newFileName = hasValidExtension 
-          ? file.name 
-          : file.name.replace(/\.[^/.]+$/, "") + `.${ext}`;
-
-        const restoredFile = new File([file], newFileName, {
+        if (!hasValidExtension) {
+            newFileName = file.name.replace(/\.[^/.]+$/, "") + `.${ext}`;
+        }
+        
+        // 💡 2. 원본 'file' 대신, 복제된 'fullArrayBuffer'를 재료로 새 파일을 창조
+        const restoredFile = new File([fullArrayBuffer], newFileName, {
           type: realType,
           lastModified: file.lastModified || Date.now(),
         });
         resolve(restoredFile);
       } else {
-        resolve(file);
+        // 💡 3. 확장자가 정상이더라도 안드로이드 권한 락을 끊어내기 위해 무조건 메모리 복제본 반환!
+        const clonedFile = new File([fullArrayBuffer], newFileName, {
+          type: file.type || 'image/jpeg',
+          lastModified: file.lastModified || Date.now(),
+        });
+        resolve(clonedFile);
       }
     };
     reader.onerror = () => resolve(file);
-    reader.readAsArrayBuffer(file.slice(0, 32));
+    
+    // 💡 4. 기존 32바이트 slice()를 제거하고, 파일 '전체'를 순식간에 읽어들임
+    reader.readAsArrayBuffer(file);
   });
 };
 
@@ -136,13 +150,13 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
         let rawFile = e.target.files?.[0];
         if (!rawFile) return;
 
-        // 🛡️ [바이너리 엑스레이 스캐너 가동] 변형된 파일을 진짜 포맷(WebP/GIF/JPEG/PNG)으로 100% 원본 복구!
+        // 🛡️ [바이너리 복제 스캐너 가동] 안드로이드 권한 락을 뚫고 완벽한 새 파일로 복원!
         const file = await detectAndRestoreFile(rawFile);
 
-        // 🚨 새로 추가된 WebP 움짤 엑스레이 스캔!
+        // 🚨 WebP 움짤 판독 스캔
         const isWebPAnim = await isAnimatedWebP(file);
 
-        // 🚨 투트랙 용량 통제소: GIF이거나, 엑스레이로 판독된 WebP 움짤인 경우
+        // 🚨 투트랙 용량 통제소
         if (file.type === 'image/gif' || isWebPAnim) {
             // [트랙 1] 움짤(GIF/WebP)은 2MB 이하만 첨부 가능!
             if (file.size > 2 * 1024 * 1024) {
