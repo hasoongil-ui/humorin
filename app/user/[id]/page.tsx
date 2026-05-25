@@ -37,9 +37,16 @@ function getTierInfo(points: number) {
 
 export default async function PublicProfilePage(props: any) {
   const params = await props.params;
-  const targetParam = decodeURIComponent(params.id || ''); 
+  const searchParams = await props.searchParams;
+  
+  // 💡 URL 이동용 원본 ID와 검색용 한글 디코딩 ID 완벽 분리
+  const rawUrlId = params.id || ''; 
+  const targetParam = decodeURIComponent(rawUrlId); 
+  
+  const currentPage = Number(searchParams?.page) || 1;
+  const itemsPerPage = 20;
+  const offset = (currentPage - 1) * itemsPerPage;
 
-  // 💡 [수술 핵심 1] profile_image 데이터도 DB에서 같이 불러옵니다!
   const { rows: userRows } = await sql`
     SELECT user_id, nickname, points, profile_image 
     FROM users 
@@ -62,12 +69,66 @@ export default async function PublicProfilePage(props: any) {
   const points = user.points || 0;
   const tier = getTierInfo(points);
 
+  const { rows: countRows } = await sql`
+    SELECT COUNT(*) 
+    FROM posts 
+    WHERE author_id = ${targetUserId} OR author = ${user.nickname}
+  `;
+  const totalItems = parseInt(countRows[0].count, 10) || 0;
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
   const { rows: userPosts } = await sql`
     SELECT id, title, views, likes, date 
     FROM posts 
     WHERE author_id = ${targetUserId} OR author = ${user.nickname}
-    ORDER BY id DESC LIMIT 50
+    ORDER BY id DESC 
+    LIMIT ${itemsPerPage} OFFSET ${offset}
   `;
+
+  // 💡 [초심플 마스터 페이징 엔진] 5개씩 블록 단위 점프 + 처음 버튼 장착
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+    
+    const blockSize = 5;
+    const currentBlock = Math.ceil(currentPage / blockSize);
+    const startPage = (currentBlock - 1) * blockSize + 1;
+    const endPage = Math.min(startPage + blockSize - 1, totalPages);
+    
+    const pages = [];
+    for (let i = startPage; i <= endPage; i++) pages.push(i);
+
+    return (
+      <div className="flex justify-center items-center gap-1 mt-8 mb-4 flex-wrap">
+        {/* [처음] 버튼 - 항상 1페이지로 */}
+        {currentPage > 1 && (
+          <Link href={`/user/${rawUrlId}?page=1`} className="px-3 py-1.5 border border-gray-300 bg-white text-gray-600 text-[12px] font-bold rounded-sm hover:bg-gray-50 transition-colors">
+            처음
+          </Link>
+        )}
+        
+        {/* [이전] 버튼 - 이전 블록으로 점프 (예: 6페이지에서 누르면 5페이지로) */}
+        {startPage > 1 && (
+          <Link href={`/user/${rawUrlId}?page=${startPage - 1}`} className="px-3 py-1.5 border border-gray-300 bg-white text-gray-600 text-[12px] font-bold rounded-sm hover:bg-gray-50 transition-colors">
+            이전
+          </Link>
+        )}
+        
+        {/* 번호 버튼 5개 */}
+        {pages.map(page => (
+          <Link key={page} href={`/user/${rawUrlId}?page=${page}`} className={`px-3 py-1.5 border text-[12px] font-bold rounded-sm transition-colors ${page === currentPage ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+            {page}
+          </Link>
+        ))}
+        
+        {/* [다음] 버튼 - 다음 블록으로 점프 (예: 5페이지에서 누르면 6페이지로) */}
+        {endPage < totalPages && (
+          <Link href={`/user/${rawUrlId}?page=${endPage + 1}`} className="px-3 py-1.5 border border-gray-300 bg-white text-gray-600 text-[12px] font-bold rounded-sm hover:bg-gray-50 transition-colors">
+            다음
+          </Link>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-[80vh] bg-gray-50 flex flex-col items-center py-10 px-4 font-sans">
@@ -85,7 +146,6 @@ export default async function PublicProfilePage(props: any) {
         
         <div className="bg-white p-10 border-b border-gray-100 text-center relative">
           
-          {/* 💡 [수술 핵심 2] 프사가 있으면 사진을 띄우고, 없으면 기존처럼 글자(닉네임 첫 글자)를 띄웁니다. */}
           <div className="w-24 h-24 bg-gray-50 rounded-full mx-auto mb-4 flex items-center justify-center text-4xl font-black shadow-sm border border-gray-200 text-[#3b4890] overflow-hidden">
             {user.profile_image ? (
               <img src={user.profile_image} alt={`${user.nickname} 프로필`} className="w-full h-full object-cover" />
@@ -108,7 +168,7 @@ export default async function PublicProfilePage(props: any) {
 
         <div className="p-6 md:p-8">
           <h3 className="font-bold text-lg mb-4 text-gray-800 border-b-2 border-gray-800 pb-2 inline-block">
-            작성한 게시글 <span className="text-[#3b4890]">{userPosts.length}</span>
+            작성한 게시글 <span className="text-[#3b4890]">{totalItems}</span> 
           </h3>
           
           {userPosts.length === 0 ? (
@@ -127,6 +187,10 @@ export default async function PublicProfilePage(props: any) {
               ))}
             </div>
           )}
+          
+          {/* 💡 렌더링된 하단 번호 버튼을 화면에 출력 */}
+          {renderPagination()}
+
         </div>
 
       </div>

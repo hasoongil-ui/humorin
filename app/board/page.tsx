@@ -103,7 +103,6 @@ export default async function BoardPage(props: any) {
   const categoryPattern = category !== 'all' ? `%[${category}]%` : '%';
   const isAll = category === 'all';
 
-  // 💡 핵심 수정 구역: 공지사항을 불러올 때 전체공지 + (현재 게시판일 경우에만) 게시판 공지를 불러옵니다!
   if (page === 1 && !keyword && bestType === '') {
     try {
       const { rows } = await sql`
@@ -189,13 +188,11 @@ export default async function BoardPage(props: any) {
     return url;
   };
 
-  const maxPageButtons = 5;
-  let startPage = Math.max(1, page - 2);
-  let endPage = Math.min(totalPages, startPage + maxPageButtons - 1);
-
-  if (endPage - startPage + 1 < maxPageButtons) {
-    startPage = Math.max(1, endPage - maxPageButtons + 1);
-  }
+  // 💡 [수술 엔진 장착] 5개씩 블록 점프 방식 (디자인 100% 유지)
+  const blockSize = 5;
+  const currentBlock = Math.ceil(page / blockSize);
+  const startPage = (currentBlock - 1) * blockSize + 1;
+  const endPage = Math.min(startPage + blockSize - 1, totalPages);
 
   const visiblePages = [];
   for (let i = startPage; i <= endPage; i++) {
@@ -303,7 +300,6 @@ export default async function BoardPage(props: any) {
               <div className="w-12 text-center text-rose-500 shrink-0">공감</div>
             </div>
 
-            {/* 💡 핵심 수정 구역: 공지사항 색상 분리 렌더링 (전체공지는 빨간색, 게시판공지는 파란색) */}
             {noticePosts.map((post: any) => {
               const postData = extractData(post.title);
               const isAnonymous = postData.cat === '익명 다락방';
@@ -478,31 +474,32 @@ export default async function BoardPage(props: any) {
           <div className="flex flex-col md:flex-row justify-between items-center mt-4 gap-4 w-full">
             <div className="hidden md:block md:flex-1 shrink-0"></div>
 
+            {/* 💡 [핵심 핀셋 수술 구역] 디자인(CSS) 100% 유지 + 이동 공식만 5블록 점프로 교체 */}
             <div className="flex justify-center items-center gap-1 flex-wrap shrink-0">
               {page > 1 && (
-                <>
-                  <Link href={getPageUrl(1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
-                    <span className="hidden sm:inline">처음</span>
-                    <span className="sm:hidden">{"<<"}</span>
-                  </Link>
-                  <Link href={getPageUrl(page - 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
-                    <span className="hidden sm:inline">이전</span>
-                    <span className="sm:hidden">{"<"}</span>
-                  </Link>
-                </>
+                <Link href={getPageUrl(1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                  <span className="hidden sm:inline">처음</span>
+                  <span className="sm:hidden">{"<<"}</span>
+                </Link>
               )}
+              {startPage > 1 && (
+                <Link href={getPageUrl(startPage - 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                  <span className="hidden sm:inline">이전</span>
+                  <span className="sm:hidden">{"<"}</span>
+                </Link>
+              )}
+              
               {visiblePages.map((p) => (
                 <Link key={p} href={getPageUrl(p)} className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${page === p ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
                   {p}
                 </Link>
               ))}
-              {page < totalPages && (
-                <>
-                  <Link href={getPageUrl(page + 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
-                    <span className="hidden sm:inline">다음</span>
-                    <span className="sm:hidden">{">"}</span>
-                  </Link>
-                </>
+              
+              {endPage < totalPages && (
+                <Link href={getPageUrl(endPage + 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                  <span className="hidden sm:inline">다음</span>
+                  <span className="sm:hidden">{">"}</span>
+                </Link>
               )}
             </div>
 
