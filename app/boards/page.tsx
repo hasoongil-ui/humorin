@@ -19,7 +19,9 @@ export default async function AllBoardsPage() {
 
   const groupsMap: Record<string, any[]> = {};
   
+  // 💡 [핵심 추가] 명예의 전당 그룹에 '투데이 베스트'를 추가했습니다!
   groupsMap['🏆 명예의 전당'] = [
+    { name: '🔥 투데이 베스트', link: '/board?best=today' },
     { name: '💯 백베스트', link: '/board?best=100' },
     { name: '👑 천베스트', link: '/board?best=1000' }
   ];
@@ -56,7 +58,7 @@ export default async function AllBoardsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {Object.keys(groupsMap).map((groupName) => {
             const list = groupsMap[groupName];
-            // 💡 [핵심] 10칸 고정용 빈칸 데이터 생성
+            // 💡 10칸 고정용 빈칸 데이터 생성
             const emptySlots = Array(Math.max(0, 10 - list.length)).fill(null);
 
             return (
@@ -78,7 +80,7 @@ export default async function AllBoardsPage() {
                     </li>
                   ))}
                   
-                  {/* 💡 [핵심] 모바일에서는 완전히 숨기고(hidden), PC(md 이상)에서만 투명하게 10칸 높이 유지 */}
+                  {/* 💡 모바일에서는 숨기고, PC에서만 투명하게 10칸 높이 유지 */}
                   {emptySlots.map((_, idx) => (
                     <li key={`empty-${idx}`} className="hidden md:flex items-center px-3 py-3 w-full h-[46px] opacity-0 pointer-events-none">
                       빈칸
