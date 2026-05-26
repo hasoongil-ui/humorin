@@ -188,7 +188,6 @@ export default async function BoardPage(props: any) {
     return url;
   };
 
-  // 💡 [수술 엔진 장착] 5개씩 블록 점프 방식 (디자인 100% 유지)
   const blockSize = 5;
   const currentBlock = Math.ceil(page / blockSize);
   const startPage = (currentBlock - 1) * blockSize + 1;

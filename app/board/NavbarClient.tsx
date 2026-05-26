@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { handleLogoutAction } from './navActions';
 
-// 💡 [어제 백업본 100% 보존] 따뜻한 식물 티어 시스템
 const TIER_SYSTEM = [
   { name: '씨앗', min: 0, icon: '🌱', color: 'text-green-600' },
   { name: '새싹', min: 100, icon: '🌿', color: 'text-emerald-600' },
@@ -33,16 +32,34 @@ interface NavbarClientProps {
   initialBoards: any[];
 }
 
+// 💡 [핵심 해결책] TypeScript 발작 방지용 설계도 장착!
+interface MenuSubItem {
+  name: string;
+  link?: string;
+  isSpecial?: boolean;
+}
+
+interface MenuGroup {
+  name: string;
+  link?: string;
+  isSingle?: boolean;
+  sub?: MenuSubItem[];
+}
+
 export default function NavbarClient(props: NavbarClientProps) {
   const { initialUser, initialBoards } = props;
   const searchParams = useSearchParams();
   const currentCategory = searchParams.get('category') || 'all';
   const bestType = searchParams.get('best') || '';
 
-  // 💡 [어제 백업본 100% 보존] 스크롤 화살표 감지 레이더 (절대 건드리지 않음)
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const checkScrollState = useCallback(() => {
     if (scrollContainerRef.current) {
@@ -92,19 +109,22 @@ export default function NavbarClient(props: NavbarClientProps) {
   const user = initialUser ? { nickname: initialUser.nickname, level: initialUser.level, points: Number(initialUser.points) || 0 } : null;
   const tierInfo = getTierInfo(user ? user.points : 0);
   
-  // PC용 그룹핑 메뉴
   const groupsMap: Record<string, any[]> = {};
   if (initialBoards && initialBoards.length > 0) {
     initialBoards.forEach((b: any) => {
       if (!groupsMap[b.group_name]) groupsMap[b.group_name] = [];
-      groupsMap[b.group_name].push({ name: b.name, link: `/board?category=${b.name}`, isSpecial: b.name === '게시판 신설 요청' });
+      groupsMap[b.group_name].push({ name: b.name, link: `/board?category=${b.name}` });
     });
   }
-  const dynamicMenus = Object.keys(groupsMap).map(groupName => ({ name: groupName, sub: groupsMap[groupName] }));
-  const staticGroups = [{ name: '전체글 보기', link: '/board', isSingle: true }, { name: '🔥투데이 베스트', link: '/board?best=today', isSingle: true }, { name: '명예의 전당', sub: [{ name: '💯 백베스트', link: '/board?best=100' }, { name: '👑 천베스트', link: '/board?best=1000' }] }];
-  const menuGroups = [...staticGroups, ...dynamicMenus];
+  
+  // 💡 [핵심 해결책] '우리는 MenuGroup 설계도를 따를 거야!' 라고 선언하여 6개의 에러를 소멸시킴
+  const menuGroups: MenuGroup[] = [
+    { name: '전체글 보기', link: '/board', isSingle: true }, 
+    { name: '🔥투데이 베스트', link: '/board?best=today', isSingle: true }, 
+    { name: '명예의 전당', sub: [{ name: '💯 백베스트', link: '/board?best=100' }, { name: '👑 천베스트', link: '/board?best=1000' }] },
+    ...Object.keys(groupsMap).map(groupName => ({ name: groupName, sub: groupsMap[groupName] }))
+  ];
 
-  // 모바일용 플랫 메뉴 (가로 스크롤용)
   const mobileFlatList = [
     { name: '전체글 보기', link: '/board' },
     { name: '🔥투데이 베스트', link: '/board?best=today' },
@@ -112,6 +132,8 @@ export default function NavbarClient(props: NavbarClientProps) {
     { name: '👑 천베스트', link: '/board?best=1000' },
     ...(initialBoards || []).map(b => ({ name: b.name, link: `/board?category=${b.name}` }))
   ];
+
+  const activeGroup = menuGroups.find(g => g.name === hoveredMenuId);
 
   return (
     <>
@@ -141,9 +163,7 @@ export default function NavbarClient(props: NavbarClientProps) {
       </header>
 
       <nav className="bg-[#414a66] text-gray-200 shadow-md relative z-20 min-h-[48px] md:min-h-[52px]">
-        <div className="max-w-[1200px] mx-auto relative group">
-          
-          {/* 좌우 화살표 */}
+        <div className="max-w-[1200px] mx-auto relative group flex">
           {showLeftArrow && (
             <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-[#414a66] via-[#414a66]/80 to-transparent z-40 flex items-center pointer-events-none">
               <button onClick={() => scrollByArrow('left')} className="w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center ml-2 pointer-events-auto transition-all shadow-lg active:scale-95"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg></button>
@@ -155,11 +175,10 @@ export default function NavbarClient(props: NavbarClientProps) {
             </div>
           )}
 
-          {/* 💡 [무결점 하이브리드 엔진] 레이더를 단 하나의 박스에만 장착! */}
-          <div ref={scrollContainerRef} onScroll={checkScrollState} className="flex items-center overflow-x-auto whitespace-nowrap hide-scrollbar relative py-0.5">
+          <div ref={scrollContainerRef} onScroll={checkScrollState} className="flex items-center overflow-x-auto whitespace-nowrap hide-scrollbar relative py-0.5 w-full">
             <div className="w-2 shrink-0 md:hidden"></div>
 
-            {/* 1. 모바일 전용 플랫 메뉴 (md:hidden 으로 PC에선 숨김) */}
+            {/* 모바일 가로 스크롤 메뉴 */}
             {mobileFlatList.map((item) => {
               let isActive = false;
               if (item.name === '전체글 보기') isActive = currentCategory === 'all' && bestType === '';
@@ -175,7 +194,7 @@ export default function NavbarClient(props: NavbarClientProps) {
               );
             })}
 
-            {/* 2. PC 전용 드롭다운 메뉴 (hidden md:inline-block 으로 모바일에선 숨김) */}
+            {/* PC 드롭다운 메뉴 */}
             {menuGroups.map((group: any) => {
               if (group.isSingle) {
                 let isActive = false;
@@ -201,31 +220,32 @@ export default function NavbarClient(props: NavbarClientProps) {
             <div className="w-28 shrink-0 hidden md:block"></div> 
           </div>
           
-          <Link href="/boards" className="absolute right-0 top-0 bottom-0 bg-[#414a66] h-full px-4 flex items-center text-[13px] font-black text-yellow-400 hover:text-white transition-colors shadow-[-15px_0_15px_-5px_rgba(65,74,102,1)] z-50 shrink-0 ml-auto border-l border-[#5b6586]">
+          <Link href="/boards" className="absolute right-0 top-0 bottom-0 bg-[#414a66] h-full px-4 flex items-center text-[13px] font-black text-yellow-400 hover:text-white transition-colors shadow-[-15px_0_15px_-5px_rgba(65,74,102,1)] z-50 shrink-0 border-l border-[#5b6586]">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 mr-1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
             전체
           </Link>
         </div>
       </nav>
 
-      {/* 💡 [안전장치 2] 모바일에서는 포탈 드롭다운 렌더링을 원천 차단 (스티키 버그 완전 소멸!) */}
       <div className="hidden md:block">
-        {hoveredMenuId && menuRect && (
-          (() => {
-            const currentGroup = dynamicMenus.find(g => g.name === hoveredMenuId);
-            if (!currentGroup) return null;
-            return createPortal(
-              <div className="fixed bg-white border border-gray-200 shadow-2xl rounded-b-sm overflow-hidden z-[9999]" style={{ left: `${menuRect.left}px`, top: `${menuRect.bottom}px`, width: `${menuRect.width < 200 ? 200 : menuRect.width}px` }} onMouseEnter={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }} onMouseLeave={handleMouseLeave}>
-                {currentGroup.sub?.map((subItem: any) => { 
-                  if (subItem.isSpecial) {
-                    return <Link key={subItem.name} href={subItem.link} className="w-full text-left block px-5 py-3 text-[13px] font-bold border-t-2 border-gray-100 transition-colors bg-rose-50 text-rose-500 hover:bg-rose-100">{subItem.name}</Link>;
-                  }
-                  const isActive = currentCategory === subItem.name;
-                  return <Link key={subItem.name} href={subItem.link || ''} className={`block px-5 py-3 text-[13px] font-bold border-b border-gray-100 transition-colors last:border-0 ${isActive ? 'bg-indigo-50 text-[#3b4890]' : 'text-gray-700 hover:bg-gray-50 hover:text-[#3b4890]'}`}>{subItem.name}</Link>;
-                })}
-              </div>, document.body
-            );
-          })()
+        {mounted && hoveredMenuId && menuRect && activeGroup && typeof document !== 'undefined' && createPortal(
+          <div 
+            className="fixed bg-white border border-gray-200 shadow-2xl rounded-b-sm overflow-hidden z-[9999]" 
+            style={{ left: `${menuRect.left}px`, top: `${menuRect.bottom}px`, width: `${menuRect.width < 200 ? 200 : menuRect.width}px` }} 
+            onMouseEnter={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }} 
+            onMouseLeave={handleMouseLeave}
+          >
+            {activeGroup.sub?.map((subItem: any) => { 
+              const link = subItem.link || `/board?category=${subItem.name}`;
+              const isActive = currentCategory === subItem.name;
+              return (
+                <Link key={subItem.name} href={link} className={`block px-5 py-3 text-[13px] font-bold border-b border-gray-100 transition-colors last:border-0 ${isActive ? 'bg-indigo-50 text-[#3b4890]' : 'text-gray-700 hover:bg-gray-50 hover:text-[#3b4890]'}`}>
+                  {subItem.name}
+                </Link>
+              );
+            })}
+          </div>, 
+          document.body
         )}
       </div>
     </>
