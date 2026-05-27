@@ -4,20 +4,73 @@ import { useState, useRef } from 'react';
 import imageCompression from 'browser-image-compression';
 import { Loader2 } from 'lucide-react';
 
+// 💡 [핵심 엔진 1] 확장자가 없는 안드로이드 파일의 신분증(MIME) 추적기
+const getMimeTypeFromExtension = (filename: string) => {
+  if (!filename.includes('.')) return '';
+  const ext = filename.split('.').pop()?.toLowerCase();
+  if (['jpg', 'jpeg'].includes(ext || '')) return 'image/jpeg';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'gif') return 'image/gif';
+  if (ext === 'webp') return 'image/webp';
+  return '';
+};
+
+// 💡 [핵심 엔진 2] 안드로이드 악성 다운로드 파일 권한 락 3중 우회기
+const cloneFileToUnlock = async (file: File, fallbackType: string): Promise<File> => {
+  let mimeType = file.type;
+  if (!mimeType || mimeType === 'application/octet-stream') {
+    const extMime = getMimeTypeFromExtension(file.name);
+    mimeType = extMime ? extMime : fallbackType;
+  }
+
+  try {
+    const blobUrl = URL.createObjectURL(file);
+    const response = await fetch(blobUrl);
+    const buffer = await response.arrayBuffer();
+    URL.revokeObjectURL(blobUrl);
+    return new File([buffer], file.name, { type: mimeType });
+  } catch (e1) {
+    try {
+      const buffer = await file.arrayBuffer();
+      return new File([buffer], file.name, { type: mimeType });
+    } catch (e2) {
+      try {
+        return await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(new File([reader.result as ArrayBuffer], file.name, { type: mimeType }));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsArrayBuffer(file);
+        });
+      } catch (e3) {
+        console.warn("파일 메모리 복제 3중 방어 실패, 원본 반환", e3);
+        // 최후의 수단: 강제로 이름표만이라도 붙여서 원본 반환
+        return new File([file], file.name, { type: mimeType }); 
+      }
+    }
+  }
+};
+
 export default function ProfileAvatar({ initialImage, fallbackChar, updateAction }: { initialImage: string | null, fallbackChar: string, updateAction: (url: string) => Promise<any> }) {
   const [isUploading, setIsUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState(initialImage);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
 
-    // 🛡️ [방어막 1] 엄격한 확장자 검사
+    // 💡 [UX 최적화] 안드로이드 메모리 복제에 1~2초가 걸릴 수 있으므로 '가장 먼저' 스피너를 가동합니다!
+    setIsUploading(true);
+
+    // 💡 [핵심] 안드로이드 권한 락 해제 및 신분증 강제 부여!
+    const file = await cloneFileToUnlock(rawFile, 'image/jpeg');
+
+    // 🛡️ [방어막 1] 엄격한 확장자 검사 (이제 신분증이 복구되었으니 안전하게 통과 가능)
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       alert('🚨 JPG, PNG, WEBP 형식의 이미지 파일만 업로드 가능합니다.');
       if (fileInputRef.current) fileInputRef.current.value = '';
+      setIsUploading(false); // 스피너 해제
       return;
     }
 
@@ -25,11 +78,9 @@ export default function ProfileAvatar({ initialImage, fallbackChar, updateAction
     if (file.size > 500 * 1024) {
       alert('🚨 프로필 사진은 최대 500KB까지만 업로드 가능합니다.');
       if (fileInputRef.current) fileInputRef.current.value = '';
+      setIsUploading(false); // 스피너 해제
       return;
     }
-
-    // 💡 [UX 최적화] 모바일 연산 멈춤 착각을 막기 위해 여기서부터 즉시 스피너를 켭니다!
-    setIsUploading(true);
 
     // 🛡️ [방어막 3] 덩치 큰 움짤(WebP 애니메이션) 원천 차단!
     if (file.type === 'image/webp') {
