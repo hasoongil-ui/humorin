@@ -20,6 +20,57 @@ import 'react-quill-new/dist/quill.snow.css';
 
 const MAX_CONTENT_LENGTH = 65000;
 
+// 💡 [핵심 엔진 1] 확장자가 없는 파일의 신분증 추적기
+const getMimeTypeFromExtension = (filename: string) => {
+  if (!filename.includes('.')) return '';
+  const ext = filename.split('.').pop()?.toLowerCase();
+  if (['jpg', 'jpeg'].includes(ext || '')) return 'image/jpeg';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'gif') return 'image/gif';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'mp4') return 'video/mp4';
+  if (ext === 'webm') return 'video/webm';
+  if (['mov', 'qt'].includes(ext || '')) return 'video/quicktime';
+  return '';
+};
+
+// 💡 [핵심 엔진 2] 안드로이드 악성 다운로드 파일 권한 락 3중 우회기
+const cloneFileToUnlock = async (file: File, fallbackType: string): Promise<File> => {
+  let mimeType = file.type;
+  if (!mimeType || mimeType === 'application/octet-stream') {
+    const extMime = getMimeTypeFromExtension(file.name);
+    mimeType = extMime ? extMime : fallbackType;
+  }
+
+  try {
+    // 🛡️ 시도 1: Blob URL 기법 (가장 강력한 안드로이드 권한 우회 해킹 기법)
+    const blobUrl = URL.createObjectURL(file);
+    const response = await fetch(blobUrl);
+    const buffer = await response.arrayBuffer();
+    URL.revokeObjectURL(blobUrl);
+    return new File([buffer], file.name, { type: mimeType });
+  } catch (e1) {
+    try {
+      // 🛡️ 시도 2: 기본 메모리 복제
+      const buffer = await file.arrayBuffer();
+      return new File([buffer], file.name, { type: mimeType });
+    } catch (e2) {
+      try {
+        // 🛡️ 시도 3: 구형 FileReader 복제
+        return await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(new File([reader.result as ArrayBuffer], file.name, { type: mimeType }));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsArrayBuffer(file);
+        });
+      } catch (e3) {
+        console.warn("파일 메모리 복제 3중 방어 실패, 원본 반환", e3);
+        return file; // 최후의 수단으로 원본 반환
+      }
+    }
+  }
+};
+
 export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boards, editorPlaceholder, userPoints = 0 }: { currentUser: string, isAdmin: boolean, isGlobalLocked: boolean, boards: any[], editorPlaceholder?: string, userPoints?: number }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -74,7 +125,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             let node = super.create(value);
             if (typeof value === 'object' && value.url) {
               node.setAttribute('src', value.url);
-
               if (value.width) node.setAttribute('width', value.width);
               if (value.height) node.setAttribute('height', value.height);
 
@@ -88,7 +138,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
                 node.style.setProperty('padding', '0', 'important');
                 node.style.setProperty('vertical-align', 'top', 'important');
 
-                // 💡 [핵심 추가] 가로 길이 원본 고정 자물쇠 (억지로 늘어나는 현상 100% 방지)
                 if (value.width) {
                   node.style.setProperty('max-width', `min(100%, ${value.width}px)`, 'important');
                 }
@@ -106,7 +155,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
                   node.style.setProperty('border-bottom-right-radius', '8px', 'important');
                   node.style.setProperty('margin-bottom', '15px', 'important');
                 } else {
-                  node.style.setProperty('margin-bottom', '-1px', 'important'); // 서브픽셀 하얀 실선 방어
+                  node.style.setProperty('margin-bottom', '-1px', 'important'); 
                 }
               }
             } else if (typeof value === 'string') {
@@ -115,7 +164,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             return node;
           }
 
-          // 💡 수정(Edit) 시 속성 증발 방어 로직
           static value(node: any) {
             return {
               url: node.getAttribute('src'),
@@ -183,7 +231,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     });
   }, [isGlobalLocked, isAdmin, router]);
 
-  // 🚨 [신규 엔진] WebP 파일 내부를 투시하여 움짤(ANIM)인지 판독하는 함수
   const isAnimatedWebP = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
       if (file.type !== 'image/webp') return resolve(false);
@@ -202,7 +249,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     });
   };
 
-  // 💡 [WebP 완벽 보존] 15,000px 단위 분할
   const sliceHugeImage = async (file: File, img: HTMLImageElement): Promise<File[]> => {
     const sliceHeight = 15000;
     const numSlices = Math.ceil(img.height / sliceHeight);
@@ -236,7 +282,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     const editor = quillRef.current.getEditor();
     const currentImageCount = editor.root.querySelectorAll('img').length;
 
-    // 조각 분할을 고려하여 넉넉하게 50장 한도
     if (currentImageCount + fileArray.length > 50) {
       alert(`🚨 사진은 게시글당 최대 50장까지만 첨부할 수 있습니다.\n(현재 ${currentImageCount}장 포함됨)`);
       return;
@@ -247,7 +292,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
     try {
       const processedFiles: File[] = [];
-      const imageFiles = fileArray.filter(f => f.type.startsWith('image/'));
+      const imageFiles = fileArray.filter(f => f.type.startsWith('image/') || getMimeTypeFromExtension(f.name).startsWith('image/'));
 
       for (const file of imageFiles) {
         const isWebPAnim = file.type === 'image/webp' ? await isAnimatedWebP(file) : false;
@@ -259,9 +304,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         try {
           const img = new Image();
           img.src = URL.createObjectURL(file);
-          await new Promise((resolve) => { img.onload = resolve; });
+          // 💡 [버그 방어] 무한 대기 현상 해결
+          await new Promise((resolve, reject) => { 
+             img.onload = resolve; 
+             img.onerror = () => reject(new Error('이미지 렌더링 실패'));
+          });
 
-          // 💡 15,000px 초과 시에만 분할 발동! 이하는 단 한 장의 원본 압축으로 통과
           if (img.height > 15000) {
             const slices = await sliceHugeImage(file, img);
             URL.revokeObjectURL(img.src);
@@ -315,9 +363,13 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: file.name, contentType: safeContentType }),
         });
-        const { uploadUrl, publicUrl } = await ticketRes.json();
+        const resData = await ticketRes.json();
+        if (!ticketRes.ok) throw new Error(resData.error || '티켓 발급 실패');
+
+        const { uploadUrl, publicUrl } = resData;
         if (uploadUrl) {
-          await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': safeContentType } });
+          const putRes = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': safeContentType } });
+          if (!putRes.ok) throw new Error('클라우드 서버 전송 실패');
           return { url: publicUrl, width: dimensions.w, height: dimensions.h, isSliced, isFirstSlice, isLastSlice };
         }
         return null;
@@ -335,7 +387,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           isLastSlice: img.isLastSlice
         }, 'silent');
 
-        // 💡 분할된 이미지들은 엔터를 생략하여 같은 <p> 태그 안에 강제 병합시킵니다.
         if (!img.isSliced || img.isLastSlice) {
           editor.insertText(insertIndex + 1, '\n', 'silent');
           insertIndex += 2;
@@ -345,8 +396,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       });
       editor.setSelection(insertIndex, 'silent');
 
-    } catch (error) {
-      alert('이미지 업로드 중 오류가 발생했습니다.');
+    } catch (error: any) {
+      alert(`이미지 업로드 중 오류가 발생했습니다.\n이유: ${error.message}`);
     } finally {
       setIsCompressing(false);
       setIsUploading(false);
@@ -360,7 +411,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     const container = editorContainerRef.current;
     if (!container) return;
 
-    const handleNativePaste = (e: ClipboardEvent) => {
+    const handleNativePaste = async (e: ClipboardEvent) => {
       const clipboardData = e.clipboardData;
       if (!clipboardData) return;
 
@@ -443,10 +494,13 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       let hasImage = false;
       const imageFiles: File[] = [];
       for (let i = 0; i < items.length; i++) {
-        if (items[i].type.startsWith('image/')) {
-          hasImage = true;
-          const file = items[i].getAsFile();
-          if (file) imageFiles.push(file);
+        if (items[i].type.startsWith('image/') || items[i].kind === 'file') {
+          const rawFile = items[i].getAsFile();
+          if (rawFile) {
+            hasImage = true;
+            const unlockedFile = await cloneFileToUnlock(rawFile, 'image/jpeg');
+            imageFiles.push(unlockedFile);
+          }
         }
       }
 
@@ -477,7 +531,13 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     input.onchange = async () => {
       const files = input.files;
       if (!files || files.length === 0) return;
-      await processAndUploadImages(Array.from(files), startIndex);
+      
+      const unlockedFiles: File[] = [];
+      for (let i = 0; i < files.length; i++) {
+        unlockedFiles.push(await cloneFileToUnlock(files[i], 'image/jpeg'));
+      }
+
+      await processAndUploadImages(unlockedFiles, startIndex);
     };
   };
 
@@ -491,8 +551,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     input.setAttribute('accept', 'video/*');
     input.click();
     input.onchange = async () => {
-      const file = input.files ? input.files[0] : null;
-      if (!file) return;
+      const rawFile = input.files ? input.files[0] : null;
+      if (!rawFile) return;
+
+      const file = await cloneFileToUnlock(rawFile, 'video/mp4');
 
       const currentVideoCount = editor.root.querySelectorAll('video').length;
       if (currentVideoCount >= 4) {
@@ -514,17 +576,21 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: file.name, contentType: safeContentType }),
         });
-        const { uploadUrl, publicUrl } = await ticketRes.json();
-        if (uploadUrl) {
-          await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': safeContentType } });
+        const resData = await ticketRes.json();
+        
+        if (!ticketRes.ok) throw new Error(resData.error || '티켓 발급 실패');
 
-          // 💡 [썸네일 로딩 버그 패치] 비디오 첫 프레임(0.001초) 렌더링 강제 주입
+        const { uploadUrl, publicUrl } = resData;
+        if (uploadUrl) {
+          const putRes = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': safeContentType } });
+          if (!putRes.ok) throw new Error('클라우드 서버 전송 실패');
+
           editor.insertEmbed(insertIndex, 'mp4Video', publicUrl + '#t=0.001', 'silent');
           editor.insertText(insertIndex + 1, '\n', 'silent');
           editor.setSelection(insertIndex + 2, 'silent');
         }
-      } catch (error) {
-        alert('동영상 업로드 중 오류가 발생했습니다.');
+      } catch (error: any) {
+        alert(`동영상 업로드 중 오류가 발생했습니다.\n이유: ${error.message}`);
       } finally {
         setIsUploading(false);
       }
@@ -693,10 +759,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before { content: '36'; }
         .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16'; } 
 
-        /* 💡 가로 늘어짐 방지: width: auto !important 를 완벽하게 부활시켰습니다 */
         .ql-editor img { max-width: 100%; width: auto !important; height: auto; border-radius: 8px; display: block; margin: 15px auto !important; }
         
-        /* 💡 조각 이미지를 위한 기본 설정 (에디터 속성 오버라이드 방어) */
         .ql-editor img.humorin-sliced-img {
             margin: 0 auto !important;
             border-radius: 0 !important;
@@ -706,7 +770,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             vertical-align: top !important;
         }
 
-        /* 💡 빈틈 완벽 멸망 CSS: 조각 이미지를 품은 문단(<p>)의 불필요한 줄간격과 텍스트 여백을 0으로 짓눌러 영구 차단합니다 */
         .ql-editor p:has(img.humorin-sliced-img) {
             margin: 0 !important;
             padding: 0 !important;

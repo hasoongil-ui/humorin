@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { cookies } from 'next/headers'; // 💡 문지기 부품 추가
+import { cookies } from 'next/headers';
 
 import crypto from 'crypto';
 
@@ -16,9 +16,22 @@ const s3 = new S3Client({
   },
 });
 
+// 💡 백엔드 전용 확장자 -> 신분증(MIME) 변환기 (확장자가 없으면 fallback 반환)
+const getMimeType = (filename: string, fallback: string) => {
+  if (!filename.includes('.')) return fallback;
+  const ext = filename.split('.').pop()?.toLowerCase();
+  if (['jpg', 'jpeg'].includes(ext || '')) return 'image/jpeg';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'gif') return 'image/gif';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'mp4') return 'video/mp4';
+  if (ext === 'webm') return 'video/webm';
+  if (['mov', 'qt'].includes(ext || '')) return 'video/quicktime';
+  return fallback;
+};
+
 export async function POST(request: NextRequest) {
   try {
-    // 🛡️ [수정] 업로드 발급 시에도 Hmac 지문인식기를 돌려 위조 쿠키 완전 원천 차단
     const cookieStore = await cookies();
     const userId = cookieStore.get('humorin_userid')?.value;
     const signature = cookieStore.get('humorin_signature')?.value;
@@ -32,11 +45,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '비정상적인 접근입니다.' }, { status: 403 });
     }
 
-    const { filename, contentType } = await request.json();
+    let { filename, contentType } = await request.json();
 
-    // 💡 [보안 철벽] 업로드 요청이 어디서 왔는지(출처) 확인하여 프사인지 게시판인지 완벽하게 자동 구분합니다.
     const referer = request.headers.get('referer') || '';
     const isProfileUpload = referer.includes('/profile');
+
+    // 💡 [핵심] 안드로이드가 신분증을 안 줬다면 백엔드에서도 강제 부여!
+    if (!contentType || contentType === 'application/octet-stream' || contentType === '') {
+      contentType = getMimeType(filename, contentType);
+    }
 
     console.log(`[업로드 요청] 유저: ${userId}, 파일명: ${filename}, 타입: ${contentType}`);
 
@@ -44,7 +61,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '파일 정보가 없습니다.' }, { status: 400 });
     }
 
-    // 🛡️ [정석 보안 화이트리스트] 바이러스는 막고, 정상적인 이미지/동영상만 통과시킵니다.
     const allowedTypes = [
       'image/jpeg', 'image/png', 'image/gif', 'image/webp',
       'video/mp4', 'video/webm', 'video/quicktime'
@@ -55,13 +71,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '❌ 이미지 또는 동영상 파일만 업로드할 수 있습니다.' }, { status: 400 });
     }
 
-    // 한글/띄어쓰기로 인한 URL 깨짐 방지를 위해 파일명 강제 세탁
     const extension = filename.split('.').pop()?.toLowerCase() || 'bin';
     const safeRandomName = Math.random().toString(36).substring(2, 10);
-    // 💡 파일명 앞에 유저 ID를 붙여서 누가 올렸는지 꼬리표를 답니다.
     let uniqueFileName = `${userId}-${Date.now()}-${safeRandomName}.${extension}`;
 
-    // 💡 [핵심] 프로필 페이지에서 온 요청이면 프사 전용 폴더(profiles/)로 안전하게 격리합니다!
     if (isProfileUpload) {
       uniqueFileName = `profiles/${uniqueFileName}`;
     }
@@ -72,7 +85,6 @@ export async function POST(request: NextRequest) {
       ContentType: contentType,
     });
 
-    // 마법의 황금 티켓(Presigned URL) 발급
     const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 60 });
     const publicUrl = `${process.env.NEXT_PUBLIC_R2_URL}/${uniqueFileName}`;
 
