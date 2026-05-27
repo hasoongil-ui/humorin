@@ -10,6 +10,7 @@ import { PostLikeButton, PostDislikeButton, CommentLikeButton, CommentDislikeBut
 import CommentForm from './CommentForm';
 import VideoVolumeFix from './VideoVolumeFix';
 import DeleteConfirmButton from './DeleteConfirmButton';
+import CategoryIcon from '../CategoryIcon';
 import { Metadata } from 'next';
 import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 
@@ -30,6 +31,26 @@ function getDisplayDate(dateString: any) {
     const min = String(kstDate.getMinutes()).padStart(2, '0');
     return `${yy}.${mm}.${dd} ${hh}:${min}`;
   } catch (e) { return ''; }
+}
+
+function formatListDate(dateString: any) {
+  const dbDate = new Date(dateString);
+  const kstDate = new Date(dbDate.getTime() + 9 * 60 * 60 * 1000);
+  const nowUtc = new Date();
+  const nowKst = new Date(nowUtc.getTime() + 9 * 60 * 60 * 1000);
+
+  const isToday = kstDate.getDate() === nowKst.getDate() && kstDate.getMonth() === nowKst.getMonth() && kstDate.getFullYear() === nowKst.getFullYear();
+
+  if (isToday) {
+    return `${String(kstDate.getHours()).padStart(2, '0')}:${String(kstDate.getMinutes()).padStart(2, '0')}`;
+  }
+  const yy = String(kstDate.getFullYear()).slice(-2);
+  return `${yy}-${String(kstDate.getMonth() + 1).padStart(2, '0')}-${String(kstDate.getDate()).padStart(2, '0')}`;
+}
+
+function hasImage(content: string) {
+  if (!content) return false;
+  return /<img[^>]+src="([^">]+)"/.test(content);
 }
 
 function extractData(fullTitle: string) {
@@ -123,7 +144,13 @@ export default async function PostDetailPage(props: any) {
   const params = await props.params;
   const searchParams = await props.searchParams;
   const postId = params.id;
-  const fromLocation = searchParams?.from;
+  
+  // 파라미터 연동
+  const fromLocation = searchParams?.from || '';
+  const listPage = searchParams?.page ? Number(searchParams.page) : 1;
+  const bestType = searchParams?.best || '';
+  const keyword = searchParams?.q || '';
+  const searchType = searchParams?.searchType || 'title';
 
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('humorin_user');
@@ -213,7 +240,7 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
   }
 
-  // 💡 [조회수 펌핑 엔진 1단계] 꼬리물기 연관 게시글 로직 주입 (DB 부하 0% 우회 기법)
+  // 💡 [조회수 펌핑 엔진 1단계] 도파민 추천글 3개 (랜덤 캐싱)
   const categoryPattern = postData.cat !== '일반' ? `%[${postData.cat}]%` : '%';
   let relatedPosts = [];
   try {
@@ -227,10 +254,93 @@ export default async function PostDetailPage(props: any) {
       ORDER BY id DESC 
       LIMIT 10
     `;
-    // 서버 RAM에서 0.001초 만에 3개를 랜덤 추출 (무거운 ORDER BY RANDOM 쿼리 완벽 대체)
     relatedPosts = recentPosts.sort(() => 0.5 - Math.random()).slice(0, 3);
-  } catch (e) {
-    console.error("연관 게시글 로딩 실패", e);
+  } catch (e) { console.error("연관 게시글 실패", e); }
+
+  // 💡 [조회수 펌핑 엔진 2단계] 하단 게시판 무한 정주행 리스트 로직
+  let listCategory = postData.cat;
+  if (fromLocation === 'all' || searchParams?.category === 'all') listCategory = 'all';
+  if (searchParams?.category && searchParams.category !== 'all') listCategory = searchParams.category;
+
+  const isAll = listCategory === 'all';
+  const listCatPattern = !isAll ? `%[${listCategory}]%` : '%';
+  const limit = 20;
+  const offset = (listPage - 1) * limit;
+
+  let listPosts = [];
+  let totalListCount = 0;
+
+  try {
+    if (keyword) {
+      const searchPattern = `%${keyword}%`;
+      let countRes, rowsRes;
+      if (searchType === 'title') {
+        countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${listCatPattern} AND title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
+        rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${listCatPattern} AND title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      } else if (searchType === 'content') {
+        countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${listCatPattern} AND content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
+        rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${listCatPattern} AND content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      } else {
+        countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${listCatPattern} AND author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
+        rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${listCatPattern} AND author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      }
+      totalListCount = Number(countRes.rows[0].count);
+      listPosts = rowsRes.rows;
+    } 
+    else if (bestType === 'today') {
+      const countRes = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published'`;
+      totalListCount = Number(countRes.rows[0].count);
+      const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      listPosts = rows;
+    } 
+    else if (bestType === '100') {
+      const countRes = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published'`;
+      totalListCount = Number(countRes.rows[0].count);
+      const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      listPosts = rows;
+    }
+    else if (bestType === '1000') {
+      const countRes = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published'`;
+      totalListCount = Number(countRes.rows[0].count);
+      const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      listPosts = rows;
+    }
+    else {
+      const countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${listCatPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
+      totalListCount = Number(countRes.rows[0].count);
+      const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${listCatPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      listPosts = rows;
+    }
+  } catch (e) { console.error("하단 리스트 렌더링 실패", e); }
+
+  const totalPages = Math.ceil(totalListCount / limit) || 1;
+  const blockSize = 5;
+  const currentBlock = Math.ceil(listPage / blockSize);
+  const startPage = (currentBlock - 1) * blockSize + 1;
+  const endPage = Math.min(startPage + blockSize - 1, totalPages);
+  const visiblePages = [];
+  for (let i = startPage; i <= endPage; i++) visiblePages.push(i);
+
+  const getPageUrl = (pageNum: number) => {
+    let url = `/board?page=${pageNum}`;
+    if (keyword) url += `&q=${keyword}&searchType=${searchType}`;
+    if (bestType) url += `&best=${bestType}`;
+    if (listCategory !== 'all') url += `&category=${listCategory}`;
+    return url;
+  };
+
+  // URL Query Generator
+  let listQueryStr = '';
+  if (bestType === 'today') listQueryStr = '?from=today';
+  else if (bestType === '100') listQueryStr = '?from=100';
+  else if (bestType === '1000') listQueryStr = '?from=1000';
+  else if (listCategory === 'all' && !keyword) listQueryStr = '?from=all';
+
+  if (listPage > 1) {
+    listQueryStr += listQueryStr ? `&page=${listPage}` : `?page=${listPage}`;
+  }
+  if (listCategory !== 'all' && listCategory !== postData.cat) {
+     listQueryStr += listQueryStr ? `&category=${listCategory}` : `?category=${listCategory}`;
   }
 
   const deletePost = async () => {
@@ -1101,7 +1211,7 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 💡 [조회수 펌핑 엔진 1단계] 꼬리물기 연관 게시글 (댓글창 바로 아래 격리) */}
+        {/* 💡 [조회수 펌핑 엔진 1단계] 도파민 추천글 3개 */}
         {relatedPosts.length > 0 && (
           <div className="mt-10 border-t border-gray-200 pt-8">
             <h3 className="font-black text-[17px] text-gray-800 mb-4 flex items-center gap-1.5 px-1">
@@ -1127,6 +1237,100 @@ export default async function PostDetailPage(props: any) {
                   </Link>
                 )
               })}
+            </div>
+          </div>
+        )}
+
+        {/* 💡 [조회수 펌핑 엔진 2단계] 정통파 게시판 리스트 (현재 글 하이라이트 포함) */}
+        {listPosts.length > 0 && (
+          <div className="mt-12 border-t-2 border-gray-800 pt-6">
+            <div className="flex justify-between items-end mb-4 px-2">
+              <h3 className="font-bold text-[17px] text-gray-800">
+                {listCategory !== 'all' ? `'${listCategory}' 게시판 목록` : '전체글 목록'}
+              </h3>
+              <Link href={backToListUrl} className="text-[13px] font-bold text-[#3b4890] hover:underline">
+                게시판으로 가기 &rarr;
+              </Link>
+            </div>
+
+            <div className="border-t-2 border-gray-700 text-sm">
+              <div className="hidden md:flex border-b border-gray-300 bg-gray-50 py-3 font-bold text-gray-600">
+                <div className="w-12 text-center shrink-0">번호</div>
+                <div className="flex-1 text-center">제목</div>
+                <div className="w-24 text-center shrink-0">글쓴이</div>
+                <div className="w-[70px] text-center shrink-0">날짜</div>
+                <div className="w-12 text-center shrink-0">조회</div>
+                <div className="w-12 text-center text-rose-500 shrink-0">공감</div>
+              </div>
+
+              {listPosts.map((p: any) => {
+                const pData = extractData(p.title);
+                const isAnon = pData.cat === '익명 다락방';
+                const dispAuthor = isAnon ? '익명' : p.author;
+                const isCurrentPost = p.id === Number(postId);
+                const itemBg = isCurrentPost ? 'bg-indigo-50/70' : 'bg-white hover:bg-gray-50';
+
+                return (
+                  <div key={p.id} className={`flex flex-col md:flex-row border-b border-gray-200 py-2.5 transition-colors items-center group touch-pan-y md:touch-auto ${itemBg}`}>
+                    <div className="hidden md:block w-12 text-center text-[13px] text-gray-400 shrink-0">
+                      {isCurrentPost ? <span className="text-indigo-600 font-black">▶</span> : p.id}
+                    </div>
+                    <Link href={`/board/${p.id}${listQueryStr}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
+                      <CategoryIcon category={pData.cat} />
+                      
+                      {p.is_blinded ? (
+                        <span className="truncate mr-1 text-gray-400 md:text-gray-500">블라인드 처리된 글입니다.</span>
+                      ) : (
+                        <>
+                          <span className={`truncate group-hover:underline mr-1 md:font-normal ${isCurrentPost ? 'font-black text-indigo-900' : 'font-bold text-gray-900 md:text-gray-800'}`}>
+                            {pData.cleanTitle}
+                          </span>
+                          {hasImage(p.content) && (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 ml-0.5 text-gray-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
+                          )}
+                          {p.comment_count > 0 && (
+                            <span className="ml-1 text-[11px] sm:text-[12px] font-bold text-[#3b4890] shrink-0">[{p.comment_count}]</span>
+                          )}
+                        </>
+                      )}
+                    </Link>
+                    <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 justify-between items-center shrink-0">
+                      <div className="md:w-24 text-left md:text-center font-normal md:font-medium text-gray-400 md:text-gray-600 truncate">
+                        {p.is_blinded ? '-' : dispAuthor}
+                      </div>
+                      <div className="md:w-[70px] md:text-center">{formatListDate(p.date)}</div>
+                      <div className="md:w-12 md:text-center">{p.is_blinded ? '-' : (p.views || 0)}</div>
+                      <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${p.is_blinded ? 'text-gray-300 md:text-gray-300' : (p.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300 md:text-gray-300')}`}>
+                        {p.is_blinded ? '-' : (p.likes || 0)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 하단 페이징 영역 */}
+            <div className="flex justify-center items-center gap-1 flex-wrap mt-6">
+              {listPage > 1 && (
+                <Link href={getPageUrl(1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                  <span className="hidden sm:inline">처음</span><span className="sm:hidden">{"<<"}</span>
+                </Link>
+              )}
+              {startPage > 1 && (
+                <Link href={getPageUrl(startPage - 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                  <span className="hidden sm:inline">이전</span><span className="sm:hidden">{"<"}</span>
+                </Link>
+              )}
+              {visiblePages.map((pNum) => (
+                <Link key={pNum} href={getPageUrl(pNum)} className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${listPage === pNum ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
+                  {pNum}
+                </Link>
+              ))}
+              {endPage < totalPages && (
+                <Link href={getPageUrl(endPage + 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                  <span className="hidden sm:inline">다음</span><span className="sm:hidden">{">"}</span>
+                </Link>
+              )}
             </div>
           </div>
         )}
