@@ -32,7 +32,6 @@ interface NavbarClientProps {
   initialBoards: any[];
 }
 
-// 💡 [핵심 해결책] TypeScript 발작 방지용 설계도 장착!
 interface MenuSubItem {
   name: string;
   link?: string;
@@ -117,17 +116,22 @@ export default function NavbarClient(props: NavbarClientProps) {
     });
   }
   
-  // 💡 [핵심 해결책] '우리는 MenuGroup 설계도를 따를 거야!' 라고 선언하여 6개의 에러를 소멸시킴
   const menuGroups: MenuGroup[] = [
     { name: '전체글 보기', link: '/board', isSingle: true }, 
     { name: '🔥투데이 베스트', link: '/board?best=today', isSingle: true }, 
-    { name: '명예의 전당', sub: [{ name: '💯 백베스트', link: '/board?best=100' }, { name: '👑 천베스트', link: '/board?best=1000' }] },
+    { name: '명예의 전당', sub: [
+      { name: '🏛️ 명작 쇼케이스', link: '/board?best=showcase' },
+      { name: '💯 백베스트', link: '/board?best=100' }, 
+      { name: '👑 천베스트', link: '/board?best=1000' }
+    ] },
     ...Object.keys(groupsMap).map(groupName => ({ name: groupName, sub: groupsMap[groupName] }))
   ];
 
+  // 💡 [버그 멸망] 모바일 스크롤 메뉴에도 '명작 쇼케이스'를 완벽하게 삽입했습니다!
   const mobileFlatList = [
     { name: '전체글 보기', link: '/board' },
     { name: '🔥투데이 베스트', link: '/board?best=today' },
+    { name: '🏛️ 명작 쇼케이스', link: '/board?best=showcase' },
     { name: '💯 백베스트', link: '/board?best=100' },
     { name: '👑 천베스트', link: '/board?best=1000' },
     ...(initialBoards || []).map(b => ({ name: b.name, link: `/board?category=${b.name}` }))
@@ -183,6 +187,8 @@ export default function NavbarClient(props: NavbarClientProps) {
               let isActive = false;
               if (item.name === '전체글 보기') isActive = currentCategory === 'all' && bestType === '';
               else if (item.name === '🔥투데이 베스트') isActive = bestType === 'today';
+              // 💡 모바일 메뉴 활성화 감지 로직 완벽 업데이트
+              else if (item.name === '🏛️ 명작 쇼케이스') isActive = bestType === 'showcase';
               else if (item.name === '💯 백베스트') isActive = bestType === '100';
               else if (item.name === '👑 천베스트') isActive = bestType === '1000';
               else isActive = currentCategory === item.name;
@@ -227,6 +233,7 @@ export default function NavbarClient(props: NavbarClientProps) {
         </div>
       </nav>
 
+      {/* PC 드롭다운 세부 메뉴 */}
       <div className="hidden md:block">
         {mounted && hoveredMenuId && menuRect && activeGroup && typeof document !== 'undefined' && createPortal(
           <div 
@@ -237,7 +244,13 @@ export default function NavbarClient(props: NavbarClientProps) {
           >
             {activeGroup.sub?.map((subItem: any) => { 
               const link = subItem.link || `/board?category=${subItem.name}`;
-              const isActive = currentCategory === subItem.name;
+              
+              // 💡 PC 드롭다운 메뉴 활성화 감지 로직 완벽 업데이트
+              let isActive = currentCategory === subItem.name;
+              if (subItem.name === '🏛️ 명작 쇼케이스') isActive = bestType === 'showcase';
+              if (subItem.name === '💯 백베스트') isActive = bestType === '100';
+              if (subItem.name === '👑 천베스트') isActive = bestType === '1000';
+
               return (
                 <Link key={subItem.name} href={link} className={`block px-5 py-3 text-[13px] font-bold border-b border-gray-100 transition-colors last:border-0 ${isActive ? 'bg-indigo-50 text-[#3b4890]' : 'text-gray-700 hover:bg-gray-50 hover:text-[#3b4890]'}`}>
                   {subItem.name}

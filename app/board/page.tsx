@@ -28,6 +28,12 @@ function hasImage(content: string) {
   return /<img[^>]+src="([^">]+)"/.test(content);
 }
 
+function extractFirstImage(content: string) {
+  if (!content) return null;
+  const match = content.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return match ? match[1] : null;
+}
+
 function extractData(fullTitle: string) {
   if (!fullTitle) return { cat: '일반', cleanTitle: '' };
   const match = fullTitle.match(/^\[(.*?)\]\s*(.*)$/);
@@ -49,7 +55,7 @@ export default async function BoardPage(props: any) {
   const page = searchParams.page ? Number(searchParams.page) : 1;
   const keyword = searchParams.q || '';
   const searchType = searchParams.searchType || 'title';
-
+  
   const queryParams = new URLSearchParams();
   if (page > 1) queryParams.set('page', page.toString());
   if (category !== 'all') queryParams.set('category', category);
@@ -105,6 +111,25 @@ export default async function BoardPage(props: any) {
   const categoryPattern = category !== 'all' ? `%[${category}]%` : '%';
   const isAll = category === 'all';
 
+  // 💡 [핵심 엔진] 고유 파라미터 best=showcase 로 진입 시 쇼케이스 렌더링
+  let showcaseData = null;
+  if (bestType === 'showcase' && page === 1 && !keyword) {
+    try {
+      const [weeklyRes, monthlyRes, allTimeRes] = await Promise.all([
+        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '7 days' AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
+        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '30 days' AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
+        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`
+      ]);
+      showcaseData = {
+        weekly: weeklyRes.rows[0] || null,
+        monthly: monthlyRes.rows[0] || null,
+        allTime: allTimeRes.rows[0] || null
+      };
+    } catch (e) {
+      console.error("쇼케이스 로딩 에러:", e);
+    }
+  }
+
   if (page === 1 && !keyword && bestType === '') {
     try {
       const { rows } = await sql`
@@ -152,7 +177,8 @@ export default async function BoardPage(props: any) {
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
-  else if (bestType === '100') {
+  else if (bestType === '100' || bestType === 'showcase') {
+    // 💡 [핵심] 쇼케이스 메뉴에서도 기본적으로 백베스트(100) 글 목록을 아래에 뿌려줍니다.
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published'`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
@@ -193,7 +219,6 @@ export default async function BoardPage(props: any) {
   const visiblePages = [];
   for (let i = startPage; i <= endPage; i++) visiblePages.push(i);
 
-  // 💡 [핵심] 제목 스타일 통일화 (모바일 2줄, PC 1줄)
   const titleClasses = "group-hover:underline mr-1 line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug";
 
   return (
@@ -253,10 +278,15 @@ export default async function BoardPage(props: any) {
               운영 중인 게시판
             </div>
             <ul className="text-[13px] font-bold text-gray-600">
-              <li><Link href="/board" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100">전체글 보기</Link></li>
-              <li><Link href="/board?best=today" className="block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100">🔥 투데이 베스트</Link></li>
+              <li><Link href="/board" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${category === 'all' && bestType === '' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>전체글 보기</Link></li>
+              <li><Link href="/board?best=today" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${bestType === 'today' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>🔥 투데이 베스트</Link></li>
+              
+              <li><Link href="/board?best=showcase" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${bestType === 'showcase' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>🏛️ 명작 쇼케이스</Link></li>
+              <li><Link href="/board?best=100" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${bestType === '100' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>💯 백베스트</Link></li>
+              <li><Link href="/board?best=1000" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${bestType === '1000' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>👑 천베스트</Link></li>
+
               {sidebarBoards.map(board => {
-                const isActive = category === board.name;
+                const isActive = category === board.name && bestType === '';
                 return (
                   <li key={board.id}>
                     <Link href={`/board?category=${board.name}`} className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 last:border-0 ${isActive ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>
@@ -275,6 +305,7 @@ export default async function BoardPage(props: any) {
             <h2 className="text-xl font-bold text-gray-800 truncate pr-2">
               {keyword ? `'${keyword}' 검색 결과 (${totalCount}건)` :
                 bestType === 'today' ? '🔥 투데이 베스트 (추천 10+)' :
+                  bestType === 'showcase' ? '🏛️ 명작 쇼케이스' :
                   bestType === '100' ? '💯 백베스트 (추천 100+)' :
                     bestType === '1000' ? '👑 천베스트 (추천 1000+)' :
                       category !== 'all' ? `${category}` : '전체글 보기'}
@@ -286,6 +317,155 @@ export default async function BoardPage(props: any) {
               </Link>
             )}
           </div>
+
+          {/* 💡 [명작 쇼케이스 위젯 렌더링 영역] */}
+          {showcaseData && (
+            <div className="mb-10">
+              <div className="mb-5 flex flex-col border-b-2 border-gray-800 pb-3">
+                {/* 💡 [핵심 패치] 타이틀 단어 중복 제거 및 세련미 극대화 완료! */}
+                <h2 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+                  <span className="text-yellow-500 text-2xl">🏛️</span> 
+                  유머인 <span className="text-[#3b4890]">레전드 TOP 3</span>
+                </h2>
+                <p className="text-gray-500 text-sm font-bold mt-1.5 ml-1">
+                  수많은 유머인들을 웃고 울린 전설의 레전드 게시글 TOP 3
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                
+                {/* 🥇 주간 1위 */}
+                {showcaseData.weekly && (() => {
+                  const data = extractData(showcaseData.weekly.title);
+                  const img = extractFirstImage(showcaseData.weekly.content);
+                  const author = showcaseData.weekly.title.startsWith('[익명 다락방]') ? '익명' : showcaseData.weekly.author;
+                  return (
+                    <Link href={`/board/${showcaseData.weekly.id}${fromQuery}`} className="group block bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-[#3b4890]/30 transition-all duration-300 relative overflow-hidden flex flex-col">
+                      <div className="absolute top-3 left-3 z-10">
+                        <div className="bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[12px] font-black px-3 py-1.5 rounded-md shadow-md border border-white/20 flex items-center gap-1">
+                          <span className="text-sm">🥇</span> 이번 주 1위
+                        </div>
+                      </div>
+                      <div className="w-full h-[160px] bg-gray-50 overflow-hidden relative border-b border-gray-100 flex items-center justify-center">
+                        {img ? (
+                          <img src={img} alt="썸네일" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                        ) : (
+                          <span className="text-gray-300 text-4xl font-black">No Image</span>
+                        )}
+                      </div>
+                      <div className="p-4 flex flex-col flex-1">
+                        <h3 className="text-[15px] font-black text-gray-900 group-hover:text-[#3b4890] line-clamp-2 break-all leading-snug mb-3">
+                          {data.cleanTitle}
+                        </h3>
+                        <div className="mt-auto flex justify-between items-center text-[11px] font-bold">
+                          <div className="flex items-center gap-1.5">
+                            <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-sm">{data.cat}</span>
+                            <span className="text-gray-400 truncate max-w-[80px]">{author}</span>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
+                          <span className="text-gray-400 text-[11px] font-medium flex items-center gap-1">
+                            조회 {showcaseData.weekly.views || 0}
+                          </span>
+                          <span className="text-rose-500 font-black text-[13px] flex items-center gap-1">
+                            ♥ {showcaseData.weekly.likes || 0}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })()}
+
+                {/* 🏆 월간 1위 */}
+                {showcaseData.monthly && (() => {
+                  const data = extractData(showcaseData.monthly.title);
+                  const img = extractFirstImage(showcaseData.monthly.content);
+                  const author = showcaseData.monthly.title.startsWith('[익명 다락방]') ? '익명' : showcaseData.monthly.author;
+                  return (
+                    <Link href={`/board/${showcaseData.monthly.id}${fromQuery}`} className="group block bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-[#3b4890]/30 transition-all duration-300 relative overflow-hidden flex flex-col md:-translate-y-1.5">
+                      <div className="absolute top-3 left-3 z-10">
+                        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-[12px] font-black px-3 py-1.5 rounded-md shadow-md border border-white/20 flex items-center gap-1">
+                          <span className="text-sm">🏆</span> 이번 달 1위
+                        </div>
+                      </div>
+                      <div className="w-full h-[160px] bg-gray-50 overflow-hidden relative border-b border-gray-100 flex items-center justify-center">
+                        {img ? (
+                          <img src={img} alt="썸네일" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                        ) : (
+                          <span className="text-gray-300 text-4xl font-black">No Image</span>
+                        )}
+                      </div>
+                      <div className="p-4 flex flex-col flex-1">
+                        <h3 className="text-[15px] font-black text-gray-900 group-hover:text-[#3b4890] line-clamp-2 break-all leading-snug mb-3">
+                          {data.cleanTitle}
+                        </h3>
+                        <div className="mt-auto flex justify-between items-center text-[11px] font-bold">
+                          <div className="flex items-center gap-1.5">
+                            <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-sm">{data.cat}</span>
+                            <span className="text-gray-400 truncate max-w-[80px]">{author}</span>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
+                          <span className="text-gray-400 text-[11px] font-medium flex items-center gap-1">
+                            조회 {showcaseData.monthly.views || 0}
+                          </span>
+                          <span className="text-rose-500 font-black text-[13px] flex items-center gap-1">
+                            ♥ {showcaseData.monthly.likes || 0}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })()}
+
+                {/* 👑 역대 1위 */}
+                {showcaseData.allTime && (() => {
+                  const data = extractData(showcaseData.allTime.title);
+                  const img = extractFirstImage(showcaseData.allTime.content);
+                  const author = showcaseData.allTime.title.startsWith('[익명 다락방]') ? '익명' : showcaseData.allTime.author;
+                  return (
+                    <Link href={`/board/${showcaseData.allTime.id}${fromQuery}`} className="group block bg-white rounded-xl border border-yellow-300 shadow-md hover:shadow-xl hover:border-yellow-500 transition-all duration-300 relative overflow-hidden flex flex-col md:-translate-y-3 ring-1 ring-yellow-400/20">
+                      <div className="absolute top-3 left-3 z-10">
+                        <div className="bg-gradient-to-r from-gray-900 to-black text-yellow-400 text-[12px] font-black px-3 py-1.5 rounded-md shadow-lg border border-yellow-500/30 flex items-center gap-1">
+                          <span className="text-sm">👑</span> 역대 장원 (1위)
+                        </div>
+                      </div>
+                      <div className="w-full h-[160px] bg-gray-50 overflow-hidden relative border-b border-gray-100 flex items-center justify-center">
+                        {img ? (
+                          <img src={img} alt="썸네일" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                        ) : (
+                          <span className="text-gray-300 text-4xl font-black">No Image</span>
+                        )}
+                      </div>
+                      <div className="p-4 flex flex-col flex-1 bg-gradient-to-b from-white to-yellow-50/30">
+                        <h3 className="text-[15px] font-black text-gray-900 group-hover:text-yellow-700 line-clamp-2 break-all leading-snug mb-3">
+                          {data.cleanTitle}
+                        </h3>
+                        <div className="mt-auto flex justify-between items-center text-[11px] font-bold">
+                          <div className="flex items-center gap-1.5">
+                            <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-sm">{data.cat}</span>
+                            <span className="text-gray-400 truncate max-w-[80px]">{author}</span>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
+                          <span className="text-gray-400 text-[11px] font-medium flex items-center gap-1">
+                            조회 {showcaseData.allTime.views || 0}
+                          </span>
+                          <span className="text-yellow-600 font-black text-[14px] flex items-center gap-1">
+                            👑 {showcaseData.allTime.likes || 0}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })()}
+
+              </div>
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <h3 className="font-bold text-[15px] text-gray-800 mb-2">🏆 일반 명예의 전당 게시글</h3>
+              </div>
+            </div>
+          )}
 
           <div className="border-t-2 border-gray-700 text-sm">
             <div className="hidden md:flex border-b border-gray-300 bg-gray-50 py-3 font-bold text-gray-600">
@@ -318,7 +498,6 @@ export default async function BoardPage(props: any) {
                       <span className="truncate mr-1 text-gray-400 md:text-gray-500">블라인드 처리된 글입니다.</span>
                     ) : (
                       <>
-                        {/* 💡 투트랙 엔진 탑재 */}
                         <span className={`font-black ${titleColor} ${titleClasses}`}>{postData.cleanTitle}</span>
                         {hasImage(post.content) && (
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-3.5 h-3.5 ml-0.5 shrink-0 ${isGlobal ? 'text-rose-400' : 'text-indigo-400'}`}><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
@@ -360,7 +539,6 @@ export default async function BoardPage(props: any) {
                       </span>
                     ) : (
                       <>
-                        {/* 💡 투트랙 엔진 탑재 */}
                         <span className={`font-bold md:font-normal text-gray-900 md:text-gray-800 ${titleClasses}`}>{topData.cleanTitle}</span>
                         {hasImage(renderTopPost.content) && (
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 ml-0.5 text-gray-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
@@ -417,7 +595,6 @@ export default async function BoardPage(props: any) {
                         </span>
                       ) : (
                         <>
-                          {/* 💡 투트랙 엔진 탑재 */}
                           <span className={`font-bold md:font-normal text-gray-900 md:text-gray-800 ${titleClasses}`}>{postData.cleanTitle}</span>
                           {hasImage(post.content) && (
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 ml-0.5 text-gray-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
@@ -458,6 +635,8 @@ export default async function BoardPage(props: any) {
           <div className="flex justify-center mt-6 mb-2 px-2">
             <form method="GET" action="/board" className="flex items-center w-full max-w-[400px] border-2 border-[#3b4890] rounded-full bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               {category !== 'all' && <input type="hidden" name="category" value={category} />}
+              {/* 💡 [핵심] 검색창에서도 파라미터 증발 방지 완료 */}
+              {bestType && <input type="hidden" name="best" value={bestType} />}
               <select name="searchType" defaultValue={searchType} className="shrink-0 pl-3 sm:pl-4 pr-1 sm:pr-2 py-2 sm:py-2.5 text-[12px] sm:text-[13px] font-bold text-gray-600 bg-transparent outline-none cursor-pointer border-r border-gray-200 focus:text-[#3b4890]">
                 <option value="title">제목</option>
                 <option value="content">내용</option>
@@ -474,23 +653,24 @@ export default async function BoardPage(props: any) {
             <div className="hidden md:block md:flex-1 shrink-0"></div>
 
             <div className="flex justify-center items-center gap-1 flex-wrap shrink-0">
+              {/* 💡 [핵심 패치] 스크롤 방지 본드(scroll={false}) 5곳 모두 완벽하게 발랐습니다 */}
               {page > 1 && (
-                <Link href={getPageUrl(1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                <Link href={getPageUrl(1)} scroll={false} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">처음</span><span className="sm:hidden">{"<<"}</span>
                 </Link>
               )}
               {startPage > 1 && (
-                <Link href={getPageUrl(startPage - 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                <Link href={getPageUrl(startPage - 1)} scroll={false} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">이전</span><span className="sm:hidden">{"<"}</span>
                 </Link>
               )}
               {visiblePages.map((p) => (
-                <Link key={p} href={getPageUrl(p)} className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${page === p ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
+                <Link key={p} href={getPageUrl(p)} scroll={false} className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${page === p ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
                   {p}
                 </Link>
               ))}
               {endPage < totalPages && (
-                <Link href={getPageUrl(endPage + 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                <Link href={getPageUrl(endPage + 1)} scroll={false} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">다음</span><span className="sm:hidden">{">"}</span>
                 </Link>
               )}

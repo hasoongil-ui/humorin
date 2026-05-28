@@ -19,9 +19,10 @@ export default async function AllBoardsPage() {
 
   const groupsMap: Record<string, any[]> = {};
   
-  // 💡 [핵심 추가] 명예의 전당 그룹에 '투데이 베스트'를 추가했습니다!
+  // 💡 [핵심 추가] 명예의 전당 그룹에 '명작 쇼케이스'를 누락 없이 완벽 추가!
   groupsMap['🏆 명예의 전당'] = [
     { name: '🔥 투데이 베스트', link: '/board?best=today' },
+    { name: '🏛️ 명작 쇼케이스', link: '/board?best=showcase' },
     { name: '💯 백베스트', link: '/board?best=100' },
     { name: '👑 천베스트', link: '/board?best=1000' }
   ];
