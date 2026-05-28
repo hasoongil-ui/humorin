@@ -1,3 +1,4 @@
+// 파일 위치: app/board/write/page.tsx
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { sql } from '@vercel/postgres';
@@ -69,13 +70,32 @@ export default async function WritePage() {
   }
 
   return (
-    <WriteClient 
-      currentUser={currentUser} 
-      isAdmin={isAdmin} 
-      isGlobalLocked={isGlobalLocked} 
-      boards={boards} 
-      editorPlaceholder={editorPlaceholder} 
-      userPoints={userPoints} 
-    />
+    <>
+      {/* 💡 [CLS 완전 멸망 방어막] 에디터(Quill)가 비동기로 늦게 로딩되더라도 덜컹거리지 않게 뼈대 확보 */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        /* 스마트폰 화면에서는 최소 400px 높이 가벽 설치 */
+        .quill, .ql-container {
+          min-height: 400px !important;
+        }
+        
+        /* PC 화면에서는 최소 500px 높이 가벽 설치 */
+        @media (min-width: 768px) {
+          .quill, .ql-container {
+            min-height: 500px !important;
+          }
+        }
+        `
+      }} />
+      
+      <WriteClient 
+        currentUser={currentUser} 
+        isAdmin={isAdmin} 
+        isGlobalLocked={isGlobalLocked} 
+        boards={boards} 
+        editorPlaceholder={editorPlaceholder} 
+        userPoints={userPoints} 
+      />
+    </>
   );
 }

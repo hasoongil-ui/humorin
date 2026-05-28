@@ -254,11 +254,10 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
   }
 
-  // 💡 [핵심 엔진] 30개 풀 확장 + 투데이 베스트 하이브리드 폴백
+  // 💡 하이브리드 추천글 엔진 (30개 풀 확장)
   const categoryPattern = postData.cat !== '일반' ? `%[${postData.cat}]%` : '%';
   let relatedPosts = [];
   try {
-    // 1단계: 같은 카테고리의 최신 글 30개를 먼저 퍼옴 (선택지 3배 확대)
     const { rows: recentPosts } = await sql`
       SELECT id, title, views, likes 
       FROM posts 
@@ -270,13 +269,10 @@ export default async function PostDetailPage(props: any) {
       LIMIT 30
     `;
     
-    // JS RAM에서 무작위 3개 셔플 (SQL 부하 0%)
     relatedPosts = recentPosts.sort(() => 0.5 - Math.random()).slice(0, 3);
 
-    // 2단계: 신생 게시판이라 3개가 안 채워질 경우 '투데이 베스트'로 빈칸 보충 (하이브리드 믹스)
     if (relatedPosts.length < 3) {
       const needed = 3 - relatedPosts.length;
-      
       const { rows: bestFallback } = await sql`
         SELECT id, title, views, likes 
         FROM posts 
@@ -286,8 +282,6 @@ export default async function PostDetailPage(props: any) {
         ORDER BY best_at DESC NULLS LAST, date DESC
         LIMIT 30
       `;
-      
-      // 이미 뽑은 글과 현재 읽고 있는 글은 제외하는 안전 필터
       const existingIds = new Set(relatedPosts.map(p => p.id));
       existingIds.add(Number(postId));
       
@@ -365,7 +359,6 @@ export default async function PostDetailPage(props: any) {
     return `/board/${postId}${qStr ? `?${qStr}` : ''}`;
   };
 
-  // 모바일 2줄, PC 1줄 레이아웃 
   const titleClasses = "group-hover:underline mr-1 line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug";
 
   const deletePost = async () => {
@@ -1122,7 +1115,8 @@ export default async function PostDetailPage(props: any) {
             <p className="text-gray-600 font-bold text-lg leading-relaxed">보고 싶어 하지 않은 분들이 많아<br />블라인드 처리된 게시글입니다.</p>
           </div>
         ) : (
-          <div className="post-content-area">
+          /* 💡 [핵심 패치] 본문 영역에 최소 높이(min-h) 600px 할당하여 덜컹거림 방어 */
+          <div className="post-content-area w-full relative min-h-[50vh] sm:min-h-[600px] flex flex-col">
             {post.is_blinded && isAdmin && (
               <div className="bg-red-50 border border-red-200 p-4 sm:p-5 rounded-sm mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
                 <div>
@@ -1143,6 +1137,13 @@ export default async function PostDetailPage(props: any) {
 
             <style dangerouslySetInnerHTML={{
               __html: `
+              /* 💡 [핵심 패치] 이미지가 로딩되기 전 최소 200px 뼈대 확보 + 회색 배경 지정 */
+              .post-content-area .ql-editor img {
+                min-height: 200px !important;
+                background-color: #f4f5f7 !important;
+                content-visibility: auto !important;
+              }
+
               .post-content-area .ql-editor img,
               .post-content-area .ql-editor video,
               .post-content-area .ql-editor iframe {
@@ -1151,8 +1152,6 @@ export default async function PostDetailPage(props: any) {
                 display: block !important; 
                 margin: 15px auto !important; 
                 border-radius: 8px !important; 
-                background-color: #f3f4f6 !important; 
-                aspect-ratio: attr(width) / attr(height);
               }
               
               .post-content-area .ql-editor p:has(img.humorin-sliced-img) {
@@ -1189,7 +1188,7 @@ export default async function PostDetailPage(props: any) {
               `
             }} />
 
-            <div className="min-h-[300px] text-[17px] whitespace-pre-wrap leading-relaxed break-words break-all ql-editor" dangerouslySetInnerHTML={{ __html: cleanContent }} />
+            <div className="flex-1 text-[17px] whitespace-pre-wrap leading-relaxed break-words break-all ql-editor" dangerouslySetInnerHTML={{ __html: cleanContent }} />
           </div>
         )}
 
@@ -1229,7 +1228,6 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 💡 [조회수 펌핑] 30개 풀 확장 + 투데이 베스트 하이브리드 추천글 */}
         {relatedPosts.length > 0 && (
           <div className="mt-10 border-t border-gray-200 pt-8">
             <h3 className="font-black text-[17px] text-gray-800 mb-4 flex items-center gap-1.5 px-1">
@@ -1240,7 +1238,7 @@ export default async function PostDetailPage(props: any) {
                 const rpData = extractData(rp.title);
                 return (
                   <Link href={`/board/${rp.id}`} key={`related-${rp.id}`} className="block bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md p-4 rounded-sm transition-all group">
-                    <div className="text-[14px] font-bold text-gray-800 group-hover:text-[#3b4890] line-clamp-2 break-all md:break-normal leading-snug mb-4 min-h-[42px]">
+                    <div className="text-[14px] font-bold text-gray-800 group-hover:text-[#3b4890] line-clamp-2 break-all leading-snug mb-4 min-h-[42px]">
                       {rpData.cleanTitle}
                     </div>
                     <div className="flex justify-between items-center text-[12px] font-medium text-gray-500">
