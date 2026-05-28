@@ -50,7 +50,6 @@ export default async function BoardPage(props: any) {
   const keyword = searchParams.q || '';
   const searchType = searchParams.searchType || 'title';
 
-  // 💡 [핵심 패치 1] 유저가 위치한 페이지 상태를 완벽하게 기억하는 URL 꼬리표 엔진
   const queryParams = new URLSearchParams();
   if (page > 1) queryParams.set('page', page.toString());
   if (category !== 'all') queryParams.set('category', category);
@@ -178,7 +177,6 @@ export default async function BoardPage(props: any) {
   const renderTopPost = topPost && !noticeIds.has(topPost.id) ? topPost : null;
   const canWrite = bestType === '';
 
-  // 💡 [핵심 패치 2] 리스트의 페이징 버튼 클릭 시 현재 검색/분류 상태 유지
   const getPageUrl = (pageNum: number) => {
     const qParams = new URLSearchParams(queryString);
     if (pageNum > 1) qParams.set('page', pageNum.toString());
@@ -194,6 +192,9 @@ export default async function BoardPage(props: any) {
 
   const visiblePages = [];
   for (let i = startPage; i <= endPage; i++) visiblePages.push(i);
+
+  // 💡 [핵심] 제목 스타일 통일화 (모바일 2줄, PC 1줄)
+  const titleClasses = "group-hover:underline mr-1 line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug";
 
   return (
     <>
@@ -317,7 +318,8 @@ export default async function BoardPage(props: any) {
                       <span className="truncate mr-1 text-gray-400 md:text-gray-500">블라인드 처리된 글입니다.</span>
                     ) : (
                       <>
-                        <span className={`truncate group-hover:underline mr-1 font-black ${titleColor}`}>{postData.cleanTitle}</span>
+                        {/* 💡 투트랙 엔진 탑재 */}
+                        <span className={`font-black ${titleColor} ${titleClasses}`}>{postData.cleanTitle}</span>
                         {hasImage(post.content) && (
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-3.5 h-3.5 ml-0.5 shrink-0 ${isGlobal ? 'text-rose-400' : 'text-indigo-400'}`}><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
                         )}
@@ -358,7 +360,8 @@ export default async function BoardPage(props: any) {
                       </span>
                     ) : (
                       <>
-                        <span className="truncate group-hover:underline mr-1 font-bold md:font-normal text-gray-900 md:text-gray-800">{topData.cleanTitle}</span>
+                        {/* 💡 투트랙 엔진 탑재 */}
+                        <span className={`font-bold md:font-normal text-gray-900 md:text-gray-800 ${titleClasses}`}>{topData.cleanTitle}</span>
                         {hasImage(renderTopPost.content) && (
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 ml-0.5 text-gray-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
                         )}
@@ -414,7 +417,8 @@ export default async function BoardPage(props: any) {
                         </span>
                       ) : (
                         <>
-                          <span className="truncate group-hover:underline mr-1 font-bold md:font-normal text-gray-900 md:text-gray-800">{postData.cleanTitle}</span>
+                          {/* 💡 투트랙 엔진 탑재 */}
+                          <span className={`font-bold md:font-normal text-gray-900 md:text-gray-800 ${titleClasses}`}>{postData.cleanTitle}</span>
                           {hasImage(post.content) && (
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 ml-0.5 text-gray-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
                           )}

@@ -154,7 +154,6 @@ export default async function PostDetailPage(props: any) {
 
   const postData = extractData(post.title);
 
-  // 💡 [핵심 패치 3] 게시글 내에서도 현재 URL 상태를 완벽하게 보존하는 URL 파서 탑재
   const listPage = searchParams?.page ? Number(searchParams.page) : 1;
   const bestType = searchParams?.best || '';
   const keyword = searchParams?.q || '';
@@ -173,7 +172,6 @@ export default async function PostDetailPage(props: any) {
   const queryString = queryParams.toString();
   const listQueryStr = queryString ? `?${queryString}` : '';
   
-  // 💡 목록 복귀 및 삭제 시 돌아갈 주소 (기존 상태 100% 보존)
   const backToListUrl = `/board${listQueryStr}`;
 
   const cookieStore = await cookies();
@@ -256,7 +254,6 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
   }
 
-  // 💡 도파민 추천글 3개 (랜덤 캐싱)
   const categoryPattern = postData.cat !== '일반' ? `%[${postData.cat}]%` : '%';
   let relatedPosts = [];
   try {
@@ -273,7 +270,6 @@ export default async function PostDetailPage(props: any) {
     relatedPosts = recentPosts.sort(() => 0.5 - Math.random()).slice(0, 3);
   } catch (e) { console.error("연관 게시글 실패", e); }
 
-  // 💡 하단 게시판 무한 정주행 리스트 로직
   const isAll = listCategory === 'all';
   const listCatPattern = !isAll ? `%[${listCategory}]%` : '%';
   const limit = 20;
@@ -333,7 +329,6 @@ export default async function PostDetailPage(props: any) {
   const visiblePages = [];
   for (let i = startPage; i <= endPage; i++) visiblePages.push(i);
 
-  // 💡 [핵심 패치 4] 게시글 안에서 하단 리스트의 페이지 번호를 눌렀을 때, 글에서 튕겨나가지 않고 글은 둔 채로 리스트 페이지만 변경하는 로직
   const getPageUrl = (pageNum: number) => {
     const qParams = new URLSearchParams(queryString);
     if (pageNum > 1) qParams.set('page', pageNum.toString());
@@ -341,6 +336,9 @@ export default async function PostDetailPage(props: any) {
     const qStr = qParams.toString();
     return `/board/${postId}${qStr ? `?${qStr}` : ''}`;
   };
+
+  // 💡 [핵심] 제목 스타일 통일화 (모바일 2줄, PC 1줄)
+  const titleClasses = "group-hover:underline mr-1 line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug";
 
   const deletePost = async () => {
     'use server';
@@ -393,7 +391,6 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE users SET points = GREATEST(COALESCE(points, 0) - 10, 0) WHERE user_id = ${post.author_id}`;
     }
 
-    // 💡 [핵심 패치 5] 삭제 후 무조건 1페이지로 가는 것이 아니라, 원래 있던 페이지로 안전 복귀!
     redirect(backToListUrl);
   };
 
@@ -1204,7 +1201,6 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 💡 도파민 추천글 3개 */}
         {relatedPosts.length > 0 && (
           <div className="mt-10 border-t border-gray-200 pt-8">
             <h3 className="font-black text-[17px] text-gray-800 mb-4 flex items-center gap-1.5 px-1">
@@ -1215,7 +1211,8 @@ export default async function PostDetailPage(props: any) {
                 const rpData = extractData(rp.title);
                 return (
                   <Link href={`/board/${rp.id}`} key={rp.id} className="block bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md p-4 rounded-sm transition-all group">
-                    <div className="text-[14px] font-bold text-gray-800 group-hover:text-[#3b4890] line-clamp-2 leading-snug mb-4 min-h-[42px]">
+                    {/* 💡 추천글도 2줄 엔진 탑재 (break-all 추가) */}
+                    <div className="text-[14px] font-bold text-gray-800 group-hover:text-[#3b4890] line-clamp-2 break-all leading-snug mb-4 min-h-[42px]">
                       {rpData.cleanTitle}
                     </div>
                     <div className="flex justify-between items-center text-[12px] font-medium text-gray-500">
@@ -1234,7 +1231,6 @@ export default async function PostDetailPage(props: any) {
           </div>
         )}
 
-        {/* 💡 하단 게시판 무한 정주행 리스트 로직 */}
         {listPosts.length > 0 && (
           <div className="mt-12 border-t-2 border-gray-800 pt-6">
             <div className="flex justify-between items-end mb-4 px-2">
@@ -1275,7 +1271,8 @@ export default async function PostDetailPage(props: any) {
                         <span className="truncate mr-1 text-gray-400 md:text-gray-500">블라인드 처리된 글입니다.</span>
                       ) : (
                         <>
-                          <span className={`truncate group-hover:underline mr-1 md:font-normal ${isCurrentPost ? 'font-black text-indigo-900' : 'font-bold text-gray-900 md:text-gray-800'}`}>
+                          {/* 💡 투트랙 엔진 탑재 */}
+                          <span className={`\${isCurrentPost ? 'font-black text-indigo-900' : 'font-bold text-gray-900 md:text-gray-800'} ${titleClasses}`}>
                             {pData.cleanTitle}
                           </span>
                           {hasImage(p.content) && (

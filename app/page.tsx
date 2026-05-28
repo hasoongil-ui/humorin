@@ -70,7 +70,6 @@ export default async function HomePage() {
     console.error("메인 보드 불러오기 에러", e);
   }
 
-  // 💡 메인 배너 문구 DB 호출 로직 추가
   let mainBannerTitle = '세상의 모든 웃음이 있는 곳 유머인 입니다.';
   let mainBannerSubtitle = '함께 웃고, 나누고, 소통하는 우리들의 따뜻한 공간 유머인.';
   try {
@@ -83,7 +82,6 @@ export default async function HomePage() {
 
   const bestQuery = sql`SELECT id, title, author, date, best_at, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 ORDER BY best_at DESC NULLS LAST, date DESC LIMIT 10`;
 
-  // 🚨 [핵심 수정 완료] 메인 화면 전체 새글 보기에서 익명 다락방 글 완벽 차단!
   const allPostsQuery = sql`SELECT id, title, author, date, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title NOT LIKE '[익명 다락방]%' ORDER BY date DESC LIMIT 10`;
 
   const boardQueries = mainBoards.map(board => {
@@ -118,14 +116,17 @@ export default async function HomePage() {
                     <span className="text-[14px] text-gray-400 md:text-gray-500 truncate">블라인드 처리된 글입니다.</span>
                   ) : (
                     <>
-                      <span className="text-[14px] text-gray-900 md:text-gray-800 font-bold md:font-medium truncate hover:underline">{cleanTitle}</span>
+                      {/* 💡 [핵심 패치] 메인 위젯 두 줄 엔진 탑재 */}
+                      <span className="text-[14px] text-gray-900 md:text-gray-800 font-bold md:font-medium hover:underline line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug">
+                        {cleanTitle}
+                      </span>
                       {post.comment_count > 0 && (
                         <span className="ml-1.5 text-[10px] sm:text-[11px] font-bold text-[#3b4890] flex-shrink-0">[{post.comment_count}]</span>
                       )}
                     </>
                   )}
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
                   {post.is_blinded ? (
                     <span className="text-[11px] text-gray-400 w-10 text-right">-</span>
                   ) : (
@@ -147,7 +148,6 @@ export default async function HomePage() {
     </div>
   );
 
-  // '유머인' 텍스트 자동 형광펜(노란색) 처리 함수
   const renderTitle = (title: string) => {
     return title.split(/(유머인)/g).map((part, i) =>
       part === '유머인' ? <span key={i} className="text-yellow-400 whitespace-nowrap">{part}</span> : part
