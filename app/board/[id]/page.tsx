@@ -254,9 +254,11 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
   }
 
+  // 💡 [핵심 엔진] 30개 풀 확장 + 투데이 베스트 하이브리드 폴백
   const categoryPattern = postData.cat !== '일반' ? `%[${postData.cat}]%` : '%';
   let relatedPosts = [];
   try {
+    // 1단계: 같은 카테고리의 최신 글 30개를 먼저 퍼옴 (선택지 3배 확대)
     const { rows: recentPosts } = await sql`
       SELECT id, title, views, likes 
       FROM posts 
@@ -265,10 +267,36 @@ export default async function PostDetailPage(props: any) {
         AND is_blinded = false 
         AND COALESCE(status, 'published') = 'published'
       ORDER BY id DESC 
-      LIMIT 10
+      LIMIT 30
     `;
+    
+    // JS RAM에서 무작위 3개 셔플 (SQL 부하 0%)
     relatedPosts = recentPosts.sort(() => 0.5 - Math.random()).slice(0, 3);
-  } catch (e) { console.error("연관 게시글 실패", e); }
+
+    // 2단계: 신생 게시판이라 3개가 안 채워질 경우 '투데이 베스트'로 빈칸 보충 (하이브리드 믹스)
+    if (relatedPosts.length < 3) {
+      const needed = 3 - relatedPosts.length;
+      
+      const { rows: bestFallback } = await sql`
+        SELECT id, title, views, likes 
+        FROM posts 
+        WHERE likes >= 10
+          AND is_blinded = false
+          AND COALESCE(status, 'published') = 'published'
+        ORDER BY best_at DESC NULLS LAST, date DESC
+        LIMIT 30
+      `;
+      
+      // 이미 뽑은 글과 현재 읽고 있는 글은 제외하는 안전 필터
+      const existingIds = new Set(relatedPosts.map(p => p.id));
+      existingIds.add(Number(postId));
+      
+      const filteredFallback = bestFallback.filter(p => !existingIds.has(p.id));
+      const fallbackPicks = filteredFallback.sort(() => 0.5 - Math.random()).slice(0, needed);
+      
+      relatedPosts = [...relatedPosts, ...fallbackPicks];
+    }
+  } catch (e) { console.error("연관 게시글 하이브리드 로딩 실패", e); }
 
   const isAll = listCategory === 'all';
   const listCatPattern = !isAll ? `%[${listCategory}]%` : '%';
@@ -337,7 +365,7 @@ export default async function PostDetailPage(props: any) {
     return `/board/${postId}${qStr ? `?${qStr}` : ''}`;
   };
 
-  // 💡 [핵심] 제목 스타일 통일화 (모바일 2줄, PC 1줄)
+  // 모바일 2줄, PC 1줄 레이아웃 
   const titleClasses = "group-hover:underline mr-1 line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug";
 
   const deletePost = async () => {
@@ -1201,6 +1229,7 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
+        {/* 💡 [조회수 펌핑] 30개 풀 확장 + 투데이 베스트 하이브리드 추천글 */}
         {relatedPosts.length > 0 && (
           <div className="mt-10 border-t border-gray-200 pt-8">
             <h3 className="font-black text-[17px] text-gray-800 mb-4 flex items-center gap-1.5 px-1">
@@ -1210,9 +1239,8 @@ export default async function PostDetailPage(props: any) {
               {relatedPosts.map((rp: any) => {
                 const rpData = extractData(rp.title);
                 return (
-                  <Link href={`/board/${rp.id}`} key={rp.id} className="block bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md p-4 rounded-sm transition-all group">
-                    {/* 💡 추천글도 2줄 엔진 탑재 (break-all 추가) */}
-                    <div className="text-[14px] font-bold text-gray-800 group-hover:text-[#3b4890] line-clamp-2 break-all leading-snug mb-4 min-h-[42px]">
+                  <Link href={`/board/${rp.id}`} key={`related-${rp.id}`} className="block bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md p-4 rounded-sm transition-all group">
+                    <div className="text-[14px] font-bold text-gray-800 group-hover:text-[#3b4890] line-clamp-2 break-all md:break-normal leading-snug mb-4 min-h-[42px]">
                       {rpData.cleanTitle}
                     </div>
                     <div className="flex justify-between items-center text-[12px] font-medium text-gray-500">
@@ -1271,7 +1299,6 @@ export default async function PostDetailPage(props: any) {
                         <span className="truncate mr-1 text-gray-400 md:text-gray-500">블라인드 처리된 글입니다.</span>
                       ) : (
                         <>
-                          {/* 💡 투트랙 엔진 탑재 */}
                           <span className={`\${isCurrentPost ? 'font-black text-indigo-900' : 'font-bold text-gray-900 md:text-gray-800'} ${titleClasses}`}>
                             {pData.cleanTitle}
                           </span>
