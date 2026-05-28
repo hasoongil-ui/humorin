@@ -47,15 +47,20 @@ export default async function BoardPage(props: any) {
   const bestType = searchParams.best || '';
   const category = searchParams.category || 'all';
   const page = searchParams.page ? Number(searchParams.page) : 1;
-
   const keyword = searchParams.q || '';
   const searchType = searchParams.searchType || 'title';
 
-  let fromQuery = '';
-  if (bestType === 'today') fromQuery = '?from=today';
-  else if (bestType === '100') fromQuery = '?from=100';
-  else if (bestType === '1000') fromQuery = '?from=1000';
-  else if (category === 'all' && !keyword) fromQuery = '?from=all';
+  // 💡 [핵심 패치 1] 유저가 위치한 페이지 상태를 완벽하게 기억하는 URL 꼬리표 엔진
+  const queryParams = new URLSearchParams();
+  if (page > 1) queryParams.set('page', page.toString());
+  if (category !== 'all') queryParams.set('category', category);
+  if (bestType) queryParams.set('best', bestType);
+  if (keyword) {
+    queryParams.set('q', keyword);
+    queryParams.set('searchType', searchType);
+  }
+  const queryString = queryParams.toString();
+  const fromQuery = queryString ? `?${queryString}` : '';
 
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('humorin_user');
@@ -96,9 +101,7 @@ export default async function BoardPage(props: any) {
   try {
     const { rows } = await sql`SELECT * FROM boards ORDER BY sort_order ASC, id ASC`;
     sidebarBoards = rows;
-  } catch (e) {
-    console.error("사이드바 게시판 불러오기 실패");
-  }
+  } catch (e) {}
 
   const categoryPattern = category !== 'all' ? `%[${category}]%` : '%';
   const isAll = category === 'all';
@@ -113,9 +116,7 @@ export default async function BoardPage(props: any) {
         ORDER BY is_notice DESC, is_board_notice DESC, date DESC
       `;
       noticePosts = rows;
-    } catch (e) {
-      console.log("공지사항 불러오기 에러:", e);
-    }
+    } catch (e) {}
   }
 
   if (category !== 'all' && !keyword && bestType === '' && page === 1) {
@@ -133,21 +134,18 @@ export default async function BoardPage(props: any) {
   if (keyword) {
     const searchPattern = `%${keyword}%`;
     let countRes, rowsRes;
-
     if (searchType === 'title') {
       countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
       rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     } else if (searchType === 'content') {
       countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
       rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
-    } else if (searchType === 'author') {
+    } else {
       countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
       rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     }
-
     totalCount = Number(countRes.rows[0].count);
     posts = rowsRes.rows;
-
   }
   else if (bestType === 'today') {
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published'`;
@@ -180,12 +178,13 @@ export default async function BoardPage(props: any) {
   const renderTopPost = topPost && !noticeIds.has(topPost.id) ? topPost : null;
   const canWrite = bestType === '';
 
+  // 💡 [핵심 패치 2] 리스트의 페이징 버튼 클릭 시 현재 검색/분류 상태 유지
   const getPageUrl = (pageNum: number) => {
-    let url = `/board?page=${pageNum}`;
-    if (keyword) url += `&q=${keyword}&searchType=${searchType}`;
-    if (bestType) url += `&best=${bestType}`;
-    if (category !== 'all') url += `&category=${category}`;
-    return url;
+    const qParams = new URLSearchParams(queryString);
+    if (pageNum > 1) qParams.set('page', pageNum.toString());
+    else qParams.delete('page');
+    const qStr = qParams.toString();
+    return `/board${qStr ? `?${qStr}` : ''}`;
   };
 
   const blockSize = 5;
@@ -194,9 +193,7 @@ export default async function BoardPage(props: any) {
   const endPage = Math.min(startPage + blockSize - 1, totalPages);
 
   const visiblePages = [];
-  for (let i = startPage; i <= endPage; i++) {
-    visiblePages.push(i);
-  }
+  for (let i = startPage; i <= endPage; i++) visiblePages.push(i);
 
   return (
     <>
@@ -355,7 +352,6 @@ export default async function BoardPage(props: any) {
                   <div className="hidden md:block w-12 text-center text-xs text-gray-500 font-bold shrink-0">장원</div>
                   <Link href={`/board/${renderTopPost.id}${fromQuery}`} prefetch={false} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                     <CategoryIcon category={topData.cat} />
-
                     {renderTopPost.is_blinded ? (
                       <span className="truncate mr-1 text-gray-400 md:text-gray-500">
                         블라인드 처리된 글입니다.
@@ -473,31 +469,25 @@ export default async function BoardPage(props: any) {
           <div className="flex flex-col md:flex-row justify-between items-center mt-4 gap-4 w-full">
             <div className="hidden md:block md:flex-1 shrink-0"></div>
 
-            {/* 💡 [핵심 핀셋 수술 구역] 디자인(CSS) 100% 유지 + 이동 공식만 5블록 점프로 교체 */}
             <div className="flex justify-center items-center gap-1 flex-wrap shrink-0">
               {page > 1 && (
                 <Link href={getPageUrl(1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
-                  <span className="hidden sm:inline">처음</span>
-                  <span className="sm:hidden">{"<<"}</span>
+                  <span className="hidden sm:inline">처음</span><span className="sm:hidden">{"<<"}</span>
                 </Link>
               )}
               {startPage > 1 && (
                 <Link href={getPageUrl(startPage - 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
-                  <span className="hidden sm:inline">이전</span>
-                  <span className="sm:hidden">{"<"}</span>
+                  <span className="hidden sm:inline">이전</span><span className="sm:hidden">{"<"}</span>
                 </Link>
               )}
-              
               {visiblePages.map((p) => (
                 <Link key={p} href={getPageUrl(p)} className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${page === p ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
                   {p}
                 </Link>
               ))}
-              
               {endPage < totalPages && (
                 <Link href={getPageUrl(endPage + 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
-                  <span className="hidden sm:inline">다음</span>
-                  <span className="sm:hidden">{">"}</span>
+                  <span className="hidden sm:inline">다음</span><span className="sm:hidden">{">"}</span>
                 </Link>
               )}
             </div>

@@ -145,12 +145,36 @@ export default async function PostDetailPage(props: any) {
   const searchParams = await props.searchParams;
   const postId = params.id;
   
-  // 파라미터 연동
-  const fromLocation = searchParams?.from || '';
+  const { rows: postRows } = await sql`SELECT * FROM posts WHERE id = ${postId}`;
+  const post = postRows[0];
+
+  if (!post) {
+    return <div className="p-20 text-center text-2xl font-bold">글을 찾을 수 없습니다</div>;
+  }
+
+  const postData = extractData(post.title);
+
+  // 💡 [핵심 패치 3] 게시글 내에서도 현재 URL 상태를 완벽하게 보존하는 URL 파서 탑재
   const listPage = searchParams?.page ? Number(searchParams.page) : 1;
   const bestType = searchParams?.best || '';
   const keyword = searchParams?.q || '';
   const searchType = searchParams?.searchType || 'title';
+  let listCategory = searchParams?.category || postData.cat;
+
+  const queryParams = new URLSearchParams();
+  if (listPage > 1) queryParams.set('page', listPage.toString());
+  if (searchParams?.category && searchParams.category !== 'all') queryParams.set('category', searchParams.category);
+  else if (!searchParams?.category && listCategory !== 'all') queryParams.set('category', listCategory);
+  if (bestType) queryParams.set('best', bestType);
+  if (keyword) {
+    queryParams.set('q', keyword);
+    queryParams.set('searchType', searchType);
+  }
+  const queryString = queryParams.toString();
+  const listQueryStr = queryString ? `?${queryString}` : '';
+  
+  // 💡 목록 복귀 및 삭제 시 돌아갈 주소 (기존 상태 100% 보존)
+  const backToListUrl = `/board${listQueryStr}`;
 
   const cookieStore = await cookies();
   const userCookie = cookieStore.get('humorin_user');
@@ -171,16 +195,8 @@ export default async function PostDetailPage(props: any) {
 
   await sql`UPDATE posts SET views = COALESCE(views, 0) + 1 WHERE id = ${postId}`;
 
-  const { rows: postRows } = await sql`SELECT * FROM posts WHERE id = ${postId}`;
-  const post = postRows[0];
-
-  if (!post) {
-    return <div className="p-20 text-center text-2xl font-bold">글을 찾을 수 없습니다</div>;
-  }
-
   const isAuthor = currentUserId === post.author_id || (!post.author_id && currentUser === post.author);
-  const postData = extractData(post.title);
-
+  
   const isAnonymous = postData.cat === '익명 다락방';
   const displayAuthorPost = isAnonymous ? '익명' : post.author;
   const displayAuthorIdPost = isAnonymous ? null : post.author_id;
@@ -240,7 +256,7 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
   }
 
-  // 💡 [조회수 펌핑 엔진 1단계] 도파민 추천글 3개 (랜덤 캐싱)
+  // 💡 도파민 추천글 3개 (랜덤 캐싱)
   const categoryPattern = postData.cat !== '일반' ? `%[${postData.cat}]%` : '%';
   let relatedPosts = [];
   try {
@@ -257,11 +273,7 @@ export default async function PostDetailPage(props: any) {
     relatedPosts = recentPosts.sort(() => 0.5 - Math.random()).slice(0, 3);
   } catch (e) { console.error("연관 게시글 실패", e); }
 
-  // 💡 [조회수 펌핑 엔진 2단계] 하단 게시판 무한 정주행 리스트 로직
-  let listCategory = postData.cat;
-  if (fromLocation === 'all' || searchParams?.category === 'all') listCategory = 'all';
-  if (searchParams?.category && searchParams.category !== 'all') listCategory = searchParams.category;
-
+  // 💡 하단 게시판 무한 정주행 리스트 로직
   const isAll = listCategory === 'all';
   const listCatPattern = !isAll ? `%[${listCategory}]%` : '%';
   const limit = 20;
@@ -321,27 +333,14 @@ export default async function PostDetailPage(props: any) {
   const visiblePages = [];
   for (let i = startPage; i <= endPage; i++) visiblePages.push(i);
 
+  // 💡 [핵심 패치 4] 게시글 안에서 하단 리스트의 페이지 번호를 눌렀을 때, 글에서 튕겨나가지 않고 글은 둔 채로 리스트 페이지만 변경하는 로직
   const getPageUrl = (pageNum: number) => {
-    let url = `/board?page=${pageNum}`;
-    if (keyword) url += `&q=${keyword}&searchType=${searchType}`;
-    if (bestType) url += `&best=${bestType}`;
-    if (listCategory !== 'all') url += `&category=${listCategory}`;
-    return url;
+    const qParams = new URLSearchParams(queryString);
+    if (pageNum > 1) qParams.set('page', pageNum.toString());
+    else qParams.delete('page');
+    const qStr = qParams.toString();
+    return `/board/${postId}${qStr ? `?${qStr}` : ''}`;
   };
-
-  // URL Query Generator
-  let listQueryStr = '';
-  if (bestType === 'today') listQueryStr = '?from=today';
-  else if (bestType === '100') listQueryStr = '?from=100';
-  else if (bestType === '1000') listQueryStr = '?from=1000';
-  else if (listCategory === 'all' && !keyword) listQueryStr = '?from=all';
-
-  if (listPage > 1) {
-    listQueryStr += listQueryStr ? `&page=${listPage}` : `?page=${listPage}`;
-  }
-  if (listCategory !== 'all' && listCategory !== postData.cat) {
-     listQueryStr += listQueryStr ? `&category=${listCategory}` : `?category=${listCategory}`;
-  }
 
   const deletePost = async () => {
     'use server';
@@ -394,7 +393,8 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE users SET points = GREATEST(COALESCE(points, 0) - 10, 0) WHERE user_id = ${post.author_id}`;
     }
 
-    redirect('/board');
+    // 💡 [핵심 패치 5] 삭제 후 무조건 1페이지로 가는 것이 아니라, 원래 있던 페이지로 안전 복귀!
+    redirect(backToListUrl);
   };
 
   const toggleLike = async () => {
@@ -1018,13 +1018,6 @@ export default async function PostDetailPage(props: any) {
     allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'youtu.be']
   });
 
-  let backToListUrl = '/board';
-  if (fromLocation === 'today') backToListUrl = '/board?best=today';
-  else if (fromLocation === '100') backToListUrl = '/board?best=100';
-  else if (fromLocation === '1000') backToListUrl = '/board?best=1000';
-  else if (fromLocation === 'all') backToListUrl = '/board';
-  else if (postData.cat !== '일반') backToListUrl = `/board?category=${encodeURIComponent(postData.cat)}`;
-
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
       <VideoVolumeFix />
@@ -1211,7 +1204,7 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 💡 [조회수 펌핑 엔진 1단계] 도파민 추천글 3개 */}
+        {/* 💡 도파민 추천글 3개 */}
         {relatedPosts.length > 0 && (
           <div className="mt-10 border-t border-gray-200 pt-8">
             <h3 className="font-black text-[17px] text-gray-800 mb-4 flex items-center gap-1.5 px-1">
@@ -1241,7 +1234,7 @@ export default async function PostDetailPage(props: any) {
           </div>
         )}
 
-        {/* 💡 [조회수 펌핑 엔진 2단계] 정통파 게시판 리스트 (현재 글 하이라이트 포함) */}
+        {/* 💡 하단 게시판 무한 정주행 리스트 로직 */}
         {listPosts.length > 0 && (
           <div className="mt-12 border-t-2 border-gray-800 pt-6">
             <div className="flex justify-between items-end mb-4 px-2">
@@ -1309,25 +1302,24 @@ export default async function PostDetailPage(props: any) {
               })}
             </div>
 
-            {/* 하단 페이징 영역 */}
             <div className="flex justify-center items-center gap-1 flex-wrap mt-6">
               {listPage > 1 && (
-                <Link href={getPageUrl(1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                <Link href={getPageUrl(1)} scroll={false} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">처음</span><span className="sm:hidden">{"<<"}</span>
                 </Link>
               )}
               {startPage > 1 && (
-                <Link href={getPageUrl(startPage - 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                <Link href={getPageUrl(startPage - 1)} scroll={false} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">이전</span><span className="sm:hidden">{"<"}</span>
                 </Link>
               )}
               {visiblePages.map((pNum) => (
-                <Link key={pNum} href={getPageUrl(pNum)} className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${listPage === pNum ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
+                <Link key={pNum} href={getPageUrl(pNum)} scroll={false} className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${listPage === pNum ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
                   {pNum}
                 </Link>
               ))}
               {endPage < totalPages && (
-                <Link href={getPageUrl(endPage + 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                <Link href={getPageUrl(endPage + 1)} scroll={false} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">다음</span><span className="sm:hidden">{">"}</span>
                 </Link>
               )}
