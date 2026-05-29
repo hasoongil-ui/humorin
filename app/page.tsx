@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import Navbar from './board/Navbar';
 import CategoryIcon from './board/CategoryIcon';
+import { Suspense } from 'react'; // 💡 [핵심 패치] Suspense 방어막 도구 추가
 
 export const dynamic = 'force-dynamic';
 
@@ -28,10 +29,18 @@ function extractData(fullTitle: string) {
   return { cat: '일반', cleanTitle: fullTitle };
 }
 
+// 💡 [핵심 패치] 서버(UTC)와 클라이언트(KST)의 시차로 인한 Hydration 에러 시한폭탄 원천 차단!
 function formatShortDate(dateString: any) {
   const dbDate = new Date(dateString);
-  const kstDate = new Date(dbDate.getTime() + 9 * 60 * 60 * 1000);
-  return `${String(kstDate.getMonth() + 1).padStart(2, '0')}-${String(kstDate.getDate()).padStart(2, '0')}`;
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const parts = formatter.formatToParts(dbDate);
+  const month = parts.find(p => p.type === 'month')?.value;
+  const day = parts.find(p => p.type === 'day')?.value;
+  return `${month}-${day}`;
 }
 
 export default async function HomePage() {
@@ -116,7 +125,6 @@ export default async function HomePage() {
                     <span className="text-[14px] text-gray-400 md:text-gray-500 truncate">블라인드 처리된 글입니다.</span>
                   ) : (
                     <>
-                      {/* 💡 [핵심 패치] 메인 위젯 두 줄 엔진 탑재 */}
                       <span className="text-[14px] text-gray-900 md:text-gray-800 font-bold md:font-medium hover:underline line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug">
                         {cleanTitle}
                       </span>
@@ -155,78 +163,81 @@ export default async function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] font-sans text-gray-800">
-      <Navbar />
-      <main className="max-w-[1200px] mx-auto p-4 md:py-8 mb-20">
+    // 💡 [핵심 패치] Next.js의 멍청한 자동 Suspense 개입을 원천 차단하는 완벽한 방어막!
+    <Suspense fallback={<div className="min-h-screen bg-[#f4f5f7]"></div>}>
+      <div className="min-h-screen bg-[#f4f5f7] font-sans text-gray-800">
+        <Navbar />
+        <main className="max-w-[1200px] mx-auto p-4 md:py-8 mb-20">
 
-        <div className="bg-[#414a66] rounded-sm p-6 md:p-10 mb-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-black text-white mb-2" style={{ wordBreak: 'keep-all' }}>
-              {renderTitle(mainBannerTitle)}
-            </h1>
-            <p className="text-sm md:text-base text-gray-300 font-medium" style={{ wordBreak: 'keep-all' }}>
-              {mainBannerSubtitle}
-            </p>
-          </div>
+          <div className="bg-[#414a66] rounded-sm p-6 md:p-10 mb-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-black text-white mb-2" style={{ wordBreak: 'keep-all' }}>
+                {renderTitle(mainBannerTitle)}
+              </h1>
+              <p className="text-sm md:text-base text-gray-300 font-medium" style={{ wordBreak: 'keep-all' }}>
+                {mainBannerSubtitle}
+              </p>
+            </div>
 
-          <div className="flex flex-col items-center md:items-end gap-3">
-            {currentUser ? (
-              <>
-                <div className="text-gray-200 text-sm font-medium">
-                  <span className="text-white font-black text-base">{currentUser}</span> 님, 환영합니다!
-                </div>
-                <div className="flex flex-wrap items-center justify-center md:justify-end gap-2 sm:gap-2">
-                  {isAdmin && (
-                    <Link href="/admin" className="px-3 sm:px-4 py-2 bg-red-600 text-white text-sm font-black rounded-sm hover:bg-red-700 transition-colors shadow-sm whitespace-nowrap shrink-0">
-                      ADMIN
+            <div className="flex flex-col items-center md:items-end gap-3">
+              {currentUser ? (
+                <>
+                  <div className="text-gray-200 text-sm font-medium">
+                    <span className="text-white font-black text-base">{currentUser}</span> 님, 환영합니다!
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center md:justify-end gap-2 sm:gap-2">
+                    {isAdmin && (
+                      <Link href="/admin" className="px-3 sm:px-4 py-2 bg-red-600 text-white text-sm font-black rounded-sm hover:bg-red-700 transition-colors shadow-sm whitespace-nowrap shrink-0">
+                        ADMIN
+                      </Link>
+                    )}
+                    <Link href="/profile" className="px-3 sm:px-4 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap shrink-0">
+                      내정보
                     </Link>
-                  )}
-                  <Link href="/profile" className="px-3 sm:px-4 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap shrink-0">
-                    내정보
-                  </Link>
-                  <form action={handleLogout} className="shrink-0">
-                    <button type="submit" className="px-3 sm:px-4 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap shrink-0">
-                      로그아웃
-                    </button>
-                  </form>
-                  <Link href="/board/write" className="px-4 sm:px-5 py-2 bg-[#ebedf5] text-[#3b4890] text-sm font-black rounded-sm shadow-md hover:bg-white transition-colors ml-0 sm:ml-1 whitespace-nowrap shrink-0">
-                    ✏️ 글쓰기
-                  </Link>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-gray-300 text-sm font-bold">
-                  유머인을 더 편리하게 이용하세요.
-                </div>
-                <div className="flex flex-wrap items-center justify-center md:justify-end gap-2">
-                  <Link href="/login?redirect=/" className="px-6 sm:px-8 py-2 bg-[#ebedf5] text-[#3b4890] text-sm font-black rounded-sm shadow-md hover:bg-white transition-colors whitespace-nowrap shrink-0">
-                    로그인
-                  </Link>
-                  <Link href="/signup" className="px-4 sm:px-6 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap shrink-0">
-                    회원가입
-                  </Link>
-                </div>
-              </>
-            )}
+                    <form action={handleLogout} className="shrink-0">
+                      <button type="submit" className="px-3 sm:px-4 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap shrink-0">
+                        로그아웃
+                      </button>
+                    </form>
+                    <Link href="/board/write" className="px-4 sm:px-5 py-2 bg-[#ebedf5] text-[#3b4890] text-sm font-black rounded-sm shadow-md hover:bg-white transition-colors ml-0 sm:ml-1 whitespace-nowrap shrink-0">
+                      ✏️ 글쓰기
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-gray-300 text-sm font-bold">
+                    유머인을 더 편리하게 이용하세요.
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center md:justify-end gap-2">
+                    <Link href="/login?redirect=/" className="px-6 sm:px-8 py-2 bg-[#ebedf5] text-[#3b4890] text-sm font-black rounded-sm shadow-md hover:bg-white transition-colors whitespace-nowrap shrink-0">
+                      로그인
+                    </Link>
+                    <Link href="/signup" className="px-4 sm:px-6 py-2 bg-[#2a3042] text-white text-sm font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap shrink-0">
+                      회원가입
+                    </Link>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <BoardWidget title="투데이 베스트" icon="🔥" link="/board?best=today" posts={bestPosts} highlight={true} />
-          <BoardWidget title="전체 새글 보기" icon="📝" link="/board" posts={allRecentPosts} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <BoardWidget title="투데이 베스트" icon="🔥" link="/board?best=today" posts={bestPosts} highlight={true} />
+            <BoardWidget title="전체 새글 보기" icon="📝" link="/board" posts={allRecentPosts} />
 
-          {mainBoards.map((board, index) => (
-            <BoardWidget
-              key={board.id}
-              title={board.name}
-              icon={<CategoryIcon category={board.name} />}
-              link={`/board?category=${board.name}`}
-              posts={dynamicBoardPosts[index]}
-            />
-          ))}
-        </div>
-      </main>
-    </div>
+            {mainBoards.map((board, index) => (
+              <BoardWidget
+                key={board.id}
+                title={board.name}
+                icon={<CategoryIcon category={board.name} />}
+                link={`/board?category=${board.name}`}
+                posts={dynamicBoardPosts[index]}
+              />
+            ))}
+          </div>
+        </main>
+      </div>
+    </Suspense>
   );
 }

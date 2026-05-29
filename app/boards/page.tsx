@@ -19,7 +19,6 @@ export default async function AllBoardsPage() {
 
   const groupsMap: Record<string, any[]> = {};
   
-  // 💡 [핵심 추가] 명예의 전당 그룹에 '명작 쇼케이스'를 누락 없이 완벽 추가!
   groupsMap['🏆 명예의 전당'] = [
     { name: '🔥 투데이 베스트', link: '/board?best=today' },
     { name: '🏛️ 명작 쇼케이스', link: '/board?best=showcase' },
@@ -32,6 +31,10 @@ export default async function AllBoardsPage() {
     if (!groupsMap[groupName]) groupsMap[groupName] = [];
     groupsMap[groupName].push({ name: b.name, link: `/board?category=${b.name}` });
   });
+
+  // 💡 [핵심 방어막] 첫 번째 포럼 그룹을 찾아내어 앵커(#forum) 좌표를 부여합니다.
+  const groupKeys = Object.keys(groupsMap);
+  const firstForumIndex = groupKeys.findIndex(g => g.includes('포럼'));
 
   return (
     <div className="min-h-screen bg-[#f4f5f7] py-8 px-4 font-sans">
@@ -57,20 +60,22 @@ export default async function AllBoardsPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {Object.keys(groupsMap).map((groupName) => {
+          {groupKeys.map((groupName, idx) => {
             const list = groupsMap[groupName];
-            // 💡 10칸 고정용 빈칸 데이터 생성
             const emptySlots = Array(Math.max(0, 10 - list.length)).fill(null);
+            
+            // 첫 번째 포럼 그룹일 경우에만 id="forum"을 부여하여 상단 메뉴가 정확히 스크롤해서 꽂히게 만듭니다. (scroll-mt-24는 상단바 가림 방지용 여백)
+            const isFirstForum = idx === firstForumIndex;
 
             return (
-              <div key={groupName} className="bg-white rounded-sm shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-gray-200 overflow-hidden flex flex-col">
+              <div key={groupName} id={isFirstForum ? 'forum' : undefined} className={`bg-white rounded-sm shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-gray-200 overflow-hidden flex flex-col ${isFirstForum ? 'scroll-mt-24' : ''}`}>
                 <div className="bg-[#414a66] px-4 py-3 border-b border-[#2a3042]">
                   <h2 className="text-[15px] font-black text-white flex items-center tracking-wide">{groupName}</h2>
                 </div>
                 
                 <ul className="divide-y divide-gray-100 flex-1 p-2">
-                  {list.map((board, idx) => (
-                    <li key={idx} className="flex items-center">
+                  {list.map((board, bIdx) => (
+                    <li key={bIdx} className="flex items-center">
                       <Link href={board.link} className="flex items-center px-3 py-3 w-full hover:bg-indigo-50/70 transition-colors rounded-sm group">
                         <CategoryIcon category={board.name} />
                         <span className="text-[14px] font-bold text-gray-700 ml-1 group-hover:text-[#3b4890]">{board.name}</span>
@@ -81,9 +86,8 @@ export default async function AllBoardsPage() {
                     </li>
                   ))}
                   
-                  {/* 💡 모바일에서는 숨기고, PC에서만 투명하게 10칸 높이 유지 */}
-                  {emptySlots.map((_, idx) => (
-                    <li key={`empty-${idx}`} className="hidden md:flex items-center px-3 py-3 w-full h-[46px] opacity-0 pointer-events-none">
+                  {emptySlots.map((_, bIdx) => (
+                    <li key={`empty-${bIdx}`} className="hidden md:flex items-center px-3 py-3 w-full h-[46px] opacity-0 pointer-events-none">
                       빈칸
                     </li>
                   ))}

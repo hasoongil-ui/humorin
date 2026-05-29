@@ -127,14 +127,18 @@ export default function NavbarClient(props: NavbarClientProps) {
     ...Object.keys(groupsMap).map(groupName => ({ name: groupName, sub: groupsMap[groupName] }))
   ];
 
-  // 💡 [버그 멸망] 모바일 스크롤 메뉴에도 '명작 쇼케이스'를 완벽하게 삽입했습니다!
+  // 💡 [핵심 방어막] 이름에 '포럼'이 들어간 게시판은 모바일 스크롤 메뉴에서 원천 차단! (대신 앵커 버튼 추가)
   const mobileFlatList = [
     { name: '전체글 보기', link: '/board' },
     { name: '🔥투데이 베스트', link: '/board?best=today' },
     { name: '🏛️ 명작 쇼케이스', link: '/board?best=showcase' },
     { name: '💯 백베스트', link: '/board?best=100' },
     { name: '👑 천베스트', link: '/board?best=1000' },
-    ...(initialBoards || []).map(b => ({ name: b.name, link: `/board?category=${b.name}` }))
+    ...(initialBoards || [])
+      .filter(b => !(b.group_name && b.group_name.includes('포럼')))
+      .map(b => ({ name: b.name, link: `/board?category=${b.name}` })),
+    // 👇 모바일 전용 '포럼' 직통 엘리베이터 버튼!
+    { name: '💬 전체 포럼 보기', link: '/boards#forum' }
   ];
 
   const activeGroup = menuGroups.find(g => g.name === hoveredMenuId);
@@ -182,15 +186,15 @@ export default function NavbarClient(props: NavbarClientProps) {
           <div ref={scrollContainerRef} onScroll={checkScrollState} className="flex items-center overflow-x-auto whitespace-nowrap hide-scrollbar relative py-0.5 w-full">
             <div className="w-2 shrink-0 md:hidden"></div>
 
-            {/* 모바일 가로 스크롤 메뉴 */}
             {mobileFlatList.map((item) => {
               let isActive = false;
               if (item.name === '전체글 보기') isActive = currentCategory === 'all' && bestType === '';
               else if (item.name === '🔥투데이 베스트') isActive = bestType === 'today';
-              // 💡 모바일 메뉴 활성화 감지 로직 완벽 업데이트
               else if (item.name === '🏛️ 명작 쇼케이스') isActive = bestType === 'showcase';
               else if (item.name === '💯 백베스트') isActive = bestType === '100';
               else if (item.name === '👑 천베스트') isActive = bestType === '1000';
+              // '💬 전체 포럼 보기'는 링크 이동이므로 하이라이트를 주지 않습니다.
+              else if (item.name === '💬 전체 포럼 보기') isActive = false;
               else isActive = currentCategory === item.name;
 
               return (
@@ -200,7 +204,6 @@ export default function NavbarClient(props: NavbarClientProps) {
               );
             })}
 
-            {/* PC 드롭다운 메뉴 */}
             {menuGroups.map((group: any) => {
               if (group.isSingle) {
                 let isActive = false;
@@ -233,7 +236,6 @@ export default function NavbarClient(props: NavbarClientProps) {
         </div>
       </nav>
 
-      {/* PC 드롭다운 세부 메뉴 */}
       <div className="hidden md:block">
         {mounted && hoveredMenuId && menuRect && activeGroup && typeof document !== 'undefined' && createPortal(
           <div 
@@ -244,13 +246,7 @@ export default function NavbarClient(props: NavbarClientProps) {
           >
             {activeGroup.sub?.map((subItem: any) => { 
               const link = subItem.link || `/board?category=${subItem.name}`;
-              
-              // 💡 PC 드롭다운 메뉴 활성화 감지 로직 완벽 업데이트
-              let isActive = currentCategory === subItem.name;
-              if (subItem.name === '🏛️ 명작 쇼케이스') isActive = bestType === 'showcase';
-              if (subItem.name === '💯 백베스트') isActive = bestType === '100';
-              if (subItem.name === '👑 천베스트') isActive = bestType === '1000';
-
+              const isActive = currentCategory === subItem.name;
               return (
                 <Link key={subItem.name} href={link} className={`block px-5 py-3 text-[13px] font-bold border-b border-gray-100 transition-colors last:border-0 ${isActive ? 'bg-indigo-50 text-[#3b4890]' : 'text-gray-700 hover:bg-gray-50 hover:text-[#3b4890]'}`}>
                   {subItem.name}

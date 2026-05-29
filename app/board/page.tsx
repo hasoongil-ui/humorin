@@ -108,10 +108,13 @@ export default async function BoardPage(props: any) {
     sidebarBoards = rows;
   } catch (e) {}
 
+  // 💡 [핵심 방어막] PC 사이드바 무한 증식 방지를 위한 게시판 분리 작업!
+  const normalBoards = sidebarBoards.filter(b => !(b.group_name && b.group_name.includes('포럼')));
+  const forumBoards = sidebarBoards.filter(b => b.group_name && b.group_name.includes('포럼'));
+
   const categoryPattern = category !== 'all' ? `%[${category}]%` : '%';
   const isAll = category === 'all';
 
-  // 💡 [핵심 엔진] 고유 파라미터 best=showcase 로 진입 시 쇼케이스 렌더링
   let showcaseData = null;
   if (bestType === 'showcase' && page === 1 && !keyword) {
     try {
@@ -178,7 +181,6 @@ export default async function BoardPage(props: any) {
     posts = rows;
   }
   else if (bestType === '100' || bestType === 'showcase') {
-    // 💡 [핵심] 쇼케이스 메뉴에서도 기본적으로 백베스트(100) 글 목록을 아래에 뿌려줍니다.
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published'`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
@@ -223,6 +225,12 @@ export default async function BoardPage(props: any) {
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{__html: `
+        .forum-scrollbar::-webkit-scrollbar { width: 5px; }
+        .forum-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .forum-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .forum-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      `}} />
       <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row gap-5 p-4 md:py-6 mt-2 mb-20">
 
         <aside className="w-full md:w-[240px] shrink-0 flex flex-col gap-4">
@@ -277,7 +285,7 @@ export default async function BoardPage(props: any) {
             <div className="bg-[#414a66] text-white text-[13px] font-bold py-2.5 px-3 border-b border-[#2a3042]">
               운영 중인 게시판
             </div>
-            <ul className="text-[13px] font-bold text-gray-600">
+            <ul className="text-[13px] font-bold text-gray-600 pb-2">
               <li><Link href="/board" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${category === 'all' && bestType === '' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>전체글 보기</Link></li>
               <li><Link href="/board?best=today" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${bestType === 'today' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>🔥 투데이 베스트</Link></li>
               
@@ -285,16 +293,41 @@ export default async function BoardPage(props: any) {
               <li><Link href="/board?best=100" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${bestType === '100' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>💯 백베스트</Link></li>
               <li><Link href="/board?best=1000" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${bestType === '1000' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>👑 천베스트</Link></li>
 
-              {sidebarBoards.map(board => {
+              {/* 일반 게시판 노출 */}
+              {normalBoards.map(board => {
                 const isActive = category === board.name && bestType === '';
                 return (
                   <li key={board.id}>
-                    <Link href={`/board?category=${board.name}`} className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 last:border-0 ${isActive ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>
+                    <Link href={`/board?category=${board.name}`} className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${isActive ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>
                       {board.name}
                     </Link>
                   </li>
                 );
               })}
+
+              {/* 💡 [핵심 방어막] 포럼 전용 내부 스크롤 구역 생성 */}
+              {forumBoards.length > 0 && (
+                <li className="mt-3 px-2">
+                  <div className="bg-[#f4f5f7] border border-gray-200 rounded-sm overflow-hidden">
+                    <div className="px-3 py-2 bg-gray-100 text-[#414a66] text-[11px] font-black border-b border-gray-200 flex items-center gap-1.5 shadow-inner">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" /></svg>
+                      포럼 (스크롤하여 확인)
+                    </div>
+                    <ul className="max-h-[220px] overflow-y-auto forum-scrollbar bg-white">
+                      {forumBoards.map(board => {
+                        const isActive = category === board.name && bestType === '';
+                        return (
+                          <li key={board.id}>
+                            <Link href={`/board?category=${board.name}`} className={`block px-3 py-2 text-[12px] hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 last:border-0 ${isActive ? 'bg-indigo-50 text-[#3b4890] font-black' : 'font-semibold'}`}>
+                              {board.name}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </li>
+              )}
             </ul>
           </div>
         </aside>
@@ -318,11 +351,9 @@ export default async function BoardPage(props: any) {
             )}
           </div>
 
-          {/* 💡 [명작 쇼케이스 위젯 렌더링 영역] */}
           {showcaseData && (
             <div className="mb-10">
               <div className="mb-5 flex flex-col border-b-2 border-gray-800 pb-3">
-                {/* 💡 [핵심 패치] 타이틀 단어 중복 제거 및 세련미 극대화 완료! */}
                 <h2 className="text-2xl font-black text-gray-900 flex items-center gap-2">
                   <span className="text-yellow-500 text-2xl">🏛️</span> 
                   유머인 <span className="text-[#3b4890]">레전드 TOP 3</span>
@@ -334,7 +365,6 @@ export default async function BoardPage(props: any) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
                 
-                {/* 🥇 주간 1위 */}
                 {showcaseData.weekly && (() => {
                   const data = extractData(showcaseData.weekly.title);
                   const img = extractFirstImage(showcaseData.weekly.content);
@@ -376,7 +406,6 @@ export default async function BoardPage(props: any) {
                   )
                 })()}
 
-                {/* 🏆 월간 1위 */}
                 {showcaseData.monthly && (() => {
                   const data = extractData(showcaseData.monthly.title);
                   const img = extractFirstImage(showcaseData.monthly.content);
@@ -418,7 +447,6 @@ export default async function BoardPage(props: any) {
                   )
                 })()}
 
-                {/* 👑 역대 1위 */}
                 {showcaseData.allTime && (() => {
                   const data = extractData(showcaseData.allTime.title);
                   const img = extractFirstImage(showcaseData.allTime.content);
@@ -635,7 +663,6 @@ export default async function BoardPage(props: any) {
           <div className="flex justify-center mt-6 mb-2 px-2">
             <form method="GET" action="/board" className="flex items-center w-full max-w-[400px] border-2 border-[#3b4890] rounded-full bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               {category !== 'all' && <input type="hidden" name="category" value={category} />}
-              {/* 💡 [핵심] 검색창에서도 파라미터 증발 방지 완료 */}
               {bestType && <input type="hidden" name="best" value={bestType} />}
               <select name="searchType" defaultValue={searchType} className="shrink-0 pl-3 sm:pl-4 pr-1 sm:pr-2 py-2 sm:py-2.5 text-[12px] sm:text-[13px] font-bold text-gray-600 bg-transparent outline-none cursor-pointer border-r border-gray-200 focus:text-[#3b4890]">
                 <option value="title">제목</option>
@@ -653,7 +680,6 @@ export default async function BoardPage(props: any) {
             <div className="hidden md:block md:flex-1 shrink-0"></div>
 
             <div className="flex justify-center items-center gap-1 flex-wrap shrink-0">
-              {/* 💡 [핵심 패치] 스크롤 방지 본드(scroll={false}) 5곳 모두 완벽하게 발랐습니다 */}
               {page > 1 && (
                 <Link href={getPageUrl(1)} scroll={false} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">처음</span><span className="sm:hidden">{"<<"}</span>
