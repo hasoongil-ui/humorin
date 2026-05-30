@@ -37,8 +37,8 @@ export function PostLikeButton({ postId, initialLikes, initialHasLiked, toggleAc
       onClick={handleClick}
       disabled={isPending}
       className={`flex items-center gap-2 px-6 sm:px-8 py-2.5 sm:py-3 rounded-full transition-all duration-300 group shadow-sm ${hasLiked
-          ? 'bg-rose-400 border border-rose-400 text-white'
-          : 'bg-rose-50/50 border border-rose-200 text-rose-400 hover:bg-rose-400 hover:text-white hover:border-rose-400'
+        ? 'bg-rose-400 border border-rose-400 text-white'
+        : 'bg-rose-50/50 border border-rose-200 text-rose-400 md:hover:bg-rose-400 md:hover:text-white md:hover:border-rose-400 active:bg-rose-100'
         }`}
     >
       <svg
@@ -83,8 +83,8 @@ export function PostDislikeButton({ postId, initialDislikes, initialHasDisliked,
       onClick={handleClick}
       disabled={isPending}
       className={`flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-full transition-all duration-300 shadow-sm ${hasDisliked
-        ? 'bg-gray-500 border border-gray-500 text-white'
-        : 'bg-white border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600'
+          ? 'bg-gray-500 border border-gray-500 text-white'
+          : 'bg-white border border-gray-200 text-gray-400 md:hover:border-gray-400 md:hover:text-gray-600 active:bg-gray-50'
         }`}
     >
       <span className="font-bold text-[20px] sm:text-[22px] leading-none mb-1">-</span>
