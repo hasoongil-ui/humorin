@@ -108,7 +108,6 @@ export default async function BoardPage(props: any) {
     sidebarBoards = rows;
   } catch (e) {}
 
-  // 💡 [핵심 방어막] PC 사이드바 무한 증식 방지를 위한 게시판 분리 작업!
   const normalBoards = sidebarBoards.filter(b => !(b.group_name && b.group_name.includes('포럼')));
   const forumBoards = sidebarBoards.filter(b => b.group_name && b.group_name.includes('포럼'));
 
@@ -293,7 +292,6 @@ export default async function BoardPage(props: any) {
               <li><Link href="/board?best=100" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${bestType === '100' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>💯 백베스트</Link></li>
               <li><Link href="/board?best=1000" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${bestType === '1000' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>👑 천베스트</Link></li>
 
-              {/* 일반 게시판 노출 */}
               {normalBoards.map(board => {
                 const isActive = category === board.name && bestType === '';
                 return (
@@ -305,12 +303,11 @@ export default async function BoardPage(props: any) {
                 );
               })}
 
-              {/* 💡 [핵심 방어막] 포럼 전용 내부 스크롤 구역 생성 */}
               {forumBoards.length > 0 && (
                 <li className="mt-3 px-2">
                   <div className="bg-[#f4f5f7] border border-gray-200 rounded-sm overflow-hidden">
                     <div className="px-3 py-2 bg-gray-100 text-[#414a66] text-[11px] font-black border-b border-gray-200 flex items-center gap-1.5 shadow-inner">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" /></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a1.5 1.5 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" /></svg>
                       포럼 (스크롤하여 확인)
                     </div>
                     <ul className="max-h-[220px] overflow-y-auto forum-scrollbar bg-white">
@@ -681,22 +678,22 @@ export default async function BoardPage(props: any) {
 
             <div className="flex justify-center items-center gap-1 flex-wrap shrink-0">
               {page > 1 && (
-                <Link href={getPageUrl(1)} scroll={false} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                <Link href={getPageUrl(1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">처음</span><span className="sm:hidden">{"<<"}</span>
                 </Link>
               )}
               {startPage > 1 && (
-                <Link href={getPageUrl(startPage - 1)} scroll={false} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                <Link href={getPageUrl(startPage - 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">이전</span><span className="sm:hidden">{"<"}</span>
                 </Link>
               )}
               {visiblePages.map((p) => (
-                <Link key={p} href={getPageUrl(p)} scroll={false} className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${page === p ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
+                <Link key={p} href={getPageUrl(p)} className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${page === p ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
                   {p}
                 </Link>
               ))}
               {endPage < totalPages && (
-                <Link href={getPageUrl(endPage + 1)} scroll={false} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                <Link href={getPageUrl(endPage + 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">다음</span><span className="sm:hidden">{">"}</span>
                 </Link>
               )}

@@ -144,7 +144,7 @@ export default async function PostDetailPage(props: any) {
   const params = await props.params;
   const searchParams = await props.searchParams;
   const postId = params.id;
-  
+
   const { rows: postRows } = await sql`SELECT * FROM posts WHERE id = ${postId}`;
   const post = postRows[0];
 
@@ -171,7 +171,7 @@ export default async function PostDetailPage(props: any) {
   }
   const queryString = queryParams.toString();
   const listQueryStr = queryString ? `?${queryString}` : '';
-  
+
   const backToListUrl = `/board${listQueryStr}`;
 
   const cookieStore = await cookies();
@@ -194,7 +194,7 @@ export default async function PostDetailPage(props: any) {
   await sql`UPDATE posts SET views = COALESCE(views, 0) + 1 WHERE id = ${postId}`;
 
   const isAuthor = currentUserId === post.author_id || (!post.author_id && currentUser === post.author);
-  
+
   const isAnonymous = postData.cat === '익명 다락방';
   const displayAuthorPost = isAnonymous ? '익명' : post.author;
   const displayAuthorIdPost = isAnonymous ? null : post.author_id;
@@ -268,7 +268,7 @@ export default async function PostDetailPage(props: any) {
       ORDER BY id DESC 
       LIMIT 30
     `;
-    
+
     relatedPosts = recentPosts.sort(() => 0.5 - Math.random()).slice(0, 3);
 
     if (relatedPosts.length < 3) {
@@ -284,10 +284,10 @@ export default async function PostDetailPage(props: any) {
       `;
       const existingIds = new Set(relatedPosts.map(p => p.id));
       existingIds.add(Number(postId));
-      
+
       const filteredFallback = bestFallback.filter(p => !existingIds.has(p.id));
       const fallbackPicks = filteredFallback.sort(() => 0.5 - Math.random()).slice(0, needed);
-      
+
       relatedPosts = [...relatedPosts, ...fallbackPicks];
     }
   } catch (e) { console.error("연관 게시글 하이브리드 로딩 실패", e); }
@@ -316,13 +316,13 @@ export default async function PostDetailPage(props: any) {
       }
       totalListCount = Number(countRes.rows[0].count);
       listPosts = rowsRes.rows;
-    } 
+    }
     else if (bestType === 'today') {
       const countRes = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published'`;
       totalListCount = Number(countRes.rows[0].count);
       const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
-    } 
+    }
     else if (bestType === '100') {
       const countRes = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published'`;
       totalListCount = Number(countRes.rows[0].count);
@@ -351,12 +351,13 @@ export default async function PostDetailPage(props: any) {
   const visiblePages = [];
   for (let i = startPage; i <= endPage; i++) visiblePages.push(i);
 
+  // 💡 [핵심 패치] 본문 하단에서 페이지를 넘기면 본문이 닫히고 게시판 목록으로 시원하게 이동!
   const getPageUrl = (pageNum: number) => {
     const qParams = new URLSearchParams(queryString);
     if (pageNum > 1) qParams.set('page', pageNum.toString());
     else qParams.delete('page');
     const qStr = qParams.toString();
-    return `/board/${postId}${qStr ? `?${qStr}` : ''}`;
+    return `/board${qStr ? `?${qStr}` : ''}`;
   };
 
   const titleClasses = "group-hover:underline mr-1 line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug";
@@ -1115,7 +1116,6 @@ export default async function PostDetailPage(props: any) {
             <p className="text-gray-600 font-bold text-lg leading-relaxed">보고 싶어 하지 않은 분들이 많아<br />블라인드 처리된 게시글입니다.</p>
           </div>
         ) : (
-          /* 💡 [핵심 패치] 본문 영역에 최소 높이(min-h) 600px 할당하여 덜컹거림 방어 */
           <div className="post-content-area w-full relative min-h-[50vh] sm:min-h-[600px] flex flex-col">
             {post.is_blinded && isAdmin && (
               <div className="bg-red-50 border border-red-200 p-4 sm:p-5 rounded-sm mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
@@ -1137,7 +1137,6 @@ export default async function PostDetailPage(props: any) {
 
             <style dangerouslySetInnerHTML={{
               __html: `
-              /* 💡 [핵심 패치] 이미지가 로딩되기 전 최소 200px 뼈대 확보 + 회색 배경 지정 */
               .post-content-area .ql-editor img {
                 min-height: 200px !important;
                 background-color: #f4f5f7 !important;
@@ -1292,12 +1291,13 @@ export default async function PostDetailPage(props: any) {
                     </div>
                     <Link href={`/board/${p.id}${listQueryStr}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                       <CategoryIcon category={pData.cat} />
-                      
+
                       {p.is_blinded ? (
                         <span className="truncate mr-1 text-gray-400 md:text-gray-500">블라인드 처리된 글입니다.</span>
                       ) : (
                         <>
-                          <span className={`\${isCurrentPost ? 'font-black text-indigo-900' : 'font-bold text-gray-900 md:text-gray-800'} ${titleClasses}`}>
+                          {/* 🚨 이곳이 서버 오류의 주범이었던 문법 오류(\${) 해결 부분입니다! */}
+                          <span className={`${isCurrentPost ? 'font-black text-indigo-900' : 'font-bold md:font-normal text-gray-900 md:text-gray-800'} ${titleClasses}`}>
                             {pData.cleanTitle}
                           </span>
                           {hasImage(p.content) && (
@@ -1326,22 +1326,22 @@ export default async function PostDetailPage(props: any) {
 
             <div className="flex justify-center items-center gap-1 flex-wrap mt-6">
               {listPage > 1 && (
-                <Link href={getPageUrl(1)} scroll={false} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                <Link href={getPageUrl(1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">처음</span><span className="sm:hidden">{"<<"}</span>
                 </Link>
               )}
               {startPage > 1 && (
-                <Link href={getPageUrl(startPage - 1)} scroll={false} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                <Link href={getPageUrl(startPage - 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">이전</span><span className="sm:hidden">{"<"}</span>
                 </Link>
               )}
               {visiblePages.map((pNum) => (
-                <Link key={pNum} href={getPageUrl(pNum)} scroll={false} className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${listPage === pNum ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
+                <Link key={pNum} href={getPageUrl(pNum)} className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${listPage === pNum ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
                   {pNum}
                 </Link>
               ))}
               {endPage < totalPages && (
-                <Link href={getPageUrl(endPage + 1)} scroll={false} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                <Link href={getPageUrl(endPage + 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">다음</span><span className="sm:hidden">{">"}</span>
                 </Link>
               )}
