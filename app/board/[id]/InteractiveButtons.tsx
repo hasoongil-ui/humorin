@@ -32,9 +32,26 @@ export function PostLikeButton({ postId, initialLikes, initialHasLiked, toggleAc
   };
 
   return (
-    <button type="button" onClick={handleClick} disabled={isPending} className={`w-[80px] h-[80px] sm:w-[90px] sm:h-[90px] rounded-full border-[3px] flex flex-col items-center justify-center gap-1 transition-all shadow-sm ${hasLiked ? 'border-[#3b4890] bg-[#3b4890] text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-[#3b4890] hover:text-[#3b4890]'}`}>
-      <span className="text-2xl sm:text-3xl leading-none mt-1">👍</span>
-      <span className="text-[12px] sm:text-[13px] font-black">{likes}</span>
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={isPending}
+      className={`flex items-center gap-2 px-6 sm:px-8 py-2.5 sm:py-3 rounded-full transition-all duration-300 group shadow-sm ${hasLiked
+          ? 'bg-rose-400 border border-rose-400 text-white'
+          : 'bg-rose-50/50 border border-rose-200 text-rose-400 hover:bg-rose-400 hover:text-white hover:border-rose-400'
+        }`}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill={hasLiked ? "currentColor" : "none"}
+        viewBox="0 0 24 24"
+        strokeWidth="2"
+        stroke="currentColor"
+        className="w-5 h-5 sm:w-6 sm:h-6 group-hover:scale-110 transition-transform"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+      </svg>
+      <span className="font-bold text-[14.5px] sm:text-[16px]">공감 {likes}</span>
     </button>
   );
 }
@@ -61,9 +78,17 @@ export function PostDislikeButton({ postId, initialDislikes, initialHasDisliked,
   };
 
   return (
-    <button type="button" onClick={handleClick} disabled={isPending} className={`w-[80px] h-[80px] sm:w-[90px] sm:h-[90px] rounded-full border-[3px] flex flex-col items-center justify-center gap-1 transition-all shadow-sm ${hasDisliked ? 'border-gray-500 bg-gray-500 text-white' : 'border-gray-200 bg-white text-gray-400 hover:border-gray-400 hover:text-gray-600'}`}>
-      <span className="text-2xl sm:text-3xl leading-none mt-1">👎</span>
-      <span className="text-[12px] sm:text-[13px] font-bold">{dislikes}</span>
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={isPending}
+      className={`flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-full transition-all duration-300 shadow-sm ${hasDisliked
+        ? 'bg-gray-500 border border-gray-500 text-white'
+        : 'bg-white border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600'
+        }`}
+    >
+      <span className="font-bold text-[20px] sm:text-[22px] leading-none mb-1">-</span>
+      <span className="font-bold text-[14.5px] sm:text-[16px]">{dislikes}</span>
     </button>
   );
 }
@@ -225,8 +250,8 @@ const detectAndRestoreFile = (file: File): Promise<File> => {
 
       if (ext && (file.type !== realType || !file.type || file.type === 'application/octet-stream')) {
         const hasValidExtension = new RegExp(`\\.${ext}$`, 'i').test(file.name);
-        const newFileName = hasValidExtension 
-          ? file.name 
+        const newFileName = hasValidExtension
+          ? file.name
           : file.name.replace(/\.[^/.]+$/, "") + `.${ext}`;
 
         const restoredFile = new File([file], newFileName, {
@@ -374,7 +399,7 @@ export function EditCommentForm({ commentId, initialContent, initialImage, editA
     let finalImageUrl = initialImage;
 
     if (isDeleted) {
-        finalImageUrl = '';
+      finalImageUrl = '';
     }
 
     if (imageFile) {
@@ -469,7 +494,7 @@ export function PostShareButton({ title }: { title: string }) {
         // 🚨 핵심 수정 부분: text 속성을 제거하여 카카오톡이 텍스트를 강제로 합치는 것을 막습니다. 
         // 오직 게시글 원본 '제목'과 'URL' 두 가지만 깔끔하게 보냅니다!
         await navigator.share({ title: title, url: url });
-      } catch (err) {}
+      } catch (err) { }
     } else {
       // 카카오톡이 아닌 일반 트위터 공유 등의 환경은 기존대로 유지하여 안전을 확보합니다.
       const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
@@ -478,7 +503,7 @@ export function PostShareButton({ title }: { title: string }) {
   };
 
   return (
-    <button 
+    <button
       type="button"
       onClick={handleShare}
       className="flex flex-col items-center justify-center p-2 rounded-sm transition-colors text-gray-500 hover:text-[#3b4890] hover:bg-indigo-50"
@@ -518,9 +543,8 @@ export function CopyLinkBox({ postId }: { postId: string }) {
         <button
           type="button"
           onClick={handleCopy}
-          className={`px-3 py-1.5 border-l border-gray-200 text-[12px] font-bold transition-colors ${
-            copied ? 'bg-green-50 text-green-600' : 'bg-white text-gray-700 hover:bg-gray-100'
-          }`}
+          className={`px-3 py-1.5 border-l border-gray-200 text-[12px] font-bold transition-colors ${copied ? 'bg-green-50 text-green-600' : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
         >
           {copied ? '✅ 복사완료' : '🔗 주소복사'}
         </button>
