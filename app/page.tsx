@@ -104,57 +104,64 @@ export default async function HomePage() {
   const allRecentPosts = results[1].rows;
   const dynamicBoardPosts = results.slice(2).map(res => res.rows);
 
-  const BoardWidget = ({ title, icon, link, posts, highlight = false }: any) => (
-    <div className={`bg-white border ${highlight ? 'border-[#3b4890] shadow-md' : 'border-gray-200 shadow-sm'} rounded-sm overflow-hidden flex flex-col`}>
-      <div className={`flex justify-between items-center px-4 py-3 border-b ${highlight ? 'bg-[#3b4890] border-[#3b4890]' : 'bg-gray-50 border-gray-200'}`}>
-        <h3 className={`font-black text-[15px] flex items-center gap-1.5 ${highlight ? 'text-white' : 'text-[#3b4890]'}`}>
-          <span className="flex items-center">{icon}</span> {title}
-        </h3>
-        <Link href={link} className={`text-xs font-bold transition-colors ${highlight ? 'text-indigo-200 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}>
-          더보기 &gt;
-        </Link>
+  const BoardWidget = ({ title, icon, link, posts, highlight = false }: any) => {
+    // 💡 [핵심 패치] 위젯의 '더보기' 링크(link)에서 꼬리표(?...)를 추출하여 개별 게시글 주소에 붙여줌!
+    // 예: link가 '/board?category=유머' 라면 '?category=유머'만 빼옵니다.
+    const querySuffix = link.includes('?') ? link.substring(link.indexOf('?')) : '';
+
+    return (
+      <div className={`bg-white border ${highlight ? 'border-[#3b4890] shadow-md' : 'border-gray-200 shadow-sm'} rounded-sm overflow-hidden flex flex-col`}>
+        <div className={`flex justify-between items-center px-4 py-3 border-b ${highlight ? 'bg-[#3b4890] border-[#3b4890]' : 'bg-gray-50 border-gray-200'}`}>
+          <h3 className={`font-black text-[15px] flex items-center gap-1.5 ${highlight ? 'text-white' : 'text-[#3b4890]'}`}>
+            <span className="flex items-center">{icon}</span> {title}
+          </h3>
+          <Link href={link} className={`text-xs font-bold transition-colors ${highlight ? 'text-indigo-200 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}>
+            더보기 &gt;
+          </Link>
+        </div>
+        <ul className="divide-y divide-gray-100 flex-1">
+          {posts.length > 0 ? posts.map((post: any) => {
+            const { cleanTitle } = extractData(post.title);
+            return (
+              <li key={`widget-${post.id}`} className="hover:bg-gray-50 transition-colors">
+                {/* 💡 [핵심 패치 적용] 주소 뒤에 뽑아낸 꼬리표(querySuffix)를 합쳐서 넘겨줍니다! */}
+                <Link href={`/board/${post.id}${querySuffix}`} className="flex items-center justify-between px-4 py-2.5">
+                  <div className="flex items-center flex-1 min-w-0 pr-3">
+                    {post.is_blinded ? (
+                      <span className="text-[14px] text-gray-400 md:text-gray-500 truncate">블라인드 처리된 글입니다.</span>
+                    ) : (
+                      <>
+                        <span className="text-[14px] text-gray-900 md:text-gray-800 font-bold md:font-medium hover:underline line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug">
+                          {cleanTitle}
+                        </span>
+                        {post.comment_count > 0 && (
+                          <span className="ml-1.5 text-[10px] sm:text-[11px] font-bold text-[#3b4890] flex-shrink-0">[{post.comment_count}]</span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+                    {post.is_blinded ? (
+                      <span className="text-[11px] text-gray-400 w-10 text-right">-</span>
+                    ) : (
+                      <>
+                        {post.likes > 0 && (
+                          <span className="text-[12px] sm:text-[13px] font-black text-[#3b4890]">♥{post.likes}</span>
+                        )}
+                        <span className="text-[11px] text-gray-400 w-10 text-right">{formatShortDate(post.date)}</span>
+                      </>
+                    )}
+                  </div>
+                </Link>
+              </li>
+            );
+          }) : (
+            <li className="py-10 text-center text-sm font-bold text-gray-400">등록된 게시물이 없습니다.</li>
+          )}
+        </ul>
       </div>
-      <ul className="divide-y divide-gray-100 flex-1">
-        {posts.length > 0 ? posts.map((post: any) => {
-          const { cleanTitle } = extractData(post.title);
-          return (
-            <li key={`widget-${post.id}`} className="hover:bg-gray-50 transition-colors">
-              <Link href={`/board/${post.id}`} className="flex items-center justify-between px-4 py-2.5">
-                <div className="flex items-center flex-1 min-w-0 pr-3">
-                  {post.is_blinded ? (
-                    <span className="text-[14px] text-gray-400 md:text-gray-500 truncate">블라인드 처리된 글입니다.</span>
-                  ) : (
-                    <>
-                      <span className="text-[14px] text-gray-900 md:text-gray-800 font-bold md:font-medium hover:underline line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug">
-                        {cleanTitle}
-                      </span>
-                      {post.comment_count > 0 && (
-                        <span className="ml-1.5 text-[10px] sm:text-[11px] font-bold text-[#3b4890] flex-shrink-0">[{post.comment_count}]</span>
-                      )}
-                    </>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
-                  {post.is_blinded ? (
-                    <span className="text-[11px] text-gray-400 w-10 text-right">-</span>
-                  ) : (
-                    <>
-                      {post.likes > 0 && (
-                        <span className="text-[12px] sm:text-[13px] font-black text-[#3b4890]">♥{post.likes}</span>
-                      )}
-                      <span className="text-[11px] text-gray-400 w-10 text-right">{formatShortDate(post.date)}</span>
-                    </>
-                  )}
-                </div>
-              </Link>
-            </li>
-          );
-        }) : (
-          <li className="py-10 text-center text-sm font-bold text-gray-400">등록된 게시물이 없습니다.</li>
-        )}
-      </ul>
-    </div>
-  );
+    );
+  };
 
   const renderTitle = (title: string) => {
     return title.split(/(유머인)/g).map((part, i) =>

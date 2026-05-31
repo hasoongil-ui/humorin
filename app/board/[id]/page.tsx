@@ -155,15 +155,25 @@ export default async function PostDetailPage(props: any) {
   const postData = extractData(post.title);
 
   const listPage = searchParams?.page ? Number(searchParams.page) : 1;
-  const bestType = searchParams?.best || '';
   const keyword = searchParams?.q || '';
   const searchType = searchParams?.searchType || 'title';
-  let listCategory = searchParams?.category || postData.cat;
+
+  // 💡 [핵심 패치 1 - B안 적용] 맥락 유지 및 다이렉트(외부 링크) 유저 전체글(all)로 유도
+  const hasContext = searchParams?.category || searchParams?.best || searchParams?.q;
+  let bestType = searchParams?.best || '';
+  let listCategory = searchParams?.category || '';
+
+  if (!hasContext) {
+    // 아무런 정보 없이 링크만 타고 온 유저 -> 무조건 '전체글 보기'로 안전하게 유도
+    listCategory = 'all';
+  } else if (!listCategory) {
+    // 투데이 베스트 등 베스트 게시판에서 온 유저는 카테고리를 전체(all)로 고정
+    listCategory = 'all';
+  }
 
   const queryParams = new URLSearchParams();
   if (listPage > 1) queryParams.set('page', listPage.toString());
-  if (searchParams?.category && searchParams.category !== 'all') queryParams.set('category', searchParams.category);
-  else if (!searchParams?.category && listCategory !== 'all') queryParams.set('category', listCategory);
+  if (listCategory && listCategory !== 'all') queryParams.set('category', listCategory);
   if (bestType) queryParams.set('best', bestType);
   if (keyword) {
     queryParams.set('q', keyword);
@@ -254,22 +264,41 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
   }
 
-  // 💡 하이브리드 추천글 엔진 (30개 풀 확장)
-  const categoryPattern = postData.cat !== '일반' ? `%[${postData.cat}]%` : '%';
+  // 💡 [핵심 패치 2] 추천글(하이브리드 3개) 맥락 동기화 엔진
+  let recCategoryPattern = '%';
+  if (listCategory && listCategory !== 'all') {
+    recCategoryPattern = `%[${listCategory}]%`;
+  }
+  
   let relatedPosts = [];
   try {
-    const { rows: recentPosts } = await sql`
-      SELECT id, title, views, likes 
-      FROM posts 
-      WHERE title LIKE ${categoryPattern} 
-        AND id != ${postId} 
-        AND is_blinded = false 
-        AND COALESCE(status, 'published') = 'published'
-      ORDER BY id DESC 
-      LIMIT 30
-    `;
-
-    relatedPosts = recentPosts.sort(() => 0.5 - Math.random()).slice(0, 3);
+    if (bestType) {
+      // 투데이 베스트 출신 유저 -> 추천글도 베스트급(공감 10 이상)으로
+      const { rows: bestRecent } = await sql`
+        SELECT id, title, views, likes 
+        FROM posts 
+        WHERE likes >= 10
+          AND id != ${postId} 
+          AND is_blinded = false 
+          AND COALESCE(status, 'published') = 'published'
+        ORDER BY id DESC 
+        LIMIT 30
+      `;
+      relatedPosts = bestRecent.sort(() => 0.5 - Math.random()).slice(0, 3);
+    } else {
+      // 전체글 보기나 외부 링크 출신, 특정 카테고리(유머 등)에서 온 유저 -> 해당 맥락에 맞는 글 추천
+      const { rows: recentPosts } = await sql`
+        SELECT id, title, views, likes 
+        FROM posts 
+        WHERE title LIKE ${recCategoryPattern} 
+          AND id != ${postId} 
+          AND is_blinded = false 
+          AND COALESCE(status, 'published') = 'published'
+        ORDER BY id DESC 
+        LIMIT 30
+      `;
+      relatedPosts = recentPosts.sort(() => 0.5 - Math.random()).slice(0, 3);
+    }
 
     if (relatedPosts.length < 3) {
       const needed = 3 - relatedPosts.length;
