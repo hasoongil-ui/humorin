@@ -55,6 +55,7 @@ export default async function BoardPage(props: any) {
   const page = searchParams.page ? Number(searchParams.page) : 1;
   const keyword = searchParams.q || '';
   const searchType = searchParams.searchType || 'title';
+  const period = searchParams.period || '6m'; // 💡 [핵심 패치] 검색 기간 기본값 6개월
   
   const queryParams = new URLSearchParams();
   if (page > 1) queryParams.set('page', page.toString());
@@ -63,6 +64,7 @@ export default async function BoardPage(props: any) {
   if (keyword) {
     queryParams.set('q', keyword);
     queryParams.set('searchType', searchType);
+    queryParams.set('period', period); // 💡 페이지 넘길 때도 기간 유지
   }
   const queryString = queryParams.toString();
   const fromQuery = queryString ? `?${queryString}` : '';
@@ -158,17 +160,32 @@ export default async function BoardPage(props: any) {
   }
 
   if (keyword) {
+    // 💡 [핵심 패치] 검색 기간(period) 설정값에 따라 차단 날짜(cutoff) 계산
+    let dateLimit = new Date();
+    if (period === '1w') {
+      dateLimit.setDate(dateLimit.getDate() - 7);
+    } else if (period === '1m') {
+      dateLimit.setMonth(dateLimit.getMonth() - 1);
+    } else if (period === '1y') {
+      dateLimit.setFullYear(dateLimit.getFullYear() - 1);
+    } else if (period === 'all') {
+      dateLimit = new Date(0); // 1970년으로 세팅하여 모든 기간 검색
+    } else {
+      dateLimit.setMonth(dateLimit.getMonth() - 6); // 기본값: 6개월
+    }
+    const cutoffIso = dateLimit.toISOString(); // DB가 알아먹는 시간으로 변환
     const searchPattern = `%${keyword}%`;
+
     let countRes, rowsRes;
     if (searchType === 'title') {
-      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
-      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
+      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     } else if (searchType === 'content') {
-      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
-      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
+      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     } else {
-      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
-      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${categoryPattern} AND author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
+      rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${categoryPattern} AND author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     }
     totalCount = Number(countRes.rows[0].count);
     posts = rowsRes.rows;
@@ -179,10 +196,18 @@ export default async function BoardPage(props: any) {
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
-  else if (bestType === '100' || bestType === 'showcase') {
+  else if (bestType === '100') {
+    // 💡 [핵심 패치] 백베스트(100)는 그대로 두고, 쇼케이스를 분리!
     const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published'`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    posts = rows;
+  }
+  else if (bestType === 'showcase') {
+    // 💡 [핵심 패치] 명작 쇼케이스 전용 로직: 공감 30개로 컷오프 하향하여 독립!
+    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 30 AND COALESCE(status, 'published') = 'published'`;
+    totalCount = Number(countResult.rows[0].count);
+    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 30 AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === '1000') {
@@ -658,15 +683,27 @@ export default async function BoardPage(props: any) {
           </div>
 
           <div className="flex justify-center mt-6 mb-2 px-2">
-            <form method="GET" action="/board" className="flex items-center w-full max-w-[400px] border-2 border-[#3b4890] rounded-full bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            {/* 💡 [핵심 패치] 검색창 max-w를 500px로 살짝 늘리고 기간 선택(period) select 박스 추가! */}
+            <form method="GET" action="/board" className="flex items-center w-full max-w-[500px] border-2 border-[#3b4890] rounded-full bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               {category !== 'all' && <input type="hidden" name="category" value={category} />}
               {bestType && <input type="hidden" name="best" value={bestType} />}
-              <select name="searchType" defaultValue={searchType} className="shrink-0 pl-3 sm:pl-4 pr-1 sm:pr-2 py-2 sm:py-2.5 text-[12px] sm:text-[13px] font-bold text-gray-600 bg-transparent outline-none cursor-pointer border-r border-gray-200 focus:text-[#3b4890]">
+              
+              <select name="period" defaultValue={period} className="shrink-0 pl-3 sm:pl-4 pr-1 sm:pr-2 py-2 sm:py-2.5 text-[12px] sm:text-[13px] font-bold text-gray-600 bg-transparent outline-none cursor-pointer border-r border-gray-200 focus:text-[#3b4890]">
+                <option value="all">전체</option>
+                <option value="1w">1주일</option>
+                <option value="1m">1개월</option>
+                <option value="6m">6개월</option>
+                <option value="1y">1년</option>
+              </select>
+
+              <select name="searchType" defaultValue={searchType} className="shrink-0 pl-2 sm:pl-3 pr-1 sm:pr-2 py-2 sm:py-2.5 text-[12px] sm:text-[13px] font-bold text-gray-600 bg-transparent outline-none cursor-pointer border-r border-gray-200 focus:text-[#3b4890]">
                 <option value="title">제목</option>
                 <option value="content">내용</option>
                 <option value="author">글쓴이</option>
               </select>
+              
               <input type="text" name="q" defaultValue={keyword} placeholder="검색어 입력" className="flex-1 min-w-0 px-2 sm:px-3 py-2 sm:py-2.5 text-[13px] sm:text-[14px] outline-none text-gray-800 placeholder-gray-400 bg-transparent" />
+              
               <button type="submit" className="shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-white bg-[#3b4890] hover:bg-[#2a3042] font-bold transition-colors flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
               </button>
