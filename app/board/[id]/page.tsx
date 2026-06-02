@@ -265,7 +265,7 @@ export default async function PostDetailPage(props: any) {
   if (listCategory && listCategory !== 'all') {
     recCategoryPattern = `%[${listCategory}]%`;
   }
-  
+
   let relatedPosts = [];
   try {
     if (bestType) {
@@ -598,10 +598,10 @@ export default async function PostDetailPage(props: any) {
       await sql`INSERT INTO comments (post_id, author, author_id, content, image_data, is_blinded) VALUES (${postId}, ${currentUser}, ${currentUserId}, ${content}, ${imageUrl || null}, ${isShadowBanned})`;
     }
     await sql`UPDATE users SET points = COALESCE(points, 0) + 5 WHERE user_id = ${currentUserId}`;
-    
+
     // 💡 [BOMB 2 완전 해결] 댓글 작성 시 comment_count 캐싱 +1 (이전 파일에서 복원)
     await sql`UPDATE posts SET comment_count = COALESCE(comment_count, 0) + 1 WHERE id = ${postId}`;
-    
+
     revalidatePath(`/board/${postId}`);
   };
 
@@ -1144,14 +1144,15 @@ export default async function PostDetailPage(props: any) {
                     <span>🚨</span> [관리자 알림] 신고가 누적되어 블라인드 처리된 글입니다.
                   </p>
                   <p className="text-red-500 text-[12px] font-bold mt-1.5 pl-6">
-                    복구 버튼을 누르면 신고 횟수가 0으로 초기화되고 다시 정상 노출됩니다.
+                    복구 버튼을 누르면 신고 횟수가 0으로 초기화되며, 이후 동일한 테러에 당하지 않도록 무적(면역) 처리됩니다.
                   </p>
                 </div>
-                <form action={grantPostImmunity} className="w-full sm:w-auto text-right">
+                <form action={grantPostImmunity}>
                   <button type="submit" className="w-full sm:w-auto px-5 py-2.5 bg-red-600 text-white text-[13px] font-black rounded-sm hover:bg-red-700 shadow-md transition-colors flex items-center justify-center gap-1.5">
-                    🛡️ 게시글 복구 (블라인드 해제)
+                    🛡️ 복구 및 면역 (블라인드 해제)
                   </button>
                 </form>
+
               </div>
             )}
 
