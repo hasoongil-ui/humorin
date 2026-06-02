@@ -457,9 +457,7 @@ export default async function PostDetailPage(props: any) {
       const user = userRows[0];
       const statusStr = String(user.status || 'active').trim().toLowerCase();
       if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
-
-      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
-      if (hoursSinceJoined < 12 && (user.points || 0) < 5) return;
+      // 🚀 [Phase 1 수술 완료]: 게시글 12시간/5포인트 추천 제한 족쇄 완전히 삭제
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
@@ -504,9 +502,7 @@ export default async function PostDetailPage(props: any) {
       const user = userRows[0];
       const statusStr = String(user.status || 'active').trim().toLowerCase();
       if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
-
-      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
-      if (hoursSinceJoined < 12 && (user.points || 0) < 5) return;
+      // 🚀 [Phase 1 수술 완료]: 게시글 12시간/5포인트 비추천 제한 족쇄 완전히 삭제
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
@@ -704,9 +700,7 @@ export default async function PostDetailPage(props: any) {
       const user = userRows[0];
       const statusStr = String(user.status || 'active').trim().toLowerCase();
       if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
-
-      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
-      if (hoursSinceJoined < 12 && (user.points || 0) < 5) return;
+      // 🚀 [Phase 1 수술 완료]: 댓글 12시간/5포인트 추천 제한 족쇄 완전히 삭제
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_likes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
@@ -747,9 +741,7 @@ export default async function PostDetailPage(props: any) {
       const user = userRows[0];
       const statusStr = String(user.status || 'active').trim().toLowerCase();
       if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
-
-      const hoursSinceJoined = (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60);
-      if (hoursSinceJoined < 12 && (user.points || 0) < 5) return;
+      // 🚀 [Phase 1 수술 완료]: 댓글 12시간/5포인트 비추천 제한 족쇄 완전히 삭제
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_dislikes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
