@@ -25,10 +25,13 @@ function LoginForm() {
     }
     
     try {
+      // 🚀 [수술 완료] 제출 직전 눈에 보이지 않는 공백까지 완벽하게 강제 삭제
+      const cleanId = id.replace(/\s/g, '').trim(); 
+
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, password }),
+        body: JSON.stringify({ id: cleanId, password }),
       });
 
       if (res.ok) {
@@ -72,7 +75,8 @@ function LoginForm() {
             placeholder="아이디 입력"
             className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium"
             value={id}
-            onChange={(e) => setId(e.target.value)}
+            // 🚀 [수술 완료] 유저가 타이핑할 때 스페이스바(공백) 입력을 물리적으로 무력화
+            onChange={(e) => setId(e.target.value.replace(/\s/g, ''))} 
             required
           />
         </div>

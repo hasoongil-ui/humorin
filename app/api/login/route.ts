@@ -10,9 +10,13 @@ export async function POST(request: Request) {
   try {
     const { id, password } = await request.json();
 
+    // 🚀 [수술 완료] 프론트엔드를 뚫고 들어온 기괴한 공백까지 백엔드에서 최종 강제 삭제
+    // (단, 비밀번호는 유저가 의도한 공백일 수 있으므로 절대 건드리지 않음)
+    const cleanId = id ? String(id).trim() : '';
+
     const { rows } = await sql`
       SELECT * FROM users 
-      WHERE user_id = ${id}
+      WHERE user_id = ${cleanId}
     `;
 
     if (rows.length > 0) {
@@ -26,7 +30,7 @@ export async function POST(request: Request) {
         await sql`
           UPDATE users 
           SET last_login = NOW() 
-          WHERE user_id = ${id}
+          WHERE user_id = ${cleanId}
         `;
 
         // 🛡️ [추가] 90일 물레방아 IP 기록 시스템 작동!
