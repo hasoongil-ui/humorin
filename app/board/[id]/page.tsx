@@ -158,16 +158,13 @@ export default async function PostDetailPage(props: any) {
   const keyword = searchParams?.q || '';
   const searchType = searchParams?.searchType || 'title';
 
-  // 💡 [핵심 패치 1 - B안 적용] 맥락 유지 및 다이렉트(외부 링크) 유저 전체글(all)로 유도
   const hasContext = searchParams?.category || searchParams?.best || searchParams?.q;
   let bestType = searchParams?.best || '';
   let listCategory = searchParams?.category || '';
 
   if (!hasContext) {
-    // 아무런 정보 없이 링크만 타고 온 유저 -> 무조건 '전체글 보기'로 안전하게 유도
     listCategory = 'all';
   } else if (!listCategory) {
-    // 투데이 베스트 등 베스트 게시판에서 온 유저는 카테고리를 전체(all)로 고정
     listCategory = 'all';
   }
 
@@ -264,7 +261,6 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
   }
 
-  // 💡 [핵심 패치 2] 추천글(하이브리드 3개) 맥락 동기화 엔진
   let recCategoryPattern = '%';
   if (listCategory && listCategory !== 'all') {
     recCategoryPattern = `%[${listCategory}]%`;
@@ -273,7 +269,6 @@ export default async function PostDetailPage(props: any) {
   let relatedPosts = [];
   try {
     if (bestType) {
-      // 투데이 베스트 출신 유저 -> 추천글도 베스트급(공감 10 이상)으로
       const { rows: bestRecent } = await sql`
         SELECT id, title, views, likes 
         FROM posts 
@@ -286,7 +281,6 @@ export default async function PostDetailPage(props: any) {
       `;
       relatedPosts = bestRecent.sort(() => 0.5 - Math.random()).slice(0, 3);
     } else {
-      // 전체글 보기나 외부 링크 출신, 특정 카테고리(유머 등)에서 온 유저 -> 해당 맥락에 맞는 글 추천
       const { rows: recentPosts } = await sql`
         SELECT id, title, views, likes 
         FROM posts 
@@ -330,18 +324,19 @@ export default async function PostDetailPage(props: any) {
   let totalListCount = 0;
 
   try {
+    // 💡 [핵심 패치] 하단 게시글 목록 불러올 때 COUNT(*) 서브쿼리 완벽 제거! (초고속 로딩)
     if (keyword) {
       const searchPattern = `%${keyword}%`;
       let countRes, rowsRes;
       if (searchType === 'title') {
         countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${listCatPattern} AND title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
-        rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${listCatPattern} AND title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+        rowsRes = await sql`SELECT * FROM posts WHERE title LIKE ${listCatPattern} AND title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
       } else if (searchType === 'content') {
         countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${listCatPattern} AND content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
-        rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${listCatPattern} AND content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+        rowsRes = await sql`SELECT * FROM posts WHERE title LIKE ${listCatPattern} AND content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
       } else {
         countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${listCatPattern} AND author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
-        rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${listCatPattern} AND author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+        rowsRes = await sql`SELECT * FROM posts WHERE title LIKE ${listCatPattern} AND author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
       }
       totalListCount = Number(countRes.rows[0].count);
       listPosts = rowsRes.rows;
@@ -349,25 +344,25 @@ export default async function PostDetailPage(props: any) {
     else if (bestType === 'today') {
       const countRes = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published'`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else if (bestType === '100') {
       const countRes = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published'`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else if (bestType === '1000') {
       const countRes = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published'`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else {
       const countRes = await sql`SELECT COUNT(*) FROM posts WHERE title LIKE ${listCatPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published'`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${listCatPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT * FROM posts WHERE title LIKE ${listCatPattern} AND (${isAll}::boolean = false OR title NOT LIKE '[익명 다락방]%') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
   } catch (e) { console.error("하단 리스트 렌더링 실패", e); }
@@ -380,7 +375,6 @@ export default async function PostDetailPage(props: any) {
   const visiblePages = [];
   for (let i = startPage; i <= endPage; i++) visiblePages.push(i);
 
-  // 💡 [핵심 패치] 본문 하단에서 페이지를 넘기면 본문이 닫히고 게시판 목록으로 시원하게 이동!
   const getPageUrl = (pageNum: number) => {
     const qParams = new URLSearchParams(queryString);
     if (pageNum > 1) qParams.set('page', pageNum.toString());
@@ -608,7 +602,12 @@ export default async function PostDetailPage(props: any) {
     } else {
       await sql`INSERT INTO comments (post_id, author, author_id, content, image_data, is_blinded) VALUES (${postId}, ${currentUser}, ${currentUserId}, ${content}, ${imageUrl || null}, ${isShadowBanned})`;
     }
+    
     await sql`UPDATE users SET points = COALESCE(points, 0) + 5 WHERE user_id = ${currentUserId}`;
+    
+    // 💡 [핵심 패치] 댓글 작성 완료 시 posts 테이블의 comment_count +1
+    await sql`UPDATE posts SET comment_count = COALESCE(comment_count, 0) + 1 WHERE id = ${postId}`;
+    
     revalidatePath(`/board/${postId}`);
   };
 
@@ -684,6 +683,8 @@ export default async function PostDetailPage(props: any) {
           await sql`UPDATE comments SET content = '작성자가 삭제한 댓글입니다.', author = '알 수 없음', author_id = null, image_data = null WHERE id = ${commentId}`;
         } else {
           await sql`DELETE FROM comments WHERE id = ${commentId}`;
+          // 💡 [핵심 패치] 댓글 완전 삭제 시 posts 테이블의 comment_count -1
+          await sql`UPDATE posts SET comment_count = GREATEST(COALESCE(comment_count, 0) - 1, 0) WHERE id = ${postId}`;
         }
       }
     }
@@ -1325,7 +1326,6 @@ export default async function PostDetailPage(props: any) {
                         <span className="truncate mr-1 text-gray-400 md:text-gray-500">블라인드 처리된 글입니다.</span>
                       ) : (
                         <>
-                          {/* 🚨 이곳이 서버 오류의 주범이었던 문법 오류(\${) 해결 부분입니다! */}
                           <span className={`${isCurrentPost ? 'font-black text-indigo-900' : 'font-bold md:font-normal text-gray-900 md:text-gray-800'} ${titleClasses}`}>
                             {pData.cleanTitle}
                           </span>

@@ -83,10 +83,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // DB 저장 (그림자 유저의 글은 강제로 is_blinded = true 처리)
+    // DB 저장 (그림자 유저의 글은 강제로 is_blinded = true 처리) + 💡 category 서랍 추가
     await client.sql`
-      INSERT INTO posts (title, content, author, author_id, is_notice, is_board_notice, is_blinded)
-      VALUES (${titleWithCategory}, ${content}, ${finalAuthor}, ${currentUserId}, ${finalIsNotice}, ${finalIsBoardNotice}, ${isShadowBanned});
+      INSERT INTO posts (title, content, category, author, author_id, is_notice, is_board_notice, is_blinded)
+      VALUES (${titleWithCategory}, ${content}, ${category}, ${finalAuthor}, ${currentUserId}, ${finalIsNotice}, ${finalIsBoardNotice}, ${isShadowBanned});
     `;
     
     try {
