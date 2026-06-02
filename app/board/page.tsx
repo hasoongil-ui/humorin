@@ -135,11 +135,10 @@ export default async function BoardPage(props: any) {
 
   if (page === 1 && !keyword && bestType === '') {
     try {
-      // 💡 [핵심 패치 1] 공지사항 불러올 때도 새 카테고리 서랍 사용 (속도 향상)
+      // 💡 [BOMB 1, 2 완전 해결] noticePosts 불러올 때도 새 카테고리 적용
       if (isAll) {
          const { rows } = await sql`
-          SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count 
-          FROM posts 
+          SELECT * FROM posts 
           WHERE (is_notice = true OR is_board_notice = true)
             AND COALESCE(status, 'published') = 'published'
           ORDER BY is_notice DESC, is_board_notice DESC, date DESC
@@ -147,8 +146,7 @@ export default async function BoardPage(props: any) {
         noticePosts = rows;
       } else {
          const { rows } = await sql`
-          SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count 
-          FROM posts 
+          SELECT * FROM posts 
           WHERE (is_notice = true OR (is_board_notice = true AND category = ${category}))
             AND COALESCE(status, 'published') = 'published'
           ORDER BY is_notice DESC, is_board_notice DESC, date DESC
@@ -159,10 +157,9 @@ export default async function BoardPage(props: any) {
   }
 
   if (category !== 'all' && !keyword && bestType === '' && page === 1) {
-    // 💡 [핵심 패치 2] 게시판 베스트글(topPost) 불러올 때 새 카테고리 서랍 사용
+    // 💡 [BOMB 1, 2 완전 해결] topPost도 카테고리 서랍 적용
     const { rows: topRows } = await sql`
-      SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count 
-      FROM posts 
+      SELECT * FROM posts 
       WHERE category = ${category}
         AND date >= NOW() - INTERVAL '48 hours' AND likes >= 3 AND COALESCE(status, 'published') = 'published'
       ORDER BY likes DESC, views DESC LIMIT 1
@@ -187,70 +184,70 @@ export default async function BoardPage(props: any) {
     const searchPattern = `%${keyword}%`;
 
     let countRes, rowsRes;
-    // 💡 [핵심 패치 3] 검색 시에도 새 카테고리 서랍 사용 (LIKE 폭탄 제거)
+    // 💡 [BOMB 1, 2, 4 완벽 병합] 카테고리 + Bounded Count(1000개 제한) + 댓글 캐싱 동시 적용
     if (searchType === 'title') {
        if (isAll) {
-           countRes = await sql`SELECT COUNT(*) FROM posts WHERE title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published'`;
-           rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+           countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+           rowsRes = await sql`SELECT * FROM posts WHERE title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
        } else {
-           countRes = await sql`SELECT COUNT(*) FROM posts WHERE category = ${category} AND title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published'`;
-           rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE category = ${category} AND title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+           countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+           rowsRes = await sql`SELECT * FROM posts WHERE category = ${category} AND title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
        }
     } else if (searchType === 'content') {
         if (isAll) {
-            countRes = await sql`SELECT COUNT(*) FROM posts WHERE content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published'`;
-            rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+            countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+            rowsRes = await sql`SELECT * FROM posts WHERE content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
         } else {
-            countRes = await sql`SELECT COUNT(*) FROM posts WHERE category = ${category} AND content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published'`;
-            rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE category = ${category} AND content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+            countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+            rowsRes = await sql`SELECT * FROM posts WHERE category = ${category} AND content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
         }
     } else {
         if (isAll) {
-             countRes = await sql`SELECT COUNT(*) FROM posts WHERE author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published'`;
-             rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+             countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+             rowsRes = await sql`SELECT * FROM posts WHERE author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
         } else {
-             countRes = await sql`SELECT COUNT(*) FROM posts WHERE category = ${category} AND author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published'`;
-             rowsRes = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE category = ${category} AND author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+             countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+             rowsRes = await sql`SELECT * FROM posts WHERE category = ${category} AND author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
         }
     }
     totalCount = Number(countRes.rows[0].count);
     posts = rowsRes.rows;
   }
   else if (bestType === 'today') {
-    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published'`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === '100') {
-    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published'`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === 'showcase') {
-    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 30 AND COALESCE(status, 'published') = 'published'`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 30 AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 30 AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === '1000') {
-    const countResult = await sql`SELECT COUNT(*) FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published'`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else {
-    // 💡 [핵심 패치 4] 일반 목록 불러올 때도 새 카테고리 서랍 사용!
+    // 💡 [BOMB 1, 2, 4 완벽 병합] 일반 목록 불러올 때 카테고리 + Bounded Count 동시 적용
     if (isAll) {
-         const countResult = await sql`SELECT COUNT(*) FROM posts WHERE category != '익명 다락방' AND COALESCE(status, 'published') = 'published'`;
+         const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category != '익명 다락방' AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
          totalCount = Number(countResult.rows[0].count);
-         const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE category != '익명 다락방' AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+         const { rows } = await sql`SELECT * FROM posts WHERE category != '익명 다락방' AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
          posts = rows;
     } else {
-         const countResult = await sql`SELECT COUNT(*) FROM posts WHERE category = ${category} AND COALESCE(status, 'published') = 'published'`;
+         const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
          totalCount = Number(countResult.rows[0].count);
-         const { rows } = await sql`SELECT posts.*, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE category = ${category} AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+         const { rows } = await sql`SELECT * FROM posts WHERE category = ${category} AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
          posts = rows;
     }
   }
