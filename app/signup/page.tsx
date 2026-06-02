@@ -128,8 +128,7 @@ export default function SignupPage() {
       else if (result.error === 'nick_exists') setNickError('❌ 이미 사용 중인 닉네임입니다.');
       else if (result.error === 'email_exists') setEmailError('❌ 이미 가입된 이메일입니다.'); 
       else if (result.error === 'id_forbidden' || result.error === 'nick_forbidden') setSubmitError('사용할 수 없는 금칙어가 포함되어 있습니다.');
-      // 💡 [새로 추가된 에러 처리] 동일 IP 무한 가입 차단!
-      else if (result.error === 'ip_limit') setSubmitError('🚨 비정상적인 가입 시도가 감지되었습니다. (하루 생성 한도 3회 초과)'); 
+      // 💣 [삭제 완료]: ip_limit 에러 처리 구문을 완벽히 제거했습니다.
       else setSubmitError('회원 가입 처리 중 오류가 발생했습니다.');
     }
   };

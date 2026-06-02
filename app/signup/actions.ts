@@ -4,7 +4,6 @@ import { sql } from '@vercel/postgres';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import bcrypt from 'bcryptjs';
-
 import crypto from 'crypto';
 
 const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
@@ -57,7 +56,7 @@ export async function registerUserAction(formData: FormData) {
     const headersList = await headers();
     const userIp = headersList.get('x-user-ip') || '알수없음';
 
-    // 🛡️ [기존 수술] 관리자가 수동으로 차단한 블랙리스트 IP 검사
+    // 🛡️ [기존 수술] 관리자가 수동으로 차단한 블랙리스트 IP 검사 (이건 필수 보안이므로 유지)
     const { rows: settings } = await sql`SELECT value FROM site_settings WHERE key = 'banned_ips'`;
     if (settings.length > 0 && settings[0].value) {
       const bannedIps = settings[0].value.split(',');
@@ -67,18 +66,7 @@ export async function registerUserAction(formData: FormData) {
       }
     }
 
-    // 🚨 [🔥새로운 수술🔥] 동일 IP 24시간 내 연속 가입 방어막 (3회 초과 시 컷!)
-    if (userIp !== '알수없음') {
-      const { rows: ipCheck } = await sql`
-        SELECT COUNT(*) as count FROM users 
-        WHERE ip = ${userIp} AND created_at > NOW() - INTERVAL '24 hours'
-      `;
-      // 만약 같은 IP로 최근 하루 동안 3개 이상 가입했다면 즉시 차단!
-      if (ipCheck.length > 0 && Number(ipCheck[0].count) >= 3) {
-        console.error(`🚨 [IP 무한 가입 테러 차단] IP: ${userIp} (24시간 내 3회 초과)`);
-        return { error: 'ip_limit' }; // 에러 신호를 화면으로 던집니다.
-      }
-    }
+    // 💣 [삭제 완료]: 선량한 유저를 튕겨내던 '24시간 내 동일 IP 3회 차단' 폭탄 로직을 완전히 삭제했습니다!
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
