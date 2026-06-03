@@ -36,12 +36,17 @@ export async function POST(request: Request) {
       await sql`INSERT INTO comment_reports (comment_id, reporter_id) VALUES (${commentId}, ${currentUserId})`;
     }
 
-    // 4. 💡 [수술 완료] 무적 방패(is_safe) 스캐너 장착! 
+    // 4. 💡 [수술 완료] 관리자의 신고는 무적 방패를 즉시 깨부수고 블라인드 시킨다!
     await sql`
       UPDATE comments
       SET 
         report_count = COALESCE(report_count, 0) + ${increment},
+        is_safe = CASE 
+                    WHEN ${isAdmin}::boolean THEN false 
+                    ELSE is_safe 
+                  END,
         is_blinded = CASE 
+                       WHEN ${isAdmin}::boolean THEN true
                        WHEN is_safe THEN false
                        WHEN COALESCE(report_count, 0) + ${increment} >= ${threshold} THEN true 
                        ELSE is_blinded 

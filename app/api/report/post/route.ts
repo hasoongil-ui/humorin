@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       if (settings.length > 0) threshold = parseInt(settings[0].value, 10) || 5;
     } catch (e) {}
 
-    const increment = isAdmin ? 10 : 1; // 💡 관리자는 10배 파워 장착!
+    const increment = isAdmin ? 10 : 1; 
 
     // 4. 일반 유저만 중복 신고 차단 (관리자는 프리패스!)
     if (!isAdmin) {
@@ -36,12 +36,17 @@ export async function POST(request: Request) {
       await sql`INSERT INTO post_reports (post_id, reporter_id) VALUES (${postId}, ${currentUserId})`;
     }
 
-    // 5. 💡 [수술 완료] 무적 방패(is_safe) 스캐너 장착! 신고 누적 & 기준치 돌파 시 즉시 블라인드 처리 (완벽 연동)
+    // 5. 💡 [수술 완료] 관리자의 신고는 무적 방패를 즉시 깨부수고 블라인드 시킨다!
     await sql`
       UPDATE posts
       SET 
         report_count = COALESCE(report_count, 0) + ${increment},
+        is_safe = CASE 
+                    WHEN ${isAdmin}::boolean THEN false 
+                    ELSE is_safe 
+                  END,
         is_blinded = CASE 
+                       WHEN ${isAdmin}::boolean THEN true
                        WHEN is_safe THEN false
                        WHEN COALESCE(report_count, 0) + ${increment} >= ${threshold} THEN true 
                        ELSE is_blinded 
