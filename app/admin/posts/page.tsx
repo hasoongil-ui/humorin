@@ -65,7 +65,8 @@ async function handleBulkAction(formData: FormData) {
         if (rows.length > 0) {
           let cleanTitle = rows[0].title.replace(/^\[.*?\]\s*/, '');
           let newTitle = `[${targetCategory}] ${cleanTitle}`;
-          await sql`UPDATE posts SET title = ${newTitle} WHERE id = ${id}`;
+          // 💡 title 텍스트와 함께 category 칼럼도 완벽하게 동기화!
+          await sql`UPDATE posts SET title = ${newTitle}, category = ${targetCategory} WHERE id = ${id}`;
         }
       }
     }
