@@ -1257,7 +1257,7 @@ export default async function PostDetailPage(props: any) {
               {relatedPosts.map((rp: any) => {
                 const rpData = extractData(rp.title);
                 return (
-                  <Link href={`/board/${rp.id}`} key={`related-${rp.id}`} className="block bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md p-4 rounded-sm transition-all group">
+                  <Link href={`/board/${rp.id}${listQueryStr}`} key={`related-${rp.id}`} className="block bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md p-4 rounded-sm transition-all group">
                     <div className="text-[14px] font-bold text-gray-800 group-hover:text-[#3b4890] line-clamp-2 break-all leading-snug mb-4 min-h-[42px]">
                       {rpData.cleanTitle}
                     </div>
