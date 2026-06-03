@@ -36,12 +36,16 @@ export async function POST(request: Request) {
       await sql`INSERT INTO post_reports (post_id, reporter_id) VALUES (${postId}, ${currentUserId})`;
     }
 
-    // 5. 💡 신고 누적 & 기준치 돌파 시 즉시 블라인드 처리 (완벽 연동)
+    // 5. 💡 [수술 완료] 무적 방패(is_safe) 스캐너 장착! 신고 누적 & 기준치 돌파 시 즉시 블라인드 처리 (완벽 연동)
     await sql`
       UPDATE posts
       SET 
         report_count = COALESCE(report_count, 0) + ${increment},
-        is_blinded = CASE WHEN COALESCE(report_count, 0) + ${increment} >= ${threshold} THEN true ELSE is_blinded END
+        is_blinded = CASE 
+                       WHEN is_safe THEN false
+                       WHEN COALESCE(report_count, 0) + ${increment} >= ${threshold} THEN true 
+                       ELSE is_blinded 
+                     END
       WHERE id = ${postId}
     `;
 

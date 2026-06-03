@@ -1,6 +1,6 @@
 import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers'; // 💡 구형 방식 대신 쿠키 방식으로 완벽 교체!
+import { cookies } from 'next/headers'; 
 
 export async function POST(request: Request) {
   try {
@@ -36,12 +36,16 @@ export async function POST(request: Request) {
       await sql`INSERT INTO comment_reports (comment_id, reporter_id) VALUES (${commentId}, ${currentUserId})`;
     }
 
-    // 4. 💡 신고 횟수 누적 & 즉시 블라인드 폭격!
+    // 4. 💡 [수술 완료] 무적 방패(is_safe) 스캐너 장착! 
     await sql`
       UPDATE comments
       SET 
         report_count = COALESCE(report_count, 0) + ${increment},
-        is_blinded = CASE WHEN COALESCE(report_count, 0) + ${increment} >= ${threshold} THEN true ELSE is_blinded END
+        is_blinded = CASE 
+                       WHEN is_safe THEN false
+                       WHEN COALESCE(report_count, 0) + ${increment} >= ${threshold} THEN true 
+                       ELSE is_blinded 
+                     END
       WHERE id = ${commentId}
     `;
 
