@@ -119,9 +119,9 @@ export default async function BoardPage(props: any) {
   if (bestType === 'showcase' && page === 1 && !keyword) {
     try {
       const [weeklyRes, monthlyRes, allTimeRes] = await Promise.all([
-        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '7 days' AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
-        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '30 days' AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
-        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`
+        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '7 days' AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
+        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '30 days' AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
+        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`
       ]);
       showcaseData = {
         weekly: weeklyRes.rows[0] || null,
@@ -214,27 +214,27 @@ export default async function BoardPage(props: any) {
     posts = rowsRes.rows;
   }
   else if (bestType === 'today') {
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === '100') {
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === 'showcase') {
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 30 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 30 AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 30 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === '1000') {
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else {

@@ -272,7 +272,7 @@ export default async function PostDetailPage(props: any) {
       const { rows: bestRecent } = await sql`
         SELECT id, title, views, likes 
         FROM posts 
-        WHERE likes >= 10
+        WHERE likes >= 10 AND COALESCE(dislikes, 0) < 10
           AND id != ${postId} 
           AND is_blinded = false 
           AND COALESCE(status, 'published') = 'published'
@@ -299,7 +299,7 @@ export default async function PostDetailPage(props: any) {
       const { rows: bestFallback } = await sql`
         SELECT id, title, views, likes 
         FROM posts 
-        WHERE likes >= 10
+        WHERE likes >= 10 AND COALESCE(dislikes, 0) < 10
           AND is_blinded = false
           AND COALESCE(status, 'published') = 'published'
         ORDER BY best_at DESC NULLS LAST, date DESC
@@ -341,21 +341,21 @@ export default async function PostDetailPage(props: any) {
       listPosts = rowsRes.rows;
     }
     else if (bestType === 'today') {
-      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else if (bestType === '100') {
-      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else if (bestType === '1000') {
-      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else {
