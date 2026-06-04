@@ -89,7 +89,8 @@ export default async function HomePage() {
     });
   } catch (e) { }
 
-  const bestQuery = sql`SELECT id, title, author, date, best_at, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 ORDER BY best_at DESC NULLS LAST, date DESC LIMIT 10`;
+  // 🚨 [핀셋 수정 완료] 메인 투데이 베스트 위젯 - 비공감 10개 컷오프 추가
+  const bestQuery = sql`SELECT id, title, author, date, best_at, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 10 ORDER BY best_at DESC NULLS LAST, date DESC LIMIT 10`;
 
   const allPostsQuery = sql`SELECT id, title, author, date, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title NOT LIKE '[익명 다락방]%' ORDER BY date DESC LIMIT 10`;
 
