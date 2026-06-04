@@ -45,7 +45,6 @@ export async function POST(request: Request) {
     const currentUserId = userIdCookie ? userIdCookie.value : null;
     const signature = signatureCookie ? signatureCookie.value : null;
 
-    // 🚨 [S급 지문인식기 모든 글쓰기에 전면 도입] 신분 위조(Spoofing) 완벽 차단!
     if (!currentUserId || !currentUser || !signature) {
       return NextResponse.json({ message: '로그인한 회원만 글을 쓸 수 있습니다.' }, { status: 401 });
     }
@@ -56,7 +55,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '인증 정보가 변조되었습니다.' }, { status: 403 });
     }
 
-    // 🚨 [핵심 방어막] 다중 그물망으로 DB의 모든 상태 단어를 잡아냅니다!
     const { rows: userCheck } = await client.sql`SELECT status FROM users WHERE user_id = ${currentUserId}`;
     const rawStatus = userCheck.length > 0 ? userCheck[0].status : 'active';
     const statusStr = String(rawStatus || 'active').trim().toLowerCase();
@@ -74,7 +72,6 @@ export async function POST(request: Request) {
     let finalIsNotice = false;
     let finalIsBoardNotice = false;
     
-    // 지문 검사는 위에서 이미 끝났으므로, 여기서는 진짜 관리자 권한이 있는지만 확인합니다.
     if (is_notice || is_board_notice) {
       const { rows } = await client.sql`SELECT is_admin FROM users WHERE user_id = ${currentUserId}`;
       if (currentUserId === 'admin' || (rows.length > 0 && rows[0].is_admin)) {
@@ -83,7 +80,24 @@ export async function POST(request: Request) {
       }
     }
 
-    // DB 저장 (그림자 유저의 글은 강제로 is_blinded = true 처리) + 💡 category 서랍 추가
+    // 🚨 [신규 방어막] 도배 테러 방지 (30초 쿨타임)
+    const { rows: lastPost } = await client.sql`
+      SELECT created_at FROM posts 
+      WHERE author_id = ${currentUserId} 
+      ORDER BY created_at DESC LIMIT 1
+    `;
+    
+    if (lastPost.length > 0) {
+      const lastPostTime = new Date(lastPost[0].created_at).getTime();
+      const currentTime = new Date().getTime();
+      const diffSeconds = (currentTime - lastPostTime) / 1000;
+      
+      if (diffSeconds < 30) {
+        return NextResponse.json({ error: 'rate_limit', message: '도배 방지를 위해 30초 후에 다시 글을 쓸 수 있습니다.' }, { status: 429 });
+      }
+    }
+
+    // DB 저장
     await client.sql`
       INSERT INTO posts (title, content, category, author, author_id, is_notice, is_board_notice, is_blinded)
       VALUES (${titleWithCategory}, ${content}, ${category}, ${finalAuthor}, ${currentUserId}, ${finalIsNotice}, ${finalIsBoardNotice}, ${isShadowBanned});
