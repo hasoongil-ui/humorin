@@ -503,6 +503,9 @@ export default async function PostDetailPage(props: any) {
       const statusStr = String(user.status || 'active').trim().toLowerCase();
       if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
       // 🚀 [Phase 1 수술 완료]: 게시글 12시간/5포인트 비추천 제한 족쇄 완전히 삭제
+      
+      // 🚨 [작전 1 적용] 50포인트 미만 뉴비 계정 비공감 테러 원천 차단
+      if ((user.points || 0) < 50 && !isAdmin) return;
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
@@ -742,6 +745,9 @@ export default async function PostDetailPage(props: any) {
       const statusStr = String(user.status || 'active').trim().toLowerCase();
       if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
       // 🚀 [Phase 1 수술 완료]: 댓글 12시간/5포인트 비추천 제한 족쇄 완전히 삭제
+      
+      // 🚨 [작전 1 적용] 50포인트 미만 뉴비 계정 비공감 테러 원천 차단
+      if ((user.points || 0) < 50 && !isAdmin) return;
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_dislikes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
