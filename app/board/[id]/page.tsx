@@ -761,18 +761,20 @@ export default async function PostDetailPage(props: any) {
     }
   };
 
+  // 🚨 [핀셋 수술 완료] 게시글 면역(복구) 시 비공감 수(dislikes) 0으로 초기화
   const grantPostImmunity = async () => {
     'use server';
     if (!isAdmin) return;
-    await sql`UPDATE posts SET is_blinded = false, is_safe = true, report_count = 0 WHERE id = ${postId}`;
+    await sql`UPDATE posts SET is_blinded = false, is_safe = true, report_count = 0, dislikes = 0 WHERE id = ${postId}`;
     revalidatePath(`/board/${postId}`);
   };
 
+  // 🚨 [핀셋 수술 완료] 댓글 면역(복구) 시 비공감 수(dislikes) 0으로 초기화
   const grantCommentImmunity = async (formData: FormData) => {
     'use server';
     if (!isAdmin) return;
     const commentId = formData.get('commentId') as string;
-    await sql`UPDATE comments SET is_blinded = false, is_safe = true, report_count = 0 WHERE id = ${commentId}`;
+    await sql`UPDATE comments SET is_blinded = false, is_safe = true, report_count = 0, dislikes = 0 WHERE id = ${commentId}`;
     revalidatePath(`/board/${postId}`);
   };
 
