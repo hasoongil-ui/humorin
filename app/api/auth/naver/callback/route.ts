@@ -17,6 +17,13 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/login?error=naver_failed', request.url));
   }
 
+  // 🛡️ 방금 전 만든 State 암호가 맞는지 검증합니다 (위조된 로그인 원천 차단)
+  const cookieStore = await cookies();
+  const savedState = cookieStore.get('naver_state')?.value;
+  if (!savedState || savedState !== state) {
+    return NextResponse.redirect(new URL('/login?error=invalid_state', request.url));
+  }
+
   const clientId = process.env.NAVER_CLIENT_ID || '';
   const clientSecret = process.env.NAVER_CLIENT_SECRET || '';
 
@@ -52,42 +59,71 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL('/login?error=no_email', request.url));
     }
 
+    // 🛡️ 아이디 충돌을 막기 위해 8자리가 아닌 15자리로 안전하게 생성
+    const expectedUserId = `n_${naverId.substring(0, 15)}`;
+
     // 3. DB에서 이메일로 기존 회원인지 수색!
     const { rows } = await sql`SELECT * FROM users WHERE email = ${email}`;
     let finalUserId = '';
     let finalNickname = '';
 
     if (rows.length > 0) {
-      // 🟢 이미 가입된 회원 -> 바로 로그인 통과!
-      finalUserId = rows[0].user_id;
-      finalNickname = rows[0].nickname;
-    } else {
-      // 🟢 신규 회원 -> 1초 만에 초고속 자동 가입 처리!
-      // 아이디는 영문/숫자 규칙에 맞게 n_ + 네이버ID 8자리로 예쁘게 잘라서 만듭니다.
-      finalUserId = `n_${naverId.substring(0, 8)}`;
-      finalNickname = nickname;
-      const defaultPassword = 'naver_sso_password_123!';
-
-      // 혹시 네이버 닉네임이 유머인에 이미 있으면 뒤에 랜덤 숫자를 붙여줍니다.
-      const { rows: nickCheck } = await sql`SELECT * FROM users WHERE nickname = ${finalNickname}`;
-      if (nickCheck.length > 0) {
-        finalNickname = `${finalNickname}_${Math.floor(Math.random() * 1000)}`;
+      const existingUser = rows[0];
+      
+      // 🛡️ 계정 탈취 방어! (기존 대장님 이메일 계정과 겹칠 경우 분리)
+      if (!existingUser.user_id.startsWith('n_')) {
+        finalUserId = expectedUserId;
+      } else {
+        // 정상적인 이미 가입된 네이버 회원
+        finalUserId = existingUser.user_id;
+        finalNickname = existingUser.nickname;
       }
+    } else {
+      finalUserId = expectedUserId;
+    }
 
-      // DB에 회원 정보 강제 쑤셔 넣기!
-      await sql`
-        INSERT INTO users (user_id, password, nickname, email, status, points, is_admin)
-        VALUES (${finalUserId}, ${defaultPassword}, ${finalNickname}, ${email}, 'active', 0, false)
-      `;
+    // 🟢 신규 회원일 경우 -> 1초 만에 초고속 가입 처리
+    if (finalUserId === expectedUserId) {
+      const { rows: idCheck } = await sql`SELECT * FROM users WHERE user_id = ${finalUserId}`;
+      
+      if (idCheck.length === 0) {
+        finalNickname = nickname;
+        
+        // 🛡️ 비밀번호 꼬임 완벽 해결 (아무도 모르는 랜덤 20자리 암호로 영구 봉인)
+        const defaultPassword = crypto.randomBytes(20).toString('hex');
+
+        // 혹시 네이버 닉네임이 유머인에 이미 있으면 뒤에 랜덤 숫자를 붙여줍니다 (최대 5번 시도)
+        let isNickUnique = false;
+        let attempt = 0;
+        while (!isNickUnique && attempt < 5) {
+          const { rows: nickCheck } = await sql`SELECT * FROM users WHERE nickname = ${finalNickname}`;
+          if (nickCheck.length > 0) {
+            finalNickname = `${nickname}_${Math.floor(Math.random() * 10000)}`;
+            attempt++;
+          } else {
+            isNickUnique = true;
+          }
+        }
+
+        // DB에 회원 정보 안전하게 삽입!
+        await sql`
+          INSERT INTO users (user_id, password, nickname, email, status, points, is_admin)
+          VALUES (${finalUserId}, ${defaultPassword}, ${finalNickname}, ${email}, 'active', 0, false)
+        `;
+      } else {
+        finalNickname = idCheck[0].nickname;
+      }
     }
 
     // 4. 로그인 도장(쿠키) 찍기 (가장 완벽한 보안 서명 장착)
     const signature = crypto.createHmac('sha256', SECRET_KEY).update(finalUserId).digest('hex');
     
-    const cookieStore = await cookies();
     cookieStore.set('humorin_user', finalNickname, { path: '/', maxAge: 60 * 60 * 24 * 7 });
     cookieStore.set('humorin_userid', finalUserId, { path: '/', maxAge: 60 * 60 * 24 * 7 });
     cookieStore.set('humorin_signature', signature, { path: '/', httpOnly: true, maxAge: 60 * 60 * 24 * 7 });
+
+    // 사용이 끝난 보안 상태 쿠키 삭제
+    cookieStore.delete('naver_state');
 
     // 5. 유머인 메인 화면으로 멋지게 복귀!
     return NextResponse.redirect(new URL('/', request.url));
