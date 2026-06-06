@@ -7,7 +7,7 @@ import Link from 'next/link';
 function LoginForm() {
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
-  // 🚨 [테러 방어막 3] 봇 전용 트랩 상태 추가
+  // 🚨 [테러 방어막]
   const [botTrap, setBotTrap] = useState(''); 
   const router = useRouter();
   
@@ -16,18 +16,13 @@ function LoginForm() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // 🚨 [테러 방어막 작동] 허니팟이 채워져 있다면 봇으로 간주하고 가짜 성공 처리
     if (botTrap) {
-      console.log('🛡️ [스팸 봇 차단] 허니팟 덫에 걸려 조용히 쫓아냅니다.');
       router.push('/'); 
       return;
     }
     
     try {
-      // 🚀 [수술 완료] 제출 직전 눈에 보이지 않는 공백까지 완벽하게 강제 삭제
       const cleanId = id.replace(/\s/g, '').trim(); 
-
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -46,16 +41,82 @@ function LoginForm() {
     }
   };
 
-  const handleNaverLogin = () => {
+  const handleSocialLogin = (provider: string) => {
     const callbackUrl = redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : '';
-    window.location.href = `/api/auth/naver${callbackUrl}`;
+    window.location.href = `/api/auth/${provider}${callbackUrl}`;
   };
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleLogin} className="space-y-5">
+      
+      {/* 🌟 [UX 개편] 공식 로고와 브랜드 컬러가 적용된 세련된 버튼 3형제 */}
+      <div className="space-y-2.5">
         
-        {/* 🚨 [테러 방어막 3] 사람 눈에 안 보이고 탭(Tab) 이동도 안 되는 봇 전용 함정 */}
+        {/* 네이버 버튼 */}
+        <button
+          type="button"
+          onClick={() => handleSocialLogin('naver')}
+          className="w-full py-3.5 bg-[#03C75A] hover:bg-[#02b350] text-white font-bold rounded-sm text-[16px] transition-colors flex justify-center items-center relative shadow-sm"
+        >
+          <div className="absolute left-5">
+            <svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16.273 12.845 7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727v12.845z" fill="currentColor"/>
+            </svg>
+          </div>
+          네이버로 시작하기
+        </button>
+
+        {/* 카카오 버튼 */}
+        <button
+          type="button"
+          onClick={() => handleSocialLogin('kakao')}
+          className="w-full py-3.5 bg-[#FEE500] hover:bg-[#ebd300] text-[#191919] font-bold rounded-sm text-[16px] transition-colors flex justify-center items-center relative shadow-sm"
+        >
+          <div className="absolute left-4">
+            <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 3c-5.523 0-10 3.5-10 7.82 0 2.81 1.83 5.275 4.54 6.64-.17.653-.615 2.37-.64 2.478-.035.15.066.14.135.094.053-.035 2.146-1.47 2.97-2.04.93.22 1.91.338 2.935.338 5.523 0 10-3.5 10-7.82C22 6.5 17.523 3 12 3z" fill="currentColor"/>
+            </svg>
+          </div>
+          카카오로 시작하기
+        </button>
+
+        {/* 구글 버튼 (공식 가이드라인의 깔끔한 화이트+컬러 G 로고 융합 버전) */}
+        <button
+          type="button"
+          onClick={() => handleSocialLogin('google')}
+          className="w-full py-3.5 bg-[#4285F4] hover:bg-[#357ae8] text-white font-bold rounded-sm text-[16px] transition-colors flex justify-center items-center relative shadow-sm"
+        >
+          <div className="absolute left-1.5 p-2 bg-white rounded-sm">
+            <svg viewBox="0 0 48 48" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+          </div>
+          Google로 시작하기
+        </button>
+      </div>
+
+      <div className="text-center pt-2 pb-1 text-[13.5px] text-gray-600 font-medium">
+        <span className="text-gray-500 mr-2">아직 유머인의 회원이 아니신가요?</span>
+        <Link 
+          href="/signup" 
+          className="text-[#3b4890] font-bold hover:underline inline-block"
+        >
+          간편 회원가입 하고 함께하기
+        </Link>
+      </div>
+
+      {/* 🚀 [텍스트 완벽 수정] 대장님의 지시대로 혼란을 없앤 텍스트 적용! */}
+      <div className="flex items-center pt-3 pb-1">
+        <div className="flex-grow border-t border-gray-200"></div>
+        <span className="px-3 text-[12px] text-gray-400 font-bold">또는 이메일 가입자 로그인</span>
+        <div className="flex-grow border-t border-gray-200"></div>
+      </div>
+
+      {/* 🟢 이메일 로그인 폼 */}
+      <form onSubmit={handleLogin} className="space-y-5">
         <div style={{ display: 'none', visibility: 'hidden', opacity: 0 }}>
           <label>자동가입방지</label>
           <input 
@@ -73,9 +134,8 @@ function LoginForm() {
           <input
             type="text"
             placeholder="아이디 입력"
-            className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium"
+            className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium text-sm"
             value={id}
-            // 🚀 [수술 완료] 유저가 타이핑할 때 스페이스바(공백) 입력을 물리적으로 무력화
             onChange={(e) => setId(e.target.value.replace(/\s/g, ''))} 
             required
           />
@@ -86,7 +146,7 @@ function LoginForm() {
           <input
             type="password"
             placeholder="비밀번호 입력"
-            className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium"
+            className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium text-sm"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -101,18 +161,19 @@ function LoginForm() {
 
         <button
           type="submit"
-          className="w-full py-3.5 mt-2 bg-[#2a3042] hover:bg-[#1e2335] text-white font-bold rounded-sm text-lg transition-colors flex justify-center items-center gap-2"
+          className="w-full py-3.5 mt-2 bg-[#2a3042] hover:bg-[#1e2335] text-white font-bold rounded-sm text-[15px] transition-colors flex justify-center items-center gap-2"
         >
-          유머인 계정으로 로그인
+          유머인 계정 로그인
         </button>
       </form>
+
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <div className="min-h-[80vh] flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-[80vh] flex items-center justify-center bg-gray-50 px-4 py-10">
       <div className="bg-white p-8 md:p-10 rounded-sm shadow-sm border border-gray-200 w-full max-w-[400px]">
         
         <div className="text-center mb-8">
@@ -125,16 +186,6 @@ export default function LoginPage() {
         <Suspense fallback={<div className="text-center py-4 text-gray-500 font-bold">로딩 중...</div>}>
           <LoginForm />
         </Suspense>
-
-        <div className="mt-8 pt-6 border-t border-gray-100 text-center text-[13px] text-gray-600 font-medium">
-          <p className="mb-2 text-gray-500">아직 유머인의 회원이 아니신가요?</p>
-          <Link 
-            href="/signup" 
-            className="text-[#3b4890] font-bold hover:underline inline-block text-[14px]"
-          >
-            회원가입 하고 함께하기
-          </Link>
-        </div>
 
       </div>
     </div>
