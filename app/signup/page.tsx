@@ -1,245 +1,122 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
-import { checkDuplicate, registerUserAction } from './actions'; 
 
-export default function SignupPage() {
-  const [id, setId] = useState('');
-  const [password, setPassword] = useState(''); 
-  const [confirmPassword, setConfirmPassword] = useState(''); 
-  const [nickname, setNickname] = useState('');
-  const [email, setEmail] = useState('');
-  
-  const [idError, setIdError] = useState('');
-  const [pwdError, setPwdError] = useState(''); 
-  const [nickError, setNickError] = useState('');
-  const [emailError, setEmailError] = useState(''); 
-  
-  const [idOk, setIdOk] = useState(false);
-  const [nickOk, setNickOk] = useState(false);
-  const [emailOk, setEmailOk] = useState(false); 
-  
-  const [submitError, setSubmitError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+function SignupForm() {
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect');
 
-  const idRegex = /^[a-zA-Z0-9]{4,12}$/; 
-  const nickRegex = /^[가-힣a-zA-Z0-9\s]{2,8}$/; 
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/; 
-
-  const handleIdBlur = async () => {
-    const val = id.trim();
-    if (!val) { setIdError(''); setIdOk(false); return; }
-    
-    if (!idRegex.test(val)) {
-      setIdError('❌ 아이디는 영문, 숫자 조합 4~12자로 입력해 주세요.');
-      setIdOk(false); return;
-    }
-
-    const status = await checkDuplicate('id', val);
-    if (status === 'forbidden') {
-      setIdError('❌ 사용할 수 없는 단어가 포함되어 있습니다.'); setIdOk(false);
-    } else if (status === 'duplicate') {
-      setIdError('❌ 이미 사용 중인 아이디입니다.'); setIdOk(false);
-    } else {
-      setIdError(''); setIdOk(true);
-    }
-  };
-
-  const handlePwdBlur = () => {
-    if (confirmPassword && password !== confirmPassword) {
-      setPwdError('❌ 비밀번호가 서로 일치하지 않습니다.');
-    } else if (confirmPassword && password.length < 8) {
-      setPwdError('❌ 비밀번호는 최소 8자 이상이어야 합니다.');
-    } else {
-      setPwdError('');
-    }
-  };
-
-  const handleNickBlur = async () => {
-    const val = nickname.trim();
-    if (!val) { setNickError(''); setNickOk(false); return; }
-
-    const cleanVal = val.replace(/\s{2,}/g, ' '); 
-    if (!nickRegex.test(cleanVal)) {
-      setNickError('❌ 닉네임은 특수문자 제외 2~8자로 입력해 주세요.');
-      setNickOk(false); return;
-    }
-
-    const status = await checkDuplicate('nickname', cleanVal);
-    if (status === 'forbidden') {
-      setNickError('❌ 관리자 사칭 방지를 위해 사용할 수 없는 단어입니다.'); setNickOk(false);
-    } else if (status === 'duplicate') {
-      setNickError('❌ 이미 사용 중인 닉네임입니다.'); setNickOk(false);
-    } else {
-      setNickError(''); setNickOk(true);
-    }
-  };
-
-  const handleEmailBlur = async () => {
-    const val = email.trim();
-    if (!val) { setEmailError(''); setEmailOk(false); return; }
-
-    if (!emailRegex.test(val)) {
-      setEmailError('❌ 올바른 이메일 형식이 아닙니다. (예: humorin@naver.com)');
-      setEmailOk(false); return;
-    }
-
-    const lowerVal = val.toLowerCase();
-    if (lowerVal.endsWith('@naver.co') || lowerVal.endsWith('@gmail.co') || lowerVal.endsWith('@daum.ne') || lowerVal.endsWith('@hanmail.ne')) {
-      setEmailError('❌ 이메일 끝부분(.com, .net 등)에 오타가 없는지 다시 확인해 주세요.');
-      setEmailOk(false); return;
-    }
-
-    const status = await checkDuplicate('email', val);
-    if (status === 'duplicate') {
-      setEmailError('❌ 이미 다른 계정으로 가입된 이메일입니다.'); setEmailOk(false);
-    } else {
-      setEmailError(''); setEmailOk(true);
-    }
-  };
-
-  const handleSubmit = async (formData: FormData) => {
-    setSubmitError('');
-    
-    if (idError || nickError || emailError || pwdError) {
-      setSubmitError('빨간색으로 표시된 항목을 올바르게 수정해 주세요.');
-      return;
-    }
-
-    const pwd = formData.get('password') as string;
-    const confirmPwd = formData.get('confirm_password') as string;
-
-    if (pwd.length < 8) {
-      setPwdError('❌ 보안을 위해 비밀번호는 최소 8자 이상이어야 합니다.'); return;
-    }
-    if (pwd !== confirmPwd) {
-      setPwdError('❌ 비밀번호가 서로 일치하지 않습니다.'); return;
-    }
-    
-    setIsSubmitting(true);
-    const result = await registerUserAction(formData);
-    
-    if (result?.error) {
-      setIsSubmitting(false);
-      if (result.error === 'mismatch') setPwdError('❌ 비밀번호가 서로 일치하지 않습니다.');
-      else if (result.error === 'id_exists') setIdError('❌ 이미 사용 중인 아이디입니다.');
-      else if (result.error === 'nick_exists') setNickError('❌ 이미 사용 중인 닉네임입니다.');
-      else if (result.error === 'email_exists') setEmailError('❌ 이미 가입된 이메일입니다.'); 
-      else if (result.error === 'id_forbidden' || result.error === 'nick_forbidden') setSubmitError('사용할 수 없는 금칙어가 포함되어 있습니다.');
-      // 💣 [삭제 완료]: ip_limit 에러 처리 구문을 완벽히 제거했습니다.
-      else setSubmitError('회원 가입 처리 중 오류가 발생했습니다.');
-    }
-  };
-
-  const handleNaverLogin = () => {
-    window.location.href = `/api/auth/naver`;
+  const handleSocialLogin = (provider: string) => {
+    const callbackUrl = redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : '';
+    window.location.href = `/api/auth/${provider}${callbackUrl}`;
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center font-sans py-10">
-      <div className="bg-white p-8 rounded-sm shadow-sm border border-gray-200 w-full max-w-[400px]">
+    <div className="space-y-6">
+      <div className="text-center mb-6">
+        <h3 className="text-lg font-bold text-gray-800 mb-2">3초 만에 빠른 회원가입</h3>
+        <p className="text-sm text-gray-500">복잡한 절차 없이 SNS로 간편하게 시작하세요!</p>
+      </div>
+
+      {/* 🛡️ [UX 필살기] 반응형 마이크로카피 뱃지 (PC 1줄, 모바일 2줄) */}
+      <div className="w-full bg-[#f3f6fa] border border-[#e2e8f0] rounded-md py-2.5 mb-4 flex flex-col sm:flex-row items-center justify-center text-[13px] tracking-tight">
+        <div className="flex items-center gap-1 text-[#3b4890] font-bold">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"></path>
+          </svg>
+          <span>안심하세요!</span>
+        </div>
+        <span className="hidden sm:inline-block ml-1"></span>
+        <span className="text-[#3b4890] font-bold mt-0.5 sm:mt-0">
+          닉네임과 이메일만으로 가입 완료
+        </span>
+      </div>
+
+      {/* 🌟 [안전 지대] 봇 공격이 불가능한 SNS 가입 버튼 3형제 */}
+      <div className="space-y-2.5">
+        
+        {/* 네이버 버튼 */}
+        <button
+          type="button"
+          onClick={() => handleSocialLogin('naver')}
+          className="w-full py-3.5 bg-[#03C75A] hover:bg-[#02b350] text-white font-bold rounded-sm text-[16px] transition-colors flex justify-center items-center relative shadow-sm"
+        >
+          <div className="absolute left-5">
+            <svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16.273 12.845 7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727v12.845z" fill="currentColor"/>
+            </svg>
+          </div>
+          네이버로 시작하기
+        </button>
+
+        {/* 카카오 버튼 */}
+        <button
+          type="button"
+          onClick={() => handleSocialLogin('kakao')}
+          className="w-full py-3.5 bg-[#FEE500] hover:bg-[#ebd300] text-[#191919] font-bold rounded-sm text-[16px] transition-colors flex justify-center items-center relative shadow-sm"
+        >
+          <div className="absolute left-4">
+            <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 3c-5.523 0-10 3.5-10 7.82 0 2.81 1.83 5.275 4.54 6.64-.17.653-.615 2.37-.64 2.478-.035.15.066.14.135.094.053-.035 2.146-1.47 2.97-2.04.93.22 1.91.338 2.935.338 5.523 0 10-3.5 10-7.82C22 6.5 17.523 3 12 3z" fill="currentColor"/>
+            </svg>
+          </div>
+          카카오로 시작하기
+        </button>
+
+        {/* 구글 버튼 */}
+        <button
+          type="button"
+          onClick={() => handleSocialLogin('google')}
+          className="w-full py-3.5 bg-[#4285F4] hover:bg-[#357ae8] text-white font-bold rounded-sm text-[16px] transition-colors flex justify-center items-center relative shadow-sm"
+        >
+          <div className="absolute left-1.5 p-2 bg-white rounded-sm">
+            <svg viewBox="0 0 48 48" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+          </div>
+          Google로 시작하기
+        </button>
+      </div>
+
+      <div className="flex items-center pt-5 pb-2">
+        <div className="flex-grow border-t border-gray-200"></div>
+        <span className="px-3 text-[12px] text-gray-400 font-bold">기존 이메일 가입자이신가요?</span>
+        <div className="flex-grow border-t border-gray-200"></div>
+      </div>
+
+      <div className="text-center pt-2">
+        <Link 
+          href="/login" 
+          className="text-[#3b4890] font-bold hover:underline inline-block text-[14px]"
+        >
+          이메일 계정으로 로그인 하러가기
+        </Link>
+      </div>
+
+    </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <div className="min-h-[80vh] flex items-center justify-center bg-gray-50 px-4 py-10">
+      <div className="bg-white p-8 md:p-10 rounded-sm shadow-sm border border-gray-200 w-full max-w-[400px]">
+        
         <div className="text-center mb-8">
-          <Link href="/" className="text-4xl font-black text-[#3b4890] tracking-tighter inline-block mb-2">HUMORIN</Link>
-          <h2 className="text-xl font-bold text-gray-800 mt-2">회원 가입</h2>
-        </div>
-
-        {submitError && (
-          <div className="mb-6 p-3 bg-red-50 text-red-600 text-sm font-bold text-center rounded-sm border border-red-200">
-            {submitError}
-          </div>
-        )}
-
-        <form action={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">아이디</label>
-            <input 
-              name="user_id" required placeholder="영문, 숫자 4~12자" 
-              value={id}
-              onChange={(e) => {
-                const rawValue = e.target.value;
-                if (/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(rawValue)) {
-                  setIdError('❌ 아이디는 영문과 숫자만 입력해 주세요. (한글 입력 불가)');
-                } else { setIdError(''); }
-                setId(rawValue.replace(/[^a-zA-Z0-9]/g, ''));
-                setIdOk(false); 
-              }} 
-              onBlur={handleIdBlur} 
-              className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${idError ? 'border-red-500 focus:border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
-            />
-            {idError && <p className="text-red-500 text-[12px] font-bold mt-1.5">{idError}</p>}
-            {idOk && !idError && <p className="text-green-600 text-[12px] font-bold mt-1.5">✅ 멋진 아이디네요! (사용 가능)</p>}
-          </div>
-          
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">비밀번호</label>
-            <input 
-              type="password" name="password" required minLength={8} placeholder="최소 8자 이상 입력" 
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setPwdError(''); }}
-              onBlur={handlePwdBlur}
-              className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${pwdError ? 'border-red-500 focus:border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">비밀번호 확인</label>
-            <input 
-              type="password" name="confirm_password" required minLength={8} placeholder="비밀번호 한 번 더 입력" 
-              value={confirmPassword}
-              onChange={(e) => { setConfirmPassword(e.target.value); setPwdError(''); }}
-              onBlur={handlePwdBlur}
-              className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${pwdError ? 'border-red-500 focus:border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
-            />
-            {pwdError && <p className="text-red-500 text-[12px] font-bold mt-1.5">{pwdError}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">게시판 닉네임</label>
-            <input 
-              name="nickname" required placeholder="한글, 영문, 숫자 2~8자 (특수문자 불가)" 
-              value={nickname}
-              onChange={(e) => { setNickname(e.target.value); setNickError(''); setNickOk(false); }}
-              onBlur={handleNickBlur} 
-              className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${nickError ? 'border-red-500 focus:border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
-            />
-            {nickError && <p className="text-red-500 text-[12px] font-bold mt-1.5">{nickError}</p>}
-            {nickOk && !nickError && <p className="text-green-600 text-[12px] font-bold mt-1.5">✅ 멋진 닉네임이네요! (사용 가능)</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">이메일 (비밀번호 재설정용)</label>
-            <input 
-              type="email" name="email" required placeholder="이메일 주소 입력" 
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setEmailError(''); setEmailOk(false); }}
-              onBlur={handleEmailBlur}
-              className={`w-full p-3 border rounded-sm focus:outline-none font-medium mb-1.5 ${emailError ? 'border-red-500 focus:border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
-            />
-            {emailError && <p className="text-red-500 text-[12px] font-bold mt-0.5 mb-2">{emailError}</p>}
-            {emailOk && !emailError && <p className="text-green-600 text-[12px] font-bold mt-0.5 mb-2">✅ 사용 가능한 이메일입니다!</p>}
-            <p className="text-[11px] text-gray-500 leading-tight">
-              * 입력하신 이메일은 비밀번호 분실 시 본인 확인 및 재설정 용도로만 보관됩니다.
-            </p>
-          </div>
-
-          <button 
-            type="submit" 
-            disabled={isSubmitting} 
-            className="w-full py-3.5 bg-[#2a3042] text-white rounded-sm font-bold text-[16px] hover:bg-[#1e2335] shadow-sm mt-6 transition-colors disabled:bg-gray-400 flex items-center justify-center gap-2"
-          >
-            {isSubmitting && <Loader2 className="animate-spin" size={18} />}
-            {isSubmitting ? '가입 처리 중...' : '이메일로 가입하기'}
-          </button>
-        </form>
-
-        <div className="mt-8 pt-6 border-t border-gray-100 text-center text-[13px] text-gray-600 font-medium">
-          <p className="mb-2 text-gray-500">이미 유머인의 회원이신가요?</p>
-          <Link href="/login" className="text-[#3b4890] font-bold hover:underline inline-block text-[14px]">
-            로그인하러 가기
+          <Link href="/" className="text-4xl font-black text-[#3b4890] tracking-tighter inline-block mb-3">
+            HUMORIN
           </Link>
+          <h2 className="text-xl font-bold text-gray-800">간편 회원가입</h2>
         </div>
+
+        <Suspense fallback={<div className="text-center py-4 text-gray-500 font-bold">로딩 중...</div>}>
+          <SignupForm />
+        </Suspense>
 
       </div>
     </div>

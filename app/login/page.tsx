@@ -7,7 +7,6 @@ import Link from 'next/link';
 function LoginForm() {
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
-  // 🚨 [테러 방어막]
   const [botTrap, setBotTrap] = useState(''); 
   const router = useRouter();
   
@@ -49,7 +48,20 @@ function LoginForm() {
   return (
     <div className="space-y-6">
       
-      {/* 🌟 [UX 개편] 공식 로고와 브랜드 컬러가 적용된 세련된 버튼 3형제 */}
+      {/* 🛡️ [UX 필살기] 반응형 마이크로카피 뱃지 (PC 1줄, 모바일 2줄) */}
+      <div className="w-full bg-[#f3f6fa] border border-[#e2e8f0] rounded-md py-2.5 mb-2 flex flex-col sm:flex-row items-center justify-center text-[13px] tracking-tight">
+        <div className="flex items-center gap-1 text-[#3b4890] font-bold">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"></path>
+          </svg>
+          <span>안심하세요!</span>
+        </div>
+        <span className="hidden sm:inline-block ml-1"></span>
+        <span className="text-[#3b4890] font-bold mt-0.5 sm:mt-0">
+          닉네임과 이메일만으로 간편하게 시작
+        </span>
+      </div>
+
       <div className="space-y-2.5">
         
         {/* 네이버 버튼 */}
@@ -80,7 +92,7 @@ function LoginForm() {
           카카오로 시작하기
         </button>
 
-        {/* 구글 버튼 (공식 가이드라인의 깔끔한 화이트+컬러 G 로고 융합 버전) */}
+        {/* 구글 버튼 */}
         <button
           type="button"
           onClick={() => handleSocialLogin('google')}
@@ -108,7 +120,6 @@ function LoginForm() {
         </Link>
       </div>
 
-      {/* 🚀 [텍스트 완벽 수정] 대장님의 지시대로 혼란을 없앤 텍스트 적용! */}
       <div className="flex items-center pt-3 pb-1">
         <div className="flex-grow border-t border-gray-200"></div>
         <span className="px-3 text-[12px] text-gray-400 font-bold">또는 이메일 가입자 로그인</span>
