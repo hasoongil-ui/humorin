@@ -1,116 +1,90 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { sql } from '@vercel/postgres';
 import { cookies } from 'next/headers';
-import { SignJWT } from 'jose';
-import { sql } from '@vercel/postgres'; // 🚀 대장님의 진짜 마스터키!
+import crypto from 'crypto';
 
-export async function GET(req: NextRequest) {
-    try {
-        const searchParams = req.nextUrl.searchParams;
-        const code = searchParams.get('code');
-        const origin = req.nextUrl.origin;
+const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
 
-        if (!code) {
-            return NextResponse.json({ error: '인증 코드가 없습니다.' }, { status: 400 });
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get('code');
+  const origin = new URL(request.url).origin;
+
+  if (!code) return NextResponse.redirect(new URL('/login?error=kakao_failed', request.url));
+
+  const clientId = process.env.KAKAO_CLIENT_ID || '';
+  const clientSecret = process.env.KAKAO_CLIENT_SECRET || '';
+  const redirectUri = `${origin}/api/auth/kakao/callback`;
+
+  try {
+    const tokenResponse = await fetch('https://kauth.kakao.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        code,
+      }),
+    });
+    const tokenData = await tokenResponse.json();
+    if (!tokenData.access_token) throw new Error('카카오 토큰 발급 실패');
+
+    const userResponse = await fetch('https://kapi.kakao.com/v2/user/me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const userData = await userResponse.json();
+    
+    if (!userData || !userData.id) throw new Error('카카오 유저 정보 조회 실패');
+
+    const kakaoId = String(userData.id);
+    const email = userData.kakao_account?.email || `k_${kakaoId}@kakao.dummy.com`;
+    let nickname = userData.kakao_account?.profile?.nickname || `카카오유저_${kakaoId.substring(0, 4)}`;
+
+    const expectedUserId = `k_${kakaoId.substring(0, 15)}`;
+    
+    const { rows } = await sql`SELECT * FROM users WHERE email = ${email} ORDER BY id ASC LIMIT 1`;
+    
+    let finalUserId = '';
+    let finalNickname = '';
+
+    if (rows.length > 0) {
+      finalUserId = rows[0].user_id;
+      finalNickname = rows[0].nickname;
+    } else {
+      finalUserId = expectedUserId;
+      finalNickname = nickname;
+      const defaultPassword = crypto.randomBytes(20).toString('hex');
+
+      let isNickUnique = false;
+      let attempt = 0;
+      while (!isNickUnique && attempt < 5) {
+        const { rows: nickCheck } = await sql`SELECT id FROM users WHERE nickname = ${finalNickname}`;
+        if (nickCheck.length > 0) {
+          finalNickname = `${nickname}_${Math.floor(Math.random() * 10000)}`;
+          attempt++;
+        } else {
+          isNickUnique = true;
         }
+      }
 
-        const clientId = process.env.KAKAO_CLIENT_ID;
-        const clientSecret = process.env.KAKAO_CLIENT_SECRET;
-        const redirectUri = `${origin}/api/auth/kakao/callback`;
-
-        // 1. 카카오 서버에 Access Token 요청
-        const tokenResponse = await fetch('https://kauth.kakao.com/oauth/token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
-            },
-            body: new URLSearchParams({
-                grant_type: 'authorization_code',
-                client_id: clientId!,
-                client_secret: clientSecret!,
-                redirect_uri: redirectUri,
-                code,
-            }),
-        });
-
-        const tokenData = await tokenResponse.json();
-
-        if (!tokenData.access_token) {
-            return NextResponse.redirect(`${origin}/login?error=KakaoTokenError`);
-        }
-
-        // 2. 카카오 유저 정보 가져오기
-        const userResponse = await fetch('https://kapi.kakao.com/v2/user/me', {
-            headers: {
-                Authorization: `Bearer ${tokenData.access_token}`,
-                'Content-type': 'application/x-www-form-urlencoded;charset=utf-8',
-            },
-        });
-
-        const userData = await userResponse.json();
-
-        if (!userData || !userData.id) {
-            return NextResponse.redirect(`${origin}/login?error=KakaoUserInfoError`);
-        }
-
-        const kakaoId = userData.id.toString();
-        const kakaoEmail = userData.kakao_account?.email || `k_${kakaoId}@kakao.dummy.com`;
-        const kakaoNickname = userData.kakao_account?.profile?.nickname || `카카오유저_${kakaoId.substring(0, 4)}`;
-        const newUserId = `kakao_${kakaoId}`; // 유머인 전용 SNS 아이디 생성
-
-        // 3. DB 유저 확인 및 처리 (Vercel Postgres SQL 방식)
-        const { rows } = await sql`
-      SELECT * FROM users 
-      WHERE provider_id = ${kakaoId} OR email = ${kakaoEmail}
-      LIMIT 1
-    `;
-
-        let user = rows[0];
-
-        if (!user) {
-            // 신규 가입
-            await sql`
-        INSERT INTO users (user_id, email, name, password, provider, provider_id)
-        VALUES (${newUserId}, ${kakaoEmail}, ${kakaoNickname}, '', 'kakao', ${kakaoId})
+      await sql`
+        INSERT INTO users (user_id, password, nickname, email, status, points, is_admin)
+        VALUES (${finalUserId}, ${defaultPassword}, ${finalNickname}, ${email}, 'active', 0, false)
       `;
-            user = { user_id: newUserId, email: kakaoEmail, name: kakaoNickname, provider: 'kakao' };
-        } else if (!user.provider) {
-            // 기존 이메일 유저와 연동
-            await sql`
-        UPDATE users 
-        SET provider = 'kakao', provider_id = ${kakaoId} 
-        WHERE user_id = ${user.user_id}
-      `;
-            user.provider = 'kakao';
-        }
-
-        // 4. 보안 JWT 세션 생성
-        const secretKey = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
-        const secret = new TextEncoder().encode(secretKey);
-        const jwt = await new SignJWT({
-            id: user.user_id,
-            email: user.email,
-            name: user.name,
-            provider: user.provider
-        })
-            .setProtectedHeader({ alg: 'HS256' })
-            .setIssuedAt()
-            .setExpirationTime('7d')
-            .sign(secret);
-
-        // 5. 쿠키 세팅 (await 추가 완료)
-        const cookieStore = await cookies();
-        cookieStore.set('session', jwt, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 60 * 60 * 24 * 7,
-        });
-
-        return NextResponse.redirect(origin);
-
-    } catch (error) {
-        console.error('카카오 로그인 에러:', error);
-        return NextResponse.redirect(`${req.nextUrl.origin}/login?error=KakaoServerError`);
     }
+
+    const signature = crypto.createHmac('sha256', SECRET_KEY).update(finalUserId).digest('hex');
+    const cookieStore = await cookies();
+    
+    cookieStore.set('humorin_user', finalNickname, { path: '/', maxAge: 60 * 60 * 24 * 7 });
+    cookieStore.set('humorin_userid', finalUserId, { path: '/', maxAge: 60 * 60 * 24 * 7 });
+    cookieStore.set('humorin_signature', signature, { path: '/', httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 60 * 60 * 24 * 7 });
+
+    return NextResponse.redirect(new URL('/', request.url));
+  } catch (err) {
+    console.error('Kakao Login Error:', err);
+    return NextResponse.redirect(new URL('/login?error=kakao_error', request.url));
+  }
 }
