@@ -46,7 +46,6 @@ export default async function ProfilePage(props: any) {
   const searchParams = await props.searchParams;
   const currentTab = searchParams?.tab || 'posts';
   
-  // 💡 [페이지 나누기 핵심 1] 현재 페이지 번호와 1페이지당 개수(30개) 설정!
   const currentPage = parseInt(searchParams?.page || '1', 10) || 1;
   const ITEMS_PER_PAGE = 30;
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -79,7 +78,6 @@ export default async function ProfilePage(props: any) {
       }
     }
 
-    // 💡 [페이지 나누기 핵심 2] 탭에 맞춰서 전체 개수를 세고, 딱 30개만 잘라서 가져오기!
     if (currentTab === 'posts') {
       const countRes = await sql`SELECT COUNT(*) FROM posts WHERE author = ${currentUser}`;
       totalItems = parseInt(countRes.rows[0].count, 10);
@@ -127,11 +125,10 @@ export default async function ProfilePage(props: any) {
     ? 100 
     : Math.min(((points - currentTier.min) / (nextTier.min - currentTier.min)) * 100, 100);
 
-  // 💡 [페이지 나누기 핵심 3] 전체 페이지 수 계산 및 완벽 반응형 렌더링 함수
   const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
   
   const renderPagination = () => {
-    if (totalPages <= 1) return null; // 1페이지밖에 없으면 번호 숨기기
+    if (totalPages <= 1) return null; 
 
     const maxPageButtons = 5;
     let startPage = Math.max(1, currentPage - 2);
@@ -270,7 +267,6 @@ export default async function ProfilePage(props: any) {
                       </div>
                     ))}
                   </div>
-                  {/* 💡 [페이지 나누기 버튼 장착!] */}
                   {renderPagination()}
                 </>
               )}
@@ -293,7 +289,6 @@ export default async function ProfilePage(props: any) {
                       </div>
                     ))}
                   </div>
-                  {/* 💡 [페이지 나누기 버튼 장착!] */}
                   {renderPagination()}
                 </>
               )}
@@ -302,10 +297,12 @@ export default async function ProfilePage(props: any) {
 
           {currentTab === 'settings' && (
             <div className="max-w-[400px] mx-auto py-4">
+              {/* 💡 [수술 핵심] 여기서 isSocialUser 판별기를 폼으로 쏴줍니다! */}
               <SettingsForm 
                 currentUserId={currentUserId!} 
                 currentNickname={currentUser} 
                 isNaverUser={currentUserId?.startsWith('n_')} 
+                isSocialUser={currentUserId?.startsWith('n_') || currentUserId?.startsWith('k_') || currentUserId?.startsWith('g_')}
                 currentEmail={currentEmail} 
               />
             </div>
