@@ -9,21 +9,26 @@ export default function SettingsForm({
   currentUserId, 
   currentNickname, 
   isNaverUser,
-  currentEmail
+  isSocialUser, // 🛡️ 1단계(page.tsx)에서 넘겨준 통합 소셜 유저 판별기 장착!
+  currentEmail 
 }: { 
   currentUserId: string, 
   currentNickname: string, 
   isNaverUser?: boolean,
+  isSocialUser?: boolean, // 🛡️ 타입 정의 추가
   currentEmail?: string 
 }) {
+  // 닉네임 상태
   const [nickname, setNickname] = useState('');
   const [nickError, setNickError] = useState('');
   const [nickOk, setNickOk] = useState(false);
 
+  // 이메일 상태 (소셜 유저인 경우 초기값을 고정하여 변경 불가하게 만듦)
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [emailOk, setEmailOk] = useState(false);
 
+  // 비밀번호 상태
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -33,6 +38,7 @@ export default function SettingsForm({
   const nickRegex = /^[가-힣a-zA-Z0-9\s]{2,8}$/;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; 
 
+  // 닉네임 검사
   const handleNickBlur = async () => {
     const val = nickname.trim();
     if (!val) { setNickError(''); setNickOk(false); return; }
@@ -58,7 +64,10 @@ export default function SettingsForm({
     }
   };
 
+  // 이메일 검사
   const handleEmailBlur = async () => {
+    if (isSocialUser) return; // 🛡️ 소셜 유저는 이메일 중복 검사 필요 없음 (수정 불가하므로)
+
     const val = email.trim();
     if (!val) { setEmailError(''); setEmailOk(false); return; }
 
@@ -79,7 +88,9 @@ export default function SettingsForm({
     }
   };
 
+  // 비밀번호 실시간 검사
   const validatePassword = (pw: string, confirmPw: string) => {
+    if (isSocialUser) return; // 🛡️ 소셜 유저는 검사 패스
     if (!pw && !confirmPw) { setPasswordError(''); return; }
     if (pw && pw.length < 8) {
       setPasswordError('❌ 비밀번호는 8자리 이상이어야 합니다.'); return;
@@ -95,17 +106,8 @@ export default function SettingsForm({
       alert("입력하신 정보에 오류가 있습니다. 빨간색 경고 메시지를 확인해 주세요!");
       return; 
     }
-
-    // 🚨 [크롬 자동완성 테러 방어막 1] 제출 직전에 폼 안에 들어있는 이메일이 진짜 이메일인지 스캔합니다.
-    if (email && email.trim() !== '') {
-      if (!emailRegex.test(email.trim())) {
-        setEmailError('❌ 올바른 이메일 형식이 아닙니다. (크롬 자동입력 오류일 수 있습니다.)');
-        alert("이메일 형식이 올바르지 않습니다.\n혹시 '새 이메일 주소' 칸에 아이디가 잘못 입력되어 있는지 확인해 주세요!");
-        return;
-      }
-    }
     
-    if (password || passwordConfirm) {
+    if (!isSocialUser && (password || passwordConfirm)) {
       if (password.length < 8) {
         setPasswordError('❌ 비밀번호는 8자리 이상이어야 합니다.'); return;
       }
@@ -118,16 +120,19 @@ export default function SettingsForm({
     await updateProfileAction(formData);
     setIsSubmitting(false);
     alert("정보가 성공적으로 수정되었습니다!");
+    
+    // 💡 [수정 완료] 빨간 에러의 원인이었던 알파벳 누락 고침!
     setPassword('');
-    setPasswordConfirm('');
+    setPasswordConfirm(''); 
   };
 
   return (
     <div>
-      <form action={handleSubmit} className="space-y-6" autoComplete="off">
+      <form action={handleSubmit} className="space-y-6">
         <input type="hidden" name="currentUserId" value={currentUserId || ''} />
         <input type="hidden" name="currentNickname" value={currentNickname || ''} />
 
+        {/* 닉네임 수정 영역 */}
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-2">새 닉네임</label>
           <input 
@@ -138,7 +143,6 @@ export default function SettingsForm({
               setNickname(e.target.value); setNickError(''); setNickOk(false);
             }}
             onBlur={handleNickBlur}
-            autoComplete="off"
             className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${nickError ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
           />
           {nickError && <p className="text-red-500 text-[12px] font-bold mt-1.5">{nickError}</p>}
@@ -146,29 +150,34 @@ export default function SettingsForm({
           {nickOk && nickname !== currentNickname && <p className="text-green-600 text-[12px] font-bold mt-1.5">✅ 멋진 닉네임이네요! 변경 가능합니다.</p>}
         </div>
 
+        {/* 이메일 주소 영역 */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">새 이메일 주소</label>
+          <label className="block text-sm font-bold text-gray-700 mb-2">이메일 주소</label>
           <input 
             name="newEmail" 
-            placeholder={currentEmail ? `현재: ${currentEmail}` : '변경할 이메일 입력'}
-            value={email}
+            placeholder={currentEmail ? `현재: ${currentEmail}` : '등록된 이메일 없음'}
+            value={isSocialUser ? (currentEmail || '') : email} // 🛡️ 소셜 유저는 무조건 현재 이메일 고정 출력
+            disabled={isSocialUser} // 🛡️ 소셜 유저는 입력창 비활성화 (수정 차단!)
             onChange={(e) => {
-              setEmail(e.target.value); setEmailError(''); setEmailOk(false);
+              if (!isSocialUser) {
+                setEmail(e.target.value); setEmailError(''); setEmailOk(false);
+              }
             }}
             onBlur={handleEmailBlur}
-            autoComplete="new-password" 
-            className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${emailError ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
+            className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${isSocialUser ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : emailError ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
           />
-          {emailError && <p className="text-red-500 text-[12px] font-bold mt-1.5">{emailError}</p>}
-          {emailOk && email !== currentEmail && <p className="text-green-600 text-[12px] font-bold mt-1.5">✅ 사용 가능한 이메일입니다.</p>}
+          {emailError && !isSocialUser && <p className="text-red-500 text-[12px] font-bold mt-1.5">{emailError}</p>}
+          {emailOk && !isSocialUser && email !== currentEmail && <p className="text-green-600 text-[12px] font-bold mt-1.5">✅ 사용 가능한 이메일입니다.</p>}
+          {isSocialUser && <p className="text-gray-400 text-[11px] font-bold mt-1.5">🔒 소셜 로그인 계정은 이메일을 변경할 수 없습니다.</p>}
         </div>
         
-        {isNaverUser ? (
-          <div className="bg-green-50 p-4 border border-green-200 rounded-sm">
-            <label className="block text-sm font-bold text-green-800 mb-1">비밀번호 변경 안내</label>
-            <p className="text-xs text-green-700 font-medium leading-relaxed">
-              네이버로 간편 가입하신 회원님은 유머인에서 비밀번호를 변경하실 수 없습니다.<br/>
-              계정 보안 및 비밀번호 관리는 <b>네이버 홈페이지</b>를 이용해 주세요!
+        {/* 🛡️ 비밀번호 영역 통제 */}
+        {isSocialUser ? (
+          <div className="bg-indigo-50 p-4 border border-indigo-100 rounded-sm">
+            <label className="block text-sm font-bold text-[#3b4890] mb-1">소셜 계정 로그인 안내</label>
+            <p className="text-xs text-gray-600 font-medium leading-relaxed">
+              소셜 간편 가입 회원님은 비밀번호를 입력할 필요가 없습니다.<br/>
+              안전한 계정 보안 관리는 가입하신 <b>해당 소셜 플랫폼(네이버/카카오/구글)</b>을 이용해 주세요!
             </p>
           </div>
         ) : (
@@ -183,7 +192,6 @@ export default function SettingsForm({
                   setPassword(e.target.value);
                   validatePassword(e.target.value, passwordConfirm);
                 }}
-                autoComplete="new-password"
                 placeholder="변경할 비밀번호 입력 (8자리 이상)" 
                 className="w-full p-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#3b4890] font-medium" 
               />
@@ -197,7 +205,6 @@ export default function SettingsForm({
                   setPasswordConfirm(e.target.value);
                   validatePassword(password, e.target.value);
                 }}
-                autoComplete="new-password"
                 placeholder="비밀번호 다시 입력" 
                 className={`w-full p-3 border rounded-sm focus:outline-none font-medium ${passwordError ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-[#3b4890]'}`} 
               />
@@ -221,7 +228,7 @@ export default function SettingsForm({
 
       <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
         <form action={async (formData) => {
-          if (window.confirm('정말로 유머인를 탈퇴하시겠습니까?\n작성하신 모든 정보가 영구적으로 삭제되며 복구할 수 없습니다.')) {
+          if (window.confirm('정말로 유머인을 탈퇴하시겠습니까?\n작성하신 모든 정보가 영구적으로 삭제되며 복구할 수 없습니다.')) {
             await deleteUserAction(formData);
           }
         }}>
