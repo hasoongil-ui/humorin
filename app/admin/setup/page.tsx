@@ -45,9 +45,12 @@ export default async function AdminSetupPage(props: any) {
       
       await sql`INSERT INTO site_settings (key, value) VALUES ('forbidden_words', '도박,카지노,토토,바카라,릴게임,비아그라,성인용품') ON CONFLICT DO NOTHING;`;
 
-      // 🚨 [수술 완료] 신고 기준(10회)과 비공감 기준(100회)을 분리하여 DB에 초기 세팅!
+      // 🚨 신고 기준(10회)과 비공감 기준(100회) 초기 세팅
       await sql`INSERT INTO site_settings (key, value) VALUES ('report_blind_threshold', '10') ON CONFLICT DO NOTHING;`;
       await sql`INSERT INTO site_settings (key, value) VALUES ('dislike_blind_threshold', '100') ON CONFLICT DO NOTHING;`;
+
+      // 💡 [수술 완료] 투표 에이징(제한 시간) 초기값 0시간으로 DB에 공간 생성!
+      await sql`INSERT INTO site_settings (key, value) VALUES ('vote_aging_hours', '0') ON CONFLICT DO NOTHING;`;
 
       await sql`
         CREATE TABLE IF NOT EXISTS boards (
