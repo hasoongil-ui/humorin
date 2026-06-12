@@ -1,3 +1,4 @@
+// 파일 위치: app/api/report/comment/route.ts
 import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers'; 
@@ -19,24 +20,44 @@ export async function POST(request: Request) {
       if (adminRows.length > 0 && adminRows[0].is_admin) isAdmin = true;
     }
 
-    // 2. 통제실 블라인드 기준치 똑같이 연동
+    // 2. 통제실 블라인드 기준치 & 💡[수술: 에이징 시간] 한번에 가져오기 (DB 최적화)
     let threshold = 5;
+    let voteAgingHours = 0;
     try {
-      const { rows: settings } = await sql`SELECT value FROM site_settings WHERE key = 'report_blind_threshold'`;
-      if (settings.length > 0) threshold = parseInt(settings[0].value, 10) || 5;
+      const { rows: settings } = await sql`SELECT key, value FROM site_settings WHERE key IN ('report_blind_threshold', 'vote_aging_hours')`;
+      settings.forEach(s => {
+        if (s.key === 'report_blind_threshold') threshold = parseInt(s.value, 10) || 5;
+        if (s.key === 'vote_aging_hours') voteAgingHours = parseInt(s.value, 10) || 0;
+      });
     } catch (e) {}
 
     const increment = isAdmin ? 10 : 1; 
 
-    // 3. 일반 유저 중복 신고 방지 (관리자는 프리패스!)
+    // 3. 일반 유저 통제: 중복 신고 방지 및 💡[수술: 에이징 시간 통과 여부 검사]
     if (!isAdmin) {
+      // ⏳ [수술 완료] 에이징 제한 검사
+      if (voteAgingHours > 0) {
+        const { rows: userRows } = await sql`SELECT created_at FROM users WHERE user_id = ${currentUserId}`;
+        if (userRows.length > 0) {
+          const joinDate = new Date(userRows[0].created_at);
+          const hoursDiff = (Date.now() - joinDate.getTime()) / (1000 * 60 * 60);
+          if (hoursDiff < voteAgingHours) {
+            return NextResponse.json(
+              { error: 'aging', message: `가입 후 ${voteAgingHours}시간이 지나야 신고할 수 있습니다.` }, 
+              { status: 403 }
+            );
+          }
+        }
+      }
+
+      // 🚫 중복 신고 검사
       const { rows: checkRows } = await sql`SELECT * FROM comment_reports WHERE comment_id = ${commentId} AND reporter_id = ${currentUserId}`;
       if (checkRows.length > 0) return NextResponse.json({ error: '이미 신고한 댓글입니다.' }, { status: 400 });
       
       await sql`INSERT INTO comment_reports (comment_id, reporter_id) VALUES (${commentId}, ${currentUserId})`;
     }
 
-    // 4. 💡 [수술 완료] 관리자의 신고는 무적 방패를 즉시 깨부수고 블라인드 시킨다!
+    // 4. 관리자의 신고는 무적 방패를 즉시 깨부수고 블라인드 시킨다!
     await sql`
       UPDATE comments
       SET 

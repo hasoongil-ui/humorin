@@ -1,3 +1,4 @@
+// 파일 위치: app/board/[id]/InteractiveButtons.tsx
 'use client';
 
 import { useFormStatus } from 'react-dom';
@@ -113,14 +114,23 @@ export function PostScrapButton({ postId, initialHasScrapped, toggleScrapAction 
   );
 }
 
+// 💡 [수술 완료] 게시글 신고 시 에이징 시간 미달이면 예쁜 경고창 띄워주기 연동!
 export function PostReportButton({ postId, currentUserId, isAdmin }: any) {
   const handleReport = async () => {
     if (!currentUserId) return alert('로그인이 필요합니다.');
     if (confirm('이 게시글을 신고하시겠습니까?\n허위 신고 시 불이익을 받을 수 있습니다.')) {
       try {
         const res = await fetch(`/api/report/post`, { method: 'POST', body: JSON.stringify({ postId }) });
-        if (res.ok) alert('신고가 접수되었습니다. (누적 시 블라인드 처리됩니다.)');
-        else alert('이미 신고하셨거나 오류가 발생했습니다.');
+        if (res.ok) {
+          alert('신고가 접수되었습니다. (누적 시 블라인드 처리됩니다.)');
+        } else {
+          const data = await res.json();
+          if (data.message) {
+            alert(`🚨 신고 불가: ${data.message}`);
+          } else {
+            alert('이미 신고하셨거나 오류가 발생했습니다.');
+          }
+        }
       } catch (e) { console.error(e); }
     }
   };
@@ -197,14 +207,23 @@ export function CommentDislikeButton({ commentId, initialDislikes, initialHasDis
   );
 }
 
+// 💡 [수술 완료] 댓글 신고 시 에이징 시간 미달이면 예쁜 경고창 띄워주기 연동!
 export function CommentReportButton({ commentId, currentUserId, isAdmin }: any) {
   const handleReport = async () => {
     if (!currentUserId) return alert('로그인이 필요합니다.');
     if (confirm('이 댓글을 신고하시겠습니까?')) {
       try {
         const res = await fetch(`/api/report/comment`, { method: 'POST', body: JSON.stringify({ commentId }) });
-        if (res.ok) alert('신고가 접수되었습니다.');
-        else alert('이미 신고하셨거나 오류가 발생했습니다.');
+        if (res.ok) {
+          alert('신고가 접수되었습니다.');
+        } else {
+          const data = await res.json();
+          if (data.message) {
+            alert(`🚨 신고 불가: ${data.message}`);
+          } else {
+            alert('이미 신고하셨거나 오류가 발생했습니다.');
+          }
+        }
       } catch (e) { console.error(e); }
     }
   };
@@ -347,15 +366,10 @@ export function EditCommentForm({ commentId, initialContent, initialImage, editA
     let rawFile = e.target.files?.[0];
     if (!rawFile) return;
 
-    // 🛡️ [바이너리 엑스레이 스캐너 가동] 변형된 파일을 진짜 포맷(WebP/GIF/JPEG/PNG)으로 100% 원본 복구!
     const file = await detectAndRestoreFile(rawFile);
-
-    // 🚨 새로 추가된 WebP 움짤 엑스레이 스캔!
     const isWebPAnim = await isAnimatedWebP(file);
 
-    // 🚨 투트랙 용량 통제소: GIF이거나, 엑스레이로 판독된 WebP 움짤인 경우
     if (file.type === 'image/gif' || isWebPAnim) {
-      // [트랙 1] 움짤(GIF/WebP)은 2MB 이하만 첨부 가능!
       if (file.size > 2 * 1024 * 1024) {
         alert('🚨 움짤(GIF 및 WebP 애니메이션)은 서버 쾌적화를 위해 2MB 이하만 첨부 가능합니다.');
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -365,7 +379,6 @@ export function EditCommentForm({ commentId, initialContent, initialImage, editA
       setPreviewUrl(URL.createObjectURL(file));
       setIsDeleted(false);
     } else {
-      // [트랙 2] 일반 사진(일반 WebP 포함)은 3MB까지 허용 후 압축
       if (file.size > 3 * 1024 * 1024) {
         alert('일반 이미지는 최대 3MB까지 선택 가능합니다.');
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -482,7 +495,7 @@ export function EditCommentForm({ commentId, initialContent, initialImage, editA
 }
 
 // ---------------------------------------------------------
-// 🟢 4. 최신 트렌드 Web Share API 공유 버튼 (중복 오류 완벽 해결!)
+// 🟢 4. 최신 트렌드 Web Share API 공유 버튼
 // ---------------------------------------------------------
 export function PostShareButton({ title }: { title: string }) {
   const handleShare = async () => {
@@ -491,12 +504,9 @@ export function PostShareButton({ title }: { title: string }) {
 
     if (navigator.share) {
       try {
-        // 🚨 핵심 수정 부분: text 속성을 제거하여 카카오톡이 텍스트를 강제로 합치는 것을 막습니다. 
-        // 오직 게시글 원본 '제목'과 'URL' 두 가지만 깔끔하게 보냅니다!
         await navigator.share({ title: title, url: url });
       } catch (err) { }
     } else {
-      // 카카오톡이 아닌 일반 트위터 공유 등의 환경은 기존대로 유지하여 안전을 확보합니다.
       const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
       window.open(twitterUrl, '_blank', 'width=600,height=400,scrollbars=no,resizable=no');
     }
