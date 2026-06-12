@@ -269,10 +269,11 @@ export default async function PostDetailPage(props: any) {
   let relatedPosts = [];
   try {
     if (bestType) {
+      // 🚨 [수술 2 적용] 하단 연관글 베스트 강등 컷오프 상향 (< 10 ➡️ < 30)
       const { rows: bestRecent } = await sql`
         SELECT id, title, views, likes 
         FROM posts 
-        WHERE likes >= 10 AND COALESCE(dislikes, 0) < 10
+        WHERE likes >= 10 AND COALESCE(dislikes, 0) < 30
           AND id != ${postId} 
           AND is_blinded = false 
           AND COALESCE(status, 'published') = 'published'
@@ -296,10 +297,11 @@ export default async function PostDetailPage(props: any) {
 
     if (relatedPosts.length < 3) {
       const needed = 3 - relatedPosts.length;
+      // 🚨 [수술 2 적용] 하단 연관글 백업 베스트 강등 컷오프 상향 (< 10 ➡️ < 30)
       const { rows: bestFallback } = await sql`
         SELECT id, title, views, likes 
         FROM posts 
-        WHERE likes >= 10 AND COALESCE(dislikes, 0) < 10
+        WHERE likes >= 10 AND COALESCE(dislikes, 0) < 30
           AND is_blinded = false
           AND COALESCE(status, 'published') = 'published'
         ORDER BY best_at DESC NULLS LAST, date DESC
@@ -323,7 +325,6 @@ export default async function PostDetailPage(props: any) {
   let totalListCount = 0;
 
   try {
-    // 💡 [BOMB 1, 2, 4 완벽 병합] 하단 리스트: 카테고리 검색 + Bounded Count + 댓글 캐싱 
     if (keyword) {
       const searchPattern = `%${keyword}%`;
       let countRes, rowsRes;
@@ -341,21 +342,22 @@ export default async function PostDetailPage(props: any) {
       listPosts = rowsRes.rows;
     }
     else if (bestType === 'today') {
-      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+      // 🚨 [수술 2 적용] 하단 리스트 강등 컷오프 상향 (< 10 ➡️ < 30)
+      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else if (bestType === '100') {
-      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else if (bestType === '1000') {
-      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else {
@@ -457,7 +459,6 @@ export default async function PostDetailPage(props: any) {
       const user = userRows[0];
       const statusStr = String(user.status || 'active').trim().toLowerCase();
       if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
-      // 🚀 [Phase 1 수술 완료]: 게시글 12시간/5포인트 추천 제한 족쇄 완전히 삭제
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM likes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
@@ -480,9 +481,13 @@ export default async function PostDetailPage(props: any) {
     if (!currentUserId) redirect('/login');
 
     let dislikeBlindThreshold = 100;
+    let voteAgingHours = 0; // 🛡️ 에이징 변수 초기화
     try {
-      const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'dislike_blind_threshold'`;
-      if (rows.length > 0) dislikeBlindThreshold = Number(rows[0].value) || 100;
+      const { rows } = await sql`SELECT key, value FROM site_settings WHERE key IN ('dislike_blind_threshold', 'vote_aging_hours')`;
+      rows.forEach(r => {
+        if (r.key === 'dislike_blind_threshold') dislikeBlindThreshold = Number(r.value) || 100;
+        if (r.key === 'vote_aging_hours') voteAgingHours = Number(r.value) || 0;
+      });
     } catch (e) { }
 
     if (isAdmin) {
@@ -502,10 +507,13 @@ export default async function PostDetailPage(props: any) {
       const user = userRows[0];
       const statusStr = String(user.status || 'active').trim().toLowerCase();
       if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
-      // 🚀 [Phase 1 수술 완료]: 게시글 12시간/5포인트 비추천 제한 족쇄 완전히 삭제
       
-      // 🚨 [작전 1 적용] 50포인트 미만 뉴비 계정 비공감 테러 원천 차단
-      if ((user.points || 0) < 50 && !isAdmin) return;
+      // 🛡️ [수술 완료: 50포인트 해제 & 에이징 시간 통제]
+      if (voteAgingHours > 0 && !isAdmin) {
+        const joinDate = new Date(user.created_at);
+        const hoursDiff = (Date.now() - joinDate.getTime()) / (1000 * 60 * 60);
+        if (hoursDiff < voteAgingHours) return; // 설정된 대기 시간 미달 시 튕겨냄!
+      }
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM post_dislikes WHERE post_id = ${postId} AND author_id = ${currentUserId}`;
@@ -601,8 +609,6 @@ export default async function PostDetailPage(props: any) {
       await sql`INSERT INTO comments (post_id, author, author_id, content, image_data, is_blinded) VALUES (${postId}, ${currentUser}, ${currentUserId}, ${content}, ${imageUrl || null}, ${isShadowBanned})`;
     }
     await sql`UPDATE users SET points = COALESCE(points, 0) + 5 WHERE user_id = ${currentUserId}`;
-
-    // 💡 [BOMB 2 완전 해결] 댓글 작성 시 comment_count 캐싱 +1 (이전 파일에서 복원)
     await sql`UPDATE posts SET comment_count = COALESCE(comment_count, 0) + 1 WHERE id = ${postId}`;
 
     revalidatePath(`/board/${postId}`);
@@ -680,7 +686,6 @@ export default async function PostDetailPage(props: any) {
           await sql`UPDATE comments SET content = '작성자가 삭제한 댓글입니다.', author = '알 수 없음', author_id = null, image_data = null WHERE id = ${commentId}`;
         } else {
           await sql`DELETE FROM comments WHERE id = ${commentId}`;
-          // 💡 [BOMB 2 완전 해결] 댓글 완전 삭제 시 comment_count 캐싱 -1 (이전 파일에서 복원)
           await sql`UPDATE posts SET comment_count = GREATEST(COALESCE(comment_count, 0) - 1, 0) WHERE id = ${postId}`;
         }
       }
@@ -703,7 +708,6 @@ export default async function PostDetailPage(props: any) {
       const user = userRows[0];
       const statusStr = String(user.status || 'active').trim().toLowerCase();
       if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
-      // 🚀 [Phase 1 수술 완료]: 댓글 12시간/5포인트 추천 제한 족쇄 완전히 삭제
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_likes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
@@ -722,9 +726,13 @@ export default async function PostDetailPage(props: any) {
     const commentId = formData.get('commentId') as string;
 
     let dislikeBlindThreshold = 100;
+    let voteAgingHours = 0; // 🛡️ 에이징 변수 초기화
     try {
-      const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'dislike_blind_threshold'`;
-      if (rows.length > 0) dislikeBlindThreshold = Number(rows[0].value) || 100;
+      const { rows } = await sql`SELECT key, value FROM site_settings WHERE key IN ('dislike_blind_threshold', 'vote_aging_hours')`;
+      rows.forEach(r => {
+        if (r.key === 'dislike_blind_threshold') dislikeBlindThreshold = Number(r.value) || 100;
+        if (r.key === 'vote_aging_hours') voteAgingHours = Number(r.value) || 0;
+      });
     } catch (e) { }
 
     if (isAdmin) {
@@ -744,10 +752,13 @@ export default async function PostDetailPage(props: any) {
       const user = userRows[0];
       const statusStr = String(user.status || 'active').trim().toLowerCase();
       if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
-      // 🚀 [Phase 1 수술 완료]: 댓글 12시간/5포인트 비추천 제한 족쇄 완전히 삭제
       
-      // 🚨 [작전 1 적용] 50포인트 미만 뉴비 계정 비공감 테러 원천 차단
-      if ((user.points || 0) < 50 && !isAdmin) return;
+      // 🛡️ [수술 완료: 50포인트 해제 & 에이징 시간 통제 적용]
+      if (voteAgingHours > 0 && !isAdmin) {
+        const joinDate = new Date(user.created_at);
+        const hoursDiff = (Date.now() - joinDate.getTime()) / (1000 * 60 * 60);
+        if (hoursDiff < voteAgingHours) return; 
+      }
     }
 
     const { rows: checkRows = [] } = await sql`SELECT * FROM comment_dislikes WHERE comment_id = ${commentId} AND author_id = ${currentUserId}`;
@@ -767,7 +778,6 @@ export default async function PostDetailPage(props: any) {
     }
   };
 
-  // 🚨 [핀셋 수술 완료] 게시글 면역(복구) 시 비공감 수(dislikes) 0으로 초기화
   const grantPostImmunity = async () => {
     'use server';
     if (!isAdmin) return;
@@ -775,7 +785,6 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 🚨 [핀셋 수술 완료] 댓글 면역(복구) 시 비공감 수(dislikes) 0으로 초기화
   const grantCommentImmunity = async (formData: FormData) => {
     'use server';
     if (!isAdmin) return;
@@ -784,11 +793,12 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
+  // 🚨 [수술 4 적용] 관리자 [정지, 그림자] 절대 통제권: 면역(is_safe) 방패 강제 파괴 로직 추가
   const suspendUserAction = async () => {
     'use server';
     if (!isAdmin || !post.author_id) return;
     await sql`UPDATE users SET status = 'banned' WHERE user_id = ${post.author_id}`;
-    await sql`UPDATE posts SET is_blinded = true WHERE id = ${postId}`;
+    await sql`UPDATE posts SET is_blinded = true, is_safe = false WHERE id = ${postId}`;
     revalidatePath(`/board/${postId}`);
   };
 
@@ -796,7 +806,7 @@ export default async function PostDetailPage(props: any) {
     'use server';
     if (!isAdmin || !post.author_id) return;
     await sql`UPDATE users SET status = 'shadow_banned' WHERE user_id = ${post.author_id}`;
-    await sql`UPDATE posts SET is_blinded = true WHERE id = ${postId}`;
+    await sql`UPDATE posts SET is_blinded = true, is_safe = false WHERE id = ${postId}`;
     revalidatePath(`/board/${postId}`);
   };
 
@@ -807,7 +817,7 @@ export default async function PostDetailPage(props: any) {
     const commentId = formData.get('commentId') as string;
     if (targetUserId) {
       await sql`UPDATE users SET status = 'banned' WHERE user_id = ${targetUserId}`;
-      await sql`UPDATE comments SET is_blinded = true WHERE id = ${commentId}`;
+      await sql`UPDATE comments SET is_blinded = true, is_safe = false WHERE id = ${commentId}`;
     }
     revalidatePath(`/board/${postId}`);
   };
@@ -819,7 +829,7 @@ export default async function PostDetailPage(props: any) {
     const commentId = formData.get('commentId') as string;
     if (targetUserId) {
       await sql`UPDATE users SET status = 'shadow_banned' WHERE user_id = ${targetUserId}`;
-      await sql`UPDATE comments SET is_blinded = true WHERE id = ${commentId}`;
+      await sql`UPDATE comments SET is_blinded = true, is_safe = false WHERE id = ${commentId}`;
     }
     revalidatePath(`/board/${postId}`);
   };
@@ -1313,6 +1323,9 @@ export default async function PostDetailPage(props: any) {
                 const isCurrentPost = p.id === Number(postId);
                 const itemBg = isCurrentPost ? 'bg-indigo-50/70' : 'bg-white hover:bg-gray-50';
 
+                // 🛡️ [수술: 트루먼 쇼] 상세 화면 하단 리스트에도 트루먼 쇼 적용
+                const isDisplayBlinded = p.is_blinded && !isAdmin && p.author_id !== currentUserId;
+
                 return (
                   <div key={p.id} className={`flex flex-col md:flex-row border-b border-gray-200 py-2.5 transition-colors items-center group touch-pan-y md:touch-auto ${itemBg}`}>
                     <div className="hidden md:block w-12 text-center text-[13px] text-gray-400 shrink-0">
@@ -1321,7 +1334,7 @@ export default async function PostDetailPage(props: any) {
                     <Link href={`/board/${p.id}${listQueryStr}`} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                       <CategoryIcon category={pData.cat} />
 
-                      {p.is_blinded ? (
+                      {isDisplayBlinded ? (
                         <span className="truncate mr-1 text-gray-400 md:text-gray-500">블라인드 처리된 글입니다.</span>
                       ) : (
                         <>
@@ -1339,12 +1352,12 @@ export default async function PostDetailPage(props: any) {
                     </Link>
                     <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 justify-between items-center shrink-0">
                       <div className="md:w-24 text-left md:text-center font-normal md:font-medium text-gray-400 md:text-gray-600 truncate">
-                        {p.is_blinded ? '-' : dispAuthor}
+                        {isDisplayBlinded ? '-' : dispAuthor}
                       </div>
                       <div className="md:w-[70px] md:text-center">{formatListDate(p.date)}</div>
-                      <div className="md:w-12 md:text-center">{p.is_blinded ? '-' : (p.views || 0)}</div>
-                      <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${p.is_blinded ? 'text-gray-300 md:text-gray-300' : (p.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300 md:text-gray-300')}`}>
-                        {p.is_blinded ? '-' : (p.likes || 0)}
+                      <div className="md:w-12 md:text-center">{isDisplayBlinded ? '-' : (p.views || 0)}</div>
+                      <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${isDisplayBlinded ? 'text-gray-300 md:text-gray-300' : (p.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300 md:text-gray-300')}`}>
+                        {isDisplayBlinded ? '-' : (p.likes || 0)}
                       </div>
                     </div>
                   </div>

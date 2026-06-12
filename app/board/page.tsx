@@ -76,6 +76,15 @@ export default async function BoardPage(props: any) {
   const currentUser = userCookie ? userCookie.value : null;
   const currentUserId = userIdCookie ? userIdCookie.value : null;
 
+  // 🛡️ [수술: 관리자 확인] 트루먼 쇼 및 블라인드 통제를 위한 권한 확인
+  let isAdmin = currentUserId === 'admin';
+  if (currentUserId && !isAdmin) {
+    try {
+      const { rows } = await sql`SELECT is_admin FROM users WHERE user_id = ${currentUserId}`;
+      if (rows.length > 0 && rows[0].is_admin) isAdmin = true;
+    } catch(e) {}
+  }
+
   let currentUserProfileImage = null;
   if (currentUserId) {
     try {
@@ -118,10 +127,11 @@ export default async function BoardPage(props: any) {
   let showcaseData = null;
   if (bestType === 'showcase' && page === 1 && !keyword) {
     try {
+      // 🚨 [수술 1 적용] 쇼케이스 진입 강등 컷오프 상향 (< 10 ➡️ < 30)
       const [weeklyRes, monthlyRes, allTimeRes] = await Promise.all([
-        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '7 days' AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
-        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '30 days' AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
-        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`
+        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '7 days' AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
+        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '30 days' AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
+        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`
       ]);
       showcaseData = {
         weekly: weeklyRes.rows[0] || null,
@@ -135,7 +145,6 @@ export default async function BoardPage(props: any) {
 
   if (page === 1 && !keyword && bestType === '') {
     try {
-      // 💡 [BOMB 1, 2 완전 해결] noticePosts 불러올 때도 새 카테고리 적용
       if (isAll) {
          const { rows } = await sql`
           SELECT * FROM posts 
@@ -157,7 +166,6 @@ export default async function BoardPage(props: any) {
   }
 
   if (category !== 'all' && !keyword && bestType === '' && page === 1) {
-    // 💡 [BOMB 1, 2 완전 해결] topPost도 카테고리 서랍 적용
     const { rows: topRows } = await sql`
       SELECT * FROM posts 
       WHERE category = ${category}
@@ -184,7 +192,6 @@ export default async function BoardPage(props: any) {
     const searchPattern = `%${keyword}%`;
 
     let countRes, rowsRes;
-    // 💡 [BOMB 1, 2, 4 완벽 병합] 카테고리 + Bounded Count(1000개 제한) + 댓글 캐싱 동시 적용
     if (searchType === 'title') {
        if (isAll) {
            countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
@@ -214,31 +221,34 @@ export default async function BoardPage(props: any) {
     posts = rowsRes.rows;
   }
   else if (bestType === 'today') {
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    // 🚨 [수술 1 적용] 투데이 베스트 강등 컷오프 상향 (< 10 ➡️ < 30)
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === '100') {
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    // 🚨 [수술 1 적용] 백베스트 강등 컷오프 상향 (< 10 ➡️ < 30)
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === 'showcase') {
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 30 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    // 🚨 [수술 1 적용] 명작 쇼케이스 리스트 강등 컷오프 상향 (< 10 ➡️ < 30)
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 30 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 30 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 30 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === '1000') {
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    // 🚨 [수술 1 적용] 천베스트 강등 컷오프 상향 (< 10 ➡️ < 30)
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 10 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else {
-    // 💡 [BOMB 1, 2, 4 완벽 병합] 일반 목록 불러올 때 카테고리 + Bounded Count 동시 적용
     if (isAll) {
          const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category != '익명 다락방' AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
          totalCount = Number(countResult.rows[0].count);
@@ -568,12 +578,15 @@ export default async function BoardPage(props: any) {
               const badgeText = isGlobal ? '공지' : '📌';
               const iconText = isGlobal ? '📢' : '📌';
 
+              // 🛡️ [수술: 트루먼 쇼] 본인 글은 본인 눈에 정상 노출 (공지사항 리스트)
+              const isDisplayBlinded = post.is_blinded && !isAdmin && post.author_id !== currentUserId;
+
               return (
                 <div key={`notice-${post.id}`} className={`flex flex-col md:flex-row border-b py-3 transition-colors items-center group ${bgColor} active:scale-[0.98] md:active:scale-100 active:bg-gray-50/50 md:active:bg-transparent touch-pan-y md:touch-auto`}>
                   <div className={`hidden md:block w-12 text-center text-xs font-black shrink-0 ${textColor}`}>{badgeText}</div>
                   <Link href={`/board/${post.id}${fromQuery}`} prefetch={false} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                     <span className="mr-2 text-[14px]">{iconText}</span>
-                    {post.is_blinded ? (
+                    {isDisplayBlinded ? (
                       <span className="truncate mr-1 text-gray-400 md:text-gray-500">블라인드 처리된 글입니다.</span>
                     ) : (
                       <>
@@ -589,12 +602,12 @@ export default async function BoardPage(props: any) {
                   </Link>
                   <div className={`flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-[11px] md:text-[13px] justify-between items-center shrink-0 ${textColor}`}>
                     <div className={`md:w-24 text-left md:text-center font-bold truncate`}>
-                      {post.is_blinded ? '-' : displayAuthor}
+                      {isDisplayBlinded ? '-' : displayAuthor}
                     </div>
                     <div className="md:w-[70px] md:text-center font-bold opacity-80">{formatDate(post.date)}</div>
-                    <div className="md:w-12 md:text-center opacity-80">{post.is_blinded ? '-' : (post.views || 0)}</div>
-                    <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${post.is_blinded ? 'opacity-50' : (post.likes > 0 ? '' : 'opacity-70')}`}>
-                      {post.is_blinded ? '-' : (post.likes || 0)}
+                    <div className="md:w-12 md:text-center opacity-80">{isDisplayBlinded ? '-' : (post.views || 0)}</div>
+                    <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${isDisplayBlinded ? 'opacity-50' : (post.likes > 0 ? '' : 'opacity-70')}`}>
+                      {isDisplayBlinded ? '-' : (post.likes || 0)}
                     </div>
                   </div>
                 </div>
@@ -607,12 +620,15 @@ export default async function BoardPage(props: any) {
               const displayAuthorTop = isAnonymousTop ? '익명' : renderTopPost.author;
               const displayAuthorIdTop = isAnonymousTop ? null : renderTopPost.author_id;
 
+              // 🛡️ [수술: 트루먼 쇼] 장원급제 게시글 리스트
+              const isDisplayBlindedTop = renderTopPost.is_blinded && !isAdmin && renderTopPost.author_id !== currentUserId;
+
               return (
                 <div className="flex flex-col md:flex-row border-b border-gray-200 py-3 bg-blue-50/50 hover:bg-gray-50 transition-colors items-center group active:scale-[0.98] md:active:scale-100 active:bg-gray-50/50 md:active:bg-transparent touch-pan-y md:touch-auto">
                   <div className="hidden md:block w-12 text-center text-xs text-gray-500 font-bold shrink-0">장원</div>
                   <Link href={`/board/${renderTopPost.id}${fromQuery}`} prefetch={false} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                     <CategoryIcon category={topData.cat} />
-                    {renderTopPost.is_blinded ? (
+                    {isDisplayBlindedTop ? (
                       <span className="truncate mr-1 text-gray-400 md:text-gray-500">
                         블라인드 처리된 글입니다.
                       </span>
@@ -630,7 +646,7 @@ export default async function BoardPage(props: any) {
                   </Link>
                   <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 justify-between items-center shrink-0">
                     <div className="md:w-24 text-left md:text-center font-normal md:font-semibold text-gray-400 md:text-gray-700 truncate">
-                      {renderTopPost.is_blinded ? (
+                      {isDisplayBlindedTop ? (
                         <span>-</span>
                       ) : displayAuthorIdTop ? (
                         <>
@@ -644,9 +660,9 @@ export default async function BoardPage(props: any) {
                       )}
                     </div>
                     <div className="md:w-[70px] md:text-center text-gray-400">{formatDate(renderTopPost.date)}</div>
-                    <div className="md:w-12 md:text-center text-gray-400">{renderTopPost.is_blinded ? '-' : (renderTopPost.views || 0)}</div>
-                    <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${renderTopPost.is_blinded ? 'text-gray-300' : (renderTopPost.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300')}`}>
-                      {renderTopPost.is_blinded ? '-' : (renderTopPost.likes || 0)}
+                    <div className="md:w-12 md:text-center text-gray-400">{isDisplayBlindedTop ? '-' : (renderTopPost.views || 0)}</div>
+                    <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${isDisplayBlindedTop ? 'text-gray-300' : (renderTopPost.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300')}`}>
+                      {isDisplayBlindedTop ? '-' : (renderTopPost.likes || 0)}
                     </div>
                   </div>
                 </div>
@@ -662,13 +678,16 @@ export default async function BoardPage(props: any) {
                 const displayAuthor = isAnonymous ? '익명' : post.author;
                 const displayAuthorId = isAnonymous ? null : post.author_id;
 
+                // 🛡️ [수술: 트루먼 쇼] 일반/베스트 게시글 리스트
+                const isDisplayBlinded = post.is_blinded && !isAdmin && post.author_id !== currentUserId;
+
                 return (
                   <div key={post.id} className="flex flex-col md:flex-row border-b border-gray-200 py-2.5 hover:bg-gray-50 transition-colors items-center group active:scale-[0.98] md:active:scale-100 active:bg-gray-50/50 md:active:bg-transparent touch-pan-y md:touch-auto">
                     <div className="hidden md:block w-12 text-center text-[13px] text-gray-400 shrink-0">{post.id}</div>
                     <Link href={`/board/${post.id}${fromQuery}`} prefetch={false} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                       <CategoryIcon category={postData.cat} />
 
-                      {post.is_blinded ? (
+                      {isDisplayBlinded ? (
                         <span className="truncate mr-1 text-gray-400 md:text-gray-500">
                           블라인드 처리된 글입니다.
                         </span>
@@ -686,7 +705,7 @@ export default async function BoardPage(props: any) {
                     </Link>
                     <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 justify-between items-center shrink-0">
                       <div className="md:w-24 text-left md:text-center font-normal md:font-medium text-gray-400 md:text-gray-600 truncate">
-                        {post.is_blinded ? (
+                        {isDisplayBlinded ? (
                           <span>-</span>
                         ) : displayAuthorId ? (
                           <>
@@ -700,9 +719,9 @@ export default async function BoardPage(props: any) {
                         )}
                       </div>
                       <div className="md:w-[70px] md:text-center">{formatDate(post.date)}</div>
-                      <div className="md:w-12 md:text-center">{post.is_blinded ? '-' : (post.views || 0)}</div>
-                      <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${post.is_blinded ? 'text-gray-300 md:text-gray-300' : (post.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300 md:text-gray-300')}`}>
-                        {post.is_blinded ? '-' : (post.likes || 0)}
+                      <div className="md:w-12 md:text-center">{isDisplayBlinded ? '-' : (post.views || 0)}</div>
+                      <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${isDisplayBlinded ? 'text-gray-300 md:text-gray-300' : (post.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300 md:text-gray-300')}`}>
+                        {isDisplayBlinded ? '-' : (post.likes || 0)}
                       </div>
                     </div>
                   </div>
