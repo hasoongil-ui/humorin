@@ -198,6 +198,13 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
   }
 
+  // 💡 [수술 완료] 하드코딩 철폐: DB에서 실시간으로 컷오프(강등 기준) 읽어오기!
+  let bestCutoff = 30;
+  try {
+    const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'best_cutoff_threshold'`;
+    if (rows.length > 0) bestCutoff = parseInt(rows[0].value, 10) || 30;
+  } catch (e) {}
+
   await sql`UPDATE posts SET views = COALESCE(views, 0) + 1 WHERE id = ${postId}`;
 
   const isAuthor = currentUserId === post.author_id || (!post.author_id && currentUser === post.author);
@@ -269,11 +276,11 @@ export default async function PostDetailPage(props: any) {
   let relatedPosts = [];
   try {
     if (bestType) {
-      // 🚨 [수술 2 적용] 하단 연관글 베스트 강등 컷오프 상향 (< 10 ➡️ < 30)
+      // 🚨 [수술 완료] 연관글 컷오프 DB 변수로 치환
       const { rows: bestRecent } = await sql`
         SELECT id, title, views, likes 
         FROM posts 
-        WHERE likes >= 10 AND COALESCE(dislikes, 0) < 30
+        WHERE likes >= 10 AND COALESCE(dislikes, 0) < ${bestCutoff}
           AND id != ${postId} 
           AND is_blinded = false 
           AND COALESCE(status, 'published') = 'published'
@@ -297,11 +304,11 @@ export default async function PostDetailPage(props: any) {
 
     if (relatedPosts.length < 3) {
       const needed = 3 - relatedPosts.length;
-      // 🚨 [수술 2 적용] 하단 연관글 백업 베스트 강등 컷오프 상향 (< 10 ➡️ < 30)
+      // 🚨 [수술 완료] 연관글 백업 컷오프 DB 변수로 치환
       const { rows: bestFallback } = await sql`
         SELECT id, title, views, likes 
         FROM posts 
-        WHERE likes >= 10 AND COALESCE(dislikes, 0) < 30
+        WHERE likes >= 10 AND COALESCE(dislikes, 0) < ${bestCutoff}
           AND is_blinded = false
           AND COALESCE(status, 'published') = 'published'
         ORDER BY best_at DESC NULLS LAST, date DESC
@@ -342,22 +349,22 @@ export default async function PostDetailPage(props: any) {
       listPosts = rowsRes.rows;
     }
     else if (bestType === 'today') {
-      // 🚨 [수술 2 적용] 하단 리스트 강등 컷오프 상향 (< 10 ➡️ < 30)
-      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+      // 🚨 [수술 완료] 하단 리스트 강등 컷오프 DB 연동
+      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else if (bestType === '100') {
-      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else if (bestType === '1000') {
-      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else {
@@ -481,7 +488,7 @@ export default async function PostDetailPage(props: any) {
     if (!currentUserId) redirect('/login');
 
     let dislikeBlindThreshold = 100;
-    let voteAgingHours = 0; // 🛡️ 에이징 변수 초기화
+    let voteAgingHours = 0; 
     try {
       const { rows } = await sql`SELECT key, value FROM site_settings WHERE key IN ('dislike_blind_threshold', 'vote_aging_hours')`;
       rows.forEach(r => {
@@ -508,11 +515,10 @@ export default async function PostDetailPage(props: any) {
       const statusStr = String(user.status || 'active').trim().toLowerCase();
       if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
       
-      // 🛡️ [수술 완료: 50포인트 해제 & 에이징 시간 통제]
       if (voteAgingHours > 0 && !isAdmin) {
         const joinDate = new Date(user.created_at);
         const hoursDiff = (Date.now() - joinDate.getTime()) / (1000 * 60 * 60);
-        if (hoursDiff < voteAgingHours) return; // 설정된 대기 시간 미달 시 튕겨냄!
+        if (hoursDiff < voteAgingHours) return; 
       }
     }
 
@@ -726,7 +732,7 @@ export default async function PostDetailPage(props: any) {
     const commentId = formData.get('commentId') as string;
 
     let dislikeBlindThreshold = 100;
-    let voteAgingHours = 0; // 🛡️ 에이징 변수 초기화
+    let voteAgingHours = 0; 
     try {
       const { rows } = await sql`SELECT key, value FROM site_settings WHERE key IN ('dislike_blind_threshold', 'vote_aging_hours')`;
       rows.forEach(r => {
@@ -753,7 +759,6 @@ export default async function PostDetailPage(props: any) {
       const statusStr = String(user.status || 'active').trim().toLowerCase();
       if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
       
-      // 🛡️ [수술 완료: 50포인트 해제 & 에이징 시간 통제 적용]
       if (voteAgingHours > 0 && !isAdmin) {
         const joinDate = new Date(user.created_at);
         const hoursDiff = (Date.now() - joinDate.getTime()) / (1000 * 60 * 60);
@@ -793,7 +798,6 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 🚨 [수술 4 적용] 관리자 [정지, 그림자] 절대 통제권: 면역(is_safe) 방패 강제 파괴 로직 추가
   const suspendUserAction = async () => {
     'use server';
     if (!isAdmin || !post.author_id) return;

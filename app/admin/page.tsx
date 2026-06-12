@@ -18,7 +18,6 @@ async function verifyAdmin() {
   const userId = cookieStore.get('humorin_userid')?.value;
   const signature = cookieStore.get('humorin_signature')?.value;
   if (!userId) return false;
-  // 🛡️ [수정] 서명이 아예 없거나 일치하지 않으면 즉각 추방 (우회 차단)
   if (!signature) return false;
   const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(userId).digest('hex');
   if (signature !== expectedSignature) return false;
@@ -36,9 +35,21 @@ async function resetPassword(formData: FormData) { 'use server'; if (!(await ver
 async function updateUserPoints(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const targetUser = formData.get('userid') as string; const newPoints = Number(formData.get('points')); try { await sql`UPDATE users SET points = ${newPoints} WHERE user_id = ${targetUser}`; } catch (error) { } revalidatePath('/admin'); }
 async function toggleAdminRole(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const targetUser = formData.get('userid') as string; const currentAdminStatus = formData.get('is_admin') === 'true'; const newAdminStatus = !currentAdminStatus; if (targetUser === 'admin') return; try { await sql`UPDATE users SET is_admin = ${newAdminStatus} WHERE user_id = ${targetUser}`; } catch (error) { } revalidatePath('/admin'); }
 async function updateBlindThreshold(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const newValue = formData.get('threshold') as string; if (!newValue) return; try { await sql`INSERT INTO site_settings (key, value) VALUES ('report_blind_threshold', ${newValue}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; } catch (error) { } revalidatePath('/admin'); }
-
-// 💡 [수술 완료] 투표 에이징 시간을 DB에 저장하는 서버 액션 추가!
 async function updateVoteAging(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const newValue = formData.get('hours') as string; if (!newValue) return; try { await sql`INSERT INTO site_settings (key, value) VALUES ('vote_aging_hours', ${newValue}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; } catch (error) { } revalidatePath('/admin'); }
+
+// 💡 [수술 완료] 비공감 블라인드 & 베스트 탈락 컷오프를 저장하는 서버 액션
+async function updateDislikeSettings(formData: FormData) { 
+  'use server'; 
+  if (!(await verifyAdmin())) throw new Error("Unauthorized"); 
+  const blind = formData.get('blind') as string; 
+  const cutoff = formData.get('cutoff') as string; 
+  try { 
+    if (blind) await sql`INSERT INTO site_settings (key, value) VALUES ('dislike_blind_threshold', ${blind}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; 
+    if (cutoff) await sql`INSERT INTO site_settings (key, value) VALUES ('best_cutoff_threshold', ${cutoff}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; 
+  } catch (error) { } 
+  revalidatePath('/admin'); 
+  revalidatePath('/board');
+}
 
 async function updateEditorPlaceholder(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const newValue = formData.get('placeholder') as string; if (!newValue) return; try { await sql`INSERT INTO site_settings (key, value) VALUES ('editor_placeholder', ${newValue}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; } catch (error) { } revalidatePath('/admin'); }
 async function updateMainBanner(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const title = formData.get('title') as string; const subtitle = formData.get('subtitle') as string; if (!title || !subtitle) return; try { await sql`INSERT INTO site_settings (key, value) VALUES ('main_banner_title', ${title}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; await sql`INSERT INTO site_settings (key, value) VALUES ('main_banner_subtitle', ${subtitle}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; } catch (error) { } revalidatePath('/'); revalidatePath('/admin'); }
@@ -60,7 +71,9 @@ export default async function AdminDashboardPage(props: any) {
   let totalUsers = 0; let todayUsers = 0; let bannedUsers = 0;
   let userList: any[] = []; let totalPages = 1;
   let blindThreshold = 5;
-  let voteAgingHours = 0; // 💡 DB에서 불러올 변수 추가
+  let voteAgingHours = 0;
+  let dislikeBlindThreshold = 100; // 💡 비공감 블라인드 기준 추가
+  let bestCutoffThreshold = 30; // 💡 베스트 강등 기준 추가
   let editorPlaceholder = '';
   let bannedIpsString = '';
   let mainBannerTitle = '';
@@ -68,11 +81,12 @@ export default async function AdminDashboardPage(props: any) {
   let heavyPosts: any[] = [];
 
   try {
-    // 💡 투표 에이징 시간(vote_aging_hours)도 DB에서 같이 불러오도록 수정
-    const { rows: settings } = await sql`SELECT key, value FROM site_settings WHERE key IN ('report_blind_threshold', 'editor_placeholder', 'banned_ips', 'main_banner_title', 'main_banner_subtitle', 'vote_aging_hours')`;
+    const { rows: settings } = await sql`SELECT key, value FROM site_settings WHERE key IN ('report_blind_threshold', 'editor_placeholder', 'banned_ips', 'main_banner_title', 'main_banner_subtitle', 'vote_aging_hours', 'dislike_blind_threshold', 'best_cutoff_threshold')`;
     settings.forEach(setting => {
       if (setting.key === 'report_blind_threshold') blindThreshold = Number(setting.value) || 5;
       if (setting.key === 'vote_aging_hours') voteAgingHours = Number(setting.value) || 0;
+      if (setting.key === 'dislike_blind_threshold') dislikeBlindThreshold = Number(setting.value) || 100;
+      if (setting.key === 'best_cutoff_threshold') bestCutoffThreshold = Number(setting.value) || 30;
       if (setting.key === 'editor_placeholder' && setting.value) editorPlaceholder = setting.value;
       if (setting.key === 'banned_ips' && setting.value) bannedIpsString = setting.value;
       if (setting.key === 'main_banner_title' && setting.value) mainBannerTitle = setting.value;
@@ -119,8 +133,7 @@ export default async function AdminDashboardPage(props: any) {
   } catch (e) { }
 
   const bannedIpsArray = bannedIpsString ? bannedIpsString.split(',').filter(ip => ip.trim() !== '') : [];
-  const csvDataUri = "data:text/csv;charset=utf-8," + encodeURIComponent("\uFEFFNo,아이디,닉네임,가입일,최근로그인,IP,상태\n" + userList.map((u, i) => `${offset + i + 1},${u.userid},${u.nickname},${u.created_at},${u.last_login},${u.ip},${u.status}`).join('\n'));
-
+  
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <aside className="w-60 bg-[#2a3042] text-gray-300 flex flex-col shadow-xl z-20 flex-shrink-0">
@@ -212,32 +225,60 @@ export default async function AdminDashboardPage(props: any) {
             </div>
           </div>
 
-          {/* 💡 [수술 완료] 기존 2단 Grid를 3단 Grid(xl:grid-cols-3)로 확장하여 '에이징 설정'을 자연스럽게 추가했습니다! */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-6">
+          {/* 💡 [수술 완료] 기존 3단 Grid를 4단 Grid(xl:grid-cols-4)로 더욱 완벽하게 확장했습니다! */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
             <div className="bg-white p-4 rounded-sm border border-rose-200 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-rose-500"></div>
-              <div><h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-rose-500">🚨</span> 자동 블라인드 기준 설정</h2><p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">게시글이나 댓글이 설정된 횟수만큼 신고를 받으면 즉시 블라인드 처리됩니다.</p></div>
-              <form action={updateBlindThreshold} className="flex items-center gap-2 bg-gray-50 p-2 rounded-sm border border-gray-200 mt-auto"><input type="number" name="threshold" defaultValue={blindThreshold} min="1" max="999" className="w-16 px-2 py-1.5 border border-gray-300 rounded-sm text-[13px] font-black text-rose-600 text-center outline-none focus:border-rose-400" /><span className="text-[12px] font-bold text-gray-600">회 누적 시 숨김</span><button type="submit" className="px-4 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm ml-auto">적용하기</button></form>
+              <div><h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-rose-500">🚨</span> 신고 누적 블라인드 기준</h2><p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">게시글이나 댓글이 설정된 횟수만큼 신고를 받으면 즉시 숨김 처리됩니다.</p></div>
+              <form action={updateBlindThreshold} className="flex items-center gap-2 bg-gray-50 p-2 rounded-sm border border-gray-200 mt-auto"><input type="number" name="threshold" defaultValue={blindThreshold} min="1" max="999" className="w-14 px-2 py-1.5 border border-gray-300 rounded-sm text-[13px] font-black text-rose-600 text-center outline-none focus:border-rose-400" /><span className="text-[12px] font-bold text-gray-600">회 누적 시 숨김</span><button type="submit" className="px-3 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm ml-auto whitespace-nowrap">적용</button></form>
             </div>
 
-            {/* 💡 새로 추가된 '투표/신고 에이징 시간 설정' UI 박스 */}
+            {/* 💡 [수술 완료] 비공감 및 베스트 컷오프를 동시에 통제하는 마스터 박스! */}
+            <div className="bg-white p-4 rounded-sm border border-purple-300 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-500"></div>
+              <div>
+                <h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-purple-500">📉</span> 비공감 강등/숨김 기준</h2>
+                <p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">베스트 탈락(강등) 및 전면 블라인드 될 비공감 횟수를 설정합니다.</p>
+              </div>
+              <form action={updateDislikeSettings} className="flex flex-col gap-1.5 bg-gray-50 p-2 rounded-sm border border-gray-200 mt-auto">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-gray-600">탈락(강등):</span>
+                  <div className="flex items-center gap-1">
+                    <input type="number" name="cutoff" defaultValue={bestCutoffThreshold} min="1" max="999" className="w-12 px-1 py-1 border border-gray-300 rounded-sm text-[12px] font-black text-purple-600 text-center outline-none focus:border-purple-400" />
+                    <span className="text-[11px] text-gray-500 font-bold">회</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-gray-600">완전숨김:</span>
+                  <div className="flex items-center gap-1">
+                    <input type="number" name="blind" defaultValue={dislikeBlindThreshold} min="1" max="999" className="w-12 px-1 py-1 border border-gray-300 rounded-sm text-[12px] font-black text-purple-600 text-center outline-none focus:border-purple-400" />
+                    <span className="text-[11px] text-gray-500 font-bold">회</span>
+                  </div>
+                </div>
+                <button type="submit" className="w-full py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm mt-1">일괄 적용하기</button>
+              </form>
+            </div>
+
             <div className="bg-white p-4 rounded-sm border border-emerald-300 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
               <div>
                 <h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-emerald-500">⏳</span> 투표/신고 에이징 설정</h2>
-                <p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">신규 가입자가 비공감/신고를 하기 위해 대기해야 하는 시간을 설정합니다. (0 = 제한없음)</p>
+                <p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">신규 가입자가 비공감/신고를 하기 위해 대기해야 하는 시간(0 = 제한없음)</p>
               </div>
               <form action={updateVoteAging} className="flex items-center gap-2 bg-gray-50 p-2 rounded-sm border border-gray-200 mt-auto">
-                <input type="number" name="hours" defaultValue={voteAgingHours} min="0" max="720" className="w-16 px-2 py-1.5 border border-gray-300 rounded-sm text-[13px] font-black text-emerald-600 text-center outline-none focus:border-emerald-400" />
+                <input type="number" name="hours" defaultValue={voteAgingHours} min="0" max="720" className="w-14 px-2 py-1.5 border border-gray-300 rounded-sm text-[13px] font-black text-emerald-600 text-center outline-none focus:border-emerald-400" />
                 <span className="text-[12px] font-bold text-gray-600">시간 경과 후 허용</span>
-                <button type="submit" className="px-4 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm ml-auto">적용하기</button>
+                <button type="submit" className="px-3 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm ml-auto whitespace-nowrap">적용</button>
               </form>
             </div>
 
             <div className="bg-white p-4 rounded-sm border border-indigo-200 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
               <div><h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-indigo-500">📝</span> 에디터 안내 문구 설정</h2><p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">게시판 글쓰기 창에 기본 보여지는 흐린 안내 문구를 수정할 수 있습니다.</p></div>
-              <form action={updateEditorPlaceholder} className="flex flex-col sm:flex-row items-center gap-2 bg-gray-50 p-2 rounded-sm border border-gray-200 mt-auto"><input type="text" name="placeholder" defaultValue={editorPlaceholder} className="w-full px-2 py-1.5 border border-gray-300 rounded-sm text-[12px] font-bold text-gray-700 outline-none focus:border-indigo-400" placeholder="안내 문구를 입력하세요..." /><button type="submit" className="w-full sm:w-auto px-4 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap">적용하기</button></form>
+              <form action={updateEditorPlaceholder} className="flex flex-col mt-auto gap-2 bg-gray-50 p-2 rounded-sm border border-gray-200">
+                <input type="text" name="placeholder" defaultValue={editorPlaceholder} className="w-full px-2 py-1.5 border border-gray-300 rounded-sm text-[12px] font-bold text-gray-700 outline-none focus:border-indigo-400" placeholder="안내 문구를 입력하세요..." />
+                <button type="submit" className="w-full py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap">적용하기</button>
+              </form>
             </div>
           </div>
 

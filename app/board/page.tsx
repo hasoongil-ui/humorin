@@ -76,7 +76,6 @@ export default async function BoardPage(props: any) {
   const currentUser = userCookie ? userCookie.value : null;
   const currentUserId = userIdCookie ? userIdCookie.value : null;
 
-  // 🛡️ [수술: 관리자 확인] 트루먼 쇼 및 블라인드 통제를 위한 권한 확인
   let isAdmin = currentUserId === 'admin';
   if (currentUserId && !isAdmin) {
     try {
@@ -85,6 +84,13 @@ export default async function BoardPage(props: any) {
     } catch(e) {}
   }
 
+  // 💡 [수술 완료] 하드코딩 철폐: DB에서 실시간으로 컷오프(강등 기준) 읽어오기!
+  let bestCutoff = 30;
+  try {
+    const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'best_cutoff_threshold'`;
+    if (rows.length > 0) bestCutoff = parseInt(rows[0].value, 10) || 30;
+  } catch (e) {}
+
   let currentUserProfileImage = null;
   if (currentUserId) {
     try {
@@ -92,9 +98,7 @@ export default async function BoardPage(props: any) {
       if (rows.length > 0) {
         currentUserProfileImage = rows[0].profile_image;
       }
-    } catch (e) {
-      console.error("사이드바 프로필 이미지 가져오기 실패");
-    }
+    } catch (e) {}
   }
 
   const handleLogout = async () => {
@@ -127,20 +131,18 @@ export default async function BoardPage(props: any) {
   let showcaseData = null;
   if (bestType === 'showcase' && page === 1 && !keyword) {
     try {
-      // 🚨 [수술 1 적용] 쇼케이스 진입 강등 컷오프 상향 (< 10 ➡️ < 30)
+      // 🚨 [수술 완료] 쇼케이스 진입 강등 컷오프 DB 연동 (< ${bestCutoff})
       const [weeklyRes, monthlyRes, allTimeRes] = await Promise.all([
-        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '7 days' AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
-        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '30 days' AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
-        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`
+        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '7 days' AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
+        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '30 days' AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
+        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`
       ]);
       showcaseData = {
         weekly: weeklyRes.rows[0] || null,
         monthly: monthlyRes.rows[0] || null,
         allTime: allTimeRes.rows[0] || null
       };
-    } catch (e) {
-      console.error("쇼케이스 로딩 에러:", e);
-    }
+    } catch (e) {}
   }
 
   if (page === 1 && !keyword && bestType === '') {
@@ -221,31 +223,31 @@ export default async function BoardPage(props: any) {
     posts = rowsRes.rows;
   }
   else if (bestType === 'today') {
-    // 🚨 [수술 1 적용] 투데이 베스트 강등 컷오프 상향 (< 10 ➡️ < 30)
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    // 🚨 [수술 완료] 투데이 베스트 강등 컷오프 DB 연동
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === '100') {
-    // 🚨 [수술 1 적용] 백베스트 강등 컷오프 상향 (< 10 ➡️ < 30)
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    // 🚨 [수술 완료] 백베스트 강등 컷오프 DB 연동
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === 'showcase') {
-    // 🚨 [수술 1 적용] 명작 쇼케이스 리스트 강등 컷오프 상향 (< 10 ➡️ < 30)
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 30 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    // 🚨 [수술 완료] 명작 쇼케이스 리스트 강등 컷오프 DB 연동
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 30 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 30 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 30 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === '1000') {
-    // 🚨 [수술 1 적용] 천베스트 강등 컷오프 상향 (< 10 ➡️ < 30)
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    // 🚨 [수술 완료] 천베스트 강등 컷오프 DB 연동
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < 30 AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else {
@@ -578,7 +580,7 @@ export default async function BoardPage(props: any) {
               const badgeText = isGlobal ? '공지' : '📌';
               const iconText = isGlobal ? '📢' : '📌';
 
-              // 🛡️ [수술: 트루먼 쇼] 본인 글은 본인 눈에 정상 노출 (공지사항 리스트)
+              // 🛡️ [수술: 트루먼 쇼]
               const isDisplayBlinded = post.is_blinded && !isAdmin && post.author_id !== currentUserId;
 
               return (
@@ -620,7 +622,7 @@ export default async function BoardPage(props: any) {
               const displayAuthorTop = isAnonymousTop ? '익명' : renderTopPost.author;
               const displayAuthorIdTop = isAnonymousTop ? null : renderTopPost.author_id;
 
-              // 🛡️ [수술: 트루먼 쇼] 장원급제 게시글 리스트
+              // 🛡️ [수술: 트루먼 쇼]
               const isDisplayBlindedTop = renderTopPost.is_blinded && !isAdmin && renderTopPost.author_id !== currentUserId;
 
               return (
@@ -678,7 +680,7 @@ export default async function BoardPage(props: any) {
                 const displayAuthor = isAnonymous ? '익명' : post.author;
                 const displayAuthorId = isAnonymous ? null : post.author_id;
 
-                // 🛡️ [수술: 트루먼 쇼] 일반/베스트 게시글 리스트
+                // 🛡️ [수술: 트루먼 쇼] 일반 리스트
                 const isDisplayBlinded = post.is_blinded && !isAdmin && post.author_id !== currentUserId;
 
                 return (
