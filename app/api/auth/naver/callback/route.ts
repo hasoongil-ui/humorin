@@ -37,20 +37,19 @@ export async function GET(request: Request) {
     const expectedUserId = `n_${naverId.substring(0, 15)}`;
     let finalNickname = profile.nickname || '네이버유저';
 
-    // 🛡️ [수술 1] 에러 방지용: 고유 아이디로 절대 검사!
     const { rows: idCheck } = await sql`SELECT * FROM users WHERE user_id = ${expectedUserId}`;
 
     if (idCheck.length > 0) {
       const user = idCheck[0];
-      // 🚨 [수술 2] 7일 쿨타임 철벽 방어막
       if (user.status === 'withdrawn') {
-        const withdrawDate = new Date(user.updated_at || Date.now()).getTime();
+        // 🚨 [동기화 완료] updated_at 대신 last_login을 기준으로 7일을 정확히 계산합니다!
+        const withdrawDate = new Date(user.last_login || Date.now()).getTime();
         const daysPassed = (Date.now() - withdrawDate) / (1000 * 60 * 60 * 24);
         if (daysPassed < 7) {
           return NextResponse.redirect(new URL('/login?error=cooldown', request.url));
         } else {
-          // 7일 경과 시 계정 부활
-          await sql`UPDATE users SET status = 'active', email = ${email}, updated_at = NOW() WHERE user_id = ${expectedUserId}`;
+          // 7일이 지났다면 다시 active(정상)로 부활!
+          await sql`UPDATE users SET status = 'active', email = ${email}, last_login = NOW() WHERE user_id = ${expectedUserId}`;
           finalNickname = user.nickname;
         }
       } else if (user.status === 'banned') {
@@ -77,7 +76,6 @@ export async function GET(request: Request) {
       `;
     }
 
-    // 📡 [수술 3] 잃어버린 IP 추적기 작동!
     try {
       const headersList = await headers();
       const currentIp = headersList.get('x-user-ip') || '알수없음';

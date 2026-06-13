@@ -35,19 +35,18 @@ export async function GET(request: Request) {
     const expectedUserId = `k_${kakaoId.substring(0, 15)}`;
     let finalNickname = nickname;
 
-    // 🛡️ [수술 1] DB 에러 원천 차단!
     const { rows: idCheck } = await sql`SELECT * FROM users WHERE user_id = ${expectedUserId}`;
 
     if (idCheck.length > 0) {
       const user = idCheck[0];
-      // 🚨 [수술 2] 7일 쿨타임 철벽
       if (user.status === 'withdrawn') {
-        const withdrawDate = new Date(user.updated_at || Date.now()).getTime();
+        // 🚨 [동기화 완료] last_login을 기준으로 7일 쿨타임 철벽
+        const withdrawDate = new Date(user.last_login || Date.now()).getTime();
         const daysPassed = (Date.now() - withdrawDate) / (1000 * 60 * 60 * 24);
         if (daysPassed < 7) {
           return NextResponse.redirect(new URL('/login?error=cooldown', request.url));
         } else {
-          await sql`UPDATE users SET status = 'active', email = ${email}, updated_at = NOW() WHERE user_id = ${expectedUserId}`;
+          await sql`UPDATE users SET status = 'active', email = ${email}, last_login = NOW() WHERE user_id = ${expectedUserId}`;
           finalNickname = user.nickname;
         }
       } else if (user.status === 'banned') {
@@ -74,7 +73,6 @@ export async function GET(request: Request) {
       `;
     }
 
-    // 📡 [수술 3] 카카오 IP 추적기 작동!
     try {
       const headersList = await headers();
       const currentIp = headersList.get('x-user-ip') || '알수없음';
