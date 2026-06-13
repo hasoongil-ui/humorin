@@ -37,7 +37,6 @@ async function toggleAdminRole(formData: FormData) { 'use server'; if (!(await v
 async function updateBlindThreshold(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const newValue = formData.get('threshold') as string; if (!newValue) return; try { await sql`INSERT INTO site_settings (key, value) VALUES ('report_blind_threshold', ${newValue}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; } catch (error) { } revalidatePath('/admin'); }
 async function updateVoteAging(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const newValue = formData.get('hours') as string; if (!newValue) return; try { await sql`INSERT INTO site_settings (key, value) VALUES ('vote_aging_hours', ${newValue}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; } catch (error) { } revalidatePath('/admin'); }
 
-// 💡 [수술 완료] 비공감 블라인드 & 베스트 탈락 컷오프를 저장하는 서버 액션
 async function updateDislikeSettings(formData: FormData) { 
   'use server'; 
   if (!(await verifyAdmin())) throw new Error("Unauthorized"); 
@@ -72,8 +71,8 @@ export default async function AdminDashboardPage(props: any) {
   let userList: any[] = []; let totalPages = 1;
   let blindThreshold = 5;
   let voteAgingHours = 0;
-  let dislikeBlindThreshold = 100; // 💡 비공감 블라인드 기준 추가
-  let bestCutoffThreshold = 30; // 💡 베스트 강등 기준 추가
+  let dislikeBlindThreshold = 100;
+  let bestCutoffThreshold = 30;
   let editorPlaceholder = '';
   let bannedIpsString = '';
   let mainBannerTitle = '';
@@ -100,18 +99,20 @@ export default async function AdminDashboardPage(props: any) {
 
     let queryResult;
     let countResult;
+    
+    // 🚨 [수술 완료] p.author -> p.author_id 로 모두 변경하여 SNS 가입자들도 글 갯수가 완벽히 스캔되도록 쿼리 교정!
     if (q && type === 'userid') {
       countResult = await sql`SELECT COUNT(*) FROM users WHERE user_id ILIKE ${'%' + q + '%'}`;
-      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count, (SELECT title FROM posts p WHERE p.author = u.user_id ORDER BY date DESC LIMIT 1) as latest_post_title FROM users u WHERE u.user_id ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author_id = u.user_id) as post_count, (SELECT title FROM posts p WHERE p.author_id = u.user_id ORDER BY date DESC LIMIT 1) as latest_post_title FROM users u WHERE u.user_id ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
     } else if (q && type === 'nickname') {
       countResult = await sql`SELECT COUNT(*) FROM users WHERE nickname ILIKE ${'%' + q + '%'}`;
-      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count, (SELECT title FROM posts p WHERE p.author = u.user_id ORDER BY date DESC LIMIT 1) as latest_post_title FROM users u WHERE u.nickname ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author_id = u.user_id) as post_count, (SELECT title FROM posts p WHERE p.author_id = u.user_id ORDER BY date DESC LIMIT 1) as latest_post_title FROM users u WHERE u.nickname ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
     } else if (q && type === 'ip') {
       countResult = await sql`SELECT COUNT(*) FROM users WHERE ip ILIKE ${'%' + q + '%'}`;
-      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count, (SELECT title FROM posts p WHERE p.author = u.user_id ORDER BY date DESC LIMIT 1) as latest_post_title FROM users u WHERE u.ip ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author_id = u.user_id) as post_count, (SELECT title FROM posts p WHERE p.author_id = u.user_id ORDER BY date DESC LIMIT 1) as latest_post_title FROM users u WHERE u.ip ILIKE ${'%' + q + '%'} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
     } else {
       countResult = await sql`SELECT COUNT(*) FROM users`;
-      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author = u.user_id) as post_count, (SELECT title FROM posts p WHERE p.author = u.user_id ORDER BY date DESC LIMIT 1) as latest_post_title FROM users u ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+      queryResult = await sql`SELECT u.*, (SELECT COUNT(*) FROM posts p WHERE p.author_id = u.user_id) as post_count, (SELECT title FROM posts p WHERE p.author_id = u.user_id ORDER BY date DESC LIMIT 1) as latest_post_title FROM users u ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
     }
     const currentSearchTotal = Number(countResult.rows[0].count);
     totalPages = Math.ceil(currentSearchTotal / limit) || 1;
@@ -225,7 +226,6 @@ export default async function AdminDashboardPage(props: any) {
             </div>
           </div>
 
-          {/* 💡 [수술 완료] 기존 3단 Grid를 4단 Grid(xl:grid-cols-4)로 더욱 완벽하게 확장했습니다! */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
             <div className="bg-white p-4 rounded-sm border border-rose-200 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-rose-500"></div>
@@ -233,7 +233,6 @@ export default async function AdminDashboardPage(props: any) {
               <form action={updateBlindThreshold} className="flex items-center gap-2 bg-gray-50 p-2 rounded-sm border border-gray-200 mt-auto"><input type="number" name="threshold" defaultValue={blindThreshold} min="1" max="999" className="w-14 px-2 py-1.5 border border-gray-300 rounded-sm text-[13px] font-black text-rose-600 text-center outline-none focus:border-rose-400" /><span className="text-[12px] font-bold text-gray-600">회 누적 시 숨김</span><button type="submit" className="px-3 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm ml-auto whitespace-nowrap">적용</button></form>
             </div>
 
-            {/* 💡 [수술 완료] 비공감 및 베스트 컷오프를 동시에 통제하는 마스터 박스! */}
             <div className="bg-white p-4 rounded-sm border border-purple-300 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-500"></div>
               <div>
