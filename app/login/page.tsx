@@ -1,6 +1,7 @@
+// 파일 위치: app/login/page.tsx
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -12,6 +13,21 @@ function LoginForm() {
   
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect');
+
+  // 🚨 [수술 완료] 백엔드에서 튕겨낸 에러(7일 쿨타임, 정지 등)를 잡아내어 경고창 띄우기!
+  useEffect(() => {
+    const error = searchParams.get('error');
+    if (error === 'cooldown') {
+      alert('🚨 회원 탈퇴 후 7일 동안은 동일한 소셜 계정으로 재가입(로그인)이 불가능합니다.');
+      router.replace('/login');
+    } else if (error === 'banned') {
+      alert('🚨 이용이 영구 정지된 계정입니다.');
+      router.replace('/login');
+    } else if (error === 'no_email') {
+      alert('🚨 소셜 계정에 이메일 정보가 없어 가입할 수 없습니다.');
+      router.replace('/login');
+    }
+  }, [searchParams, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

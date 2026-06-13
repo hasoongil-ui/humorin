@@ -1,3 +1,4 @@
+// 파일 위치: app/profile/actions.ts
 'use server';
 
 import { sql } from '@vercel/postgres';
@@ -36,12 +37,9 @@ export async function updateProfileAction(formData: FormData) {
       }
     }
 
-    // 💡 2. 이메일 변경 (서버단 2차 철통 방어 검사)
+    // 2. 이메일 변경 (서버단 2차 철통 방어 검사)
     if (newEmail && newEmail.trim() !== '') {
-      // 🚨 [크롬 자동완성 테러 방어막 2] 서버단에서도 형식을 깐깐하게 검사합니다.
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      
-      // 골뱅이(@)가 없는 불량 이메일(크롬 자동입력)은 DB 덮어쓰기를 가차없이 취소합니다.
       if (emailRegex.test(newEmail.trim())) {
         const checkEmail = await sql`SELECT user_id FROM users WHERE email = ${newEmail.trim()}`;
         if (checkEmail.rows.length === 0) {
@@ -54,16 +52,12 @@ export async function updateProfileAction(formData: FormData) {
       }
     }
 
-    // 💡 3. 비밀번호 변경 (서버단 2차 철통 방어 & Bcrypt 암호화)
+    // 3. 비밀번호 변경 (서버단 2차 철통 방어 & Bcrypt 암호화)
     if (newPassword && newPassword.trim() !== '') {
        const pw = newPassword.trim();
-       
-       if (pw.length < 8) {
-         throw new Error("비밀번호는 8자리 이상이어야 합니다."); 
-       }
+       if (pw.length < 8) throw new Error("비밀번호는 8자리 이상이어야 합니다."); 
        
        const hashedPassword = await bcrypt.hash(pw, 10);
-       
        if (currentUserId) {
           await sql`UPDATE users SET password = ${hashedPassword} WHERE user_id = ${currentUserId}`;
        } else {
@@ -83,7 +77,6 @@ export async function deleteUserAction(formData: FormData) {
 
   try {
     const timestamp = Date.now();
-    const deletedId = `del_${timestamp}_${currentUserId}`.substring(0, 48);
     const deletedNickname = `탈퇴회원_${timestamp.toString().slice(-5)}`;
 
     const userRes = await sql`SELECT email FROM users WHERE user_id = ${currentUserId}`;
@@ -92,14 +85,17 @@ export async function deleteUserAction(formData: FormData) {
       deletedEmail = `del_${timestamp}_${userRes.rows[0].email}`.substring(0, 250);
     }
 
+    // 🚨 [7일 쿨타임 수술 핵심] user_id는 절대 변형하지 않고 남겨둬서 재가입을 식별합니다!
+    // 대신 status를 'withdrawn'으로 바꾸고 개인정보를 날려버립니다.
     await sql`
       UPDATE users
       SET
-        user_id = ${deletedId},
         nickname = ${deletedNickname},
         email = ${deletedEmail},
         password = 'DELETED_USER_LOCKED',
-        is_admin = false
+        is_admin = false,
+        status = 'withdrawn',
+        updated_at = NOW() 
       WHERE user_id = ${currentUserId}
     `;
 
