@@ -16,7 +16,6 @@ export async function updateProfileAction(formData: FormData) {
   if (!currentUserId && !currentNickname) return;
 
   try {
-    // 1. 닉네임 변경 
     if (newNickname && newNickname.trim() !== '') {
       const checkResult = await sql`SELECT user_id FROM users WHERE nickname = ${newNickname.trim()}`;
       if (checkResult.rows.length === 0) {
@@ -37,7 +36,6 @@ export async function updateProfileAction(formData: FormData) {
       }
     }
 
-    // 2. 이메일 변경 (서버단 2차 철통 방어 검사)
     if (newEmail && newEmail.trim() !== '') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (emailRegex.test(newEmail.trim())) {
@@ -52,7 +50,6 @@ export async function updateProfileAction(formData: FormData) {
       }
     }
 
-    // 3. 비밀번호 변경 (서버단 2차 철통 방어 & Bcrypt 암호화)
     if (newPassword && newPassword.trim() !== '') {
        const pw = newPassword.trim();
        if (pw.length < 8) throw new Error("비밀번호는 8자리 이상이어야 합니다."); 
@@ -85,8 +82,9 @@ export async function deleteUserAction(formData: FormData) {
       deletedEmail = `del_${timestamp}_${userRes.rows[0].email}`.substring(0, 250);
     }
 
-    // 🚨 [7일 쿨타임 수술 핵심] user_id는 절대 변형하지 않고 남겨둬서 재가입을 식별합니다!
-    // 대신 status를 'withdrawn'으로 바꾸고 개인정보를 날려버립니다.
+    // 🚨 [진짜 문제 해결!]
+    // 1. user_id를 바꾸면 외래키(게시글 연결) 에러가 나므로 건드리지 않음!
+    // 2. updated_at 컬럼이 없어 에러가 났으므로, 존재하는 last_login을 활용해 탈퇴 시간을 기록!
     await sql`
       UPDATE users
       SET
@@ -95,7 +93,7 @@ export async function deleteUserAction(formData: FormData) {
         password = 'DELETED_USER_LOCKED',
         is_admin = false,
         status = 'withdrawn',
-        updated_at = NOW() 
+        last_login = NOW()
       WHERE user_id = ${currentUserId}
     `;
 
@@ -106,7 +104,7 @@ export async function deleteUserAction(formData: FormData) {
 
   } catch (error) {
     console.error("회원 탈퇴 처리 중 에러 발생:", error);
-    return; 
+    throw new Error("탈퇴 처리 중 오류가 발생했습니다.");
   }
 
   redirect('/');
