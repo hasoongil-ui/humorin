@@ -1,3 +1,4 @@
+// 파일 위치: app/board/write/WriteClient.tsx
 // @ts-nocheck 
 'use client';
 
@@ -698,6 +699,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         }),
       });
 
+      // 💡 [수술 완료] 백엔드의 철벽 방어막에서 보낸 에러 메시지를 수신하여 경고창 띄우기!
       if (res.ok) {
         router.push(`/board?category=${category}`);
         router.refresh();
@@ -705,6 +707,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         const errorData = await res.json().catch(() => null);
         if (errorData?.error === 'forbidden_word') {
           alert(`🚨 작성하신 글에 금지된 단어 [ ${errorData.word} ]가 포함되어 있습니다.\n특수문자나 정규식 우회 시도도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
+        } else if (errorData?.error === 'newbie_link' || errorData?.error === 'rate_limit') {
+          alert(`🚨 ${errorData?.message}`);
+        } else if (errorData?.message) {
+          alert(`🚨 ${errorData.message}`);
         } else {
           alert('글 등록에 실패했습니다.');
         }

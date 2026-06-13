@@ -1,3 +1,4 @@
+// 파일 위치: app/board/[id]/CommentForm.tsx
 'use client';
 
 import { useState, useRef } from 'react';
@@ -225,8 +226,15 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
 
         const result = await submitAction(formData);
 
-        if (result && result.error === 'forbidden_word') {
-            alert(`🚨 작성하신 댓글에 금지된 단어 [ ${result.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
+        // 💡 [수술 완료] 에러 발생 시 작성창을 날리지 않고 경고창만 부드럽게 띄우도록 수정
+        if (result && result.error) {
+            if (result.error === 'forbidden_word') {
+                alert(`🚨 작성하신 댓글에 금지된 단어 [ ${result.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
+            } else if (result.error === 'newbie_link') {
+                alert(`🚨 ${result.message}`);
+            } else {
+                alert(`🚨 오류가 발생했습니다: ${result.message || '다시 시도해 주십시오.'}`);
+            }
             setIsSubmitting(false);
             return;
         }

@@ -1,3 +1,4 @@
+// 파일 위치: app/api/post/route.ts
 import { db } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
 import { cookies, headers } from 'next/headers'; 
@@ -55,15 +56,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '인증 정보가 변조되었습니다.' }, { status: 403 });
     }
 
-    const { rows: userCheck } = await client.sql`SELECT status FROM users WHERE user_id = ${currentUserId}`;
-    const rawStatus = userCheck.length > 0 ? userCheck[0].status : 'active';
-    const statusStr = String(rawStatus || 'active').trim().toLowerCase();
+    // 💡 [수술 완료] 유저 상태뿐만 아니라 포인트(points)도 함께 가져오도록 쿼리 확장
+    const { rows: userCheck } = await client.sql`SELECT status, points FROM users WHERE user_id = ${currentUserId}`;
+    const userRow = userCheck.length > 0 ? userCheck[0] : { status: 'active', points: 0 };
+    const statusStr = String(userRow.status || 'active').trim().toLowerCase();
+    const userPoints = userRow.points || 0;
     
     const isBanned = ['banned', 'suspended', '정지'].includes(statusStr);
     const isShadowBanned = ['shadow_banned', 'shadowban', '그림자'].includes(statusStr);
 
     if (isBanned && currentUserId !== 'admin') {
       return NextResponse.json({ error: 'banned', message: '이용이 정지된 계정입니다.' }, { status: 403 });
+    }
+
+    // 🚨 [신규 스팸 방어막] 백엔드 단에서 10포인트 미만 링크 강제 차단 (해커 우회 방지)
+    if (currentUserId !== 'admin' && userPoints < 10) {
+      const contentWithoutMedia = content.replace(/<(img|video|iframe)[^>]*>/gi, '');
+      const hasLink = contentWithoutMedia.includes('http://') || contentWithoutMedia.includes('https://') || contentWithoutMedia.includes('www.') || contentWithoutMedia.includes('.com');
+      if (hasLink) {
+        return NextResponse.json({ error: 'newbie_link', message: '스팸 방지를 위해 활동 점수 10점 미만은 외부 링크(URL)를 포함할 수 없습니다.' }, { status: 403 });
+      }
     }
 
     const finalAuthor = currentUser || author || '익명';
@@ -80,7 +92,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 🚨 [신규 방어막] 도배 테러 방지 (30초 쿨타임)
+    // 🚨 [도배 테러 방지] 30초 쿨타임
     const { rows: lastPost } = await client.sql`
       SELECT created_at FROM posts 
       WHERE author_id = ${currentUserId} 
