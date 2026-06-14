@@ -107,14 +107,14 @@ export async function deleteUserAction(formData: FormData) {
       deletedEmail = `del_${timestamp}_${userRes.rows[0].email}`.substring(0, 250);
     }
 
-    // 🚨 [진짜 문제 해결!] 사진, 이름, 이메일을 완벽하게 백지화!
+    // 🚨 [진짜 문제 해결!] 사진, 이름, 이메일을 완벽하게 백지화! (image -> profile_image 오타 교정 완료)
     await sql`
       UPDATE users
       SET
         nickname = ${deletedNickname},
         email = ${deletedEmail},
         password = 'DELETED_USER_LOCKED',
-        image = NULL,
+        profile_image = NULL,
         is_admin = false,
         status = 'withdrawn',
         last_login = NOW()
