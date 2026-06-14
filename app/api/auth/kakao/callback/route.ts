@@ -1,3 +1,4 @@
+// 파일 위치: app/api/auth/kakao/callback/route.ts
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { cookies, headers } from 'next/headers';
