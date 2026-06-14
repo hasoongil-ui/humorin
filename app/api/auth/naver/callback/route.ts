@@ -42,15 +42,36 @@ export async function GET(request: Request) {
     if (idCheck.length > 0) {
       const user = idCheck[0];
       if (user.status === 'withdrawn') {
-        // 🚨 [동기화 완료] updated_at 대신 last_login을 기준으로 7일을 정확히 계산합니다!
         const withdrawDate = new Date(user.last_login || Date.now()).getTime();
         const daysPassed = (Date.now() - withdrawDate) / (1000 * 60 * 60 * 24);
+        
         if (daysPassed < 7) {
+          // 🚨 7일 미만: 가차 없이 쫓아냄
           return NextResponse.redirect(new URL('/login?error=cooldown', request.url));
         } else {
-          // 7일이 지났다면 다시 active(정상)로 부활!
-          await sql`UPDATE users SET status = 'active', email = ${email}, last_login = NOW() WHERE user_id = ${expectedUserId}`;
-          finalNickname = user.nickname;
+          // 🚀 [리셋 수술 완료] 7일 경과 후: 포인트와 정보를 싹 초기화하여 신규 가입으로 처리!
+          let isNickUnique = false;
+          let attempt = 0;
+          while (!isNickUnique && attempt < 5) {
+            const { rows: nickCheck } = await sql`SELECT user_id FROM users WHERE nickname = ${finalNickname}`;
+            if (nickCheck.length > 0) {
+              finalNickname = `${profile.nickname || '네이버유저'}_${Math.floor(Math.random() * 10000)}`;
+              attempt++;
+            } else {
+              isNickUnique = true;
+            }
+          }
+          await sql`
+            UPDATE users 
+            SET 
+              status = 'active', 
+              nickname = ${finalNickname}, 
+              email = ${email}, 
+              points = 0, 
+              is_admin = false, 
+              last_login = NOW() 
+            WHERE user_id = ${expectedUserId}
+          `;
         }
       } else if (user.status === 'banned') {
         return NextResponse.redirect(new URL('/login?error=banned', request.url));

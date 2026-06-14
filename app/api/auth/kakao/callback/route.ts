@@ -40,14 +40,36 @@ export async function GET(request: Request) {
     if (idCheck.length > 0) {
       const user = idCheck[0];
       if (user.status === 'withdrawn') {
-        // 🚨 [동기화 완료] last_login을 기준으로 7일 쿨타임 철벽
         const withdrawDate = new Date(user.last_login || Date.now()).getTime();
         const daysPassed = (Date.now() - withdrawDate) / (1000 * 60 * 60 * 24);
+        
         if (daysPassed < 7) {
+          // 🚨 7일 쿨타임 발동
           return NextResponse.redirect(new URL('/login?error=cooldown', request.url));
         } else {
-          await sql`UPDATE users SET status = 'active', email = ${email}, last_login = NOW() WHERE user_id = ${expectedUserId}`;
-          finalNickname = user.nickname;
+          // 🚀 [리셋 수술 완료] 7일 경과 시 완벽한 신규 회원(포인트 0점)으로 포맷!
+          let isNickUnique = false;
+          let attempt = 0;
+          while (!isNickUnique && attempt < 5) {
+            const { rows: nickCheck } = await sql`SELECT user_id FROM users WHERE nickname = ${finalNickname}`;
+            if (nickCheck.length > 0) {
+              finalNickname = `${nickname}_${Math.floor(Math.random() * 10000)}`;
+              attempt++;
+            } else {
+              isNickUnique = true;
+            }
+          }
+          await sql`
+            UPDATE users 
+            SET 
+              status = 'active', 
+              nickname = ${finalNickname}, 
+              email = ${email}, 
+              points = 0, 
+              is_admin = false, 
+              last_login = NOW() 
+            WHERE user_id = ${expectedUserId}
+          `;
         }
       } else if (user.status === 'banned') {
         return NextResponse.redirect(new URL('/login?error=banned', request.url));
