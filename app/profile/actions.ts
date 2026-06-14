@@ -73,7 +73,7 @@ export async function deleteUserAction(formData: FormData) {
   if (!currentUserId) return;
 
   try {
-    // 🛡️ [수술 1] 악성 유저(banned) 자진 탈퇴 원천 차단
+    // 🛡️ 악성 유저(banned) 자진 탈퇴 원천 차단
     const userStatusRes = await sql`SELECT status FROM users WHERE user_id = ${currentUserId}`;
     if (userStatusRes.rows.length > 0 && userStatusRes.rows[0].status === 'banned') {
       throw new Error("관리자에 의해 이용이 정지된 계정은 탈퇴할 수 없습니다.");
@@ -86,34 +86,35 @@ export async function deleteUserAction(formData: FormData) {
     const deletedAuthorId = `deleted_${currentUserId}_${timestamp}`;
     const deletedAuthorName = '탈퇴한 회원';
 
-    // ✂️ [수술 2] 내가 쓴 모든 게시글의 소유권(이름표) 영구 절단
+    // ✂️ 내가 쓴 모든 게시글의 소유권(이름표) 영구 절단
     await sql`
       UPDATE posts
       SET author_id = ${deletedAuthorId}, author = ${deletedAuthorName}
       WHERE author_id = ${currentUserId}
     `;
 
-    // ✂️ [수술 3] 내가 쓴 모든 댓글의 소유권 영구 절단
+    // ✂️ 내가 쓴 모든 댓글의 소유권 영구 절단
     await sql`
       UPDATE comments
       SET author_id = ${deletedAuthorId}, author = ${deletedAuthorName}
       WHERE author_id = ${currentUserId}
     `;
 
-    // 껍데기 처리 (기존 대장님의 훌륭한 뼈대 유지)
+    // 껍데기 처리 (기존 뼈대 유지)
     const userRes = await sql`SELECT email FROM users WHERE user_id = ${currentUserId}`;
     let deletedEmail = `del_${timestamp}@deleted.com`;
     if (userRes.rows.length > 0 && userRes.rows[0].email) {
       deletedEmail = `del_${timestamp}_${userRes.rows[0].email}`.substring(0, 250);
     }
 
-    // 🚨 기존 user_id를 건드리지 않고 상태와 이메일/닉네임만 유령으로 바꿈
+    // 🚨 [진짜 문제 해결!] 사진, 이름, 이메일을 완벽하게 백지화!
     await sql`
       UPDATE users
       SET
         nickname = ${deletedNickname},
         email = ${deletedEmail},
         password = 'DELETED_USER_LOCKED',
+        image = NULL,
         is_admin = false,
         status = 'withdrawn',
         last_login = NOW()
