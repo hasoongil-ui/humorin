@@ -108,6 +108,13 @@ export async function deleteUserAction(formData: FormData) {
       WHERE author_id = ${currentUserId}
     `;
 
+    // 🚀 [환생 심령현상 방어막] 전생의 쓸모없는 개인 흔적(스크랩, 추천 기록) 완벽 소각 및 DB 다이어트!
+    await sql`DELETE FROM scraps WHERE author_id = ${currentUserId}`;
+    await sql`DELETE FROM likes WHERE author_id = ${currentUserId}`;
+    await sql`DELETE FROM post_dislikes WHERE author_id = ${currentUserId}`;
+    await sql`DELETE FROM comment_likes WHERE author_id = ${currentUserId}`;
+    await sql`DELETE FROM comment_dislikes WHERE author_id = ${currentUserId}`;
+
     // 껍데기 처리 (기존 뼈대 유지)
     const userRes = await sql`SELECT email FROM users WHERE user_id = ${currentUserId}`;
     let deletedEmail = `del_${timestamp}@deleted.com`;
@@ -115,7 +122,7 @@ export async function deleteUserAction(formData: FormData) {
       deletedEmail = `del_${timestamp}_${userRes.rows[0].email}`.substring(0, 250);
     }
 
-    // 🚨 [진짜 문제 해결!] 사진, 이름, 이메일을 완벽하게 백지화! (image -> profile_image 오타 교정 완료)
+    // 🚨 [진짜 문제 해결!] 사진, 이름, 이메일을 완벽하게 백지화! 
     await sql`
       UPDATE users
       SET

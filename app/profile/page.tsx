@@ -79,20 +79,24 @@ export default async function ProfilePage(props: any) {
     }
 
     if (currentTab === 'posts') {
-      const countRes = await sql`SELECT COUNT(*) FROM posts WHERE author = ${currentUser}`;
+      // 🚀 [수술 1] 게시글 개수 검색: 닉네임 대신 고유 ID(author_id) 사용
+      const countRes = await sql`SELECT COUNT(*) FROM posts WHERE author_id = ${currentUserId}`;
       totalItems = parseInt(countRes.rows[0].count, 10);
 
-      const postsResult = await sql`SELECT * FROM posts WHERE author = ${currentUser} ORDER BY id DESC LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+      // 🚀 [수술 2] 게시글 리스트 검색: 닉네임 대신 고유 ID(author_id) 사용
+      const postsResult = await sql`SELECT * FROM posts WHERE author_id = ${currentUserId} ORDER BY id DESC LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
       myPosts = postsResult.rows;
 
     } else if (currentTab === 'scraps') {
-      const countRes = await sql`SELECT COUNT(*) FROM scraps WHERE author = ${currentUser}`;
+      // 🚀 [수술 3] 스크랩 개수 검색: 닉네임 대신 고유 ID(author_id) 사용
+      const countRes = await sql`SELECT COUNT(*) FROM scraps WHERE author_id = ${currentUserId}`;
       totalItems = parseInt(countRes.rows[0].count, 10);
 
       try {
+        // 🚀 [수술 4] 스크랩 리스트 검색: 닉네임 대신 고유 ID(author_id) 사용
         const scrapsResult = await sql`
           SELECT p.* FROM posts p JOIN scraps s ON p.id = s.post_id
-          WHERE s.author = ${currentUser} ORDER BY s.created_at DESC LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
+          WHERE s.author_id = ${currentUserId} ORDER BY s.created_at DESC LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
         `;
         myScraps = scrapsResult.rows;
       } catch (e) {
