@@ -21,8 +21,16 @@ export async function updateProfileAction(formData: FormData) {
       if (checkResult.rows.length === 0) {
         if (currentUserId) {
           await sql`UPDATE users SET nickname = ${newNickname.trim()} WHERE user_id = ${currentUserId}`;
+          
+          // 🚀 [B안 일괄 동기화] 닉네임 변경 시, 과거 글과 댓글의 이름표를 0.001초 만에 새것으로 교체!
+          await sql`UPDATE posts SET author = ${newNickname.trim()} WHERE author_id = ${currentUserId}`;
+          await sql`UPDATE comments SET author = ${newNickname.trim()} WHERE author_id = ${currentUserId}`;
         } else {
           await sql`UPDATE users SET nickname = ${newNickname.trim()} WHERE nickname = ${currentNickname}`;
+          
+          // 🚀 (currentUserId가 없는 레거시 유저용 과거 글 동기화)
+          await sql`UPDATE posts SET author = ${newNickname.trim()} WHERE author = ${currentNickname}`;
+          await sql`UPDATE comments SET author = ${newNickname.trim()} WHERE author = ${currentNickname}`;
         }
         
         const cookieStore = await cookies();
