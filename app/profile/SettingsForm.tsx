@@ -229,7 +229,8 @@ export default function SettingsForm({
       <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
         <form onSubmit={async (e) => {
           e.preventDefault();
-          if (window.confirm('정말로 유머인을 탈퇴하시겠습니까?\n작성하신 모든 정보가 영구적으로 삭제되며 복구할 수 없습니다.')) {
+          // 🚨 탈퇴 안내 경고문구 완벽하게 교체 완료
+          if (window.confirm('정말로 유머인을 탈퇴하시겠습니까?\n\n탈퇴하더라도 작성하신 글과 댓글의 작성자는 \'탈퇴한 회원\'으로 남게 되니, 원치 않으시면 탈퇴 전 직접 삭제해 주시기 바랍니다.')) {
             const formData = new FormData(e.currentTarget);
             await deleteUserAction(formData);
           }
