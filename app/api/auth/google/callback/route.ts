@@ -1,9 +1,24 @@
+// 파일 위치: app/api/auth/google/callback/route.ts
+// 🚀 [수술 1] Vercel Edge 네트워크 적용 (서울 한국 부팅)
+export const runtime = 'edge';
+
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { cookies, headers } from 'next/headers';
-import crypto from 'crypto';
 
 const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
+
+// 🚀 [수술 2] Web Crypto API (Edge 호환)
+async function generateSignature(userId: string, secret: string) {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secret);
+  const msgData = encoder.encode(userId);
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const signatureBuffer = await crypto.subtle.sign('HMAC', cryptoKey, msgData);
+  return Array.from(new Uint8Array(signatureBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -77,7 +92,10 @@ export async function GET(request: Request) {
         finalNickname = user.nickname;
       }
     } else {
-      const defaultPassword = crypto.randomBytes(20).toString('hex');
+      const randomBytes = new Uint8Array(20);
+      crypto.getRandomValues(randomBytes);
+      const defaultPassword = Array.from(randomBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      
       let isNickUnique = false;
       let attempt = 0;
       while (!isNickUnique && attempt < 5) {
@@ -98,11 +116,15 @@ export async function GET(request: Request) {
     try {
       const headersList = await headers();
       const currentIp = headersList.get('x-user-ip') || '알수없음';
-      await sql`INSERT INTO access_logs (user_id, action_type, ip_address) VALUES (${expectedUserId}, 'LOGIN_GOOGLE', ${currentIp})`;
-      await sql`UPDATE users SET ip = ${currentIp}, last_login = NOW() WHERE user_id = ${expectedUserId}`;
+      
+      // 🚀 [수술 3] 병렬 동시 쿼리로 통신 대기시간 반갈죽!
+      await Promise.all([
+        sql`INSERT INTO access_logs (user_id, action_type, ip_address) VALUES (${expectedUserId}, 'LOGIN_GOOGLE', ${currentIp})`,
+        sql`UPDATE users SET ip = ${currentIp}, last_login = NOW() WHERE user_id = ${expectedUserId}`
+      ]);
     } catch (e) { }
 
-    const signature = crypto.createHmac('sha256', SECRET_KEY).update(expectedUserId).digest('hex');
+    const signature = await generateSignature(expectedUserId, SECRET_KEY);
     const cookieStore = await cookies();
     cookieStore.set('humorin_user', finalNickname, { path: '/', maxAge: 60 * 60 * 24 * 7 });
     cookieStore.set('humorin_userid', expectedUserId, { path: '/', maxAge: 60 * 60 * 24 * 7 });
