@@ -5,6 +5,7 @@ export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { cookies, headers } from 'next/headers';
+import { waitUntil } from '@vercel/functions'; // 🚀 [추가] 백그라운드 처리용 함수
 
 const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
 
@@ -118,11 +119,13 @@ export async function GET(request: Request) {
       const headersList = await headers();
       const currentIp = headersList.get('x-user-ip') || '알수없음';
       
-      // 🚀 [수술 3] 직렬 병목 타파! Promise.all 병렬 처리로 DB 기록을 0.001초 만에 동시 발사!
-      await Promise.all([
-        sql`INSERT INTO access_logs (user_id, action_type, ip_address) VALUES (${expectedUserId}, 'LOGIN_KAKAO', ${currentIp})`,
-        sql`UPDATE users SET ip = ${currentIp}, last_login = NOW() WHERE user_id = ${expectedUserId}`
-      ]);
+      // 🚀 [수술 3] waitUntil을 활용한 백그라운드 처리! (유저 통신 대기시간 0초로 단축)
+      waitUntil(
+        Promise.all([
+          sql`INSERT INTO access_logs (user_id, action_type, ip_address) VALUES (${expectedUserId}, 'LOGIN_KAKAO', ${currentIp})`,
+          sql`UPDATE users SET ip = ${currentIp}, last_login = NOW() WHERE user_id = ${expectedUserId}`
+        ]).catch(e => console.error("Kakao DB Background Logging Error:", e))
+      );
     } catch (e) { }
 
     const signature = await generateSignature(expectedUserId, SECRET_KEY);

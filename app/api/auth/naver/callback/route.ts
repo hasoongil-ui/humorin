@@ -5,6 +5,7 @@ export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { cookies, headers } from 'next/headers';
+import { waitUntil } from '@vercel/functions'; // 🚀 [추가] 백그라운드 처리용 함수
 
 const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
 
@@ -119,11 +120,13 @@ export async function GET(request: Request) {
       const headersList = await headers();
       const currentIp = headersList.get('x-user-ip') || '알수없음';
       
-      // 🚀 [수술 3] 병렬 동시 쿼리로 통신 대기시간 반갈죽!
-      await Promise.all([
-        sql`INSERT INTO access_logs (user_id, action_type, ip_address) VALUES (${expectedUserId}, 'LOGIN_NAVER', ${currentIp})`,
-        sql`UPDATE users SET ip = ${currentIp}, last_login = NOW() WHERE user_id = ${expectedUserId}`
-      ]);
+      // 🚀 [수술 3] waitUntil을 활용한 백그라운드 처리! (유저 통신 대기시간 0초로 단축)
+      waitUntil(
+        Promise.all([
+          sql`INSERT INTO access_logs (user_id, action_type, ip_address) VALUES (${expectedUserId}, 'LOGIN_NAVER', ${currentIp})`,
+          sql`UPDATE users SET ip = ${currentIp}, last_login = NOW() WHERE user_id = ${expectedUserId}`
+        ]).catch(e => console.error("Naver DB Background Logging Error:", e))
+      );
     } catch (e) { }
 
     const signature = await generateSignature(expectedUserId, SECRET_KEY);
