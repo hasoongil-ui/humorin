@@ -4,14 +4,15 @@
 import { sql } from '@vercel/postgres';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import bcrypt from 'bcryptjs'; 
+import bcrypt from 'bcryptjs';
+import { waitUntil } from '@vercel/functions'; // 🚀 [추가] 마법의 백그라운드 처리 엔진
 
 export async function updateProfileAction(formData: FormData) {
   const currentUserId = formData.get('currentUserId') as string;
   const currentNickname = formData.get('currentNickname') as string;
   const newNickname = formData.get('newNickname') as string;
   const newEmail = formData.get('newEmail') as string; 
-  const newPassword = formData.get('newPassword') as string; 
+  const newPassword = formData.get('newPassword') as string;
 
   if (!currentUserId && !currentNickname) return;
 
@@ -19,20 +20,15 @@ export async function updateProfileAction(formData: FormData) {
     if (newNickname && newNickname.trim() !== '') {
       const checkResult = await sql`SELECT user_id FROM users WHERE nickname = ${newNickname.trim()}`;
       if (checkResult.rows.length === 0) {
+        
+        // 🚀 [1단계] users 테이블 변경 (동기 처리 - 즉각 반영)
         if (currentUserId) {
           await sql`UPDATE users SET nickname = ${newNickname.trim()} WHERE user_id = ${currentUserId}`;
-          
-          // 🚀 [B안 일괄 동기화] 닉네임 변경 시, 과거 글과 댓글의 이름표를 0.001초 만에 새것으로 교체!
-          await sql`UPDATE posts SET author = ${newNickname.trim()} WHERE author_id = ${currentUserId}`;
-          await sql`UPDATE comments SET author = ${newNickname.trim()} WHERE author_id = ${currentUserId}`;
         } else {
           await sql`UPDATE users SET nickname = ${newNickname.trim()} WHERE nickname = ${currentNickname}`;
-          
-          // 🚀 (currentUserId가 없는 레거시 유저용 과거 글 동기화)
-          await sql`UPDATE posts SET author = ${newNickname.trim()} WHERE author = ${currentNickname}`;
-          await sql`UPDATE comments SET author = ${newNickname.trim()} WHERE author = ${currentNickname}`;
         }
         
+        // 🚀 [2단계] 쿠키 변경 (동기 처리 - 즉각 반영)
         const cookieStore = await cookies();
         cookieStore.set({
           name: 'humorin_user',
@@ -41,6 +37,24 @@ export async function updateProfileAction(formData: FormData) {
           path: '/',
           maxAge: 60 * 60 * 24 * 7,
         });
+
+        // 💣 [3단계] 닉네임 변경 시, 과거 글과 댓글의 이름표를 백그라운드에서 교체 (DB 락 방어!)
+        waitUntil(
+          (async () => {
+            try {
+              if (currentUserId) {
+                await sql`UPDATE posts SET author = ${newNickname.trim()} WHERE author_id = ${currentUserId}`;
+                await sql`UPDATE comments SET author = ${newNickname.trim()} WHERE author_id = ${currentUserId}`;
+              } else {
+                // (currentUserId가 없는 레거시 유저용 과거 글 동기화)
+                await sql`UPDATE posts SET author = ${newNickname.trim()} WHERE author = ${currentNickname}`;
+                await sql`UPDATE comments SET author = ${newNickname.trim()} WHERE author = ${currentNickname}`;
+              }
+            } catch (syncError) {
+              console.error("백그라운드 닉네임 동기화 에러:", syncError);
+            }
+          })()
+        );
       }
     }
 
