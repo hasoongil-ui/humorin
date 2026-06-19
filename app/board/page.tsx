@@ -1,4 +1,3 @@
-// 파일 위치: app/board/page.tsx
 // @ts-nocheck
 import { sql } from '@vercel/postgres';
 import Link from 'next/link';
@@ -84,7 +83,6 @@ export default async function BoardPage(props: any) {
     } catch(e) {}
   }
 
-  // 💡 [수술 완료] 하드코딩 철폐: DB에서 실시간으로 컷오프(강등 기준) 읽어오기!
   let bestCutoff = 30;
   try {
     const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'best_cutoff_threshold'`;
@@ -131,11 +129,10 @@ export default async function BoardPage(props: any) {
   let showcaseData = null;
   if (bestType === 'showcase' && page === 1 && !keyword) {
     try {
-      // 🚨 [수술 완료] 쇼케이스 진입 강등 컷오프 DB 연동 (< ${bestCutoff})
       const [weeklyRes, monthlyRes, allTimeRes] = await Promise.all([
-        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '7 days' AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
-        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE date >= NOW() - INTERVAL '30 days' AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`,
-        sql`SELECT id, title, author, likes, views, content, date FROM posts WHERE COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' AND is_blinded = false ORDER BY likes DESC, views DESC LIMIT 1`
+        sql`SELECT p.id, p.title, p.author, p.likes, p.views, p.content, p.date FROM posts p JOIN boards b ON p.category = b.name WHERE p.date >= NOW() - INTERVAL '7 days' AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND p.is_blinded = false AND b.allow_best = true ORDER BY p.likes DESC, p.views DESC LIMIT 1`,
+        sql`SELECT p.id, p.title, p.author, p.likes, p.views, p.content, p.date FROM posts p JOIN boards b ON p.category = b.name WHERE p.date >= NOW() - INTERVAL '30 days' AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND p.is_blinded = false AND b.allow_best = true ORDER BY p.likes DESC, p.views DESC LIMIT 1`,
+        sql`SELECT p.id, p.title, p.author, p.likes, p.views, p.content, p.date FROM posts p JOIN boards b ON p.category = b.name WHERE COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND p.is_blinded = false AND b.allow_best = true ORDER BY p.likes DESC, p.views DESC LIMIT 1`
       ]);
       showcaseData = {
         weekly: weeklyRes.rows[0] || null,
@@ -186,34 +183,34 @@ export default async function BoardPage(props: any) {
     } else if (period === '1y') {
       dateLimit.setFullYear(dateLimit.getFullYear() - 1);
     } else if (period === 'all') {
-      dateLimit = new Date(0); 
+      dateLimit = new Date(0);
     } else {
       dateLimit.setMonth(dateLimit.getMonth() - 6); 
     }
-    const cutoffIso = dateLimit.toISOString(); 
+    const cutoffIso = dateLimit.toISOString();
     const searchPattern = `%${keyword}%`;
 
     let countRes, rowsRes;
     if (searchType === 'title') {
        if (isAll) {
-           countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
-           rowsRes = await sql`SELECT * FROM posts WHERE title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+           countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.title ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' LIMIT 1000) AS sub`;
+           rowsRes = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE p.title ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' ORDER BY p.date DESC LIMIT ${limit} OFFSET ${offset}`;
        } else {
            countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
            rowsRes = await sql`SELECT * FROM posts WHERE category = ${category} AND title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
        }
     } else if (searchType === 'content') {
         if (isAll) {
-            countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
-            rowsRes = await sql`SELECT * FROM posts WHERE content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+            countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.content ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' LIMIT 1000) AS sub`;
+            rowsRes = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE p.content ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' ORDER BY p.date DESC LIMIT ${limit} OFFSET ${offset}`;
         } else {
             countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
             rowsRes = await sql`SELECT * FROM posts WHERE category = ${category} AND content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
         }
     } else {
         if (isAll) {
-             countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
-             rowsRes = await sql`SELECT * FROM posts WHERE author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND category != '익명 다락방' AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+             countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.author ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' LIMIT 1000) AS sub`;
+             rowsRes = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE p.author ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' ORDER BY p.date DESC LIMIT ${limit} OFFSET ${offset}`;
         } else {
              countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
              rowsRes = await sql`SELECT * FROM posts WHERE category = ${category} AND author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
@@ -223,38 +220,34 @@ export default async function BoardPage(props: any) {
     posts = rowsRes.rows;
   }
   else if (bestType === 'today') {
-    // 🚨 [수술 완료] 투데이 베스트 강등 컷오프 DB 연동
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 10 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 10 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true ORDER BY p.best_at DESC NULLS LAST, p.date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === '100') {
-    // 🚨 [수술 완료] 백베스트 강등 컷오프 DB 연동
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 100 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 100 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true ORDER BY p.best100_at DESC NULLS LAST, p.date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === 'showcase') {
-    // 🚨 [수술 완료] 명작 쇼케이스 리스트 강등 컷오프 DB 연동
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 30 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 30 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 30 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 30 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true ORDER BY p.date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === '1000') {
-    // 🚨 [수술 완료] 천베스트 강등 컷오프 DB 연동
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 1000 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true LIMIT 1000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
-    const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+    const { rows } = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 1000 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true ORDER BY p.best1000_at DESC NULLS LAST, p.date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else {
     if (isAll) {
-         const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category != '익명 다락방' AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+         const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' LIMIT 1000) AS sub`;
          totalCount = Number(countResult.rows[0].count);
-         const { rows } = await sql`SELECT * FROM posts WHERE category != '익명 다락방' AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+         const { rows } = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' ORDER BY p.date DESC LIMIT ${limit} OFFSET ${offset}`;
          posts = rows;
     } else {
          const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
@@ -353,7 +346,6 @@ export default async function BoardPage(props: any) {
             <ul className="text-[13px] font-bold text-gray-600 pb-2">
               <li><Link href="/board" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${category === 'all' && bestType === '' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>전체글 보기</Link></li>
               <li><Link href="/board?best=today" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${bestType === 'today' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>🔥 투데이 베스트</Link></li>
-              
               <li><Link href="/board?best=showcase" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${bestType === 'showcase' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>🏛️ 명작 쇼케이스</Link></li>
               <li><Link href="/board?best=100" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${bestType === '100' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>💯 백베스트</Link></li>
               <li><Link href="/board?best=1000" className={`block px-4 py-2.5 hover:bg-gray-50 hover:text-[#3b4890] border-b border-gray-100 ${bestType === '1000' ? 'bg-indigo-50 text-[#3b4890]' : ''}`}>👑 천베스트</Link></li>
@@ -439,6 +431,7 @@ export default async function BoardPage(props: any) {
                           <span className="text-sm">🥇</span> 이번 주 1위
                         </div>
                       </div>
+                      
                       <div className="w-full h-[160px] bg-gray-50 overflow-hidden relative border-b border-gray-100 flex items-center justify-center">
                         {img ? (
                           <img src={img} alt="썸네일" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -580,9 +573,7 @@ export default async function BoardPage(props: any) {
               const badgeText = isGlobal ? '공지' : '📌';
               const iconText = isGlobal ? '📢' : '📌';
 
-              // 🛡️ [수술: 트루먼 쇼]
               const isDisplayBlinded = post.is_blinded && !isAdmin && post.author_id !== currentUserId;
-
               return (
                 <div key={`notice-${post.id}`} className={`flex flex-col md:flex-row border-b py-3 transition-colors items-center group ${bgColor} active:scale-[0.98] md:active:scale-100 active:bg-gray-50/50 md:active:bg-transparent touch-pan-y md:touch-auto`}>
                   <div className={`hidden md:block w-12 text-center text-xs font-black shrink-0 ${textColor}`}>{badgeText}</div>
@@ -622,7 +613,6 @@ export default async function BoardPage(props: any) {
               const displayAuthorTop = isAnonymousTop ? '익명' : renderTopPost.author;
               const displayAuthorIdTop = isAnonymousTop ? null : renderTopPost.author_id;
 
-              // 🛡️ [수술: 트루먼 쇼]
               const isDisplayBlindedTop = renderTopPost.is_blinded && !isAdmin && renderTopPost.author_id !== currentUserId;
 
               return (
@@ -680,7 +670,6 @@ export default async function BoardPage(props: any) {
                 const displayAuthor = isAnonymous ? '익명' : post.author;
                 const displayAuthorId = isAnonymous ? null : post.author_id;
 
-                // 🛡️ [수술: 트루먼 쇼] 일반 리스트
                 const isDisplayBlinded = post.is_blinded && !isAdmin && post.author_id !== currentUserId;
 
                 return (

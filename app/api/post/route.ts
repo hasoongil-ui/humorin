@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
     for (const word of forbiddenWords) {
       if (cleanContent.includes(word) || cleanTitle.includes(word)) {
-        return NextResponse.json({ error: 'forbidden_word', word: word }, { status: 400 }); 
+        return NextResponse.json({ error: 'forbidden_word', word: word }, { status: 400 });
       }
     }
     
@@ -56,9 +56,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '인증 정보가 변조되었습니다.' }, { status: 403 });
     }
 
-    // 💡 [수술 완료] 유저 상태뿐만 아니라 포인트(points)도 함께 가져오도록 쿼리 확장
     const { rows: userCheck } = await client.sql`SELECT status, points FROM users WHERE user_id = ${currentUserId}`;
     const userRow = userCheck.length > 0 ? userCheck[0] : { status: 'active', points: 0 };
+
     const statusStr = String(userRow.status || 'active').trim().toLowerCase();
     const userPoints = userRow.points || 0;
     
@@ -69,7 +69,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'banned', message: '이용이 정지된 계정입니다.' }, { status: 403 });
     }
 
-    // 🚨 [신규 스팸 방어막] 백엔드 단에서 10포인트 미만 링크 강제 차단 (해커 우회 방지)
     if (currentUserId !== 'admin' && userPoints < 10) {
       const contentWithoutMedia = content.replace(/<(img|video|iframe)[^>]*>/gi, '');
       const hasLink = contentWithoutMedia.includes('http://') || contentWithoutMedia.includes('https://') || contentWithoutMedia.includes('www.') || contentWithoutMedia.includes('.com');
@@ -78,21 +77,38 @@ export async function POST(request: Request) {
       }
     }
 
+    // 🚨 [핵심 패치] 글쓰기 잠금 백도어 완벽 100% 차단 로직
+    if (currentUserId !== 'admin') {
+      const { rows: lockCheck } = await client.sql`
+        SELECT 
+          (SELECT value FROM site_settings WHERE key = 'global_write_lock') as global_lock,
+          (SELECT is_write_locked FROM boards WHERE name = ${category}) as board_lock
+      `;
+      const globalLock = lockCheck.length > 0 && lockCheck[0].global_lock === 'true';
+      const boardLock = lockCheck.length > 0 && lockCheck[0].board_lock === true;
+
+      if (globalLock) {
+        return NextResponse.json({ error: 'locked', message: '현재 시스템 전체 글쓰기가 제한된 상태입니다.' }, { status: 403 });
+      }
+      if (boardLock) {
+        return NextResponse.json({ error: 'locked', message: '해당 게시판은 현재 관리자에 의해 글쓰기가 잠겨 있습니다.' }, { status: 403 });
+      }
+    }
+
     const finalAuthor = currentUser || author || '익명';
     const titleWithCategory = `[${category}] ${title}`;
 
     let finalIsNotice = false;
     let finalIsBoardNotice = false;
-    
+
     if (is_notice || is_board_notice) {
       const { rows } = await client.sql`SELECT is_admin FROM users WHERE user_id = ${currentUserId}`;
       if (currentUserId === 'admin' || (rows.length > 0 && rows[0].is_admin)) {
-        if (is_notice) finalIsNotice = true; 
+        if (is_notice) finalIsNotice = true;
         if (is_board_notice) finalIsBoardNotice = true; 
       }
     }
 
-    // 🚨 [도배 테러 방지] 30초 쿨타임
     const { rows: lastPost } = await client.sql`
       SELECT created_at FROM posts 
       WHERE author_id = ${currentUserId} 

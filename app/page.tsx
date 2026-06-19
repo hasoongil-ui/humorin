@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import Navbar from './board/Navbar';
 import CategoryIcon from './board/CategoryIcon';
-import { Suspense } from 'react'; // 💡 [핵심 패치] Suspense 방어막 도구 추가
+import { Suspense } from 'react';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +29,6 @@ function extractData(fullTitle: string) {
   return { cat: '일반', cleanTitle: fullTitle };
 }
 
-// 💡 [핵심 패치] 서버(UTC)와 클라이언트(KST)의 시차로 인한 Hydration 에러 시한폭탄 원천 차단!
 function formatShortDate(dateString: any) {
   const dbDate = new Date(dateString);
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -89,14 +88,38 @@ export default async function HomePage() {
     });
   } catch (e) { }
 
-  // 🚨 [핀셋 수정 완료] 메인 투데이 베스트 위젯 - 비공감 10개 컷오프 추가
-  const bestQuery = sql`SELECT id, title, author, date, best_at, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < 10 ORDER BY best_at DESC NULLS LAST, date DESC LIMIT 10`;
+  // 💡 [클린 패치 1] 베스트 허용(allow_best) 스위치 적용된 INNER JOIN 쿼리 (가장 빠름)
+  const bestQuery = sql`
+    SELECT p.id, p.title, p.author, p.date, p.best_at, p.likes, p.is_blinded, 
+           (SELECT COUNT(*) FROM comments WHERE comments.post_id = p.id) as comment_count 
+    FROM posts p 
+    JOIN boards b ON p.category = b.name 
+    WHERE p.likes >= 10 AND COALESCE(p.dislikes, 0) < 10 AND b.allow_best = true 
+    ORDER BY p.best_at DESC NULLS LAST, p.date DESC 
+    LIMIT 10
+  `;
 
-  const allPostsQuery = sql`SELECT id, title, author, date, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title NOT LIKE '[익명 다락방]%' ORDER BY date DESC LIMIT 10`;
+  // 💡 [클린 패치 2] 관리자의 전체글(is_all_visible) 스위치만 100% 따름
+  const allPostsQuery = sql`
+    SELECT p.id, p.title, p.author, p.date, p.likes, p.is_blinded, 
+           (SELECT COUNT(*) FROM comments WHERE comments.post_id = p.id) as comment_count 
+    FROM posts p 
+    JOIN boards b ON p.category = b.name 
+    WHERE b.is_all_visible = true 
+    ORDER BY p.date DESC 
+    LIMIT 10
+  `;
 
   const boardQueries = mainBoards.map(board => {
     const pattern = `[${board.name}]%`;
-    return sql`SELECT id, title, author, date, likes, is_blinded, (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count FROM posts WHERE title LIKE ${pattern} ORDER BY date DESC LIMIT 10`;
+    return sql`
+      SELECT id, title, author, date, likes, is_blinded, 
+             (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count 
+      FROM posts 
+      WHERE title LIKE ${pattern} 
+      ORDER BY date DESC 
+      LIMIT 10
+    `;
   });
 
   const results = await Promise.all([bestQuery, allPostsQuery, ...boardQueries]);
@@ -106,8 +129,6 @@ export default async function HomePage() {
   const dynamicBoardPosts = results.slice(2).map(res => res.rows);
 
   const BoardWidget = ({ title, icon, link, posts, highlight = false }: any) => {
-    // 💡 [핵심 패치] 위젯의 '더보기' 링크(link)에서 꼬리표(?...)를 추출하여 개별 게시글 주소에 붙여줌!
-    // 예: link가 '/board?category=유머' 라면 '?category=유머'만 빼옵니다.
     const querySuffix = link.includes('?') ? link.substring(link.indexOf('?')) : '';
 
     return (
@@ -125,7 +146,6 @@ export default async function HomePage() {
             const { cleanTitle } = extractData(post.title);
             return (
               <li key={`widget-${post.id}`} className="hover:bg-gray-50 transition-colors">
-                {/* 💡 [핵심 패치 적용] 주소 뒤에 뽑아낸 꼬리표(querySuffix)를 합쳐서 넘겨줍니다! */}
                 <Link href={`/board/${post.id}${querySuffix}`} className="flex items-center justify-between px-4 py-2.5">
                   <div className="flex items-center flex-1 min-w-0 pr-3">
                     {post.is_blinded ? (
@@ -171,7 +191,6 @@ export default async function HomePage() {
   };
 
   return (
-    // 💡 [핵심 패치] Next.js의 멍청한 자동 Suspense 개입을 원천 차단하는 완벽한 방어막!
     <Suspense fallback={<div className="min-h-screen bg-[#f4f5f7]"></div>}>
       <div className="min-h-screen bg-[#f4f5f7] font-sans text-gray-800">
         <Navbar />
