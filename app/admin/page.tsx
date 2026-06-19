@@ -165,61 +165,61 @@ export default async function AdminDashboardPage(props: any) {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
-            <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[11px] font-bold text-gray-500 mb-1">총 회원</p><p className="text-xl font-black text-gray-800">{totalUsers}</p></div>
-            <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[11px] font-bold text-gray-500 mb-1">오늘 가입</p><p className="text-xl font-black text-rose-500">+{todayUsers}</p></div>
-            <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[11px] font-bold text-gray-500 mb-1">정지 회원</p><p className="text-xl font-black text-gray-800">{bannedUsers}</p></div>
-            <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[11px] font-bold text-gray-500 mb-1">페이지</p><p className="text-xl font-black text-indigo-600">{currentPage}/{totalPages}</p></div>
+            <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[13px] font-bold text-gray-500 mb-1">총 회원</p><p className="text-2xl font-black text-gray-800">{totalUsers}</p></div>
+            <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[13px] font-bold text-gray-500 mb-1">오늘 가입</p><p className="text-2xl font-black text-rose-500">+{todayUsers}</p></div>
+            <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[13px] font-bold text-gray-500 mb-1">정지 회원</p><p className="text-2xl font-black text-gray-800">{bannedUsers}</p></div>
+            <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm"><p className="text-[13px] font-bold text-gray-500 mb-1">페이지</p><p className="text-2xl font-black text-indigo-600">{currentPage}/{totalPages}</p></div>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-sm border border-red-200 shadow-sm flex flex-col gap-4 relative overflow-hidden">
+            <div className="bg-white p-5 rounded-sm border border-red-200 shadow-sm flex flex-col gap-4 relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500"></div>
-              <h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-red-500">🚫</span> 영구 차단 IP 관리 (사면권)</h2>
+              <h2 className="text-[16px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-red-500">🚫</span> 영구 차단 IP 관리 (사면권)</h2>
               <div className="bg-red-50/50 p-3 rounded-sm border border-red-100 flex flex-wrap content-start gap-2 min-h-[60px] max-h-[160px] overflow-y-auto">
                 {bannedIpsArray.length > 0 ? bannedIpsArray.map(ip => (
                   <form action={unbanIpAddress} key={ip} className="inline-flex">
                     <input type="hidden" name="ip" value={ip} />
                     <div className="flex items-center bg-white border border-red-200 rounded-full overflow-hidden shadow-sm">
-                      <span className="px-3 py-1 text-[12px] font-black text-red-600">{ip}</span>
-                      <button type="submit" className="px-2 py-1 bg-red-50 text-red-500 text-[10px] font-bold hover:bg-red-500 hover:text-white transition-colors border-l border-red-200">X 해제</button>
+                      <span className="px-3 py-1.5 text-[13px] font-black text-red-600">{ip}</span>
+                      <button type="submit" className="px-3 py-1.5 bg-red-50 text-red-500 text-[12px] font-bold hover:bg-red-500 hover:text-white transition-colors border-l border-red-200">X 해제</button>
                     </div>
                   </form>
-                )) : <span className="text-[12px] font-bold text-gray-400 w-full text-center mt-2">차단된 IP가 없습니다.</span>}
+                )) : <span className="text-[13px] font-bold text-gray-400 w-full text-center mt-2">차단된 IP가 없습니다.</span>}
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-sm border border-emerald-200 shadow-sm flex flex-col gap-4 relative overflow-hidden">
+            <div className="bg-white p-5 rounded-sm border border-emerald-200 shadow-sm flex flex-col gap-4 relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-emerald-500">🐳</span> 용량 도둑 추적 레이더 (TOP 50)</h2>
+                <h2 className="text-[16px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-emerald-500">🐳</span> 용량 도둑 추적 레이더 (TOP 50)</h2>
                 <form method="GET" action="/admin" className="flex items-center gap-1.5">
                   <input type="hidden" name="q" value={q} /><input type="hidden" name="type" value={type} />
-                  <select name="heavyDays" defaultValue={heavyDays || 30} className="text-[11px] font-bold border border-gray-300 p-1.5 rounded-sm outline-none bg-white shadow-sm">
+                  <select name="heavyDays" defaultValue={heavyDays || 30} className="text-[13px] font-bold border border-gray-300 p-2 rounded-sm outline-none bg-white shadow-sm">
                     <option value="7">최근 7일</option><option value="30">최근 30일</option><option value="60">최근 60일</option><option value="90">최근 90일</option><option value="365">최근 1년</option>
                   </select>
-                  <button type="submit" className="px-3 py-1.5 bg-emerald-600 text-white text-[11px] font-black rounded-sm hover:bg-emerald-700 shadow-sm transition-all active:scale-95">🛰️ 레이더 가동</button>
+                  <button type="submit" className="px-4 py-2 bg-emerald-600 text-white text-[13px] font-black rounded-sm hover:bg-emerald-700 shadow-sm transition-all active:scale-95">🛰️ 레이더 가동</button>
                 </form>
               </div>
               <div className="bg-emerald-50/30 p-2 rounded-sm border border-emerald-100 max-h-[160px] overflow-y-auto">
                 {heavyPosts.length > 0 ? (
                   <ul className="space-y-1.5 pr-1">
                     {heavyPosts.map((post, idx) => (
-                      <li key={post.id} className="flex items-center justify-between bg-white border border-emerald-100 p-1.5 rounded-sm shadow-sm">
+                      <li key={post.id} className="flex items-center justify-between bg-white border border-emerald-100 p-2 rounded-sm shadow-sm">
                         <div className="flex items-center gap-2 truncate pr-2">
-                          <span className={`text-[11px] font-black rounded-sm px-1.5 py-0.5 ${idx < 5 ? 'text-white bg-emerald-500' : 'text-emerald-600 bg-emerald-100'}`}>{idx + 1}위</span>
-                          <span className="text-[12px] font-bold text-gray-800 truncate" title={post.title}>{post.title}</span>
+                          <span className={`text-[13px] font-black rounded-sm px-2 py-0.5 ${idx < 5 ? 'text-white bg-emerald-500' : 'text-emerald-600 bg-emerald-100'}`}>{idx + 1}위</span>
+                          <span className="text-[14px] font-bold text-gray-800 truncate" title={post.title}>{post.title}</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-sm flex items-center gap-1">📷 {post.img_count}장</span>
-                          <Link href={`/board/${post.id}`} target="_blank" className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-sm hover:bg-emerald-700">🔍 확인</Link>
+                          <span className="text-[13px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-sm flex items-center gap-1">📷 {post.img_count}장</span>
+                          <Link href={`/board/${post.id}`} target="_blank" className="px-3 py-1 bg-emerald-600 text-white text-[12px] font-bold rounded-sm hover:bg-emerald-700">🔍 확인</Link>
                         </div>
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <div className="py-6 text-center">
-                    <p className="text-[12px] font-bold text-gray-400">레이더가 대기 중입니다.</p>
-                    <p className="text-[10px] text-gray-300 mt-1">조회할 기간을 선택하고 버튼을 눌러주십시오.</p>
+                    <p className="text-[14px] font-bold text-gray-400">레이더가 대기 중입니다.</p>
+                    <p className="text-[12px] text-gray-300 mt-1">조회할 기간을 선택하고 버튼을 눌러주십시오.</p>
                   </div>
                 )}
               </div>
@@ -227,84 +227,84 @@ export default async function AdminDashboardPage(props: any) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-sm border border-rose-200 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
+            <div className="bg-white p-5 rounded-sm border border-rose-200 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-rose-500"></div>
-              <div><h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-rose-500">🚨</span> 신고 누적 블라인드 기준</h2><p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">게시글이나 댓글이 설정된 횟수만큼 신고를 받으면 즉시 숨김 처리됩니다.</p></div>
-              <form action={updateBlindThreshold} className="flex items-center gap-2 bg-gray-50 p-2 rounded-sm border border-gray-200 mt-auto"><input type="number" name="threshold" defaultValue={blindThreshold} min="1" max="999" className="w-14 px-2 py-1.5 border border-gray-300 rounded-sm text-[13px] font-black text-rose-600 text-center outline-none focus:border-rose-400" /><span className="text-[12px] font-bold text-gray-600">회 누적 시 숨김</span><button type="submit" className="px-3 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm ml-auto whitespace-nowrap">적용</button></form>
+              <div><h2 className="text-[16px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-rose-500">🚨</span> 신고 누적 블라인드 기준</h2><p className="text-[13px] font-bold text-gray-500 mt-1 pl-7">게시글이나 댓글이 설정된 횟수만큼 신고를 받으면 즉시 숨김 처리됩니다.</p></div>
+              <form action={updateBlindThreshold} className="flex items-center gap-2 bg-gray-50 p-2.5 rounded-sm border border-gray-200 mt-auto"><input type="number" name="threshold" defaultValue={blindThreshold} min="1" max="999" className="w-16 px-2 py-1.5 border border-gray-300 rounded-sm text-[15px] font-black text-rose-600 text-center outline-none focus:border-rose-400" /><span className="text-[14px] font-bold text-gray-600">회 누적 시 숨김</span><button type="submit" className="px-4 py-2 bg-gray-800 text-white text-[13px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm ml-auto whitespace-nowrap">적용</button></form>
             </div>
 
-            <div className="bg-white p-4 rounded-sm border border-purple-300 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
+            <div className="bg-white p-5 rounded-sm border border-purple-300 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-500"></div>
               <div>
-                <h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-purple-500">📉</span> 비공감 강등/숨김 기준</h2>
-                <p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">베스트 탈락(강등) 및 전면 블라인드 될 비공감 횟수를 설정합니다.</p>
+                <h2 className="text-[16px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-purple-500">📉</span> 비공감 강등/숨김 기준</h2>
+                <p className="text-[13px] font-bold text-gray-500 mt-1 pl-7">베스트 탈락(강등) 및 전면 블라인드 될 비공감 횟수를 설정합니다.</p>
               </div>
-              <form action={updateDislikeSettings} className="flex flex-col gap-1.5 bg-gray-50 p-2 rounded-sm border border-gray-200 mt-auto">
+              <form action={updateDislikeSettings} className="flex flex-col gap-2 bg-gray-50 p-2.5 rounded-sm border border-gray-200 mt-auto">
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-gray-600">탈락(강등):</span>
+                  <span className="text-[14px] font-bold text-gray-600">탈락(강등):</span>
                   <div className="flex items-center gap-1">
-                    <input type="number" name="cutoff" defaultValue={bestCutoffThreshold} min="1" max="999" className="w-12 px-1 py-1 border border-gray-300 rounded-sm text-[12px] font-black text-purple-600 text-center outline-none focus:border-purple-400" />
-                    <span className="text-[11px] text-gray-500 font-bold">회</span>
+                    <input type="number" name="cutoff" defaultValue={bestCutoffThreshold} min="1" max="999" className="w-14 px-2 py-1.5 border border-gray-300 rounded-sm text-[14px] font-black text-purple-600 text-center outline-none focus:border-purple-400" />
+                    <span className="text-[13px] text-gray-500 font-bold">회</span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-gray-600">완전숨김:</span>
+                  <span className="text-[14px] font-bold text-gray-600">완전숨김:</span>
                   <div className="flex items-center gap-1">
-                    <input type="number" name="blind" defaultValue={dislikeBlindThreshold} min="1" max="999" className="w-12 px-1 py-1 border border-gray-300 rounded-sm text-[12px] font-black text-purple-600 text-center outline-none focus:border-purple-400" />
-                    <span className="text-[11px] text-gray-500 font-bold">회</span>
+                    <input type="number" name="blind" defaultValue={dislikeBlindThreshold} min="1" max="999" className="w-14 px-2 py-1.5 border border-gray-300 rounded-sm text-[14px] font-black text-purple-600 text-center outline-none focus:border-purple-400" />
+                    <span className="text-[13px] text-gray-500 font-bold">회</span>
                   </div>
                 </div>
-                <button type="submit" className="w-full py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm mt-1">일괄 적용하기</button>
+                <button type="submit" className="w-full py-2 bg-gray-800 text-white text-[13px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm mt-1">일괄 적용하기</button>
               </form>
             </div>
 
-            <div className="bg-white p-4 rounded-sm border border-emerald-300 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
+            <div className="bg-white p-5 rounded-sm border border-emerald-300 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
               <div>
-                <h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-emerald-500">⏳</span> 투표/신고 에이징 설정</h2>
-                <p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">신규 가입자가 비공감/신고를 하기 위해 대기해야 하는 시간(0 = 제한없음)</p>
+                <h2 className="text-[16px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-emerald-500">⏳</span> 투표/신고 에이징 설정</h2>
+                <p className="text-[13px] font-bold text-gray-500 mt-1 pl-7">신규 가입자가 비공감/신고를 하기 위해 대기해야 하는 시간(0 = 제한없음)</p>
               </div>
-              <form action={updateVoteAging} className="flex items-center gap-2 bg-gray-50 p-2 rounded-sm border border-gray-200 mt-auto">
-                <input type="number" name="hours" defaultValue={voteAgingHours} min="0" max="720" className="w-14 px-2 py-1.5 border border-gray-300 rounded-sm text-[13px] font-black text-emerald-600 text-center outline-none focus:border-emerald-400" />
-                <span className="text-[12px] font-bold text-gray-600">시간 경과 후 허용</span>
-                <button type="submit" className="px-3 py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm ml-auto whitespace-nowrap">적용</button>
+              <form action={updateVoteAging} className="flex items-center gap-2 bg-gray-50 p-2.5 rounded-sm border border-gray-200 mt-auto">
+                <input type="number" name="hours" defaultValue={voteAgingHours} min="0" max="720" className="w-16 px-2 py-1.5 border border-gray-300 rounded-sm text-[15px] font-black text-emerald-600 text-center outline-none focus:border-emerald-400" />
+                <span className="text-[14px] font-bold text-gray-600">시간 경과 후 허용</span>
+                <button type="submit" className="px-4 py-2 bg-gray-800 text-white text-[13px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm ml-auto whitespace-nowrap">적용</button>
               </form>
             </div>
 
-            <div className="bg-white p-4 rounded-sm border border-indigo-200 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
+            <div className="bg-white p-5 rounded-sm border border-indigo-200 shadow-sm flex flex-col justify-between gap-4 relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
-              <div><h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-indigo-500">📝</span> 에디터 안내 문구 설정</h2><p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">게시판 글쓰기 창에 기본 보여지는 흐린 안내 문구를 수정할 수 있습니다.</p></div>
-              <form action={updateEditorPlaceholder} className="flex flex-col mt-auto gap-2 bg-gray-50 p-2 rounded-sm border border-gray-200">
-                <input type="text" name="placeholder" defaultValue={editorPlaceholder} className="w-full px-2 py-1.5 border border-gray-300 rounded-sm text-[12px] font-bold text-gray-700 outline-none focus:border-indigo-400" placeholder="안내 문구를 입력하세요..." />
-                <button type="submit" className="w-full py-1.5 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap">적용하기</button>
+              <div><h2 className="text-[16px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-indigo-500">📝</span> 에디터 안내 문구 설정</h2><p className="text-[13px] font-bold text-gray-500 mt-1 pl-7">게시판 글쓰기 창에 기본 보여지는 흐린 안내 문구를 수정할 수 있습니다.</p></div>
+              <form action={updateEditorPlaceholder} className="flex flex-col mt-auto gap-2 bg-gray-50 p-2.5 rounded-sm border border-gray-200">
+                <input type="text" name="placeholder" defaultValue={editorPlaceholder} className="w-full px-2 py-2 border border-gray-300 rounded-sm text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-400" placeholder="안내 문구를 입력하세요..." />
+                <button type="submit" className="w-full py-2 bg-gray-800 text-white text-[13px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap">적용하기</button>
               </form>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-sm border border-amber-300 shadow-sm mb-6 flex flex-col xl:flex-row xl:items-start justify-between gap-4 relative overflow-hidden">
+          <div className="bg-white p-5 rounded-sm border border-amber-300 shadow-sm mb-6 flex flex-col xl:flex-row xl:items-start justify-between gap-4 relative overflow-hidden">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-400"></div>
             <div className="flex-1">
-              <h2 className="text-[14px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-amber-500">📢</span> 메인 배너 문구 동적 설정</h2>
-              <p className="text-[11px] font-bold text-gray-500 mt-0.5 pl-6">
+              <h2 className="text-[16px] font-black text-gray-800 flex items-center gap-1.5"><span className="text-amber-500">📢</span> 메인 배너 문구 동적 설정</h2>
+              <p className="text-[13px] font-bold text-gray-500 mt-1 pl-7 leading-relaxed">
                 추모, 명절 인사, 이벤트 등 시의적절하게 사이트 메인 간판 문구를 변경하세요.<br />
-                <span className="text-amber-600 font-black">* 꿀팁:</span> 문구 중에 <span className="font-black text-gray-800">유머인</span> 이라는 글자가 포함되면 <span className="bg-yellow-400 text-white px-1 py-0.5 rounded-sm">자동으로 노란색 강조 처리</span>가 됩니다.
+                <span className="text-amber-600 font-black">* 꿀팁:</span> 문구 중에 <span className="font-black text-gray-800">유머인</span> 이라는 글자가 포함되면 <span className="bg-yellow-400 text-white px-1.5 py-0.5 rounded-sm">자동으로 노란색 강조 처리</span>가 됩니다.
               </p>
             </div>
-            <form action={updateMainBanner} className="flex flex-col gap-2 bg-gray-50 p-3 rounded-sm border border-gray-200 w-full xl:w-[500px]">
-              <input type="text" name="title" defaultValue={mainBannerTitle} className="w-full px-2 py-1.5 border border-gray-300 rounded-sm text-[13px] font-black text-gray-800 outline-none focus:border-amber-400" placeholder="메인 제목 (예: 세상의 모든 웃음이 있는 곳 유머인 입니다.)" />
-              <input type="text" name="subtitle" defaultValue={mainBannerSubtitle} className="w-full px-2 py-1.5 border border-gray-300 rounded-sm text-[12px] font-bold text-gray-600 outline-none focus:border-amber-400" placeholder="서브 설명 (예: 함께 웃고, 나누고, 소통하는 우리들의 따뜻한 공간 유머인.)" />
-              <button type="submit" className="px-4 py-2 mt-1 bg-gray-800 text-white text-[11px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm text-center">메인 배너 문구 실시간 적용하기</button>
+            <form action={updateMainBanner} className="flex flex-col gap-2 bg-gray-50 p-4 rounded-sm border border-gray-200 w-full xl:w-[500px]">
+              <input type="text" name="title" defaultValue={mainBannerTitle} className="w-full px-3 py-2 border border-gray-300 rounded-sm text-[15px] font-black text-gray-800 outline-none focus:border-amber-400" placeholder="메인 제목 (예: 세상의 모든 웃음이 있는 곳 유머인 입니다.)" />
+              <input type="text" name="subtitle" defaultValue={mainBannerSubtitle} className="w-full px-3 py-2 border border-gray-300 rounded-sm text-[14px] font-bold text-gray-600 outline-none focus:border-amber-400" placeholder="서브 설명 (예: 함께 웃고, 나누고, 소통하는 우리들의 따뜻한 공간 유머인.)" />
+              <button type="submit" className="px-4 py-2.5 mt-1 bg-gray-800 text-white text-[13px] font-bold rounded-sm hover:bg-gray-900 transition-colors shadow-sm text-center">메인 배너 문구 실시간 적용하기</button>
             </form>
           </div>
 
-          <div className="bg-white p-3 rounded-sm border border-gray-200 shadow-sm mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h2 className="text-sm font-black text-[#3b4890] flex items-center gap-1"><span>🔍</span> 악성 유저 추적 검색</h2>
+          <div className="bg-white p-4 rounded-sm border border-gray-200 shadow-sm mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h2 className="text-[16px] font-black text-[#3b4890] flex items-center gap-1.5"><span>🔍</span> 악성 유저 추적 검색</h2>
             <form method="GET" action="/admin" className="flex items-center gap-2">
-              <select name="type" defaultValue={type} className="text-xs font-bold border border-gray-300 p-1.5 rounded-sm outline-none bg-white text-gray-700">
+              <select name="type" defaultValue={type} className="text-[14px] font-bold border border-gray-300 p-2 rounded-sm outline-none bg-white text-gray-700">
                 <option value="userid">아이디</option><option value="nickname">닉네임</option><option value="ip">접속 IP</option>
               </select>
-              <input type="text" name="q" defaultValue={q} placeholder="검색어 입력..." className="text-xs font-bold border border-gray-300 p-1.5 rounded-sm outline-none w-48 focus:border-[#3b4890]" />
-              <button type="submit" className="px-4 py-1.5 bg-[#414a66] text-white text-xs font-bold rounded-sm hover:bg-[#2a3042] shadow-sm">검색</button>
+              <input type="text" name="q" defaultValue={q} placeholder="검색어 입력..." className="text-[14px] font-bold border border-gray-300 p-2 rounded-sm outline-none w-48 sm:w-64 focus:border-[#3b4890]" />
+              <button type="submit" className="px-5 py-2 bg-[#414a66] text-white text-[14px] font-bold rounded-sm hover:bg-[#2a3042] shadow-sm">검색</button>
             </form>
           </div>
 
