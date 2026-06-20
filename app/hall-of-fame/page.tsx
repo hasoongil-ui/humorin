@@ -1,6 +1,6 @@
 import { sql } from '@vercel/postgres';
 import Link from 'next/link';
-import Navbar from '../board/Navbar'; // 💡 상단 메뉴바 컴포넌트 호출! (경로가 다르면 수정 필요)
+import Navbar from '../board/Navbar'; // 상단 메뉴바 컴포넌트
 
 export const revalidate = 3600; 
 
@@ -28,12 +28,11 @@ export default async function HallOfFamePage() {
     groupedData[vip.year][vip.month].push(vip);
   });
 
-  // 현재 시간 계산 (KST)
   const kstNow = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Seoul"}));
   const currentYear = kstNow.getFullYear();
   const currentMonth = kstNow.getMonth() + 1;
 
-  // 💡 [핵심 수정] DB가 텅 비어있어도, 현재 '연도'와 '월'의 빈 판을 강제로 생성합니다!
+  // DB가 텅 비어있어도, 현재 '연도'와 '월'의 빈 판을 강제로 생성
   if (!groupedData[currentYear]) groupedData[currentYear] = {};
   if (!groupedData[currentYear][currentMonth]) groupedData[currentYear][currentMonth] = [];
 
@@ -44,7 +43,7 @@ export default async function HallOfFamePage() {
 
   return (
     <>
-      {/* 💡 모든 페이지에 공통으로 들어가는 유머인 네비게이션 바 */}
+      {/* 💡 상단 메뉴바 유지 */}
       <Navbar />
 
       <div className="min-h-screen bg-[#f4f5f7] pb-20">
@@ -63,7 +62,6 @@ export default async function HallOfFamePage() {
         <div className="max-w-[1000px] mx-auto px-4 -mt-6 relative z-20">
           <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 md:p-8">
             
-            {/* 연도별 렌더링 */}
             {Object.keys(groupedData).sort((a, b) => Number(b) - Number(a)).map(year => (
               <div key={year} className="mb-16 last:mb-0">
                 <div className="flex items-center gap-4 mb-8 border-b-2 border-gray-800 pb-3">
@@ -73,7 +71,6 @@ export default async function HallOfFamePage() {
                   </span>
                 </div>
 
-                {/* 월별 렌더링 */}
                 {Object.keys(groupedData[Number(year)]).sort((a, b) => Number(b) - Number(a)).map(month => {
                   const vipsInMonth = groupedData[Number(year)][Number(month)];
                   const totalWeeks = getWeeksInMonth(Number(year), Number(month));
@@ -83,18 +80,17 @@ export default async function HallOfFamePage() {
                     const vip = vipsInMonth.find(v => v.week === w);
                     
                     if (vip) {
-                      // 수상자가 있는 경우
                       weekCards.push(
                         <Link href={`/user/${vip.user_id}`} key={`vip-${vip.id}`} className="block group">
                           <div className="bg-white rounded-xl border border-yellow-300 shadow-[0_4px_12px_rgba(250,204,21,0.15)] p-5 text-center transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_8px_20px_rgba(250,204,21,0.3)] relative overflow-hidden h-full flex flex-col justify-between">
                             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-400 to-orange-500"></div>
                             <div className="text-[12px] font-black text-orange-600 mb-4">{month}월 {w}주차 VIP</div>
                             <div className="w-20 h-20 mx-auto rounded-full p-1 border-2 border-yellow-400 mb-3 relative bg-white shadow-sm">
+                              {/* 💡 서버 다운을 유발했던 onError 제거 & 안전한 엑스박스 방어 로직 적용 */}
                               <img 
-                                src={vip.awarded_profile_image || "https://ui-avatars.com/api/?name=" + encodeURIComponent(vip.awarded_nickname) + "&background=F3F4F6&color=9CA3AF"} 
-                                alt={vip.awarded_nickname}
+                                src={vip.awarded_profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(vip.awarded_nickname || '유머인')}&background=F3F4F6&color=9CA3AF`} 
+                                alt={vip.awarded_nickname || '유머인'}
                                 className="w-full h-full rounded-full object-cover"
-                                onError={(e) => { e.currentTarget.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(vip.awarded_nickname) + "&background=F3F4F6&color=9CA3AF" }}
                                 loading="lazy"
                               />
                               <div className="absolute -bottom-2 -right-2 text-2xl drop-shadow-md">🥇</div>
@@ -104,13 +100,12 @@ export default async function HallOfFamePage() {
                             </div>
                             <div className="mt-auto pt-3 border-t border-gray-100">
                               <div className="text-[11px] font-bold text-gray-400">활동지수</div>
-                              <div className="text-[14px] font-black text-orange-500">{vip.total_score.toLocaleString()} P</div>
+                              <div className="text-[14px] font-black text-orange-500">{Number(vip.total_score || 0).toLocaleString()} P</div>
                             </div>
                           </div>
                         </Link>
                       );
                     } else if (Number(year) === currentYear && Number(month) === currentMonth) {
-                      // 심사 대기중 카드
                       weekCards.push(
                         <div key={`pending-${month}-${w}`} className="bg-gray-50 rounded-xl border border-gray-200 border-dashed p-5 text-center flex flex-col items-center justify-center h-full min-h-[220px]">
                           <span className="text-3xl grayscale opacity-40 mb-2">🏆</span>
