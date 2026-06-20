@@ -45,13 +45,12 @@ function getTierInfo(points: number) {
 export default async function ProfilePage(props: any) {
   const searchParams = await props.searchParams;
   const currentTab = searchParams?.tab || 'posts';
-  
   const currentPage = parseInt(searchParams?.page || '1', 10) || 1;
   const ITEMS_PER_PAGE = 30;
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   const cookieStore = await cookies();
-  const userCookie = cookieStore.get('humorin_user');      
+  const userCookie = cookieStore.get('humorin_user');
   const userIdCookie = cookieStore.get('humorin_userid');  
   
   const currentUser = userCookie ? userCookie.value : null;
@@ -62,11 +61,12 @@ export default async function ProfilePage(props: any) {
   }
 
   let points = 0;
-  let profileImage = null; 
+  let profileImage = null;
   let currentEmail = ''; 
   let myPosts: any[] = [];
   let myScraps: any[] = [];
-  let totalItems = 0; 
+  let totalItems = 0;
+  let vvipWinCount = 0; // 💡 신규 추가: VVIP 당첨 횟수
 
   try {
     if (currentUserId) {
@@ -76,24 +76,24 @@ export default async function ProfilePage(props: any) {
         points = userRes.rows[0].points || 0;
         profileImage = userRes.rows[0].profile_image;
       }
+      
+      // 💡 VVIP 헌액 횟수 조회 (부하율 0%의 초경량 COUNT 쿼리)
+      const vipRes = await sql`SELECT COUNT(*) as count FROM weekly_vips WHERE user_id = ${currentUserId}`;
+      vvipWinCount = parseInt(vipRes.rows[0].count, 10) || 0;
     }
 
     if (currentTab === 'posts') {
-      // 🚀 [수술 1] 게시글 개수 검색: 닉네임 대신 고유 ID(author_id) 사용
       const countRes = await sql`SELECT COUNT(*) FROM posts WHERE author_id = ${currentUserId}`;
       totalItems = parseInt(countRes.rows[0].count, 10);
 
-      // 🚀 [수술 2] 게시글 리스트 검색: 닉네임 대신 고유 ID(author_id) 사용
       const postsResult = await sql`SELECT * FROM posts WHERE author_id = ${currentUserId} ORDER BY id DESC LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
       myPosts = postsResult.rows;
 
     } else if (currentTab === 'scraps') {
-      // 🚀 [수술 3] 스크랩 개수 검색: 닉네임 대신 고유 ID(author_id) 사용
       const countRes = await sql`SELECT COUNT(*) FROM scraps WHERE author_id = ${currentUserId}`;
       totalItems = parseInt(countRes.rows[0].count, 10);
 
       try {
-        // 🚀 [수술 4] 스크랩 리스트 검색: 닉네임 대신 고유 ID(author_id) 사용
         const scrapsResult = await sql`
           SELECT p.* FROM posts p JOIN scraps s ON p.id = s.post_id
           WHERE s.author_id = ${currentUserId} ORDER BY s.created_at DESC LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
@@ -115,7 +115,7 @@ export default async function ProfilePage(props: any) {
 
     try {
       await sql`UPDATE users SET profile_image = ${url} WHERE user_id = ${uid}`;
-      revalidatePath('/profile'); 
+      revalidatePath('/profile');
       return { success: true };
     } catch (error) {
       return { error: 'DB Error' };
@@ -124,20 +124,16 @@ export default async function ProfilePage(props: any) {
 
   const { current: currentTier, next: nextTier } = getTierInfo(points);
   const isMaxLevel = currentTier.name === nextTier.name;
-  
   const progressPercent = isMaxLevel 
     ? 100 
     : Math.min(((points - currentTier.min) / (nextTier.min - currentTier.min)) * 100, 100);
-
   const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
   
   const renderPagination = () => {
-    if (totalPages <= 1) return null; 
-
+    if (totalPages <= 1) return null;
     const maxPageButtons = 5;
     let startPage = Math.max(1, currentPage - 2);
     let endPage = Math.min(totalPages, startPage + maxPageButtons - 1);
-    
     if (endPage - startPage + 1 < maxPageButtons) {
       startPage = Math.max(1, endPage - maxPageButtons + 1);
     }
@@ -148,7 +144,6 @@ export default async function ProfilePage(props: any) {
     }
 
     const getPageUrl = (pageNum: number) => `/profile?tab=${currentTab}&page=${pageNum}`;
-
     return (
       <div className="flex justify-center items-center gap-1 flex-wrap mt-8 pb-4 w-full">
         {currentPage > 1 && (
@@ -205,14 +200,26 @@ export default async function ProfilePage(props: any) {
             />
 
             <h2 className="text-2xl font-black mb-1">{currentUser}</h2>
-            <div className={`inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 ${currentTier.color} font-bold text-sm rounded-full mb-6 border border-white/10`}>
-              <span>{currentTier.icon}</span> {currentTier.name} 등급
+            
+            {/* 💡 기존 등급 뱃지와 VVIP 훈장 나란히 배치 */}
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+              <div className={`inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 ${currentTier.color} font-bold text-sm rounded-full border border-white/10`}>
+                <span>{currentTier.icon}</span> {currentTier.name} 등급
+              </div>
+              
+              {/* 💡 다크 모드용 네온 글로우 훈장 (1회 이상 헌액자 전용) */}
+              {vvipWinCount > 0 && (
+                <div className="bg-gradient-to-r from-yellow-400/20 via-amber-500/20 to-yellow-500/20 border border-yellow-400/50 text-yellow-400 text-[14px] font-black px-4 py-1.5 rounded-full flex items-center gap-1.5 shadow-[0_0_15px_rgba(250,204,21,0.2),inset_0_0_10px_rgba(250,204,21,0.1)] transform hover:scale-105 transition-transform">
+                  <span className="text-lg drop-shadow-md">🏆</span> VVIP <span className="text-white font-black ml-0.5 text-[15px] tracking-wide">{vvipWinCount}회</span> 헌액
+                </div>
+              )}
             </div>
 
             <div className="max-w-[400px] mx-auto bg-black/30 p-4 rounded-md border border-white/10 backdrop-blur-sm mb-4">
               <div className="flex justify-between text-[13px] font-bold text-gray-300 mb-2">
                 <span>내 포인트: <span className="text-rose-400">{points.toLocaleString()} P</span></span>
-                {!isMaxLevel ? (
+                {!isMaxLevel ?
+                (
                   <span>다음 단계 <span className="text-white">[{nextTier.icon} {nextTier.name}]</span> 까지: {(nextTier.min - points).toLocaleString()} P 남음</span>
                 ) : (
                   <span className="text-yellow-400">✨ 유머인의 전설 달성! ✨</span>

@@ -8,7 +8,7 @@ function formatDate(dateString: string) {
     const yyyy = date.getFullYear();
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
-    return `${yyyy}.${mm}.${dd}`; 
+    return `${yyyy}.${mm}.${dd}`;
   } catch (e) {
     return '';
   }
@@ -52,7 +52,7 @@ export default async function PublicProfilePage(props: any) {
     FROM users 
     WHERE user_id = ${targetParam} OR nickname = ${targetParam}
   `;
-  
+
   if (userRows.length === 0) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center font-sans">
@@ -69,11 +69,18 @@ export default async function PublicProfilePage(props: any) {
   const points = user.points || 0;
   const tier = getTierInfo(points);
 
+  // 💡 VVIP 헌액 횟수 조회 (초경량)
+  const { rows: vipRows } = await sql`
+    SELECT COUNT(*) as count FROM weekly_vips WHERE user_id = ${targetUserId}
+  `;
+  const vvipWinCount = parseInt(vipRows[0].count, 10) || 0;
+
   const { rows: countRows } = await sql`
     SELECT COUNT(*) 
     FROM posts 
     WHERE author_id = ${targetUserId} OR author = ${user.nickname}
   `;
+
   const totalItems = parseInt(countRows[0].count, 10) || 0;
   const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
 
@@ -88,7 +95,6 @@ export default async function PublicProfilePage(props: any) {
   // 💡 [초심플 마스터 페이징 엔진] 5개씩 블록 단위 점프 + 처음 버튼 장착
   const renderPagination = () => {
     if (totalPages <= 1) return null;
-    
     const blockSize = 5;
     const currentBlock = Math.ceil(currentPage / blockSize);
     const startPage = (currentBlock - 1) * blockSize + 1;
@@ -147,7 +153,8 @@ export default async function PublicProfilePage(props: any) {
         <div className="bg-white p-10 border-b border-gray-100 text-center relative">
           
           <div className="w-24 h-24 bg-gray-50 rounded-full mx-auto mb-4 flex items-center justify-center text-4xl font-black shadow-sm border border-gray-200 text-[#3b4890] overflow-hidden">
-            {user.profile_image ? (
+            {user.profile_image ?
+            (
               <img src={user.profile_image} alt={`${user.nickname} 프로필`} className="w-full h-full object-cover" />
             ) : (
               user.nickname.charAt(0)
@@ -156,12 +163,24 @@ export default async function PublicProfilePage(props: any) {
           
           <h2 className="text-3xl font-black mb-3 text-gray-800">{user.nickname}</h2>
           
+          {/* 💡 VVIP 화이트 모드 입체 황금 훈장 (1회 이상 헌액자 전용) */}
+          {vvipWinCount > 0 && (
+            <div className="mb-5 flex justify-center">
+              <div className="bg-gradient-to-r from-yellow-100 via-amber-100 to-yellow-100 border-2 border-yellow-400/80 text-amber-900 text-[14px] font-black px-5 py-2 rounded-full flex items-center gap-2 shadow-[0_4px_6px_-1px_rgba(217,119,6,0.2),0_2px_4px_-1px_rgba(217,119,6,0.1),inset_0_2px_0_rgba(255,255,255,0.6)] transform hover:scale-105 transition-all">
+                <span className="text-xl drop-shadow-sm filter brightness-110">👑</span> 
+                유머인 VVIP 
+                <span className="bg-red-600 text-white px-2 py-0.5 rounded-md font-black ml-0.5 text-[14px] shadow-sm">{vvipWinCount}회</span> 
+                <span className="text-amber-800">헌액</span>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-center items-center gap-3">
             <div className={`px-4 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-sm font-bold ${tier.color}`}>
               {tier.icon} {tier.name} 등급
             </div>
             <div className="px-4 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-sm font-bold text-gray-600">
-              <span className="text-rose-500 mr-1">P</span> {points.toLocaleString()} 점
+               <span className="text-rose-500 mr-1">P</span> {points.toLocaleString()} 점
             </div>
           </div>
         </div>
@@ -170,8 +189,9 @@ export default async function PublicProfilePage(props: any) {
           <h3 className="font-bold text-lg mb-4 text-gray-800 border-b-2 border-gray-800 pb-2 inline-block">
             작성한 게시글 <span className="text-[#3b4890]">{totalItems}</span> 
           </h3>
-          
-          {userPosts.length === 0 ? (
+         
+          {userPosts.length === 0 ?
+          (
             <div className="text-center py-16 text-gray-400 font-bold text-sm">아직 작성한 글이 없습니다.</div>
           ) : (
             <div className="divide-y divide-gray-100 border-t border-gray-100">
