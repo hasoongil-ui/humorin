@@ -48,10 +48,12 @@ interface MenuGroup {
 export default function NavbarClient(props: NavbarClientProps) {
   const { initialUser, initialBoards } = props;
   const searchParams = useSearchParams();
+
   const currentCategory = searchParams.get('category') || 'all';
   const bestType = searchParams.get('best') || '';
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -71,20 +73,24 @@ export default function NavbarClient(props: NavbarClientProps) {
   const scrollByArrow = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
       const container = scrollContainerRef.current;
+
       const scrollAmount = container.clientWidth * 0.8;
       container.scrollBy({
         left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth'
       });
+
     }
   };
 
   const [hoveredMenuId, setHoveredMenuId] = useState<string | null>(null);
   const [menuRect, setMenuRect] = useState<DOMRect | null>(null);
+
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleMouseEnter = (event: React.MouseEvent<HTMLElement>, menuId: string) => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+
     const rect = event.currentTarget.getBoundingClientRect();
     setMenuRect(rect); 
     setHoveredMenuId(menuId);
@@ -94,6 +100,7 @@ export default function NavbarClient(props: NavbarClientProps) {
     hoverTimerRef.current = setTimeout(() => {
       setHoveredMenuId(null);
     }, 150);
+
   };
 
   useEffect(() => {
@@ -106,20 +113,24 @@ export default function NavbarClient(props: NavbarClientProps) {
   }, [initialBoards, checkScrollState]);
 
   const user = initialUser ? { nickname: initialUser.nickname, level: initialUser.level, points: Number(initialUser.points) || 0 } : null;
+
   const tierInfo = getTierInfo(user ? user.points : 0);
   
   const groupsMap: Record<string, any[]> = {};
+
   if (initialBoards && initialBoards.length > 0) {
     initialBoards.forEach((b: any) => {
       if (!groupsMap[b.group_name]) groupsMap[b.group_name] = [];
       groupsMap[b.group_name].push({ name: b.name, link: `/board?category=${b.name}` });
     });
+
   }
   
   const menuGroups: MenuGroup[] = [
     { name: '전체글 보기', link: '/board', isSingle: true }, 
     { name: '🔥투데이 베스트', link: '/board?best=today', isSingle: true }, 
     { name: '명예의 전당', sub: [
+      { name: '🏆 이주의 VVIP', link: '/hall-of-fame', isSpecial: true }, // 💡 신규 VVIP 메뉴 추가
       { name: '🏛️ 명작 쇼케이스', link: '/board?best=showcase' },
       { name: '💯 백베스트', link: '/board?best=100' }, 
       { name: '👑 천베스트', link: '/board?best=1000' }
@@ -127,10 +138,12 @@ export default function NavbarClient(props: NavbarClientProps) {
     ...Object.keys(groupsMap).map(groupName => ({ name: groupName, sub: groupsMap[groupName] }))
   ];
 
-  // 💡 [핵심 방어막] 이름에 '포럼'이 들어간 게시판은 모바일 스크롤 메뉴에서 원천 차단! (대신 앵커 버튼 추가)
+  // 💡 [핵심 방어막] 이름에 '포럼'이 들어간 게시판은 모바일 스크롤 메뉴에서 원천 차단!
+  // (대신 앵커 버튼 추가)
   const mobileFlatList = [
     { name: '전체글 보기', link: '/board' },
     { name: '🔥투데이 베스트', link: '/board?best=today' },
+    { name: '🏆 이주의 VVIP', link: '/hall-of-fame' }, // 💡 신규 VVIP 메뉴 모바일에 추가
     { name: '🏛️ 명작 쇼케이스', link: '/board?best=showcase' },
     { name: '💯 백베스트', link: '/board?best=100' },
     { name: '👑 천베스트', link: '/board?best=1000' },
@@ -138,6 +151,7 @@ export default function NavbarClient(props: NavbarClientProps) {
       .filter(b => !(b.group_name && b.group_name.includes('포럼')))
       .map(b => ({ name: b.name, link: `/board?category=${b.name}` })),
     // 👇 모바일 전용 '포럼' 직통 엘리베이터 버튼!
+
     { name: '💬 전체 포럼 보기', link: '/boards#forum' }
   ];
 
@@ -152,34 +166,40 @@ export default function NavbarClient(props: NavbarClientProps) {
 
       <header className="bg-white px-4 border-b border-gray-200 shadow-sm relative z-30 h-[68px] flex items-center">
         <div className="w-full max-w-[1200px] mx-auto flex justify-between items-center">
-          <Link href="/" className="shrink-0 flex items-center pt-1"><img src="/logo_final.png" alt="유머.in 로고" style={{ height: '36px', objectFit: 'contain' }} /></Link>
+          <Link href="/" className="shrink-0 flex items-center pt-1"><img src="/logo_final.png" alt="유머.in 로고" style={{ height: '36px', objectFit: 'contain' 
+          }} /></Link>
           <div className="flex items-center gap-2 md:gap-4 h-[32px]">
             {user ? (
               <>
                 <div className="text-[13px] md:text-[14px] font-medium text-gray-700 hidden sm:flex items-center gap-1.5">
                   <span className={`font-black ${tierInfo.color}`}>{tierInfo.icon} [{tierInfo.name}]</span>
+           
                   <Link href={`/user/${user.nickname}`} className="font-bold text-[#3b4890] hover:underline cursor-pointer tracking-tight">{user.nickname}</Link>
                   <span className="text-rose-500 font-bold text-[13px]">({user.points.toLocaleString()} P)</span>
                 </div>
                 <div className="flex items-center gap-1.5"><Link href="/profile" className="px-3 py-1.5 bg-[#ebedf5] text-[#3b4890] text-[11px] md:text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors shadow-sm shrink-0">내정보</Link><form action={handleLogoutAction}><button type="submit" className="px-3 py-1.5 bg-gray-100 text-gray-600 text-[11px] md:text-xs font-bold rounded-sm hover:bg-gray-200 transition-colors shadow-sm shrink-0">로그아웃</button></form></div>
+   
               </>
             ) : (
               <div className="flex items-center gap-1.5"><Link href="/login" className="px-4 py-1.5 bg-[#ebedf5] text-[#3b4890] text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors shrink-0">로그인</Link><Link href="/signup" className="px-4 py-1.5 bg-[#2a3042] text-white text-xs font-bold rounded-sm hover:bg-gray-900 transition-colors shrink-0">회원가입</Link></div>
             )}
           </div>
         </div>
+      
       </header>
 
       <nav className="bg-[#414a66] text-gray-200 shadow-md relative z-20 min-h-[48px] md:min-h-[52px]">
         <div className="max-w-[1200px] mx-auto relative group flex">
           {showLeftArrow && (
             <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-[#414a66] via-[#414a66]/80 to-transparent z-40 flex items-center pointer-events-none">
-              <button onClick={() => scrollByArrow('left')} className="w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center ml-2 pointer-events-auto transition-all shadow-lg active:scale-95"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg></button>
+              <button onClick={() => scrollByArrow('left')} className="w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center ml-2 pointer-events-auto transition-all shadow-lg active:scale-95"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 
+              24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg></button>
             </div>
           )}
           {showRightArrow && (
             <div className="absolute right-[80px] top-0 bottom-0 w-20 bg-gradient-to-l from-[#414a66] via-[#414a66]/80 to-transparent z-40 flex items-center justify-end pointer-events-none">
-              <button onClick={() => scrollByArrow('right')} className="w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center mr-1 pointer-events-auto transition-all shadow-lg active:scale-95"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5 15.75 12l-7.5 7.5" /></svg></button>
+              <button onClick={() => scrollByArrow('right')} className="w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center mr-1 pointer-events-auto 
+              transition-all shadow-lg active:scale-95"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5 15.75 12l-7.5 7.5" /></svg></button>
             </div>
           )}
 
@@ -187,13 +207,21 @@ export default function NavbarClient(props: NavbarClientProps) {
             <div className="w-2 shrink-0 md:hidden"></div>
 
             {mobileFlatList.map((item) => {
+         
               let isActive = false;
               if (item.name === '전체글 보기') isActive = currentCategory === 'all' && bestType === '';
+
               else if (item.name === '🔥투데이 베스트') isActive = bestType === 'today';
+
+              else if (item.name === '🏆 이주의 VVIP') isActive = false; // VVIP는 독립 페이지이므로 하이라이트 패스
               else if (item.name === '🏛️ 명작 쇼케이스') isActive = bestType === 'showcase';
+
               else if (item.name === '💯 백베스트') isActive = bestType === '100';
+
               else if (item.name === '👑 천베스트') isActive = bestType === '1000';
+
               // '💬 전체 포럼 보기'는 링크 이동이므로 하이라이트를 주지 않습니다.
+
               else if (item.name === '💬 전체 포럼 보기') isActive = false;
               else isActive = currentCategory === item.name;
 
@@ -202,26 +230,32 @@ export default function NavbarClient(props: NavbarClientProps) {
                   {item.name}
                 </Link>
               );
+
             })}
 
             {menuGroups.map((group: any) => {
               if (group.isSingle) {
                 let isActive = false;
                 if (group.name === '전체글 보기') isActive = currentCategory === 'all' && bestType === '';
-                if (group.name === '🔥투데이 베스트') isActive = bestType === 'today';
+                if (group.name === '🔥투데이 베스트') 
+
+                isActive = bestType === 'today';
                 return (
                   <Link key={`pc-${group.name}`} href={group.link!} className={`hidden md:inline-block shrink-0 px-5 py-4 text-[13px] sm:text-sm font-bold transition-colors ${isActive ? 'bg-[#2a3042] text-white' : 'hover:bg-[#5b6586] hover:text-white'}`}>
                     {group.name}
                   </Link>
+     
                 );
               }
               return (
                 <div key={`pc-${group.name}`} className="hidden md:inline-block group shrink-0" onMouseEnter={(e) => handleMouseEnter(e, group.name)} onMouseLeave={handleMouseLeave}>
                   <button className="px-5 py-4 text-[13px] sm:text-sm font-bold transition-colors hover:bg-[#5b6586] hover:text-white flex items-center gap-1.5 whitespace-nowrap">
+    
                     {group.name}
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-2.5 h-2.5 opacity-60 group-hover:rotate-180 transition-transform"><path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                   </button>
                 </div>
+           
               );
             })}
             
@@ -230,6 +264,7 @@ export default function NavbarClient(props: NavbarClientProps) {
           </div>
           
           <Link href="/boards" className="absolute right-0 top-0 bottom-0 bg-[#414a66] h-full px-4 flex items-center text-[13px] font-black text-yellow-400 hover:text-white transition-colors shadow-[-15px_0_15px_-5px_rgba(65,74,102,1)] z-50 shrink-0 border-l border-[#5b6586]">
+ 
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 mr-1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
             전체
           </Link>
@@ -238,25 +273,46 @@ export default function NavbarClient(props: NavbarClientProps) {
 
       <div className="hidden md:block">
         {mounted && hoveredMenuId && menuRect && activeGroup && typeof document !== 'undefined' && createPortal(
+      
           <div 
             className="fixed bg-white border border-gray-200 shadow-2xl rounded-b-sm overflow-hidden z-[9999]" 
-            style={{ left: `${menuRect.left}px`, top: `${menuRect.bottom}px`, width: `${menuRect.width < 200 ? 200 : menuRect.width}px` }} 
-            onMouseEnter={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }} 
+            style={{ left: `${menuRect.left}px`, top: `${menuRect.bottom}px`, width: `${menuRect.width < 200 ?
+
+            200 : menuRect.width}px` }} 
+            onMouseEnter={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+
+            }} 
             onMouseLeave={handleMouseLeave}
           >
             {activeGroup.sub?.map((subItem: any) => { 
               const link = subItem.link || `/board?category=${subItem.name}`;
               const isActive = currentCategory === subItem.name;
+
+              // 💡 VVIP 전용 럭셔리 렌더링 로직
+              if (subItem.isSpecial) {
+                return (
+                  <Link key={subItem.name} href={link} className="flex items-center justify-between px-5 py-3 text-[13px] font-bold border-b border-gray-100 hover:bg-yellow-50/50 cursor-pointer group bg-gradient-to-r from-white to-yellow-50/30 transition-colors last:border-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-gray-800 group-hover:text-yellow-600 transition-colors">{subItem.name}</span>
+                    </div>
+                    <span className="text-[10px] font-black bg-yellow-400 text-white px-1.5 py-0.5 rounded shadow-sm">NEW</span>
+                  </Link>
+                );
+              }
+
               return (
+        
                 <Link key={subItem.name} href={link} className={`block px-5 py-3 text-[13px] font-bold border-b border-gray-100 transition-colors last:border-0 ${isActive ? 'bg-indigo-50 text-[#3b4890]' : 'text-gray-700 hover:bg-gray-50 hover:text-[#3b4890]'}`}>
                   {subItem.name}
                 </Link>
               );
             })}
           </div>, 
+  
           document.body
         )}
       </div>
     </>
   );
+
 }
