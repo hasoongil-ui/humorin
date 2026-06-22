@@ -56,6 +56,7 @@ export async function GET(request: Request) {
       LEFT JOIN PostStats p ON u.user_id = p.author_id
       LEFT JOIN CommentStats c ON u.user_id = c.author_id
       WHERE u.status = 'active'
+        AND u.user_id != 'ruffian71' -- 💡 [추가된 타격 코드] 상실의 시대(관리자) 계정은 랭킹에서 영구 제외
         AND ((COALESCE(p.post_count, 0) * 10) + (COALESCE(c.comment_count, 0) * 2) + COALESCE(p.post_likes, 0)) > 0
       ORDER BY total_score DESC
       LIMIT 4;
