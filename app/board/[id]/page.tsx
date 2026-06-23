@@ -202,7 +202,7 @@ export default async function PostDetailPage(props: any) {
   try {
     const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'best_cutoff_threshold'`;
     if (rows.length > 0) bestCutoff = parseInt(rows[0].value, 10) || 30;
-  } catch (e) {}
+  } catch (e) { }
 
   await sql`UPDATE posts SET views = COALESCE(views, 0) + 1 WHERE id = ${postId}`;
 
@@ -484,7 +484,7 @@ export default async function PostDetailPage(props: any) {
     if (!currentUserId) redirect('/login');
 
     let dislikeBlindThreshold = 100;
-    let voteAgingHours = 0; 
+    let voteAgingHours = 0;
     try {
       const { rows } = await sql`SELECT key, value FROM site_settings WHERE key IN ('dislike_blind_threshold', 'vote_aging_hours')`;
       rows.forEach(r => {
@@ -510,11 +510,11 @@ export default async function PostDetailPage(props: any) {
       const user = userRows[0];
       const statusStr = String(user.status || 'active').trim().toLowerCase();
       if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
-      
+
       if (voteAgingHours > 0 && !isAdmin) {
         const joinDate = new Date(user.created_at);
         const hoursDiff = (Date.now() - joinDate.getTime()) / (1000 * 60 * 60);
-        if (hoursDiff < voteAgingHours) return; 
+        if (hoursDiff < voteAgingHours) return;
       }
     }
 
@@ -728,7 +728,7 @@ export default async function PostDetailPage(props: any) {
     const commentId = formData.get('commentId') as string;
 
     let dislikeBlindThreshold = 100;
-    let voteAgingHours = 0; 
+    let voteAgingHours = 0;
     try {
       const { rows } = await sql`SELECT key, value FROM site_settings WHERE key IN ('dislike_blind_threshold', 'vote_aging_hours')`;
       rows.forEach(r => {
@@ -754,11 +754,11 @@ export default async function PostDetailPage(props: any) {
       const user = userRows[0];
       const statusStr = String(user.status || 'active').trim().toLowerCase();
       if (['banned', 'suspended', '정지'].includes(statusStr) && !isAdmin) return;
-      
+
       if (voteAgingHours > 0 && !isAdmin) {
         const joinDate = new Date(user.created_at);
         const hoursDiff = (Date.now() - joinDate.getTime()) / (1000 * 60 * 60);
-        if (hoursDiff < voteAgingHours) return; 
+        if (hoursDiff < voteAgingHours) return;
       }
     }
 
@@ -1251,6 +1251,11 @@ export default async function PostDetailPage(props: any) {
 
               .post-content-area .ql-editor p:has(img.humorin-sliced-img) img:not(:last-of-type) {
                 margin-bottom: -1px !important;
+              }
+
+              /* 💡 [추가된 코드] 이미지가 포함된 문단에서 텍스트 중앙 정렬이 풀리는 버그 완벽 방어 */
+              .post-content-area .ql-editor p:has(img) {
+                text-align: center !important;
               }
               `
             }} />
