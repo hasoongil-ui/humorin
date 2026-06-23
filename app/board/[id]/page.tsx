@@ -198,7 +198,6 @@ export default async function PostDetailPage(props: any) {
     } catch (e) { }
   }
 
-  // 💡 [수술 완료] 하드코딩 철폐: DB에서 실시간으로 컷오프(강등 기준) 읽어오기!
   let bestCutoff = 30;
   try {
     const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'best_cutoff_threshold'`;
@@ -276,7 +275,6 @@ export default async function PostDetailPage(props: any) {
   let relatedPosts = [];
   try {
     if (bestType) {
-      // 🚨 [수술 완료] 연관글 컷오프 DB 변수로 치환
       const { rows: bestRecent } = await sql`
         SELECT id, title, views, likes 
         FROM posts 
@@ -304,7 +302,6 @@ export default async function PostDetailPage(props: any) {
 
     if (relatedPosts.length < 3) {
       const needed = 3 - relatedPosts.length;
-      // 🚨 [수술 완료] 연관글 백업 컷오프 DB 변수로 치환
       const { rows: bestFallback } = await sql`
         SELECT id, title, views, likes 
         FROM posts 
@@ -349,7 +346,6 @@ export default async function PostDetailPage(props: any) {
       listPosts = rowsRes.rows;
     }
     else if (bestType === 'today') {
-      // 🚨 [수술 완료] 하단 리스트 강등 컷오프 DB 연동
       const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
       totalListCount = Number(countRes.rows[0].count);
       const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
@@ -1067,6 +1063,7 @@ export default async function PostDetailPage(props: any) {
     );
   }
 
+  // 💡 [버그 완벽 해결] 소독기(sanitizeHtml)에 인라인 스타일 허가증 특별 발급!
   const cleanContent = sanitizeHtml(finalContent, {
     allowedTags: ['p', 'br', 'b', 'i', 'em', 'strong', 'a', 'img', 'video', 'iframe', 'u', 's', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'blockquote', 'pre', 'span'],
     allowedAttributes: {
@@ -1075,6 +1072,34 @@ export default async function PostDetailPage(props: any) {
       'img': ['src', 'alt', 'width', 'height'],
       'video': ['src', 'controls', 'preload', 'playsinline', 'muted', 'width', 'height'],
       'iframe': ['src', 'frameborder', 'allowfullscreen', 'width', 'height', 'referrerpolicy']
+    },
+    allowedStyles: {
+      '*': {
+        'text-align': [/.*/],
+        'color': [/.*/],
+        'background-color': [/.*/],
+        'background': [/.*/],
+        'font-size': [/.*/],
+        'font-family': [/.*/],
+        'display': [/.*/],
+        'margin': [/.*/],
+        'margin-top': [/.*/],
+        'margin-bottom': [/.*/],
+        'margin-left': [/.*/],
+        'margin-right': [/.*/],
+        'padding': [/.*/],
+        'border': [/.*/],
+        'border-radius': [/.*/],
+        'border-top-left-radius': [/.*/],
+        'border-top-right-radius': [/.*/],
+        'border-bottom-left-radius': [/.*/],
+        'border-bottom-right-radius': [/.*/],
+        'vertical-align': [/.*/],
+        'max-width': [/.*/],
+        'width': [/.*/],
+        'height': [/.*/],
+        'aspect-ratio': [/.*/]
+      }
     },
     allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'youtu.be']
   });
@@ -1327,7 +1352,6 @@ export default async function PostDetailPage(props: any) {
                 const isCurrentPost = p.id === Number(postId);
                 const itemBg = isCurrentPost ? 'bg-indigo-50/70' : 'bg-white hover:bg-gray-50';
 
-                // 🛡️ [수술: 트루먼 쇼] 상세 화면 하단 리스트에도 트루먼 쇼 적용
                 const isDisplayBlinded = p.is_blinded && !isAdmin && p.author_id !== currentUserId;
 
                 return (
