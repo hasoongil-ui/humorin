@@ -836,7 +836,16 @@ export default async function PostDetailPage(props: any) {
 
   const renderCommentNode = (node: any, depth: number = 0, parentAuthor: string | null = null) => {
     const isReply = depth > 0;
-    const paddingLeft = isReply ? `${Math.min(depth * 1.5, 4)}rem` : '0';
+
+    // 💡 [핵심 수술 1] PC(넓은 화면)용 계단식 들여쓰기 값 계산 (최대 4rem)
+    const pcIndent = isReply ? Math.min(depth * 1.5, 4) : 0;
+    const nodeStyle = { '--pc-indent': `${pcIndent}rem` } as React.CSSProperties;
+
+    // 💡 [핵심 수술 2] 반응형 들여쓰기 클래스 
+    const indentClass = isReply
+      ? 'pl-[1.5rem] sm:pl-[2rem] md:pl-[calc(1rem+var(--pc-indent))]'
+      : 'pl-4';
+
     const isCommentAuthor = currentUserId === node.author_id || (!node.author_id && currentUser === node.author);
     const canDeleteComment = isCommentAuthor || isAdmin;
     const hasUserLikedComment = userCommentLikes.includes(node.id);
@@ -868,9 +877,7 @@ export default async function PostDetailPage(props: any) {
       const likesCount = node.likes || 0;
       const medalCount = Math.floor(likesCount / 10);
       let medalIcons = '';
-      if (medalCount > 0) {
-        medalIcons = '🥇'.repeat(Math.min(medalCount, 5));
-      }
+      if (medalCount > 0) medalIcons = '🥇'.repeat(Math.min(medalCount, 5));
 
       if (likesCount >= 30) {
         bgColorClass = 'bg-yellow-50/80 border-yellow-300';
@@ -886,10 +893,8 @@ export default async function PostDetailPage(props: any) {
 
     return (
       <div key={node.id} className="w-full">
-        <div className={`p-4 border-b border-gray-100 relative group transition-colors duration-300 ${bgColorClass}`} style={{ paddingLeft: isReply ? `calc(1rem + ${paddingLeft})` : '1rem' }}>
-
+        <div className={`py-4 pr-4 border-b border-gray-100 relative group transition-colors duration-300 ${bgColorClass} ${indentClass}`} style={nodeStyle}>
           <input type="checkbox" id={`edit-${node.id}`} className="hidden peer/edit" />
-
           <div className="flex justify-between items-start mb-2 mt-1">
             <div className="font-bold text-[13.5px] flex items-center gap-2 flex-wrap">
               {displayCommentAuthorId ? (
@@ -906,103 +911,52 @@ export default async function PostDetailPage(props: any) {
                 </time>
               )}
             </div>
-
-            <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 my-auto">
               {isCommentAuthor && !isDeleted && (
                 <label htmlFor={`edit-${node.id}`} className="cursor-pointer text-[12px] text-gray-400 hover:text-indigo-600 hover:underline">수정</label>
               )}
               {canDeleteComment && !isDeleted && (
-                <DeleteConfirmButton
-                  action={deleteComment}
-                  message={"이 댓글을 정말 삭제하시겠습니까?\n삭제된 댓글은 복구할 수 없습니다."}
-                  className="text-[12px] text-red-400 hover:text-red-600 hover:underline"
-                >
-                  <input type="hidden" name="commentId" value={node.id} />
-                  삭제
+                <DeleteConfirmButton action={deleteComment} message={"삭제?"} className="text-[12px] text-red-400 hover:text-red-600 hover:underline">
+                  <input type="hidden" name="commentId" value={node.id} />삭제
                 </DeleteConfirmButton>
               )}
-
               {isAdmin && !isDeleted && node.author_id && (
                 <div className="flex items-center gap-1.5 ml-1 pl-2 border-l border-red-200">
-                  <DeleteConfirmButton
-                    action={suspendUserByComment}
-                    message={`댓글 작성자(${node.author_id})를 즉시 [이용 정지] 처리하시겠습니까?`}
-                    className="text-[11px] px-1.5 py-0.5 bg-red-50 text-red-600 border border-red-200 rounded-sm hover:bg-red-500 hover:text-white transition-colors whitespace-nowrap"
-                  >
-                    <input type="hidden" name="targetUserId" value={node.author_id} />
-                    <input type="hidden" name="commentId" value={node.id} />
-                    정지
+                  <DeleteConfirmButton action={suspendUserByComment} message="정지?" className="text-[11px] px-1.5 py-0.5 bg-red-50 text-red-600 border border-red-200 rounded-sm hover:bg-red-500 hover:text-white transition-colors whitespace-nowrap">
+                    <input type="hidden" name="targetUserId" value={node.author_id} /><input type="hidden" name="commentId" value={node.id} />정지
                   </DeleteConfirmButton>
-                  <DeleteConfirmButton
-                    action={shadowbanUserByComment}
-                    message={`댓글 작성자(${node.author_id})를 즉시 [그림자 차단] 처리하시겠습니까?`}
-                    className="text-[11px] px-1.5 py-0.5 bg-purple-50 text-purple-600 border border-purple-200 rounded-sm hover:bg-purple-500 hover:text-white transition-colors whitespace-nowrap"
-                  >
-                    <input type="hidden" name="targetUserId" value={node.author_id} />
-                    <input type="hidden" name="commentId" value={node.id} />
-                    그림자
+                  <DeleteConfirmButton action={shadowbanUserByComment} message="차단?" className="text-[11px] px-1.5 py-0.5 bg-purple-50 text-purple-600 border border-purple-200 rounded-sm hover:bg-purple-500 hover:text-white transition-colors whitespace-nowrap">
+                    <input type="hidden" name="targetUserId" value={node.author_id} /><input type="hidden" name="commentId" value={node.id} />그림자
                   </DeleteConfirmButton>
                 </div>
               )}
             </div>
           </div>
-
           {node.is_blinded && !isAdmin && !isCommentAuthor ? (
-            <div className="text-[14px] mb-3 text-gray-500 italic bg-gray-100 p-3 rounded-md border border-gray-300 shadow-inner flex items-center gap-2">
-              보고 싶어 하지 않은 분들이 많아 블라인드 처리된 댓글입니다.
-            </div>
+            <div className="text-[14px] mb-3 text-gray-500 italic bg-gray-100 p-3 rounded-md border border-gray-300 shadow-inner">블라인드된 댓글입니다.</div>
           ) : (
             <>
-              {node.is_blinded && isAdmin && (
-                <div className="text-[12px] mb-2 font-bold text-red-600 bg-red-50 p-2 rounded-sm border border-red-200 flex items-center justify-between shadow-sm">
-                  <span>🚨 [관리자 알림] 블라인드 처리된 댓글입니다.</span>
-                  <form action={grantCommentImmunity}>
-                    <input type="hidden" name="commentId" value={node.id} />
-                    <button type="submit" className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded-sm hover:bg-red-700 transition-colors shadow-sm">
-                      🛡️ 복구 및 면역
-                    </button>
-                  </form>
-                </div>
-              )}
-
               <div className="peer-checked/edit:hidden">
-                <div className="text-[15px] mb-3 whitespace-pre-wrap text-gray-800 flex items-start gap-1.5">
+                <div className="text-[15px] mb-3 whitespace-pre-wrap text-gray-800 flex flex-col md:flex-row md:items-start gap-1.5">
                   {isReply && parentAuthor && !isDeleted && (
-                    <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-gray-400 bg-gray-200/60 px-1.5 py-0.5 rounded-sm shrink-0 mt-0.5 border border-gray-200">
-                      ↳ @{parentAuthor}
-                    </span>
+                    <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-gray-400 bg-gray-200/60 px-1.5 py-0.5 rounded-sm shrink-0 mt-0.5 border border-gray-200 self-start md:self-auto">↳ @{parentAuthor}</span>
                   )}
-                  <span className={`${isDeleted ? 'text-gray-400 italic text-[14px]' : ''} leading-relaxed`}>
-                    {node.content}
-                  </span>
+                  <span className={`${isDeleted ? 'text-gray-400 italic text-[14px]' : ''} leading-relaxed break-all`}>{node.content}</span>
                 </div>
                 {node.image_data && (
-                  <div className="mb-4 mt-2">
-                    <img src={node.image_data} alt="첨부" className="max-w-full sm:max-w-md h-auto rounded-sm border shadow-sm humorin-comment-img" />
-                  </div>
+                  <div className="mb-4 mt-2"><img src={node.image_data} alt="첨부" className="max-w-full sm:max-w-md h-auto rounded-sm border shadow-sm humorin-comment-img" /></div>
                 )}
               </div>
-
               {isCommentAuthor && !isDeleted && (
-                <div className="hidden peer-checked/edit:block mb-4 mt-2">
-                  <EditCommentForm
-                    commentId={node.id}
-                    initialContent={node.content}
-                    initialImage={node.image_data}
-                    editAction={editComment}
-                  />
-                </div>
+                <div className="hidden peer-checked/edit:block mb-4 mt-2"><EditCommentForm commentId={node.id} initialContent={node.content} initialImage={node.image_data} editAction={editComment} /></div>
               )}
             </>
           )}
-
           <div className="peer-checked/edit:hidden">
             {!isDeleted && (
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-3 [&_button]:whitespace-nowrap [&_button]:shrink-0 [&_span]:whitespace-nowrap">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-3">
                 {!isCommentLocked && (
-                  <label htmlFor={`reply-${node.id}`} className="cursor-pointer px-2 py-1 border border-gray-300 rounded-sm text-[11px] text-gray-600 font-bold hover:bg-gray-50 flex items-center gap-1 whitespace-nowrap shrink-0">
-                    💬 답글
-                  </label>
+                  <label htmlFor={`reply-${node.id}`} className="cursor-pointer px-2 py-1 border border-gray-300 rounded-sm text-[11px] text-gray-600 font-bold hover:bg-gray-50 flex items-center gap-1">💬 답글</label>
                 )}
                 <CommentLikeButton commentId={node.id} initialLikes={node.likes || 0} initialHasLiked={hasUserLikedComment} toggleAction={toggleCommentLike} isAdmin={isAdmin} />
                 <CommentDislikeButton commentId={node.id} initialDislikes={node.dislikes || 0} initialHasDisliked={hasUserDislikedComment} toggleAction={toggleCommentDislike} isAdmin={isAdmin} />
@@ -1011,12 +965,10 @@ export default async function PostDetailPage(props: any) {
             )}
           </div>
         </div>
-
         <input type="checkbox" id={`reply-${node.id}`} className="hidden peer/reply" />
-        <div className="hidden peer-checked/reply:block bg-gray-100 p-3 border-b border-gray-200">
+        <div className={`hidden peer-checked/reply:block bg-gray-100 py-3 pr-3 border-b border-gray-200 ${isReply ? 'pl-[1.5rem] sm:pl-[2rem] md:pl-[calc(1rem+var(--pc-indent))]' : 'pl-3 md:pl-4'}`} style={nodeStyle}>
           {!isCommentLocked && currentUser && !isDeleted && <CommentForm postId={postId} parentId={node.id} author={displayCommentAuthor} actionType="reply" submitAction={addComment} />}
         </div>
-
         {node.children && node.children.map((child: any) => renderCommentNode(child, depth + 1, displayCommentAuthor))}
       </div>
     );
