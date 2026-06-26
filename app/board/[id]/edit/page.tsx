@@ -20,7 +20,7 @@ export default async function EditPage(props: any) {
   if (!currentUser) redirect('/login');
 
   let isAdmin = currentUserId === 'admin';
-  let userStatus = 'active'; // 💡 유저 상태 추적
+  let userStatus = 'active';
 
   try {
     if (currentUserId) {
@@ -32,7 +32,6 @@ export default async function EditPage(props: any) {
     }
   } catch(e) {}
 
-  // 🚨 [철통 방어 1] 정지된 유저(banned)는 수정 화면 접근 원천 차단
   if (userStatus === 'banned' && !isAdmin) {
     return (
       <div className="min-h-[70vh] bg-gray-50 flex flex-col items-center justify-center p-4">
@@ -87,7 +86,6 @@ export default async function EditPage(props: any) {
       if (isBoardNoticeRaw === 'true') finalIsBoardNotice = true;
     }
 
-    // 🚨 [철통 방어 2] 서버 액션 단계에서 한 번 더 상태 검증
     let actionStatus = 'active';
     if (!isAdmin && currentUserId) {
       try {
@@ -103,17 +101,17 @@ export default async function EditPage(props: any) {
       const cleanTitle = title.replace(/^\[.*?\]\s*/, '');
       const newTitle = `[${category}] ${cleanTitle}`;
       
-      // 💡 그림자 차단 유저는 수정을 시도할 때 강제로 블라인드(is_blinded = true) 낙인을 다시 찍습니다.
+      // 💡 [수술 완료] DB 쿼리문에 category = ${category} 를 추가하여 실제 카테고리값도 함께 이동하게 만들었습니다!
       if (isShadowBanned) {
         await sql`
           UPDATE posts 
-          SET title = ${newTitle}, content = ${content}, is_notice = ${finalIsNotice}, is_board_notice = ${finalIsBoardNotice}, is_blinded = true
+          SET title = ${newTitle}, content = ${content}, category = ${category}, is_notice = ${finalIsNotice}, is_board_notice = ${finalIsBoardNotice}, is_blinded = true
           WHERE id = ${postId}
         `;
       } else {
         await sql`
           UPDATE posts 
-          SET title = ${newTitle}, content = ${content}, is_notice = ${finalIsNotice}, is_board_notice = ${finalIsBoardNotice} 
+          SET title = ${newTitle}, content = ${content}, category = ${category}, is_notice = ${finalIsNotice}, is_board_notice = ${finalIsBoardNotice} 
           WHERE id = ${postId}
         `;
       }

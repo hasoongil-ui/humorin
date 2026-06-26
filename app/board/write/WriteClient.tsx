@@ -21,7 +21,6 @@ import 'react-quill-new/dist/quill.snow.css';
 
 const MAX_CONTENT_LENGTH = 65000;
 
-// 💡 [핵심 엔진 1] 확장자가 없는 파일의 신분증 추적기
 const getMimeTypeFromExtension = (filename: string) => {
   if (!filename.includes('.')) return '';
   const ext = filename.split('.').pop()?.toLowerCase();
@@ -35,7 +34,6 @@ const getMimeTypeFromExtension = (filename: string) => {
   return '';
 };
 
-// 💡 [핵심 엔진 2] 안드로이드 악성 다운로드 파일 권한 락 3중 우회기
 const cloneFileToUnlock = async (file: File, fallbackType: string): Promise<File> => {
   let mimeType = file.type;
   if (!mimeType || mimeType === 'application/octet-stream') {
@@ -44,7 +42,6 @@ const cloneFileToUnlock = async (file: File, fallbackType: string): Promise<File
   }
 
   try {
-    // 🛡️ 시도 1: Blob URL 기법 (가장 강력한 안드로이드 권한 우회 해킹 기법)
     const blobUrl = URL.createObjectURL(file);
     const response = await fetch(blobUrl);
     const buffer = await response.arrayBuffer();
@@ -52,12 +49,10 @@ const cloneFileToUnlock = async (file: File, fallbackType: string): Promise<File
     return new File([buffer], file.name, { type: mimeType });
   } catch (e1) {
     try {
-      // 🛡️ 시도 2: 기본 메모리 복제
       const buffer = await file.arrayBuffer();
       return new File([buffer], file.name, { type: mimeType });
     } catch (e2) {
       try {
-        // 🛡️ 시도 3: 구형 FileReader 복제
         return await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(new File([reader.result as ArrayBuffer], file.name, { type: mimeType }));
@@ -67,7 +62,7 @@ const cloneFileToUnlock = async (file: File, fallbackType: string): Promise<File
         });
       } catch (e3) {
         console.warn("파일 메모리 복제 3중 방어 실패, 원본 반환", e3);
-        return file; // 최후의 수단으로 원본 반환
+        return file;
       }
     }
   }
@@ -76,10 +71,12 @@ const cloneFileToUnlock = async (file: File, fallbackType: string): Promise<File
 export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boards, editorPlaceholder, userPoints = 0 }: { currentUser: string, isAdmin: boolean, isGlobalLocked: boolean, boards: any[], editorPlaceholder?: string, userPoints?: number }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState(boards && boards.length > 0 ? boards[0].name : '흥미로운 이야기');
+  
+  // 💡 [수술 완료] 최초 값을 '유머'가 아닌 '' (빈 값)으로 설정하여 강제 선택 유도
+  const [category, setCategory] = useState('');
+  
   const [isCompressing, setIsCompressing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [botTrap, setBotTrap] = useState('');
@@ -108,7 +105,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     import('react-quill-new').then((RQ) => {
       const Quill = RQ.Quill;
       if (Quill) {
-   
         const Font = Quill.import('formats/font');
         Font.whitelist = ['pretendard', 'notosanskr', 'gowundodum', 'hahmlet'];
         Quill.register(Font, true);
@@ -117,12 +113,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         Size.whitelist = ['10px', '12px', '14px', '15px', '16px', '18px', '20px', '24px', '30px', '36px'];
         Quill.register(Size, true);
 
-        // 💡 [수술 핵심] 정렬 방식을 Class(이름표)에서 Inline Style(직접 주입)로 영구 변경!
         const AlignStyle = Quill.import('attributors/style/align');
         Quill.register(AlignStyle, true);
 
         const BlockEmbed = Quill.import('blots/block/embed') as any;
-
         const ImageBlot = Quill.import('formats/image') as any;
      
         class CustomImage extends ImageBlot {
@@ -175,7 +169,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
               width: node.getAttribute('width'),
               height: node.getAttribute('height'),
               isSliced: node.classList.contains('humorin-sliced-img'),
-              
               isFirstSlice: node.style.marginTop === '15px',
               isLastSlice: node.style.marginBottom === '15px'
             };
@@ -203,10 +196,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             node.style.backgroundColor = '#000';
             return node;
           }
-          static value(node: any) { return node.getAttribute('src');
-          }
+          static value(node: any) { return node.getAttribute('src'); }
         }
         Quill.register(CustomVideo, true);
+
         class YoutubeVideo extends BlockEmbed {
           static blotName = 'youtubeVideo';
           static tagName = 'IFRAME';
@@ -225,10 +218,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             node.style.borderRadius = '8px';
             return node;
           }
-          static value(node: any) { return node.getAttribute('src');
-          }
+          static value(node: any) { return node.getAttribute('src'); }
         }
         Quill.register(YoutubeVideo, true);
+
         const icons = Quill.import('ui/icons') as any;
         icons['undo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="6 10 4 12 2 10 6 10"></polygon><path class="ql-stroke" d="M8.09,13.91A4.6,4.6,0,0,0,9,14,5,5,0,1,0,4,9"></path></svg>`;
         icons['redo'] = `<svg viewBox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="12 10 14 12 16 10 12 10"></polygon><path class="ql-stroke" d="M9.91,13.91A4.6,4.6,0,0,1,9,14a5,5,0,1,1,5-5"></path></svg>`;
@@ -236,6 +229,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       setIsEditorReady(true);
     });
   }, [isGlobalLocked, isAdmin, router]);
+
   const isAnimatedWebP = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
       if (file.type !== 'image/webp') return resolve(false);
@@ -280,6 +274,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     }
     return slices;
   };
+
   const processAndUploadImages = async (fileArray: File[], forcedIndex?: number) => {
     if (!quillRef.current) return;
 
@@ -297,8 +292,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const processedFiles: File[] = [];
       const imageFiles = fileArray.filter(f => f.type.startsWith('image/') || getMimeTypeFromExtension(f.name).startsWith('image/'));
       for (const file of imageFiles) {
-        const isWebPAnim = file.type === 'image/webp' ?
-          await isAnimatedWebP(file) : false;
+        const isWebPAnim = file.type === 'image/webp' ? await isAnimatedWebP(file) : false;
         if (file.type === 'image/gif' || isWebPAnim) {
           processedFiles.push(file);
           continue;
@@ -307,7 +301,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         try {
           const img = new Image();
           img.src = URL.createObjectURL(file);
-          // 💡 [버그 방어] 무한 대기 현상 해결
           await new Promise((resolve, reject) => { 
              img.onload = resolve; 
              img.onerror = () => reject(new Error('이미지 렌더링 실패'));
@@ -320,8 +313,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             const isLongImage = img.height > img.width * 2;
             URL.revokeObjectURL(img.src);
             const options = isLongImage
-              ?
-              { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: false, initialQuality: 0.9, fileType: 'image/webp' }
+              ? { maxSizeMB: 3, maxWidthOrHeight: undefined, useWebWorker: false, initialQuality: 0.9, fileType: 'image/webp' }
               : { maxSizeMB: 0.3, maxWidthOrHeight: 1200, useWebWorker: false, initialQuality: 0.85, fileType: 'image/webp' };
             const compressedBlob = await imageCompression(file, options);
             const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
@@ -352,7 +344,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             resolve({ w: img.width, h: img.height });
             URL.revokeObjectURL(img.src);
           };
- 
           img.src = URL.createObjectURL(file);
         });
 
@@ -362,14 +353,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         const isLastSlice = (file as any).isLastSlice === true;
 
         const ticketRes = await fetch('/api/upload', {
-          
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: file.name, contentType: safeContentType }),
         });
         const resData = await ticketRes.json();
-        if (!ticketRes.ok) throw new Error(resData.error ||
-          '티켓 발급 실패');
+        if (!ticketRes.ok) throw new Error(resData.error || '티켓 발급 실패');
 
         const { uploadUrl, publicUrl } = resData;
         if (uploadUrl) {
@@ -379,6 +368,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         }
         return null;
       });
+      
       const uploadedImages = (await Promise.all(uploadPromises)).filter(Boolean) as { url: string, width: number, height: number, isSliced: boolean, isFirstSlice: boolean, isLastSlice: boolean }[];
       uploadedImages.forEach(img => {
         editor.insertEmbed(insertIndex, 'image', {
@@ -391,7 +381,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         }, 'silent');
 
         if (!img.isSliced || img.isLastSlice) {
- 
           editor.insertText(insertIndex + 1, '\n', 'silent');
           insertIndex += 2;
         } else {
@@ -425,7 +414,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       if (text) {
         const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = text.trim().match(ytRegex);
-
   
         if (match) {
           e.preventDefault();
@@ -457,7 +445,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
               el.setAttribute('src', realSrc);
               el.removeAttribute('data-src');
               el.removeAttribute('data-original');
-    
             }
           });
           if (hasExternalMedia) {
@@ -520,6 +507,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     container.addEventListener('paste', handleNativePaste, true);
     return () => container.removeEventListener('paste', handleNativePaste, true);
   }, []);
+
   const imageHandler = () => {
     const editor = quillRef.current.getEditor();
     const range = editor.getSelection();
@@ -542,6 +530,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       await processAndUploadImages(unlockedFiles, startIndex);
     };
   };
+
   const videoFileHandler = () => {
     const editor = quillRef.current.getEditor();
     const range = editor.getSelection();
@@ -570,8 +559,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       setIsUploading(true);
       try {
-        const safeContentType = file.type ||
-        'video/mp4';
+        const safeContentType = file.type || 'video/mp4';
 
         const ticketRes = await fetch('/api/upload', {
           method: 'POST',
@@ -597,6 +585,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       }
     };
   };
+
   const modules = useMemo(() => ({
     history: { delay: 500, maxStack: 100, userOnly: true },
     toolbar: {
@@ -606,7 +595,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         [{ 'size': ['10px', '12px', '14px', '15px', false, '18px', '20px', '24px', '30px', '36px'] }],
         ['undo', 'redo'],
         [{ 'header': [1, 2, 3, 4, false] }],
-  
         ['bold', 'italic', 'underline', 'strike'],
         [{ 'color': [] }, { 'background': [] }],
         [{ 'align': [] }],
@@ -617,12 +605,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       handlers: {
         image: imageHandler,
         video: videoFileHandler,
-  
         undo: function () { this.quill.history.undo(); },
         redo: function () { this.quill.history.redo(); }
       }
     }
   }), []);
+
   const handleContentChange = (newContent: string) => {
     const textOnly = newContent.replace(/<[^>]*>?/gm, '');
     if (textOnly.length > MAX_CONTENT_LENGTH) {
@@ -647,6 +635,13 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       alert('🚨 현재 관리자에 의해 글쓰기가 전면 차단되었습니다.');
       return;
     }
+
+    // 💡 [수술 완료] 카테고리(게시판)를 선택하지 않았을 때의 완벽한 튕겨내기 방어 로직
+    if (!category) {
+      alert('🚨 게시판을 반드시 선택해 주십시오.');
+      return;
+    }
+
     const targetBoard = boards?.find((b: any) => b.name === category);
     if (targetBoard?.is_write_locked && !isAdmin) {
       alert(`🚨 해당 [${category}] 게시판은 현재 관리자에 의해 글쓰기가 잠겨있습니다.`); return;
@@ -690,13 +685,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           content: content,
           author: currentUser,
           category: category,
-         
           is_notice: isNotice,
           is_board_notice: isBoardNotice,
           bot_trap: botTrap
         }),
       });
-      // 💡 [수술 완료] 백엔드의 철벽 방어막에서 보낸 에러 메시지를 수신하여 경고창 띄우기!
+      
       if (res.ok) {
         router.push(`/board?category=${category}`);
         router.refresh();
@@ -723,8 +717,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     if (!acc[board.group_name]) acc[board.group_name] = [];
     acc[board.group_name].push(board);
     return acc;
-  }, {}) ||
-  {};
+  }, {}) || {};
 
   if (isGlobalLocked && !isAdmin) return null;
 
@@ -738,50 +731,32 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         .ql-font-pretendard { font-family: 'Pretendard', sans-serif; }
         .ql-font-notosanskr { font-family: 'Noto Sans KR', sans-serif; }
         .ql-font-gowundodum { font-family: 'Gowun Dodum', sans-serif; }
-        
         .ql-font-hahmlet { font-family: 'Hahmlet', serif; }
 
         .ql-container { font-family: 'Nanum Gothic', sans-serif; font-size: 16px; }
         .ql-editor { line-height: 1.8; min-height: 500px; }
         
         .ql-snow .ql-picker.ql-font { width: 130px; }
-        .ql-snow .ql-picker.ql-font .ql-picker-label::before, .ql-snow .ql-picker.ql-font .ql-picker-item::before { content: '나눔고딕';
-        font-family: 'Nanum Gothic'; }
+        .ql-snow .ql-picker.ql-font .ql-picker-label::before, .ql-snow .ql-picker.ql-font .ql-picker-item::before { content: '나눔고딕'; font-family: 'Nanum Gothic'; }
         
-        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="pretendard"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="pretendard"]::before { content: '프리텐다드';
-        font-family: 'Pretendard'; }
-        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="notosanskr"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="notosanskr"]::before { content: '본고딕';
-        font-family: 'Noto Sans KR'; }
-        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="gowundodum"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="gowundodum"]::before { content: '고운돋움';
-        font-family: 'Gowun Dodum'; }
-        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="hahmlet"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="hahmlet"]::before { content: '함초롬체';
-        font-family: 'Hahmlet'; }
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="pretendard"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="pretendard"]::before { content: '프리텐다드'; font-family: 'Pretendard'; }
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="notosanskr"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="notosanskr"]::before { content: '본고딕'; font-family: 'Noto Sans KR'; }
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="gowundodum"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="gowundodum"]::before { content: '고운돋움'; font-family: 'Gowun Dodum'; }
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="hahmlet"]::before, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="hahmlet"]::before { content: '함초롬체'; font-family: 'Hahmlet'; }
 
-        .ql-snow .ql-picker.ql-size { width: 70px;
-        }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="10px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="10px"]::before { content: '10';
-        }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before { content: '12';
-        }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before { content: '14';
-        }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="15px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="15px"]::before { content: '15';
-        }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: '18';
-        }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before { content: '20';
-        }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: '24';
-        }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="30px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="30px"]::before { content: '30';
-        }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before { content: '36';
-        }
-        .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16';
-        } 
+        .ql-snow .ql-picker.ql-size { width: 70px; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="10px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="10px"]::before { content: '10'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before { content: '12'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before { content: '14'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="15px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="15px"]::before { content: '15'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: '18'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before { content: '20'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: '24'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="30px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="30px"]::before { content: '30'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before { content: '36'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '16'; } 
 
-        .ql-editor img { max-width: 100%; width: auto !important; height: auto;
-        border-radius: 8px; display: block; margin: 15px auto !important; }
+        .ql-editor img { max-width: 100%; width: auto !important; height: auto; border-radius: 8px; display: block; margin: 15px auto !important; }
         
         .ql-editor img.humorin-sliced-img {
             margin: 0 auto !important;
@@ -800,19 +775,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             text-align: center;
         }
 
-        @media (min-width: 768px) { .ql-editor img { max-width: 800px !important;
-        } }
+        @media (min-width: 768px) { .ql-editor img { max-width: 800px !important; } }
         
-        .ql-editor video.humorin-mp4, .ql-editor iframe.humorin-youtube { width: 100%;
-        max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important;
-        object-fit: contain; }
-        @media (max-width: 768px) { .ql-editor video.humorin-mp4, .ql-editor iframe.humorin-youtube { aspect-ratio: 16/9;
-        height: auto; max-height: 70vh; } }
+        .ql-editor video.humorin-mp4, .ql-editor iframe.humorin-youtube { width: 100%; max-width: 800px; height: auto; aspect-ratio: 16/9; border-radius: 8px; background: #000; border: none; display: block; margin: 10px auto 30px auto !important; object-fit: contain; }
+        @media (max-width: 768px) { .ql-editor video.humorin-mp4, .ql-editor iframe.humorin-youtube { aspect-ratio: 16/9; height: auto; max-height: 70vh; } }
         
-        .ql-toolbar.ql-snow { position: sticky;
-        top: 0; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db;
-        border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
+        .ql-toolbar.ql-snow { position: sticky; top: 0; z-index: 50; background-color: #fdfdfd; padding: 12px 15px; border-radius: 6px 6px 0 0; border: 1px solid #d1d5db; border-bottom: 2px solid #414a66; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
       `}} />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6 mb-20 bg-white border border-gray-200 shadow-sm rounded-sm">
@@ -820,7 +788,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           글쓰기
           {isCompressing && <span className="text-[13px] font-bold text-blue-500 ml-4 animate-pulse">📷 사진 용량 최적화 중... (최대 10초)</span>}
           {isUploading && <span className="text-[13px] font-bold text-emerald-500 ml-4 animate-pulse">🚀 서버로 전송 중...</span>}
-     
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -830,7 +797,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             <input
               type="text"
               id="humorin_secret_trap"
-              
               name="humorin_secret_trap"
               value={botTrap}
               onChange={(e) => setBotTrap(e.target.value)}
@@ -842,21 +808,21 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           <div className="flex flex-col md:flex-row gap-3">
       
             <select value={category} onChange={(e) => setCategory(e.target.value)} className="p-3 border border-gray-300 rounded-sm outline-none font-bold bg-white text-gray-700 w-full md:w-56 shadow-sm">
+              {/* 💡 [수술 완료] 유저가 반드시 선택하도록 안내하는 기본 깡통 옵션 추가! */}
+              <option value="" disabled>게시판을 선택해 주세요</option>
               {Object.keys(groupedBoards).length > 0 ?
                 (
                 Object.keys(groupedBoards).map((groupName) => (
                   <optgroup key={groupName} label={groupName}>
                     {groupedBoards[groupName].map((b: any) => (
                       <option key={b.name} value={b.name} disabled={b.is_write_locked && !isAdmin}>
-            
                         {b.name} {b.is_write_locked && !isAdmin ? ' 🔒 (잠김)' : ''}
                       </option>
                     ))}
                   </optgroup>
                 ))
-   
                ) : (
-                <option value="일반">게시판을 불러오는 중...</option>
+                <option value="">게시판을 불러오는 중...</option>
               )}
             </select>
             <input placeholder="제목을 입력하세요."
@@ -867,26 +833,21 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           </div>
 
           {isAdmin && (
-          
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-3 py-2.5 bg-indigo-50 border border-indigo-100 rounded-sm mt-1">
-
               <div className="flex items-center">
                 <input
                   type="checkbox"
                   id="is_board_notice"
-                 
                   checked={isBoardNotice}
                   onChange={(e) => {
                     setIsBoardNotice(e.target.checked);
                     if (e.target.checked) setIsNotice(false);
                   }}
-                  className="w-4 
-                  h-4 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-600 cursor-pointer"
+                  className="w-4 h-4 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-600 cursor-pointer"
                 />
                 <label htmlFor="is_board_notice" className="text-[13px] font-black text-indigo-700 cursor-pointer flex items-center gap-1.5 select-none ml-2">
                   <span className="text-base">📌</span> [현재 게시판] 최상단 고정
                 </label>
-              
               </div>
 
               <div className="flex items-center sm:ml-4">
@@ -894,7 +855,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
                   type="checkbox"
                   id="is_notice"
                   checked={isNotice}
-             
                   onChange={(e) => {
                     setIsNotice(e.target.checked);
                     if (e.target.checked) setIsBoardNotice(false);
@@ -903,10 +863,8 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
                 />
                 <label htmlFor="is_notice" className="text-[13px] font-black text-rose-600 cursor-pointer flex items-center gap-1.5 select-none ml-2">
                   <span className="text-base">📢</span> [전체 게시판] 최상단 고정
-        
                 </label>
               </div>
-
             </div>
           )}
 
@@ -918,13 +876,11 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
               <div className="h-[600px] flex items-center justify-center bg-gray-50 text-gray-400 font-bold text-lg animate-pulse">
                 에디터 엔진 준비 중...
               </div>
-     
              )}
           </div>
 
           <div className="flex justify-end mt-2 px-1">
-            <span className={`text-[11px] sm:text-[12px] font-black tracking-tighter ${currentLength >= MAX_CONTENT_LENGTH ?
-            'text-rose-500' : 'text-gray-400'}`}>
+            <span className={`text-[11px] sm:text-[12px] font-black tracking-tighter ${currentLength >= MAX_CONTENT_LENGTH ? 'text-rose-500' : 'text-gray-400'}`}>
               {currentLength.toLocaleString()} / {MAX_CONTENT_LENGTH.toLocaleString()}자
             </span>
           </div>
@@ -942,19 +898,15 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             <button
               type="button"
               onMouseDown={(e) => {
-   
                 e.preventDefault();
                 handleSubmit(e);
               }}
               onClick={(e) => handleSubmit(e)}
-              disabled={isCompressing ||
-              isUploading || isSubmitting || !isEditorReady}
+              disabled={isCompressing || isUploading || isSubmitting || !isEditorReady}
               className="px-12 py-3 bg-[#414a66] text-white rounded-sm font-bold hover:bg-[#2a3042] transition-all disabled:bg-gray-400 flex items-center justify-center gap-2"
             >
               {(isCompressing || isUploading || isSubmitting) && <Loader2 className="animate-spin" size={18} />}
-              {isSubmitting ?
-              '등록 중...' : isCompressing ? '사진 최적화 중...' : isUploading ?
-              '서버 전송 중...' : '등록'}
+              {isSubmitting ? '등록 중...' : isCompressing ? '사진 최적화 중...' : isUploading ? '서버 전송 중...' : '등록'}
             </button>
           </div>
         </form>
