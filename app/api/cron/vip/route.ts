@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     const { rows: settings } = await sql`SELECT value FROM site_settings WHERE key = 'vip_blacklist'`;
     const rawBlacklist = (settings.length > 0 && settings[0].value) ? settings[0].value : '__dummy_nobody__';
 
-    // 🚀 16대 인덱스를 활용한 활동지수 계산 및 TOP 4 추출
+    // 🚀 16대 인덱스를 활용한 활동지수 계산 및 TOP 1 추출 (수정 완료)
     const { rows: topVips } = await sql`
       WITH PostStats AS (
         SELECT author_id, COUNT(*) as post_count, COALESCE(SUM(likes), 0) as post_likes
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
         AND u.user_id != ALL(string_to_array(REPLACE(${rawBlacklist}, ' ', ''), ','))
         AND ((COALESCE(p.post_count, 0) * 10) + (COALESCE(c.comment_count, 0) * 2) + COALESCE(p.post_likes, 0)) > 0
       ORDER BY total_score DESC
-      LIMIT 4;
+      LIMIT 1;
     `;
 
     // 💡 [TS 에러 완벽 해결] 모호한 값들을 명확한 String/Number로 강제 캐스팅
