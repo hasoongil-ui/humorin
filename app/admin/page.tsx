@@ -30,30 +30,60 @@ async function verifyAdmin() {
   return false;
 }
 
-async function updateUserStatus(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const targetUser = formData.get('userid') as string; const newStatus = formData.get('status') as string; try { await sql`UPDATE users SET status = ${newStatus} WHERE user_id = ${targetUser}`; } catch (error) { } revalidatePath('/admin'); }
-async function resetPassword(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const targetUser = formData.get('userid') as string; try { const hashedResetPassword = await bcrypt.hash('00000000', 10); await sql`UPDATE users SET password = ${hashedResetPassword} WHERE user_id = ${targetUser}`; } catch (error) { } revalidatePath('/admin'); }
-async function updateUserPoints(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const targetUser = formData.get('userid') as string; const newPoints = Number(formData.get('points')); try { await sql`UPDATE users SET points = ${newPoints} WHERE user_id = ${targetUser}`; } catch (error) { } revalidatePath('/admin'); }
-async function toggleAdminRole(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const targetUser = formData.get('userid') as string; const currentAdminStatus = formData.get('is_admin') === 'true'; const newAdminStatus = !currentAdminStatus; if (targetUser === 'admin') return; try { await sql`UPDATE users SET is_admin = ${newAdminStatus} WHERE user_id = ${targetUser}`; } catch (error) { } revalidatePath('/admin'); }
-async function updateBlindThreshold(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const newValue = formData.get('threshold') as string; if (!newValue) return; try { await sql`INSERT INTO site_settings (key, value) VALUES ('report_blind_threshold', ${newValue}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; } catch (error) { } revalidatePath('/admin'); }
-async function updateVoteAging(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const newValue = formData.get('hours') as string; if (!newValue) return; try { await sql`INSERT INTO site_settings (key, value) VALUES ('vote_aging_hours', ${newValue}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; } catch (error) { } revalidatePath('/admin'); }
+async function updateUserStatus(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const targetUser = formData.get('userid') as string;
+const newStatus = formData.get('status') as string; try { await sql`UPDATE users SET status = ${newStatus} WHERE user_id = ${targetUser}`;
+} catch (error) { } revalidatePath('/admin'); }
+async function resetPassword(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized");
+const targetUser = formData.get('userid') as string; try { const hashedResetPassword = await bcrypt.hash('00000000', 10);
+await sql`UPDATE users SET password = ${hashedResetPassword} WHERE user_id = ${targetUser}`; } catch (error) { } revalidatePath('/admin');
+}
+async function updateUserPoints(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const targetUser = formData.get('userid') as string;
+const newPoints = Number(formData.get('points')); try { await sql`UPDATE users SET points = ${newPoints} WHERE user_id = ${targetUser}`;
+} catch (error) { } revalidatePath('/admin'); }
+async function toggleAdminRole(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized");
+const targetUser = formData.get('userid') as string; const currentAdminStatus = formData.get('is_admin') === 'true'; const newAdminStatus = !currentAdminStatus;
+if (targetUser === 'admin') return; try { await sql`UPDATE users SET is_admin = ${newAdminStatus} WHERE user_id = ${targetUser}`;
+} catch (error) { } revalidatePath('/admin'); }
+async function updateBlindThreshold(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized");
+const newValue = formData.get('threshold') as string; if (!newValue) return; try { await sql`INSERT INTO site_settings (key, value) VALUES ('report_blind_threshold', ${newValue}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+} catch (error) { } revalidatePath('/admin'); }
+async function updateVoteAging(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized");
+const newValue = formData.get('hours') as string; if (!newValue) return; try { await sql`INSERT INTO site_settings (key, value) VALUES ('vote_aging_hours', ${newValue}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+} catch (error) { } revalidatePath('/admin'); }
 
 async function updateDislikeSettings(formData: FormData) { 
-  'use server'; 
+  'use server';
   if (!(await verifyAdmin())) throw new Error("Unauthorized"); 
   const blind = formData.get('blind') as string; 
-  const cutoff = formData.get('cutoff') as string; 
+  const cutoff = formData.get('cutoff') as string;
   try { 
-    if (blind) await sql`INSERT INTO site_settings (key, value) VALUES ('dislike_blind_threshold', ${blind}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; 
-    if (cutoff) await sql`INSERT INTO site_settings (key, value) VALUES ('best_cutoff_threshold', ${cutoff}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; 
+    if (blind) await sql`INSERT INTO site_settings (key, value) VALUES ('dislike_blind_threshold', ${blind}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+    if (cutoff) await sql`INSERT INTO site_settings (key, value) VALUES ('best_cutoff_threshold', ${cutoff}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
   } catch (error) { } 
   revalidatePath('/admin'); 
   revalidatePath('/board');
 }
 
-async function updateEditorPlaceholder(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const newValue = formData.get('placeholder') as string; if (!newValue) return; try { await sql`INSERT INTO site_settings (key, value) VALUES ('editor_placeholder', ${newValue}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; } catch (error) { } revalidatePath('/admin'); }
-async function updateMainBanner(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const title = formData.get('title') as string; const subtitle = formData.get('subtitle') as string; if (!title || !subtitle) return; try { await sql`INSERT INTO site_settings (key, value) VALUES ('main_banner_title', ${title}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; await sql`INSERT INTO site_settings (key, value) VALUES ('main_banner_subtitle', ${subtitle}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; } catch (error) { } revalidatePath('/'); revalidatePath('/admin'); }
-async function banIpAddress(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const targetIp = formData.get('ip') as string; if (!targetIp || targetIp === '알수없음' || targetIp === '::1') return; try { const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'banned_ips'`; let currentBanned = rows.length > 0 && rows[0].value ? rows[0].value : ''; let bannedArray = currentBanned ? currentBanned.split(',') : []; if (!bannedArray.includes(targetIp)) { bannedArray.push(targetIp); const newBannedStr = bannedArray.join(','); await sql`INSERT INTO site_settings (key, value) VALUES ('banned_ips', ${newBannedStr}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`; } } catch (error) { } revalidatePath('/admin'); }
-async function unbanIpAddress(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const targetIp = formData.get('ip') as string; if (!targetIp) return; try { const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'banned_ips'`; if (rows.length > 0 && rows[0].value) { let bannedArray = rows[0].value.split(','); bannedArray = bannedArray.filter((ip: string) => ip.trim() !== targetIp.trim()); const newBannedStr = bannedArray.join(','); await sql`UPDATE site_settings SET value = ${newBannedStr} WHERE key = 'banned_ips'`; } } catch (error) { } revalidatePath('/admin'); }
+async function updateEditorPlaceholder(formData: FormData) { 'use server';
+  if (!(await verifyAdmin())) throw new Error("Unauthorized"); const newValue = formData.get('placeholder') as string; if (!newValue) return;
+  try { await sql`INSERT INTO site_settings (key, value) VALUES ('editor_placeholder', ${newValue}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+  } catch (error) { } revalidatePath('/admin'); }
+async function updateMainBanner(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized");
+  const title = formData.get('title') as string; const subtitle = formData.get('subtitle') as string; if (!title || !subtitle) return;
+  try { await sql`INSERT INTO site_settings (key, value) VALUES ('main_banner_title', ${title}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+  await sql`INSERT INTO site_settings (key, value) VALUES ('main_banner_subtitle', ${subtitle}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+  } catch (error) { } revalidatePath('/'); revalidatePath('/admin'); }
+async function banIpAddress(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized");
+  const targetIp = formData.get('ip') as string; if (!targetIp || targetIp === '알수없음' || targetIp === '::1') return;
+  try { const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'banned_ips'`;
+  let currentBanned = rows.length > 0 && rows[0].value ? rows[0].value : ''; let bannedArray = currentBanned ? currentBanned.split(',') : [];
+  if (!bannedArray.includes(targetIp)) { bannedArray.push(targetIp); const newBannedStr = bannedArray.join(','); await sql`INSERT INTO site_settings (key, value) VALUES ('banned_ips', ${newBannedStr}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+  } } catch (error) { } revalidatePath('/admin'); }
+async function unbanIpAddress(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized");
+  const targetIp = formData.get('ip') as string; if (!targetIp) return; try { const { rows } = await sql`SELECT value FROM site_settings WHERE key = 'banned_ips'`;
+  if (rows.length > 0 && rows[0].value) { let bannedArray = rows[0].value.split(','); bannedArray = bannedArray.filter((ip: string) => ip.trim() !== targetIp.trim());
+  const newBannedStr = bannedArray.join(','); await sql`UPDATE site_settings SET value = ${newBannedStr} WHERE key = 'banned_ips'`;
+  } } catch (error) { } revalidatePath('/admin'); }
 
 export default async function AdminDashboardPage(props: any) {
   const isAdmin = await verifyAdmin();
@@ -91,7 +121,6 @@ export default async function AdminDashboardPage(props: any) {
       if (setting.key === 'main_banner_title' && setting.value) mainBannerTitle = setting.value;
       if (setting.key === 'main_banner_subtitle' && setting.value) mainBannerSubtitle = setting.value;
     });
-
     const { rows: stats } = await sql`SELECT COUNT(*) as total, COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as today, COUNT(CASE WHEN status != 'active' THEN 1 END) as banned FROM users`;
     totalUsers = Number(stats[0]?.total) || 0;
     todayUsers = Number(stats[0]?.today) || 0;
@@ -99,7 +128,6 @@ export default async function AdminDashboardPage(props: any) {
 
     let queryResult;
     let countResult;
-    
     // 🚨 [수술 완료] p.author -> p.author_id 로 모두 변경하여 SNS 가입자들도 글 갯수가 완벽히 스캔되도록 쿼리 교정!
     if (q && type === 'userid') {
       countResult = await sql`SELECT COUNT(*) FROM users WHERE user_id ILIKE ${'%' + q + '%'}`;
@@ -117,7 +145,6 @@ export default async function AdminDashboardPage(props: any) {
     const currentSearchTotal = Number(countResult.rows[0].count);
     totalPages = Math.ceil(currentSearchTotal / limit) || 1;
     userList = queryResult.rows.map(row => ({ ...row, userid: row.user_id, created_at: new Date(row.created_at).toLocaleDateString('ko-KR').slice(2), last_login: new Date(row.last_login).toLocaleDateString('ko-KR').slice(2) }));
-
     if (heavyDays !== null) {
       const intervalStr = `${heavyDays} days`;
       const { rows: heavy } = await sql`
@@ -133,7 +160,8 @@ export default async function AdminDashboardPage(props: any) {
     }
   } catch (e) { }
 
-  const bannedIpsArray = bannedIpsString ? bannedIpsString.split(',').filter(ip => ip.trim() !== '') : [];
+  const bannedIpsArray = bannedIpsString ?
+    bannedIpsString.split(',').filter(ip => ip.trim() !== '') : [];
   
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
@@ -147,6 +175,10 @@ export default async function AdminDashboardPage(props: any) {
             <li><Link href="/admin/comments" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] transition-colors"><span>💬</span> 댓글 관리</Link></li>
             <li><Link href="/admin/boards" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] transition-colors"><span>⚙️</span> 설정/게시판 관리</Link></li>
             <li><Link href="/admin/blind" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-gray-300 hover:bg-[#3b4890] transition-colors"><span>🚨</span> 블라인드 관리</Link></li>
+            
+            {/* 💡 [핵심 이식 완료] 사이드바에 VIP 및 기본 설정 메뉴 완벽 추가! */}
+            <li><Link href="/admin/setup" className="flex items-center gap-3 px-6 py-3.5 font-bold text-[16px] text-orange-400 hover:bg-[#3b4890] hover:text-orange-300 transition-colors"><span>🏆</span> VIP/기본 설정</Link></li>
+            
             <li>
               <Link href="/admin/monitor" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between px-6 py-3.5 font-bold text-[16px] text-emerald-400 hover:bg-[#3b4890] hover:text-emerald-300 transition-colors">
                 <div className="flex items-center gap-3"><span>🖥️</span> 서버 모니터링</div>
@@ -323,7 +355,8 @@ export default async function AdminDashboardPage(props: any) {
                         <td className="px-4 py-3 text-[13px] text-gray-500 font-medium"><div>가입: {user.created_at}</div><div>최근: {user.last_login}</div></td>
                         <td className="px-4 py-3 text-center text-[13px] font-black text-red-500">{user.ip || '알수없음'}{isBannedIp && <div className="text-[10px] text-red-600 mt-1">[차단됨]</div>}</td>
                         <td className="px-4 py-3 text-center"><div className="text-[13px] font-bold">글 {Number(user.post_count)}</div><div className="text-[13px] font-black text-rose-500">{user.points || 0} P</div></td>
-                        <td className="px-4 py-3 text-center">{user.status === 'active' ? <span className="text-emerald-600">정상</span> : <span className="text-rose-600">정지/그림자</span>}</td>
+                        <td className="px-4 py-3 text-center">{user.status === 'active' ?
+                        <span className="text-emerald-600">정상</span> : <span className="text-rose-600">정지/그림자</span>}</td>
                         <td className="px-4 py-3 border-l border-gray-100">
                           <div className="flex justify-center items-center gap-2 flex-wrap">
                             <form action={updateUserStatus} className="flex items-center gap-1.5">
@@ -349,9 +382,12 @@ export default async function AdminDashboardPage(props: any) {
                             {user.userid !== 'admin' && (
                               <form action={toggleAdminRole} className="border-l pl-2">
                                 <input type="hidden" name="userid" value={user.userid} />
-                                <input type="hidden" name="is_admin" value={user.is_admin ? 'true' : 'false'} />
-                                <button type="submit" className={`px-3 py-1.5 text-[12px] font-bold rounded-sm transition-colors shadow-sm ${user.is_admin ? 'bg-purple-100 border border-purple-300 text-purple-700 hover:bg-purple-200' : 'bg-gray-800 border border-gray-900 text-white hover:bg-gray-700'}`}>
-                                  {user.is_admin ? '권한 회수' : '👑 부관리자 임명'}
+                                <input type="hidden" name="is_admin" value={user.is_admin ?
+                                'true' : 'false'} />
+                                <button type="submit" className={`px-3 py-1.5 text-[12px] font-bold rounded-sm transition-colors shadow-sm ${user.is_admin ?
+                                'bg-purple-100 border border-purple-300 text-purple-700 hover:bg-purple-200' : 'bg-gray-800 border border-gray-900 text-white hover:bg-gray-700'}`}>
+                                  {user.is_admin ?
+                                  '권한 회수' : '👑 부관리자 임명'}
                                 </button>
                               </form>
                             )}
@@ -366,9 +402,13 @@ export default async function AdminDashboardPage(props: any) {
 
             <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-center flex-shrink-0">
               <div className="flex gap-3">
-                <Link href={`/admin?page=${currentPage - 1}${q ? `&q=${q}&type=${type}` : ''}`} className={`px-4 py-1.5 border border-gray-300 bg-white text-gray-600 text-[13px] font-bold rounded-sm hover:bg-gray-50 ${currentPage <= 1 ? 'pointer-events-none opacity-40' : ''}`}>◀ 이전</Link>
+                <Link href={`/admin?page=${currentPage - 1}${q ?
+                `&q=${q}&type=${type}` : ''}`} className={`px-4 py-1.5 border border-gray-300 bg-white text-gray-600 text-[13px] font-bold rounded-sm hover:bg-gray-50 ${currentPage <= 1 ?
+                'pointer-events-none opacity-40' : ''}`}>◀ 이전</Link>
                 <div className="px-5 py-1.5 font-black text-gray-800 text-[14px]">{currentPage} <span className="text-gray-400 font-medium">/ {totalPages}</span></div>
-                <Link href={`/admin?page=${currentPage + 1}${q ? `&q=${q}&type=${type}` : ''}`} className={`px-4 py-1.5 border border-gray-300 bg-white text-gray-600 text-[13px] font-bold rounded-sm hover:bg-gray-50 ${currentPage >= totalPages ? 'pointer-events-none opacity-40' : ''}`}>다음 ▶</Link>
+                <Link href={`/admin?page=${currentPage + 1}${q ?
+                `&q=${q}&type=${type}` : ''}`} className={`px-4 py-1.5 border border-gray-300 bg-white text-gray-600 text-[13px] font-bold rounded-sm hover:bg-gray-50 ${currentPage >= totalPages ?
+                'pointer-events-none opacity-40' : ''}`}>다음 ▶</Link>
               </div>
             </div>
           </div>
