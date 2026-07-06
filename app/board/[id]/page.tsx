@@ -278,8 +278,7 @@ export default async function PostDetailPage(props: any) {
         WHERE likes >= 10 AND COALESCE(dislikes, 0) < ${bestCutoff}
           AND id != ${postId} 
           AND is_blinded = false 
-          AND COALESCE(status, 'published') 
-= 'published'
+          AND COALESCE(status, 'published') = 'published'
         ORDER BY id DESC 
         LIMIT 30
       `;
@@ -291,8 +290,7 @@ export default async function PostDetailPage(props: any) {
         WHERE title LIKE ${recCategoryPattern} 
           AND id != ${postId} 
           AND is_blinded = false 
-          AND COALESCE(status, 'published') = 
-'published'
+          AND COALESCE(status, 'published') = 'published'
         ORDER BY id DESC 
         LIMIT 30
       `;
@@ -447,8 +445,7 @@ export default async function PostDetailPage(props: any) {
         likes = COALESCE(likes, 0) + 10,
         best_at = CASE WHEN COALESCE(likes, 0) < 10 AND COALESCE(likes, 0) + 10 >= 10 THEN NOW() ELSE best_at END,
         best100_at = CASE WHEN COALESCE(likes, 0) < 100 AND COALESCE(likes, 0) + 10 >= 100 THEN NOW() ELSE best100_at END,
-        best1000_at = CASE WHEN COALESCE(likes, 0) < 1000 AND COALESCE(likes, 
-0) + 10 >= 1000 THEN NOW() ELSE best1000_at END
+        best1000_at = CASE WHEN COALESCE(likes, 0) < 1000 AND COALESCE(likes, 0) + 10 >= 1000 THEN NOW() ELSE best1000_at END
       WHERE id = ${postId}`;
       return;
     }
@@ -659,11 +656,9 @@ export default async function PostDetailPage(props: any) {
     if (rows.length > 0) {
       if (rows[0].author_id === currentUserId || isAdmin) {
         if (isShadowBanned) {
-          await sql`UPDATE comments SET content = ${content}, image_data = ${imageUrl ||
-null}, is_blinded = true WHERE id = ${commentId}`;
+          await sql`UPDATE comments SET content = ${content}, image_data = ${imageUrl || null}, is_blinded = true WHERE id = ${commentId}`;
         } else {
-          await sql`UPDATE comments SET content = ${content}, image_data = ${imageUrl ||
-null} WHERE id = ${commentId}`;
+          await sql`UPDATE comments SET content = ${content}, image_data = ${imageUrl || null} WHERE id = ${commentId}`;
         }
       }
     }
@@ -829,13 +824,11 @@ null} WHERE id = ${commentId}`;
   const renderCommentNode = (node: any, depth: number = 0, parentAuthor: string | null = null) => {
     const isReply = depth > 0;
     // 💡 [핵심 수술 1] PC(넓은 화면)용 계단식 들여쓰기 값 계산 (최대 4rem)
-    const pcIndent = isReply ?
-    Math.min(depth * 1.5, 4) : 0;
+    const pcIndent = isReply ? Math.min(depth * 1.5, 4) : 0;
     const nodeStyle = { '--pc-indent': `${pcIndent}rem` } as React.CSSProperties;
     // 💡 [핵심 수술 2] 반응형 들여쓰기 클래스 
     const indentClass = isReply
-      ?
-      'pl-[1.5rem] sm:pl-[2rem] md:pl-[calc(1rem+var(--pc-indent))]'
+      ? 'pl-[1.5rem] sm:pl-[2rem] md:pl-[calc(1rem+var(--pc-indent))]'
       : 'pl-4';
 
     const isCommentAuthor = currentUserId === node.author_id ||
@@ -939,7 +932,8 @@ null} WHERE id = ${commentId}`;
                   {isReply && parentAuthor && !isDeleted && (
                     <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-gray-400 bg-gray-200/60 px-1.5 py-0.5 rounded-sm shrink-0 mt-0.5 border border-gray-200 self-start md:self-auto">↳ @{parentAuthor}</span>
                   )}
-                  <span className={`${isDeleted ? 'text-gray-400 italic text-[14px]' : ''} leading-relaxed break-all`}>{node.content}</span>
+                  {/* 💡 [특수기호 화면 탈주 버그 완벽 차단 CSS 이식 완료] */}
+                  <span className={`${isDeleted ? 'text-gray-400 italic text-[14px]' : ''} leading-relaxed break-all break-words [overflow-wrap:anywhere]`}>{node.content}</span>
        
                  </div>
                 {node.image_data && (
@@ -959,18 +953,15 @@ null} WHERE id = ${commentId}`;
                 {!isCommentLocked && (
                   <label htmlFor={`reply-${node.id}`} className="cursor-pointer px-2 py-1 border border-gray-300 rounded-sm text-[11px] text-gray-600 font-bold hover:bg-gray-50 flex items-center gap-1">💬 답글</label>
                 )}
-                <CommentLikeButton commentId={node.id} initialLikes={node.likes ||
-0} initialHasLiked={hasUserLikedComment} toggleAction={toggleCommentLike} isAdmin={isAdmin} />
-                <CommentDislikeButton commentId={node.id} initialDislikes={node.dislikes ||
-0} initialHasDisliked={hasUserDislikedComment} toggleAction={toggleCommentDislike} isAdmin={isAdmin} />
+                <CommentLikeButton commentId={node.id} initialLikes={node.likes || 0} initialHasLiked={hasUserLikedComment} toggleAction={toggleCommentLike} isAdmin={isAdmin} />
+                <CommentDislikeButton commentId={node.id} initialDislikes={node.dislikes || 0} initialHasDisliked={hasUserDislikedComment} toggleAction={toggleCommentDislike} isAdmin={isAdmin} />
                 <CommentReportButton commentId={node.id} currentUserId={currentUserId} isAdmin={isAdmin} />
               </div>
             )}
           </div>
         </div>
         <input type="checkbox" id={`reply-${node.id}`} className="hidden peer/reply" />
-        <div className={`hidden peer-checked/reply:block bg-gray-100 py-3 pr-3 border-b border-gray-200 ${isReply ?
-'pl-[1.5rem] sm:pl-[2rem] md:pl-[calc(1rem+var(--pc-indent))]' : 'pl-3 md:pl-4'}`} style={nodeStyle}>
+        <div className={`hidden peer-checked/reply:block bg-gray-100 py-3 pr-3 border-b border-gray-200 ${isReply ? 'pl-[1.5rem] sm:pl-[2rem] md:pl-[calc(1rem+var(--pc-indent))]' : 'pl-3 md:pl-4'}`} style={nodeStyle}>
           {!isCommentLocked && currentUser && !isDeleted && <CommentForm postId={postId} parentId={node.id} author={displayCommentAuthor} actionType="reply" submitAction={addComment} />}
         </div>
         {node.children && node.children.map((child: any) => renderCommentNode(child, depth + 1, displayCommentAuthor))}
@@ -1093,12 +1084,10 @@ null} WHERE id = ${commentId}`;
               <div className="text-gray-400 text-[12px] font-medium flex items-center gap-1">
        
                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                {post.views ||
-0}
+                {post.views || 0}
               </div>
               <div className="text-rose-500 text-[13px] flex items-center gap-1">
-                공감 {post.likes ||
-0}
+                공감 {post.likes || 0}
               </div>
             </div>
 
@@ -1138,8 +1127,7 @@ null} WHERE id = ${commentId}`;
               <DeleteConfirmButton
                 action={shadowbanUserAction}
                 message={`작성자(${post.author_id})를 즉시 [그림자 차단] 처리하시겠습니까?\n(본인은 정지당한 사실을 모릅니다)`}
-                className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-purple-200 hover:bg-purple-50 text-[12px] font-bold 
-rounded-sm transition-all text-center text-purple-600"
+                className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-purple-200 hover:bg-purple-50 text-[12px] font-bold rounded-sm transition-all text-center text-purple-600"
               >
                 👻 그림자
               </DeleteConfirmButton>
@@ -1180,8 +1168,7 @@ rounded-sm transition-all text-center text-purple-600"
             <style dangerouslySetInnerHTML={{
               __html: `
               .post-content-area .ql-editor img {
-                min-height: 200px 
-!important;
+                min-height: 200px !important;
                 background-color: #f4f5f7 !important;
                 content-visibility: auto !important;
               }
@@ -1190,48 +1177,48 @@ rounded-sm transition-all text-center text-purple-600"
               .post-content-area .ql-editor video,
               .post-content-area .ql-editor iframe {
                 max-width: 100% !important;
-height: auto !important; 
+                height: auto !important; 
                 display: block !important; 
                 margin: 15px auto !important; 
                 border-radius: 8px !important;
-}
+              }
               
               .post-content-area .ql-editor p:has(img.humorin-sliced-img) {
                 margin: 0 !important;
-padding: 0 !important;
+                padding: 0 !important;
                 line-height: 0 !important;
                 font-size: 0 !important;
                 display: flex !important;
                 flex-direction: column !important;
                 align-items: center !important;
-}
+              }
 
               .post-content-area .ql-editor img.humorin-sliced-img {
                 margin: 0 auto !important;
-border-radius: 0 !important;
+                border-radius: 0 !important;
                 display: block !important;
               }
 
               .post-content-area .ql-editor p:has(img.humorin-sliced-img) img:first-of-type {
                 border-top-left-radius: 8px !important;
-border-top-right-radius: 8px !important;
+                border-top-right-radius: 8px !important;
                 margin-top: 15px !important;
               }
 
               .post-content-area .ql-editor p:has(img.humorin-sliced-img) img:last-of-type {
                 border-bottom-left-radius: 8px !important;
-border-bottom-right-radius: 8px !important;
+                border-bottom-right-radius: 8px !important;
                 margin-bottom: 15px !important;
               }
 
               .post-content-area .ql-editor p:has(img.humorin-sliced-img) img:not(:last-of-type) {
                 margin-bottom: -1px !important;
-}
+              }
 
               /* 💡 [추가된 코드] 이미지가 포함된 문단에서 텍스트 중앙 정렬이 풀리는 버그 완벽 방어 */
               .post-content-area .ql-editor p:has(img) {
                 text-align: center !important;
-}
+              }
               `
             }} />
 
@@ -1240,10 +1227,8 @@ border-bottom-right-radius: 8px !important;
         )}
 
         <div className="mt-16 flex justify-center items-center gap-6 sm:gap-10 border-t pt-10 px-2">
-          <PostLikeButton postId={postId} initialLikes={post.likes ||
-0} initialHasLiked={hasLiked} toggleAction={toggleLike} isAdmin={isAdmin} />
-          <PostDislikeButton postId={postId} initialDislikes={post.dislikes ||
-0} initialHasDisliked={hasDisliked} toggleAction={toggleDislike} isAdmin={isAdmin} />
+          <PostLikeButton postId={postId} initialLikes={post.likes || 0} initialHasLiked={hasLiked} toggleAction={toggleLike} isAdmin={isAdmin} />
+          <PostDislikeButton postId={postId} initialDislikes={post.dislikes || 0} initialHasDisliked={hasDisliked} toggleAction={toggleDislike} isAdmin={isAdmin} />
         </div>
 
         <div className="mt-8 flex justify-end items-center gap-2 px-2">
@@ -1268,24 +1253,21 @@ border-bottom-right-radius: 8px !important;
               </DeleteConfirmButton>
             )}
           </div>
-          <Link href={backToListUrl} className="px-8 py-2 bg-[#414a66] text-white font-bold text-sm rounded-sm 
-hover:bg-[#2a3042] transition-colors">목록으로</Link>
+          <Link href={backToListUrl} className="px-8 py-2 bg-[#414a66] text-white font-bold text-sm rounded-sm hover:bg-[#2a3042] transition-colors">목록으로</Link>
         </div>
 
         <div className="mt-16 bg-gray-50 p-5 border rounded-sm shadow-sm">
           <h3 className="font-bold text-lg border-b pb-3 border-gray-200">댓글 <span className="text-[#e74c3c]">{comments.length}</span></h3>
           <div className="mt-4">{commentTree.map(node => renderCommentNode(node, 0))}</div>
           <div className="mt-8">
-            {currentUser ?
- <CommentForm postId={postId} actionType="main" submitAction={addComment} /> : <div className="p-4 bg-white border border-gray-200 text-center font-bold text-sm text-gray-500 rounded-sm shadow-sm">로그인이 필요합니다.</div>}
+            {currentUser ? <CommentForm postId={postId} actionType="main" submitAction={addComment} /> : <div className="p-4 bg-white border border-gray-200 text-center font-bold text-sm text-gray-500 rounded-sm shadow-sm">로그인이 필요합니다.</div>}
           </div>
         </div>
 
         {relatedPosts.length > 0 && (
           <div className="mt-10 border-t border-gray-200 pt-8">
             <h3 className="font-black text-[17px] text-gray-800 mb-4 flex items-center gap-1.5 px-1">
-              <span className="text-rose-500 text-xl">🔥</span> 방금 본 
-글과 비슷한 꿀잼 인기글
+              <span className="text-rose-500 text-xl">🔥</span> 방금 본 글과 비슷한 꿀잼 인기글
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {relatedPosts.map((rp: any) => {
@@ -1299,14 +1281,11 @@ hover:bg-[#2a3042] transition-colors">목록으로</Link>
                
                     <div className="flex justify-between items-center text-[12px] font-medium text-gray-500">
                       <span className="flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" 
-strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                        {rp.views ||
-0}
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                        {rp.views || 0}
                       </span>
                       <span className="text-rose-500 font-black flex items-center gap-1">
-                        공감 {rp.likes ||
-0}
+                        공감 {rp.likes || 0}
                       </span>
                     </div>
                   </Link>
@@ -1321,8 +1300,7 @@ strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
           <div className="mt-12 border-t-2 border-gray-800 pt-6">
             <div className="flex justify-between items-end mb-4 px-2">
               <h3 className="font-bold text-[17px] text-gray-800">
-                {listCategory !== 'all' ? 
-`'${listCategory}' 게시판 목록` : '전체글 목록'}
+                {listCategory !== 'all' ? `'${listCategory}' 게시판 목록` : '전체글 목록'}
               </h3>
               <Link href={backToListUrl} className="text-[13px] font-bold text-[#3b4890] hover:underline">
                 게시판으로 가기 &rarr;
@@ -1381,16 +1359,12 @@ strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
                     <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 justify-between items-center shrink-0">
         
                       <div className="md:w-24 text-left md:text-center font-normal md:font-medium text-gray-400 md:text-gray-600 truncate">
-                        {isDisplayBlinded ?
-'-' : dispAuthor}
+                        {isDisplayBlinded ? '-' : dispAuthor}
                       </div>
                       <div className="md:w-[70px] md:text-center">{formatListDate(p.date)}</div>
-                      <div className="md:w-12 md:text-center">{isDisplayBlinded ?
-'-' : (p.views || 0)}</div>
-                      <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${isDisplayBlinded ?
-'text-gray-300 md:text-gray-300' : (p.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300 md:text-gray-300')}`}>
-                        {isDisplayBlinded ?
-'-' : (p.likes || 0)}
+                      <div className="md:w-12 md:text-center">{isDisplayBlinded ? '-' : (p.views || 0)}</div>
+                      <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${isDisplayBlinded ? 'text-gray-300 md:text-gray-300' : (p.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300 md:text-gray-300')}`}>
+                        {isDisplayBlinded ? '-' : (p.likes || 0)}
                       </div>
                     </div>
                   </div>
@@ -1412,14 +1386,12 @@ strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
                 </Link>
               )}
               {visiblePages.map((pNum) => (
-                <Link key={pNum} href={getPageUrl(pNum)} className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${listPage === pNum ?
-'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
+                <Link key={pNum} href={getPageUrl(pNum)} className={`px-2.5 sm:px-3 py-1.5 border rounded-sm font-bold text-[12px] transition-colors shrink-0 ${listPage === pNum ? 'bg-[#414a66] text-white border-[#414a66]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'}`}>
                   {pNum}
                 </Link>
               ))}
               {endPage < totalPages && (
-                <Link href={getPageUrl(endPage + 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 
-hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
+                <Link href={getPageUrl(endPage + 1)} className="px-2 sm:px-3 py-1.5 border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-100 font-bold text-[12px] shrink-0 whitespace-nowrap">
                   <span className="hidden sm:inline">다음</span><span className="sm:hidden">{">"}</span>
                 </Link>
               )}
