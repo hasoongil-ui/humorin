@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Script from "next/script";
 import "./globals.css";
 import CopyProtection from "./components/CopyProtection";
 
@@ -116,6 +117,26 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-gray-100 font-sans flex flex-col min-h-screen">
+        
+        {/* 구글 애널리틱스 (GA4) 추적 코드 시작 */}
+        <Script
+          strategy="afterInteractive"
+          src={`https://www.googletagmanager.com/gtag/js?id=G-5NB2SJYB5R`}
+        />
+        <Script
+          id="gtag-init"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-5NB2SJYB5R');
+            `,
+          }}
+        />
+        {/* 구글 애널리틱스 (GA4) 추적 코드 끝 */}
+
         <CopyProtection />
         <div id="ad-space-top" className="w-full"></div>
         <div className="flex-grow">
@@ -140,6 +161,10 @@ export default function RootLayout({
               </p>
               <p className="font-bold text-gray-400">
                 © {new Date().getFullYear()} HUMORIN. All Rights Reserved.
+              </p>
+              {/* 상표권 보호 문구 추가 */}
+              <p className="text-[11px] text-gray-400 mt-1">
+                '유머인'과 'HUMOR IN'은 정식으로 상표권 보호를 받는 소중한 브랜드입니다. 올바른 브랜드 가치를 지켜주셔서 감사합니다.
               </p>
             </div>
           </div>
