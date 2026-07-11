@@ -196,7 +196,8 @@ export default async function HomePage() {
         <Navbar />
         <main className="max-w-[1200px] mx-auto p-4 md:py-8 mb-20">
 
-          <div className="bg-[#414a66] rounded-sm p-6 md:p-10 mb-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+          {/* 🚨 [반응형 패치 1] 모바일(hidden)에서는 통째로 숨기고 PC(md:flex)에서만 노출하여 투데이베스트를 끌어올림 */}
+          <div className="hidden md:flex bg-[#414a66] rounded-sm p-6 md:p-10 mb-8 shadow-sm flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
             <div>
               <h1 className="text-2xl md:text-3xl font-black text-white mb-2" style={{ wordBreak: 'keep-all' }}>
                 {renderTitle(mainBannerTitle)}
@@ -263,6 +264,18 @@ export default async function HomePage() {
               />
             ))}
           </div>
+
+          {/* 🚨 [반응형 패치 2] 모바일 전용 플로팅 글쓰기 버튼 (모바일에서만 보이고 스크롤 따라다님) */}
+          <Link 
+            href="/board/write" 
+            className="md:hidden fixed bottom-6 right-4 w-[52px] h-[52px] bg-[#3b4890] rounded-full shadow-[0_4px_14px_rgba(59,72,144,0.4)] flex items-center justify-center text-white text-xl z-50 hover:bg-[#2a3042] transition-all border-2 border-white"
+            aria-label="글쓰기"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+              <path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.158 3.712 3.712 1.158-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32L19.513 8.2z" />
+            </svg>
+          </Link>
+
         </main>
       </div>
     </Suspense>
