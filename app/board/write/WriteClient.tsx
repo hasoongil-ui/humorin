@@ -178,6 +178,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         CustomImage.tagName = 'IMG';
         Quill.register(CustomImage, true);
 
+        // 🚨 [업그레이드 완료] 객체(poster 포함)와 문자열(과거 데이터) 완벽 호환
         class CustomVideo extends BlockEmbed {
           static blotName = 'mp4Video';
           static tagName = 'VIDEO';
@@ -185,9 +186,16 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           static create(value: any) {
             let node = super.create();
             node.setAttribute('controls', 'true');
-            node.setAttribute('src', value);
             node.setAttribute('preload', 'metadata');
             node.setAttribute('playsinline', 'true');
+            
+            if (typeof value === 'object' && value.src) {
+              node.setAttribute('src', value.src);
+              if (value.poster) node.setAttribute('poster', value.poster);
+            } else if (typeof value === 'string') {
+              node.setAttribute('src', value);
+            }
+            
             node.style.display = 'block';
             node.style.width = '100%';
             node.style.maxWidth = '800px';
@@ -196,7 +204,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             node.style.backgroundColor = '#000';
             return node;
           }
-          static value(node: any) { return node.getAttribute('src'); }
+          static value(node: any) { 
+            return {
+              src: node.getAttribute('src'),
+              poster: node.getAttribute('poster') || ''
+            }; 
+          }
         }
         Quill.register(CustomVideo, true);
 
@@ -559,6 +572,69 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       setIsUploading(true);
       try {
+        // 🚨 [신규 엔진] 프론트엔드 Canvas 기반 0.001초 썸네일 자동 추출
+        let thumbPublicUrl = '';
+        try {
+          const thumbFile = await new Promise<File>((resolve, reject) => {
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            video.playsInline = true;
+            video.muted = true;
+            const url = URL.createObjectURL(file);
+            video.src = url;
+
+            const timeout = setTimeout(() => {
+              URL.revokeObjectURL(url);
+              reject(new Error('Timeout'));
+            }, 3000); // 3초 타임아웃 방어막
+
+            video.onloadeddata = () => {
+              video.currentTime = Math.min(0.1, video.duration > 0 ? video.duration / 2 : 0);
+            };
+
+            video.onseeked = () => {
+              clearTimeout(timeout);
+              const canvas = document.createElement('canvas');
+              canvas.width = video.videoWidth || 640;
+              canvas.height = video.videoHeight || 360;
+              const ctx = canvas.getContext('2d');
+              ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+              canvas.toBlob((blob) => {
+                URL.revokeObjectURL(url);
+                if (blob) {
+                  const safeName = file.name.replace(/\.[^/.]+$/, "") + "_thumb.webp";
+                  resolve(new File([blob], safeName, { type: 'image/webp' }));
+                } else {
+                  reject(new Error('Blob conversion failed'));
+                }
+              }, 'image/webp', 0.8);
+            };
+
+            video.onerror = () => {
+              clearTimeout(timeout);
+              URL.revokeObjectURL(url);
+              reject(new Error('Video load error'));
+            };
+          });
+
+          // 생성된 썸네일을 isThumbnail=true 꼬리표를 달아 백엔드로 전송
+          const thumbTicketRes = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: thumbFile.name, contentType: thumbFile.type, isThumbnail: true }),
+          });
+          const thumbResData = await thumbTicketRes.json();
+          if (thumbTicketRes.ok && thumbResData.uploadUrl) {
+            const thumbPutRes = await fetch(thumbResData.uploadUrl, { method: 'PUT', body: thumbFile, headers: { 'Content-Type': thumbFile.type } });
+            if (thumbPutRes.ok) {
+              thumbPublicUrl = thumbResData.publicUrl;
+            }
+          }
+        } catch (thumbError) {
+          console.warn("썸네일 자동 추출 실패 (원본 영상만 안전하게 업로드 진행):", thumbError);
+        }
+        // --- 썸네일 추출 완료 ---
+
         const safeContentType = file.type || 'video/mp4';
 
         const ticketRes = await fetch('/api/upload', {
@@ -574,7 +650,12 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const putRes = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': safeContentType } });
           if (!putRes.ok) throw new Error('클라우드 서버 전송 실패');
 
-          editor.insertEmbed(insertIndex, 'mp4Video', publicUrl + '#t=0.001', 'silent');
+          // 💡 추출된 썸네일을 poster 속성으로 함께 묶어서 에디터에 삽입
+          const videoInsertData = {
+            src: publicUrl + '#t=0.001',
+            poster: thumbPublicUrl
+          };
+          editor.insertEmbed(insertIndex, 'mp4Video', videoInsertData, 'silent');
           editor.insertText(insertIndex + 1, '\n', 'silent');
           editor.setSelection(insertIndex + 2, 'silent');
         }

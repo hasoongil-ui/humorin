@@ -1,8 +1,8 @@
+// 파일 위치: app/api/upload/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { cookies } from 'next/headers';
-
 import crypto from 'crypto';
 
 const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
@@ -45,7 +45,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '비정상적인 접근입니다.' }, { status: 403 });
     }
 
-    let { filename, contentType } = await request.json();
+    // 🚨 프론트엔드(Canvas API)에서 썸네일을 구워 보낼 때 isThumbnail 신호를 받도록 추가
+    let { filename, contentType, isThumbnail } = await request.json();
 
     const referer = request.headers.get('referer') || '';
     const isProfileUpload = referer.includes('/profile');
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
       contentType = getMimeType(filename, contentType);
     }
 
-    console.log(`[업로드 요청] 유저: ${userId}, 파일명: ${filename}, 타입: ${contentType}`);
+    console.log(`[업로드 요청] 유저: ${userId}, 파일명: ${filename}, 타입: ${contentType}, 썸네일여부: ${!!isThumbnail}`);
 
     if (!filename || !contentType) {
       return NextResponse.json({ error: '파일 정보가 없습니다.' }, { status: 400 });
@@ -73,8 +74,13 @@ export async function POST(request: NextRequest) {
 
     const extension = filename.split('.').pop()?.toLowerCase() || 'bin';
     const safeRandomName = Math.random().toString(36).substring(2, 10);
+    
+    // 🚨 썸네일 파일일 경우, 스토리지 식별 및 데이터 충돌 방지를 위해 'thumb_' 접두사 강제 부착
     let uniqueFileName = `${userId}-${Date.now()}-${safeRandomName}.${extension}`;
-
+    if (isThumbnail) {
+      uniqueFileName = `thumb_${uniqueFileName}`;
+    }
+    
     if (isProfileUpload) {
       uniqueFileName = `profiles/${uniqueFileName}`;
     }
