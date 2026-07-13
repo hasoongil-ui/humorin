@@ -22,15 +22,32 @@ function formatDate(dateString: any) {
   return `${yy}-${String(kstDate.getMonth() + 1).padStart(2, '0')}-${String(kstDate.getDate()).padStart(2, '0')}`;
 }
 
+// 💡 [v43.2 완벽 패치] 리스트 아이콘 감지 (유튜브 + 동영상(poster/src) + 이미지 100% 감지)
 function hasImage(content: string) {
   if (!content) return false;
-  return /<img[^>]+src="([^">]+)"/.test(content);
+  return /<iframe[^>]+src=["'](?:https?:)?\/\/www\.youtube\.com\/embed\/([^"'?]+)/i.test(content) || 
+         /<video[^>]+(?:poster|src)=["']([^"']+)["']/i.test(content) || 
+         /<img[^>]+src=["']([^"']+)["']/i.test(content);
 }
 
-function extractFirstImage(content: string) {
+// 💡 [v43.2 완벽 패치] 명작 쇼케이스 하이브리드 썸네일 추출 엔진
+function getThumbnail(content: string) {
   if (!content) return null;
-  const match = content.match(/<img[^>]+src=["']([^"']+)["']/i);
-  return match ? match[1] : null;
+  // 1순위: 유튜브 썸네일
+  const ytMatch = content.match(/<iframe[^>]+src=["'](?:https?:)?\/\/www\.youtube\.com\/embed\/([^"'?]+)/i);
+  if (ytMatch) return `https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg`;
+  
+  // 2순위: 동영상 poster 속성 우선 낚시
+  const videoMatch = content.match(/<video[^>]+poster=["']([^"']+)["']/i);
+  if (videoMatch) return videoMatch[1];
+  
+  // 3순위: poster가 없으면 src(원본 동영상 주소) 낚시
+  const videoSrcMatch = content.match(/<video[^>]+src=["']([^"']+)["']/i);
+  if (videoSrcMatch) return videoSrcMatch[1];
+  
+  // 4순위: 일반 이미지
+  const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return imgMatch ? imgMatch[1] : null;
 }
 
 function extractData(fullTitle: string) {
@@ -422,7 +439,7 @@ export default async function BoardPage(props: any) {
                 
                 {showcaseData.weekly && (() => {
                   const data = extractData(showcaseData.weekly.title);
-                  const img = extractFirstImage(showcaseData.weekly.content);
+                  const img = getThumbnail(showcaseData.weekly.content);
                   const author = showcaseData.weekly.title.startsWith('[익명 다락방]') ? '익명' : showcaseData.weekly.author;
                   return (
                     <Link href={`/board/${showcaseData.weekly.id}${fromQuery}`} className="group block bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-[#3b4890]/30 transition-all duration-300 relative overflow-hidden flex flex-col">
@@ -432,9 +449,14 @@ export default async function BoardPage(props: any) {
                         </div>
                       </div>
                       
+                      {/* 💡 [v43.2 패치] MP4 액자 지원 추가 */}
                       <div className="w-full h-[160px] bg-gray-50 overflow-hidden relative border-b border-gray-100 flex items-center justify-center">
                         {img ? (
-                          <img src={img} alt="썸네일" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          img.toLowerCase().includes('.mp4') ? (
+                            <video src={img} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" muted playsInline preload="metadata" />
+                          ) : (
+                            <img src={img} alt="썸네일" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          )
                         ) : (
                           <span className="text-gray-300 text-4xl font-black">No Image</span>
                         )}
@@ -464,7 +486,7 @@ export default async function BoardPage(props: any) {
 
                 {showcaseData.monthly && (() => {
                   const data = extractData(showcaseData.monthly.title);
-                  const img = extractFirstImage(showcaseData.monthly.content);
+                  const img = getThumbnail(showcaseData.monthly.content);
                   const author = showcaseData.monthly.title.startsWith('[익명 다락방]') ? '익명' : showcaseData.monthly.author;
                   return (
                     <Link href={`/board/${showcaseData.monthly.id}${fromQuery}`} className="group block bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-[#3b4890]/30 transition-all duration-300 relative overflow-hidden flex flex-col md:-translate-y-1.5">
@@ -473,9 +495,15 @@ export default async function BoardPage(props: any) {
                           <span className="text-sm">🏆</span> 이번 달 1위
                         </div>
                       </div>
+
+                      {/* 💡 [v43.2 패치] MP4 액자 지원 추가 */}
                       <div className="w-full h-[160px] bg-gray-50 overflow-hidden relative border-b border-gray-100 flex items-center justify-center">
                         {img ? (
-                          <img src={img} alt="썸네일" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          img.toLowerCase().includes('.mp4') ? (
+                            <video src={img} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" muted playsInline preload="metadata" />
+                          ) : (
+                            <img src={img} alt="썸네일" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          )
                         ) : (
                           <span className="text-gray-300 text-4xl font-black">No Image</span>
                         )}
@@ -505,7 +533,7 @@ export default async function BoardPage(props: any) {
 
                 {showcaseData.allTime && (() => {
                   const data = extractData(showcaseData.allTime.title);
-                  const img = extractFirstImage(showcaseData.allTime.content);
+                  const img = getThumbnail(showcaseData.allTime.content);
                   const author = showcaseData.allTime.title.startsWith('[익명 다락방]') ? '익명' : showcaseData.allTime.author;
                   return (
                     <Link href={`/board/${showcaseData.allTime.id}${fromQuery}`} className="group block bg-white rounded-xl border border-yellow-300 shadow-md hover:shadow-xl hover:border-yellow-500 transition-all duration-300 relative overflow-hidden flex flex-col md:-translate-y-3 ring-1 ring-yellow-400/20">
@@ -514,9 +542,15 @@ export default async function BoardPage(props: any) {
                           <span className="text-sm">👑</span> 역대 장원 (1위)
                         </div>
                       </div>
+
+                      {/* 💡 [v43.2 패치] MP4 액자 지원 추가 */}
                       <div className="w-full h-[160px] bg-gray-50 overflow-hidden relative border-b border-gray-100 flex items-center justify-center">
                         {img ? (
-                          <img src={img} alt="썸네일" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          img.toLowerCase().includes('.mp4') ? (
+                            <video src={img} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" muted playsInline preload="metadata" />
+                          ) : (
+                            <img src={img} alt="썸네일" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          )
                         ) : (
                           <span className="text-gray-300 text-4xl font-black">No Image</span>
                         )}
