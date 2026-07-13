@@ -308,7 +308,8 @@ export default async function BoardPage(props: any) {
       `}} />
       <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row gap-5 p-4 md:py-6 mt-2 mb-20">
 
-        <aside className="w-full md:w-[240px] shrink-0 flex flex-col gap-4">
+        {/* 💡 [v43.2 UX 패치] 스마트폰 환경에서 내정보 박스를 완전히 숨김 (hidden md:flex) */}
+        <aside className="hidden md:flex w-full md:w-[240px] shrink-0 flex-col gap-4">
           <div className="bg-white border border-gray-200 shadow-sm rounded-sm p-4">
             {currentUser ? (
               <div>
@@ -404,6 +405,7 @@ export default async function BoardPage(props: any) {
           </div>
         </aside>
 
+        {/* 💡 [v43.2 UI 패치] 모바일 환경에서는 이제 main 태그가 가장 위에 오도록 복구 */}
         <main className="flex-1 min-w-0 bg-white border border-gray-200 shadow-sm rounded-sm p-4 md:p-6">
 
           <div className="flex justify-between items-center mb-4">
