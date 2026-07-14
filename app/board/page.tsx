@@ -1,3 +1,4 @@
+// 파일 위치: app/board/page.tsx
 // @ts-nocheck
 import { sql } from '@vercel/postgres';
 import Link from 'next/link';
@@ -33,10 +34,13 @@ function getThumbnail(content: string) {
   if (!content) return null;
   const ytMatch = content.match(/<iframe[^>]+src=["'](?:https?:)?\/\/www\.youtube\.com\/embed\/([^"'?]+)/i);
   if (ytMatch) return `https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg`;
+  
   const videoMatch = content.match(/<video[^>]+poster=["']([^"']+)["']/i);
   if (videoMatch) return videoMatch[1];
+  
   const videoSrcMatch = content.match(/<video[^>]+src=["']([^"']+)["']/i);
   if (videoSrcMatch) return videoSrcMatch[1];
+  
   const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["']/i);
   return imgMatch ? imgMatch[1] : null;
 }
@@ -297,7 +301,9 @@ export default async function BoardPage(props: any) {
         .forum-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .forum-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
       `}} />
-      <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row gap-5 p-4 md:py-6 mt-2 mb-10">
+      
+      {/* 💡 [v43.6 완벽 동기화] 모든 게시판을 관장하는 최상위 부모 컨테이너. 메인페이지와 완벽히 동일한 상하 여백(py-2, mb-6)과 좌우 극미세 여백(px-1) 적용 */}
+      <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row gap-3 md:gap-5 px-1 py-2 md:p-4 md:py-6 mb-6 md:mb-10">
 
         <aside className="hidden md:flex w-full md:w-[240px] shrink-0 flex-col gap-4">
           <div className="bg-white border border-gray-200 shadow-sm rounded-sm p-4">
@@ -395,7 +401,8 @@ export default async function BoardPage(props: any) {
           </div>
         </aside>
 
-        <main className="flex-1 min-w-0 bg-white border border-gray-200 shadow-sm rounded-sm p-4 md:p-6">
+        {/* 💡 [v43.6 내부 패치] 스마트폰에서 흰색 본문 박스 내부 패딩도 줄여 제목이 들어갈 가로 공간 추가 확보 (p-2 sm:p-3) */}
+        <main className="flex-1 min-w-0 bg-white border border-gray-200 shadow-sm rounded-sm p-2 sm:p-3 md:p-6">
 
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-gray-800 truncate pr-2">
@@ -597,7 +604,7 @@ export default async function BoardPage(props: any) {
               return (
                 <div key={`notice-${post.id}`} className={`flex flex-col md:flex-row border-b py-3 transition-colors items-center group ${bgColor} active:scale-[0.98] md:active:scale-100 active:bg-gray-50/50 md:active:bg-transparent touch-pan-y md:touch-auto`}>
                   <div className={`hidden md:block w-12 text-center text-xs font-black shrink-0 ${textColor}`}>{badgeText}</div>
-                  <Link href={`/board/${post.id}${fromQuery}`} prefetch={false} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
+                  <Link href={`/board/${post.id}${fromQuery}`} prefetch={false} className="flex-1 min-w-0 px-2 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                     <span className="mr-2 text-[14px]">{iconText}</span>
                     {isDisplayBlinded ? (
                       <span className="truncate mr-1 text-gray-400 md:text-gray-500">블라인드 처리된 글입니다.</span>
@@ -613,7 +620,7 @@ export default async function BoardPage(props: any) {
                       </>
                     )}
                   </Link>
-                  <div className={`flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-[11px] md:text-[13px] justify-between items-center shrink-0 ${textColor}`}>
+                  <div className={`flex w-full md:w-auto mt-1 md:mt-0 px-2 md:px-0 text-[11px] md:text-[13px] justify-between items-center shrink-0 ${textColor}`}>
                     <div className={`md:w-24 text-left md:text-center font-bold truncate`}>
                       {isDisplayBlinded ? '-' : displayAuthor}
                     </div>
@@ -638,7 +645,7 @@ export default async function BoardPage(props: any) {
               return (
                 <div className="flex flex-col md:flex-row border-b border-gray-200 py-3 bg-blue-50/50 hover:bg-gray-50 transition-colors items-center group active:scale-[0.98] md:active:scale-100 active:bg-gray-50/50 md:active:bg-transparent touch-pan-y md:touch-auto">
                   <div className="hidden md:block w-12 text-center text-xs text-gray-500 font-bold shrink-0">장원</div>
-                  <Link href={`/board/${renderTopPost.id}${fromQuery}`} prefetch={false} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
+                  <Link href={`/board/${renderTopPost.id}${fromQuery}`} prefetch={false} className="flex-1 min-w-0 px-2 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                     <CategoryIcon category={topData.cat} />
                     {isDisplayBlindedTop ? (
                       <span className="truncate mr-1 text-gray-400 md:text-gray-500">
@@ -656,7 +663,7 @@ export default async function BoardPage(props: any) {
                       </>
                     )}
                   </Link>
-                  <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 justify-between items-center shrink-0">
+                  <div className="flex w-full md:w-auto mt-1 md:mt-0 px-2 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 justify-between items-center shrink-0">
                     <div className="md:w-24 text-left md:text-center font-normal md:font-semibold text-gray-400 md:text-gray-700 truncate">
                       {isDisplayBlindedTop ? (
                         <span>-</span>
@@ -695,7 +702,7 @@ export default async function BoardPage(props: any) {
                 return (
                   <div key={post.id} className="flex flex-col md:flex-row border-b border-gray-200 py-2.5 hover:bg-gray-50 transition-colors items-center group active:scale-[0.98] md:active:scale-100 active:bg-gray-50/50 md:active:bg-transparent touch-pan-y md:touch-auto">
                     <div className="hidden md:block w-12 text-center text-[13px] text-gray-400 shrink-0">{post.id}</div>
-                    <Link href={`/board/${post.id}${fromQuery}`} prefetch={false} className="flex-1 min-w-0 px-3 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
+                    <Link href={`/board/${post.id}${fromQuery}`} prefetch={false} className="flex-1 min-w-0 px-2 md:px-4 w-full flex items-center cursor-pointer text-[15px]">
                       <CategoryIcon category={postData.cat} />
 
                       {isDisplayBlinded ? (
@@ -714,7 +721,7 @@ export default async function BoardPage(props: any) {
                         </>
                       )}
                     </Link>
-                    <div className="flex w-full md:w-auto mt-1 md:mt-0 px-3 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 justify-between items-center shrink-0">
+                    <div className="flex w-full md:w-auto mt-1 md:mt-0 px-2 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 justify-between items-center shrink-0">
                       <div className="md:w-24 text-left md:text-center font-normal md:font-medium text-gray-400 md:text-gray-600 truncate">
                         {isDisplayBlinded ? (
                           <span>-</span>

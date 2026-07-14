@@ -15,7 +15,6 @@ export const metadata: Metadata = {
   },
 };
 
-// 💡 [클린 패치] 괄호 태그 분리용 정규식
 function extractData(fullTitle: string) {
   if (!fullTitle) return { cat: '일반', cleanTitle: '' };
   const match = fullTitle.match(/^\[(.*?)\]\s*(.*)$/);
@@ -30,7 +29,6 @@ function extractData(fullTitle: string) {
   return { cat: '일반', cleanTitle: fullTitle };
 }
 
-// 💡 [클린 패치] 날짜 포맷 (MM-DD)
 function formatShortDate(dateString: any) {
   const dbDate = new Date(dateString);
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -44,27 +42,20 @@ function formatShortDate(dateString: any) {
   return `${month}-${day}`;
 }
 
-// 🚨 [NEW 썸네일 추출기 업그레이드] 유튜브, 일반 이미지, MP4 비디오, 그리고 [poster 썸네일] 완벽 대응
 function extractThumbnail(content: string) {
   if (!content) return null;
 
-  // 1. 유튜브 iframe 검사 (유튜브 공식 고화질 썸네일 URL 강제 생성)
   const ytMatch = content.match(/<iframe[^>]+src=["'](?:https?:)?\/\/www\.youtube\.com\/embed\/([^"'?]+)/i);
   if (ytMatch) return { type: 'youtube', url: `https://img.youtube.com/vi/${ytMatch[1]}/0.jpg` };
 
-  // 2. 일반 이미지 검사
   const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["']/i);
   if (imgMatch) return { type: 'image', url: imgMatch[1] };
 
-  // 3. 🚨 [대장정의 마무리] 에디터가 구워준 동영상 poster 썸네일 0.1초 낚아채기!
-  // 발견 즉시 일반 'image' 타입으로 반환하여 브라우저 부하 없이 쾌속 렌더링
   const posterMatch = content.match(/<video[^>]+poster=["']([^"']+)["']/i);
   if (posterMatch && posterMatch[1]) return { type: 'image', url: posterMatch[1] };
 
-  // 4. 일반 MP4 비디오 검사 (과거 데이터 호환용 폴백)
   const videoMatch = content.match(/<video[^>]+src=["']([^"']+)["']/i) || content.match(/<source[^>]+src=["']([^"']+)["']/i);
   if (videoMatch) {
-    // 브라우저가 영상의 첫 프레임(0.001초)을 강제로 썸네일로 쓰도록 꼬리표 부착
     const videoUrl = videoMatch[1].includes('#t=') ? videoMatch[1] : `${videoMatch[1]}#t=0.001`;
     return { type: 'mp4', url: videoUrl };
   }
@@ -118,7 +109,6 @@ export default async function HomePage() {
     });
   } catch (e) { }
 
-  // 🚨 [쿼리 수정] 썸네일 추출을 위해 모든 쿼리의 SELECT문에 'p.content' 추가
   const bestQuery = sql`
     SELECT p.id, p.title, p.content, p.author, p.date, p.best_at, p.likes, p.is_blinded, 
            (SELECT COUNT(*) FROM comments WHERE comments.post_id = p.id) as comment_count 
@@ -157,7 +147,6 @@ export default async function HomePage() {
   const allRecentPosts = results[1].rows;
   const dynamicBoardPosts = results.slice(2).map(res => res.rows);
 
-  // 🚨 [BoardWidget 하이브리드 UI 렌더링 컴포넌트]
   const BoardWidget = ({ title, icon, link, posts, highlight = false }: any) => {
     const querySuffix = link.includes('?') ? link.substring(link.indexOf('?')) : '';
 
@@ -174,13 +163,12 @@ export default async function HomePage() {
         <ul className="divide-y divide-gray-100 flex-1">
           {posts.length > 0 ? posts.map((post: any) => {
             const { cleanTitle } = extractData(post.title);
-            const thumb = extractThumbnail(post.content); // 썸네일 추출
+            const thumb = extractThumbnail(post.content);
 
             return (
               <li key={`widget-${post.id}`} className="hover:bg-gray-50 transition-colors">
                 <Link href={`/board/${post.id}${querySuffix}`} className="flex items-start md:items-center justify-between px-4 py-2.5 gap-3 md:gap-0">
                   
-                  {/* 좌측: 텍스트 영역 (모바일에서는 세로정렬, PC에서는 가로정렬 유지) */}
                   <div className="flex flex-col md:flex-row md:items-center flex-1 min-w-0 pr-0 md:pr-3">
                     <div className="flex items-center md:inline-flex min-w-0">
                       {post.is_blinded ? (
@@ -197,7 +185,6 @@ export default async function HomePage() {
                       )}
                     </div>
                     
-                    {/* 모바일 뷰 전용 (좋아요/날짜를 제목 바로 아래에 배치) */}
                     {!post.is_blinded && (
                       <div className="flex md:hidden items-center gap-2 flex-shrink-0 mt-1">
                         {post.likes > 0 && <span className="text-[12px] font-black text-[#3b4890]">♥{post.likes}</span>}
@@ -206,7 +193,6 @@ export default async function HomePage() {
                     )}
                   </div>
 
-                  {/* 우측 PC 뷰 전용 (좋아요/날짜 우측 끝 정렬) */}
                   <div className="hidden md:flex items-center gap-2 flex-shrink-0 mt-0.5">
                     {post.is_blinded ? (
                       <span className="text-[11px] text-gray-400 w-10 text-right">-</span>
@@ -218,20 +204,13 @@ export default async function HomePage() {
                     )}
                   </div>
 
-                  {/* 🚨 우측 모바일 뷰 전용 썸네일 (유튜브, MP4 비디오 호환 및 엑스박스 방어) */}
                   {thumb && !post.is_blinded && (
                     <div className="md:hidden shrink-0 w-[55px] h-[55px] rounded-lg overflow-hidden relative border border-gray-100 bg-gray-50 flex items-center justify-center">
-                      
                       {thumb.type === 'mp4' ? (
-                        /* MP4 영상은 img 태그 대신 video 태그로 첫 프레임만 조용히 렌더링 */
                         <video src={thumb.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
                       ) : (
-                        /* 일반 이미지 및 유튜브 공식 썸네일 */
-                        /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={thumb.url} alt="thumbnail" className="w-full h-full object-cover" loading="lazy" />
                       )}
-
-                      {/* 비디오(유튜브/MP4)일 경우 반투명 재생 아이콘(▶) 오버레이 */}
                       {(thumb.type === 'youtube' || thumb.type === 'mp4') && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40">
                           <span className="text-white text-[10px] ml-0.5">▶</span>
@@ -261,9 +240,9 @@ export default async function HomePage() {
     <Suspense fallback={<div className="min-h-screen bg-[#f4f5f7]"></div>}>
       <div className="min-h-screen bg-[#f4f5f7] font-sans text-gray-800">
         <Navbar />
-        <main className="max-w-[1200px] mx-auto p-4 md:py-8 mb-20">
+        {/* 💡 [v43.5 완벽 동기화] 스마트폰 환경에서 상하 여백(py-2, mb-6)을 맞춰 길이를 게시판과 동일하게 세팅, 좌우는 px-1 적용 */}
+        <main className="max-w-[1200px] mx-auto px-1 py-2 mb-6 md:p-4 md:py-8 md:mb-10">
 
-          {/* 🚨 기존 완벽 보존: 배너는 PC(md:flex)에서만 보이고 모바일에서는 숨김 */}
           <div className="hidden md:flex bg-[#414a66] rounded-sm p-6 md:p-10 mb-8 shadow-sm flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
             <div>
               <h1 className="text-2xl md:text-3xl font-black text-white mb-2" style={{ wordBreak: 'keep-all' }}>
@@ -332,7 +311,6 @@ export default async function HomePage() {
             ))}
           </div>
 
-          {/* 🚨 기존 완벽 보존: 모바일 전용 플로팅 글쓰기 버튼 */}
           <Link 
             href="/board/write" 
             className="md:hidden fixed bottom-6 right-4 w-[52px] h-[52px] bg-[#3b4890] rounded-full shadow-[0_4px_14px_rgba(59,72,144,0.4)] flex items-center justify-center text-white text-xl z-50 hover:bg-[#2a3042] transition-all border-2 border-white"
