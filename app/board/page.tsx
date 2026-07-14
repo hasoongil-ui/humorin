@@ -22,7 +22,6 @@ function formatDate(dateString: any) {
   return `${yy}-${String(kstDate.getMonth() + 1).padStart(2, '0')}-${String(kstDate.getDate()).padStart(2, '0')}`;
 }
 
-// 💡 [v43.2 완벽 패치] 리스트 아이콘 감지 (유튜브 + 동영상(poster/src) + 이미지 100% 감지)
 function hasImage(content: string) {
   if (!content) return false;
   return /<iframe[^>]+src=["'](?:https?:)?\/\/www\.youtube\.com\/embed\/([^"'?]+)/i.test(content) || 
@@ -30,22 +29,14 @@ function hasImage(content: string) {
          /<img[^>]+src=["']([^"']+)["']/i.test(content);
 }
 
-// 💡 [v43.2 완벽 패치] 명작 쇼케이스 하이브리드 썸네일 추출 엔진
 function getThumbnail(content: string) {
   if (!content) return null;
-  // 1순위: 유튜브 썸네일
   const ytMatch = content.match(/<iframe[^>]+src=["'](?:https?:)?\/\/www\.youtube\.com\/embed\/([^"'?]+)/i);
   if (ytMatch) return `https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg`;
-  
-  // 2순위: 동영상 poster 속성 우선 낚시
   const videoMatch = content.match(/<video[^>]+poster=["']([^"']+)["']/i);
   if (videoMatch) return videoMatch[1];
-  
-  // 3순위: poster가 없으면 src(원본 동영상 주소) 낚시
   const videoSrcMatch = content.match(/<video[^>]+src=["']([^"']+)["']/i);
   if (videoSrcMatch) return videoSrcMatch[1];
-  
-  // 4순위: 일반 이미지
   const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["']/i);
   return imgMatch ? imgMatch[1] : null;
 }
@@ -306,9 +297,8 @@ export default async function BoardPage(props: any) {
         .forum-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .forum-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
       `}} />
-      <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row gap-5 p-4 md:py-6 mt-2 mb-20">
+      <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row gap-5 p-4 md:py-6 mt-2 mb-10">
 
-        {/* 💡 [v43.2 UX 패치] 스마트폰 환경에서 내정보 박스를 완전히 숨김 (hidden md:flex) */}
         <aside className="hidden md:flex w-full md:w-[240px] shrink-0 flex-col gap-4">
           <div className="bg-white border border-gray-200 shadow-sm rounded-sm p-4">
             {currentUser ? (
@@ -405,7 +395,6 @@ export default async function BoardPage(props: any) {
           </div>
         </aside>
 
-        {/* 💡 [v43.2 UI 패치] 모바일 환경에서는 이제 main 태그가 가장 위에 오도록 복구 */}
         <main className="flex-1 min-w-0 bg-white border border-gray-200 shadow-sm rounded-sm p-4 md:p-6">
 
           <div className="flex justify-between items-center mb-4">
@@ -451,7 +440,6 @@ export default async function BoardPage(props: any) {
                         </div>
                       </div>
                       
-                      {/* 💡 [v43.2 패치] MP4 액자 지원 추가 */}
                       <div className="w-full h-[160px] bg-gray-50 overflow-hidden relative border-b border-gray-100 flex items-center justify-center">
                         {img ? (
                           img.toLowerCase().includes('.mp4') ? (
@@ -497,8 +485,6 @@ export default async function BoardPage(props: any) {
                           <span className="text-sm">🏆</span> 이번 달 1위
                         </div>
                       </div>
-
-                      {/* 💡 [v43.2 패치] MP4 액자 지원 추가 */}
                       <div className="w-full h-[160px] bg-gray-50 overflow-hidden relative border-b border-gray-100 flex items-center justify-center">
                         {img ? (
                           img.toLowerCase().includes('.mp4') ? (
@@ -544,8 +530,6 @@ export default async function BoardPage(props: any) {
                           <span className="text-sm">👑</span> 역대 장원 (1위)
                         </div>
                       </div>
-
-                      {/* 💡 [v43.2 패치] MP4 액자 지원 추가 */}
                       <div className="w-full h-[160px] bg-gray-50 overflow-hidden relative border-b border-gray-100 flex items-center justify-center">
                         {img ? (
                           img.toLowerCase().includes('.mp4') ? (
