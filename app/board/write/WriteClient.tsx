@@ -72,7 +72,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   
-  // 💡 [수술 완료] 최초 값을 '유머'가 아닌 '' (빈 값)으로 설정하여 강제 선택 유도
   const [category, setCategory] = useState('');
   
   const [isCompressing, setIsCompressing] = useState(false);
@@ -178,7 +177,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         CustomImage.tagName = 'IMG';
         Quill.register(CustomImage, true);
 
-        // 🚨 [업그레이드 완료] 객체(poster 포함)와 문자열(과거 데이터) 완벽 호환
         class CustomVideo extends BlockEmbed {
           static blotName = 'mp4Video';
           static tagName = 'VIDEO';
@@ -559,6 +557,13 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       const file = await cloneFileToUnlock(rawFile, 'video/mp4');
 
+      // 💡 [v43.3 스마트 라우팅 패치] 유저가 WebP나 GIF 움짤을 '동영상' 버튼으로 강제 업로드할 경우 방어막!
+      if (file.type.startsWith('image/')) {
+        alert("💡 WebP나 GIF 움짤은 '이미지' 포맷이므로, 자동으로 사진 처리 엔진으로 전환하여 업로드합니다.");
+        uploadImagesRef.current([file], insertIndex);
+        return;
+      }
+
       const currentVideoCount = editor.root.querySelectorAll('video').length;
       if (currentVideoCount >= 4) {
         alert(`🚨 동영상은 게시글당 최대 4개까지만 첨부할 수 있습니다.`);
@@ -572,7 +577,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       setIsUploading(true);
       try {
-        // 🚨 [신규 엔진] 프론트엔드 Canvas 기반 0.001초 썸네일 자동 추출
         let thumbPublicUrl = '';
         try {
           const thumbFile = await new Promise<File>((resolve, reject) => {
@@ -586,7 +590,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             const timeout = setTimeout(() => {
               URL.revokeObjectURL(url);
               reject(new Error('Timeout'));
-            }, 3000); // 3초 타임아웃 방어막
+            }, 3000); 
 
             video.onloadeddata = () => {
               video.currentTime = Math.min(0.1, video.duration > 0 ? video.duration / 2 : 0);
@@ -617,7 +621,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
             };
           });
 
-          // 생성된 썸네일을 isThumbnail=true 꼬리표를 달아 백엔드로 전송
           const thumbTicketRes = await fetch('/api/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -633,7 +636,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         } catch (thumbError) {
           console.warn("썸네일 자동 추출 실패 (원본 영상만 안전하게 업로드 진행):", thumbError);
         }
-        // --- 썸네일 추출 완료 ---
 
         const safeContentType = file.type || 'video/mp4';
 
@@ -650,7 +652,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           const putRes = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': safeContentType } });
           if (!putRes.ok) throw new Error('클라우드 서버 전송 실패');
 
-          // 💡 추출된 썸네일을 poster 속성으로 함께 묶어서 에디터에 삽입
           const videoInsertData = {
             src: publicUrl + '#t=0.001',
             poster: thumbPublicUrl
@@ -717,7 +718,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       return;
     }
 
-    // 💡 [수술 완료] 카테고리(게시판)를 선택하지 않았을 때의 완벽한 튕겨내기 방어 로직
     if (!category) {
       alert('🚨 게시판을 반드시 선택해 주십시오.');
       return;
@@ -889,7 +889,6 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
           <div className="flex flex-col md:flex-row gap-3">
       
             <select value={category} onChange={(e) => setCategory(e.target.value)} className="p-3 border border-gray-300 rounded-sm outline-none font-bold bg-white text-gray-700 w-full md:w-56 shadow-sm">
-              {/* 💡 [수술 완료] 유저가 반드시 선택하도록 안내하는 기본 깡통 옵션 추가! */}
               <option value="" disabled>게시판을 선택해 주세요</option>
               {Object.keys(groupedBoards).length > 0 ?
                 (
