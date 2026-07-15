@@ -175,7 +175,7 @@ export default async function HomePage() {
                         <span className="text-[14px] text-gray-400 md:text-gray-500 truncate">블라인드 처리된 글입니다.</span>
                       ) : (
                         <>
-                          <span className="text-[14px] text-gray-900 md:text-gray-800 font-bold md:font-medium hover:underline line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug">
+                          <span className="text-[15px] text-gray-900 md:text-gray-800 font-semibold md:font-medium hover:underline line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug">
                             {cleanTitle}
                           </span>
                           {post.comment_count > 0 && (

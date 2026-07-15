@@ -1340,7 +1340,7 @@ export default async function PostDetailPage(props: any) {
                         <span className="truncate mr-1 text-gray-400 md:text-gray-500">블라인드 처리된 글입니다.</span>
                       ) : (
                         <>
-                          <span className={`${isCurrentPost ? 'font-black text-indigo-900' : 'font-bold md:font-normal text-gray-900 md:text-gray-800'} ${titleClasses}`}>
+                          <span className={`${isCurrentPost ? 'font-black text-indigo-900' : 'font-semibold md:font-normal text-gray-900 md:text-gray-800'} ${titleClasses}`}>
  
                             {pData.cleanTitle}
                           </span>
