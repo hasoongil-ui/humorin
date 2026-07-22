@@ -620,13 +620,13 @@ export default async function BoardPage(props: any) {
                       </>
                     )}
                   </Link>
-                  <div className={`flex w-full md:w-auto mt-1 md:mt-0 px-2 md:px-0 text-[11px] md:text-[13px] justify-between items-center shrink-0 ${textColor}`}>
-                    <div className={`md:w-24 text-left md:text-center font-bold truncate`}>
+                  <div className={`flex w-full md:w-auto mt-1 md:mt-0 px-2 md:px-0 text-[11px] md:text-[13px] items-center shrink-0 ${textColor}`}>
+                    <div className={`flex-1 md:flex-none md:w-24 text-left md:text-center font-bold truncate pr-2`}>
                       {isDisplayBlinded ? '-' : displayAuthor}
                     </div>
-                    <div className="md:w-[70px] md:text-center font-bold opacity-80">{formatDate(post.date)}</div>
-                    <div className="md:w-12 md:text-center opacity-80">{isDisplayBlinded ? '-' : (post.views || 0)}</div>
-                    <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${isDisplayBlinded ? 'opacity-50' : (post.likes > 0 ? '' : 'opacity-70')}`}>
+                    <div className="w-[60px] md:w-[70px] text-center font-bold opacity-80 shrink-0">{formatDate(post.date)}</div>
+                    <div className="w-10 md:w-12 text-center opacity-80 shrink-0">{isDisplayBlinded ? '-' : (post.views || 0)}</div>
+                    <div className={`w-10 md:w-12 text-center font-black text-[13px] sm:text-[14px] shrink-0 ${isDisplayBlinded ? 'opacity-50' : (post.likes > 0 ? '' : 'opacity-70')}`}>
                       {isDisplayBlinded ? '-' : (post.likes || 0)}
                     </div>
                   </div>
@@ -663,8 +663,8 @@ export default async function BoardPage(props: any) {
                       </>
                     )}
                   </Link>
-                  <div className="flex w-full md:w-auto mt-1 md:mt-0 px-2 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 justify-between items-center shrink-0">
-                    <div className="md:w-24 text-left md:text-center font-normal md:font-semibold text-gray-400 md:text-gray-700 truncate">
+                  <div className="flex w-full md:w-auto mt-1 md:mt-0 px-2 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 items-center shrink-0">
+                    <div className="flex-1 md:flex-none md:w-24 text-left md:text-center font-normal md:font-semibold text-gray-400 md:text-gray-700 truncate pr-2">
                       {isDisplayBlindedTop ? (
                         <span>-</span>
                       ) : displayAuthorIdTop ? (
@@ -678,9 +678,9 @@ export default async function BoardPage(props: any) {
                         <span>{displayAuthorTop}</span>
                       )}
                     </div>
-                    <div className="md:w-[70px] md:text-center text-gray-400">{formatDate(renderTopPost.date)}</div>
-                    <div className="md:w-12 md:text-center text-gray-400">{isDisplayBlindedTop ? '-' : (renderTopPost.views || 0)}</div>
-                    <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${isDisplayBlindedTop ? 'text-gray-300' : (renderTopPost.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300')}`}>
+                    <div className="w-[60px] md:w-[70px] text-center text-gray-400 shrink-0">{formatDate(renderTopPost.date)}</div>
+                    <div className="w-10 md:w-12 text-center text-gray-400 shrink-0">{isDisplayBlindedTop ? '-' : (renderTopPost.views || 0)}</div>
+                    <div className={`w-10 md:w-12 text-center font-black text-[13px] sm:text-[14px] shrink-0 ${isDisplayBlindedTop ? 'text-gray-300' : (renderTopPost.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300')}`}>
                       {isDisplayBlindedTop ? '-' : (renderTopPost.likes || 0)}
                     </div>
                   </div>
@@ -721,8 +721,8 @@ export default async function BoardPage(props: any) {
                         </>
                       )}
                     </Link>
-                    <div className="flex w-full md:w-auto mt-1 md:mt-0 px-2 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 justify-between items-center shrink-0">
-                      <div className="md:w-24 text-left md:text-center font-normal md:font-medium text-gray-400 md:text-gray-600 truncate">
+                    <div className="flex w-full md:w-auto mt-1 md:mt-0 px-2 md:px-0 text-[11px] md:text-[13px] text-gray-400 md:text-gray-500 items-center shrink-0">
+                      <div className="flex-1 md:flex-none md:w-24 text-left md:text-center font-normal md:font-medium text-gray-400 md:text-gray-600 truncate pr-2">
                         {isDisplayBlinded ? (
                           <span>-</span>
                         ) : displayAuthorId ? (
@@ -736,9 +736,9 @@ export default async function BoardPage(props: any) {
                           <span>{displayAuthor}</span>
                         )}
                       </div>
-                      <div className="md:w-[70px] md:text-center">{formatDate(post.date)}</div>
-                      <div className="md:w-12 md:text-center">{isDisplayBlinded ? '-' : (post.views || 0)}</div>
-                      <div className={`md:w-12 md:text-center font-black text-[13px] sm:text-[14px] ${isDisplayBlinded ? 'text-gray-300 md:text-gray-300' : (post.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300 md:text-gray-300')}`}>
+                      <div className="w-[60px] md:w-[70px] text-center shrink-0">{formatDate(post.date)}</div>
+                      <div className="w-10 md:w-12 text-center shrink-0">{isDisplayBlinded ? '-' : (post.views || 0)}</div>
+                      <div className={`w-10 md:w-12 text-center font-black text-[13px] sm:text-[14px] shrink-0 ${isDisplayBlinded ? 'text-gray-300 md:text-gray-300' : (post.likes > 0 ? 'text-[#3b4890]' : 'text-gray-300 md:text-gray-300')}`}>
                         {isDisplayBlinded ? '-' : (post.likes || 0)}
                       </div>
                     </div>
