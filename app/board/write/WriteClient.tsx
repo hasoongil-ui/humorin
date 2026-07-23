@@ -781,7 +781,7 @@ if (isSuperUser && scheduledAt) {
     title: title,
     content: content,
     category: category,
-    author_id: adminAuthorId || currentUser,
+    author_id: adminAuthorId || '', // ✨ 이렇게 딱 한 줄만 변경!
     scheduled_at: new Date(scheduledAt + '+09:00').toISOString()
   };
 }
