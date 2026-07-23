@@ -3,23 +3,23 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 
-// 최고 관리자 지문 감별 로직
 async function verifyAdmin() {
   const store = await cookies();
   const userId = store.get('humorin_userid')?.value;
   const signature = store.get('humorin_signature')?.value;
   
-  if (!userId || !signature || userId !== 'admin') return false;
+  if (!userId || !signature) return false;
+  if (userId !== 'admin' && userId !== 'ruffian71') return false;
   
   const expectedSig = crypto
     .createHmac('sha256', process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe')
     .update(userId)
     .digest('hex');
     
-  return signature === expectedSig;
+  if (signature === expectedSig) return userId;
+  return false;
 }
 
-// [GET] 대기 중인 예약 글 목록 불러오기
 export async function GET(req: Request) {
   if (!(await verifyAdmin())) return new Response("Unauthorized", { status: 401 });
 
@@ -36,7 +36,6 @@ export async function GET(req: Request) {
   }
 }
 
-// [DELETE] 예약 글 취소 (삭제)
 export async function DELETE(req: Request) {
   if (!(await verifyAdmin())) return new Response("Unauthorized", { status: 401 });
 
@@ -53,7 +52,6 @@ export async function DELETE(req: Request) {
   }
 }
 
-// 🚨 [PATCH] 새롭게 추가된 예약 시간 수정 엔진
 export async function PATCH(req: Request) {
   if (!(await verifyAdmin())) return new Response("Unauthorized", { status: 401 });
 
