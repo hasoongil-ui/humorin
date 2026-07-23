@@ -1,4 +1,3 @@
-// 파일 위치: app/board/write/WriteClient.tsx
 // @ts-nocheck 
 'use client';
 
@@ -81,6 +80,10 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const [botTrap, setBotTrap] = useState('');
   const [isNotice, setIsNotice] = useState(false);
   const [isBoardNotice, setIsBoardNotice] = useState(false);
+  
+  const [scheduledAt, setScheduledAt] = useState('');
+  const [adminAuthorId, setAdminAuthorId] = useState('');
+
   const router = useRouter();
   const quillRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -90,7 +93,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
   useEffect(() => {
     if (isGlobalLocked && !isAdmin) {
-      alert("🚨 현재 관리자에 의해 사이트 전체 글쓰기가 제한되었습니다.");
+      alert("현재 관리자에 의해 사이트 전체 글쓰기가 제한되었습니다.");
       router.push('/board');
       return;
     }
@@ -293,7 +296,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     const currentImageCount = editor.root.querySelectorAll('img').length;
 
     if (currentImageCount + fileArray.length > 50) {
-      alert(`🚨 사진은 게시글당 최대 50장까지만 첨부할 수 있습니다.\n(현재 ${currentImageCount}장 포함됨)`);
+      alert(`사진은 게시글당 최대 50장까지만 첨부할 수 있습니다.\n(현재 ${currentImageCount}장 포함됨)`);
       return;
     }
 
@@ -341,7 +344,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const approvedFiles: File[] = [];
       for (const file of processedFiles) {
         if (accumulatedImageSizeRef.current + file.size > MAX_TOTAL_IMAGE_SIZE) {
-          alert(`🚨 [${file.name}] 첨부 실패!\n게시글당 허용된 총 누적 용량(30MB)을 초과했습니다.`);
+          alert(`[${file.name}] 첨부 실패!\n게시글당 허용된 총 누적 용량(30MB)을 초과했습니다.`);
           continue;
         }
         accumulatedImageSizeRef.current += file.size;
@@ -557,21 +560,20 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
 
       const file = await cloneFileToUnlock(rawFile, 'video/mp4');
 
-      // 💡 [v43.3 스마트 라우팅 패치] 유저가 WebP나 GIF 움짤을 '동영상' 버튼으로 강제 업로드할 경우 방어막!
       if (file.type.startsWith('image/')) {
-        alert("💡 WebP나 GIF 움짤은 '이미지' 포맷이므로, 자동으로 사진 처리 엔진으로 전환하여 업로드합니다.");
+        alert("WebP나 GIF 움짤은 '이미지' 포맷이므로, 자동으로 사진 처리 엔진으로 전환하여 업로드합니다.");
         uploadImagesRef.current([file], insertIndex);
         return;
       }
 
       const currentVideoCount = editor.root.querySelectorAll('video').length;
       if (currentVideoCount >= 4) {
-        alert(`🚨 동영상은 게시글당 최대 4개까지만 첨부할 수 있습니다.`);
+        alert(`동영상은 게시글당 최대 4개까지만 첨부할 수 있습니다.`);
         return;
       }
 
       if (file.size > 10 * 1024 * 1024) {
-        alert(`🚨 [${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).\n파일 크기를 줄인 후 다시 시도해 주십시오.`);
+        alert(`[${file.name}] 동영상 용량이 초과되었습니다 (최대 10MB).\n파일 크기를 줄인 후 다시 시도해 주십시오.`);
         return;
       }
 
@@ -696,7 +698,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const handleContentChange = (newContent: string) => {
     const textOnly = newContent.replace(/<[^>]*>?/gm, '');
     if (textOnly.length > MAX_CONTENT_LENGTH) {
-      alert(`🚨 게시글은 최대 ${MAX_CONTENT_LENGTH.toLocaleString()}자까지만 작성할 수 있습니다.\n현재 초과된 분량은 자동으로 삭제됩니다.`);
+      alert(`게시글은 최대 ${MAX_CONTENT_LENGTH.toLocaleString()}자까지만 작성할 수 있습니다.\n현재 초과된 분량은 자동으로 삭제됩니다.`);
       if (quillRef.current) {
         const editor = quillRef.current.getEditor();
         editor.history.undo();
@@ -714,18 +716,18 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     }
 
     if (isGlobalLocked && !isAdmin) {
-      alert('🚨 현재 관리자에 의해 글쓰기가 전면 차단되었습니다.');
+      alert('현재 관리자에 의해 글쓰기가 전면 차단되었습니다.');
       return;
     }
 
     if (!category) {
-      alert('🚨 게시판을 반드시 선택해 주십시오.');
+      alert('게시판을 반드시 선택해 주십시오.');
       return;
     }
 
     const targetBoard = boards?.find((b: any) => b.name === category);
     if (targetBoard?.is_write_locked && !isAdmin) {
-      alert(`🚨 해당 [${category}] 게시판은 현재 관리자에 의해 글쓰기가 잠겨있습니다.`); return;
+      alert(`해당 [${category}] 게시판은 현재 관리자에 의해 글쓰기가 잠겨있습니다.`); return;
     }
 
     if (!title.trim()) {
@@ -741,7 +743,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       const contentWithoutMedia = content.replace(/<(img|video|iframe)[^>]*>/gi, '');
       const hasLink = contentWithoutMedia.includes('http://') || contentWithoutMedia.includes('https://') || contentWithoutMedia.includes('www.') || contentWithoutMedia.includes('.com');
       if (hasLink) {
-        alert('🚨 스팸 방지를 위해 활동 점수 10점 미만은 외부 링크(URL)를 포함할 수 없습니다.\n본문에서 링크를 삭제한 후 다시 등록해 주십시오.');
+        alert('스팸 방지를 위해 활동 점수 10점 미만은 외부 링크(URL)를 포함할 수 없습니다.\n본문에서 링크를 삭제한 후 다시 등록해 주십시오.');
         return;
       }
     }
@@ -758,18 +760,32 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     setIsSubmitting(true);
 
     try {
-      const res = await fetch('/api/post', {
+      let targetUrl = '/api/post';
+      let payload: any = {
+        title: title,
+        content: content,
+        author: currentUser,
+        category: category,
+        is_notice: isNotice,
+        is_board_notice: isBoardNotice,
+        bot_trap: botTrap
+      };
+
+if (isAdmin && scheduledAt) {
+  targetUrl = '/api/admin/schedule';
+  payload = {
+    title: title,
+    content: content,
+    category: category,
+    author_id: adminAuthorId || currentUser,
+    scheduled_at: new Date(scheduledAt + '+09:00').toISOString()
+  };
+}
+
+      const res = await fetch(targetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title,
-          content: content,
-          author: currentUser,
-          category: category,
-          is_notice: isNotice,
-          is_board_notice: isBoardNotice,
-          bot_trap: botTrap
-        }),
+        body: JSON.stringify(payload),
       });
       
       if (res.ok) {
@@ -778,11 +794,11 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       } else {
         const errorData = await res.json().catch(() => null);
         if (errorData?.error === 'forbidden_word') {
-          alert(`🚨 작성하신 글에 금지된 단어 [ ${errorData.word} ]가 포함되어 있습니다.\n특수문자나 정규식 우회 시도도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
+          alert(`작성하신 글에 금지된 단어 [ ${errorData.word} ]가 포함되어 있습니다.\n특수문자나 정규식 우회 시도도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
         } else if (errorData?.error === 'newbie_link' || errorData?.error === 'rate_limit') {
-          alert(`🚨 ${errorData?.message}`);
+          alert(`${errorData?.message}`);
         } else if (errorData?.message) {
-          alert(`🚨 ${errorData.message}`);
+          alert(`${errorData.message}`);
         } else {
           alert('글 등록에 실패했습니다.');
         }
@@ -885,6 +901,19 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
               autoComplete="off"
             />
           </div>
+
+          {isAdmin && (
+            <div className="flex flex-col sm:flex-row gap-3 px-3 py-3 bg-blue-50 border border-blue-100 rounded-sm mb-2">
+              <div className="flex-1">
+                <label className="block text-[13px] text-blue-800 font-bold mb-1">예약 발행 시간 (선택 시 예약 글로 자동 전환됨)</label>
+                <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} className="w-full p-2 border border-blue-200 rounded-sm text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[13px] text-blue-800 font-bold mb-1">작성자 아이디 (user_id / 미입력시 본인)</label>
+                <input type="text" value={adminAuthorId} onChange={(e) => setAdminAuthorId(e.target.value)} placeholder="테스트 계정의 아이디를 입력하세요" className="w-full p-2 border border-blue-200 rounded-sm text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col md:flex-row gap-3">
       
