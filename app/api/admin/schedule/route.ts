@@ -31,13 +31,17 @@ export async function POST(req: Request) {
     `;
     const authorNickname = userRows.length > 0 ? userRows[0].nickname : '익명';
 
+    // 🚨 [핵심 패치] 정식 글쓰기와 동일하게 제목에 카테고리 말머리 강제 결합
+    const titleWithCategory = `[${category}] ${title}`;
+
+    // 🚨 DB 삽입 시 title 대신 titleWithCategory 적용
     await sql`
       INSERT INTO posts (
         title, content, category, author, author_id, 
         status, scheduled_at, date, youtube
       )
       VALUES (
-        ${title}, ${content}, ${category}, ${authorNickname}, ${author_id}, 
+        ${titleWithCategory}, ${content}, ${category}, ${authorNickname}, ${author_id}, 
         'scheduled', ${scheduled_at}::timestamp, CURRENT_TIMESTAMP, ${youtube || null}
       )
     `;

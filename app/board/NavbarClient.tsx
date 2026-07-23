@@ -132,6 +132,9 @@ export default function NavbarClient(props: NavbarClientProps) {
   }, [pathname, currentCategory, bestType, mounted]);
 
   const user = initialUser ? { nickname: initialUser.nickname, level: initialUser.level, points: Number(initialUser.points) || 0 } : null;
+  
+  // 💡 [핵심 추가] 현재 접속한 사람이 최고 관리자(대장님)인지 판독하는 초정밀 센서
+  const isAdmin = initialUser && (initialUser.is_admin || initialUser.user_id === 'admin' || initialUser.nickname === '관리자' || initialUser.nickname === '상실의 시대');
 
   const tierInfo = getTierInfo(user ? user.points : 0);
 
@@ -194,7 +197,25 @@ export default function NavbarClient(props: NavbarClientProps) {
                   <Link href={`/user/${user.nickname}`} className="font-bold text-[#3b4890] hover:underline cursor-pointer tracking-tight">{user.nickname}</Link>
                   <span className="text-rose-500 font-bold text-[13px]">({user.points.toLocaleString()} P)</span>
                 </div>
-                <div className="flex items-center gap-1.5"><Link href="/profile" className="px-3 py-1.5 bg-[#ebedf5] text-[#3b4890] text-[11px] md:text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors shadow-sm shrink-0">내정보</Link><form action={handleLogoutAction}><button type="submit" className="px-3 py-1.5 bg-gray-100 text-gray-600 text-[11px] md:text-xs font-bold rounded-sm hover:bg-gray-200 transition-colors shadow-sm shrink-0">로그아웃</button></form></div>
+                <div className="flex items-center gap-1.5">
+                  {/* 💡 [핵심 추가] 오직 관리자에게만 보이는 관제탑 바로가기 (새창 열기) */}
+                  {isAdmin && (
+                    <Link 
+                      href="/admin/queue" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 bg-rose-600 text-white text-[11px] md:text-xs font-bold rounded-sm hover:bg-rose-700 transition-colors shadow-sm shrink-0 flex items-center gap-1"
+                      title="새 창으로 예약 관제탑 열기"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                      예약관제탑
+                    </Link>
+                  )}
+                  <Link href="/profile" className="px-3 py-1.5 bg-[#ebedf5] text-[#3b4890] text-[11px] md:text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors shadow-sm shrink-0">내정보</Link>
+                  <form action={handleLogoutAction}>
+                    <button type="submit" className="px-3 py-1.5 bg-gray-100 text-gray-600 text-[11px] md:text-xs font-bold rounded-sm hover:bg-gray-200 transition-colors shadow-sm shrink-0">로그아웃</button>
+                  </form>
+                </div>
               </>
             ) : (
               <div className="flex items-center gap-1.5"><Link href="/login" className="px-4 py-1.5 bg-[#ebedf5] text-[#3b4890] text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors shrink-0">로그인</Link><Link href="/signup" className="px-4 py-1.5 bg-[#2a3042] text-white text-xs font-bold rounded-sm hover:bg-gray-900 transition-colors shrink-0">회원가입</Link></div>
