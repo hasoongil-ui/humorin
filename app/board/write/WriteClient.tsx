@@ -68,6 +68,10 @@ const cloneFileToUnlock = async (file: File, fallbackType: string): Promise<File
 };
 
 export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boards, editorPlaceholder, userPoints = 0 }: { currentUser: string, isAdmin: boolean, isGlobalLocked: boolean, boards: any[], editorPlaceholder?: string, userPoints?: number }) {
+  
+  // 🚨 [핵심 패치] DB 공식 권한(isAdmin) 외에 '상실의 시대' 닉네임도 최고 관리자로 완벽하게 인식하는 마스터 키 장착
+  const isSuperUser = isAdmin || currentUser === '상실의 시대' || currentUser === '관리자';
+
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   
@@ -92,7 +96,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const MAX_TOTAL_IMAGE_SIZE = 30 * 1024 * 1024;
 
   useEffect(() => {
-    if (isGlobalLocked && !isAdmin) {
+    if (isGlobalLocked && !isSuperUser) {
       alert("현재 관리자에 의해 사이트 전체 글쓰기가 제한되었습니다.");
       router.push('/board');
       return;
@@ -242,7 +246,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       }
       setIsEditorReady(true);
     });
-  }, [isGlobalLocked, isAdmin, router]);
+  }, [isGlobalLocked, isSuperUser, router]);
 
   const isAnimatedWebP = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -715,7 +719,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       document.activeElement.blur();
     }
 
-    if (isGlobalLocked && !isAdmin) {
+    if (isGlobalLocked && !isSuperUser) {
       alert('현재 관리자에 의해 글쓰기가 전면 차단되었습니다.');
       return;
     }
@@ -726,7 +730,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
     }
 
     const targetBoard = boards?.find((b: any) => b.name === category);
-    if (targetBoard?.is_write_locked && !isAdmin) {
+    if (targetBoard?.is_write_locked && !isSuperUser) {
       alert(`해당 [${category}] 게시판은 현재 관리자에 의해 글쓰기가 잠겨있습니다.`); return;
     }
 
@@ -739,7 +743,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       alert('내용을 작성해 주십시오.'); return;
     }
 
-    if (!isAdmin && userPoints < 10) {
+    if (!isSuperUser && userPoints < 10) {
       const contentWithoutMedia = content.replace(/<(img|video|iframe)[^>]*>/gi, '');
       const hasLink = contentWithoutMedia.includes('http://') || contentWithoutMedia.includes('https://') || contentWithoutMedia.includes('www.') || contentWithoutMedia.includes('.com');
       if (hasLink) {
@@ -771,7 +775,7 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
         bot_trap: botTrap
       };
 
-if (isAdmin && scheduledAt) {
+if (isSuperUser && scheduledAt) {
   targetUrl = '/api/admin/schedule';
   payload = {
     title: title,
@@ -816,7 +820,7 @@ if (isAdmin && scheduledAt) {
     return acc;
   }, {}) || {};
 
-  if (isGlobalLocked && !isAdmin) return null;
+  if (isGlobalLocked && !isSuperUser) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
@@ -902,7 +906,7 @@ if (isAdmin && scheduledAt) {
             />
           </div>
 
-          {isAdmin && (
+          {isSuperUser && (
             <div className="flex flex-col sm:flex-row gap-3 px-3 py-3 bg-blue-50 border border-blue-100 rounded-sm mb-2">
               <div className="flex-1">
                 <label className="block text-[13px] text-blue-800 font-bold mb-1">예약 발행 시간 (선택 시 예약 글로 자동 전환됨)</label>
@@ -924,8 +928,8 @@ if (isAdmin && scheduledAt) {
                 Object.keys(groupedBoards).map((groupName) => (
                   <optgroup key={groupName} label={groupName}>
                     {groupedBoards[groupName].map((b: any) => (
-                      <option key={b.name} value={b.name} disabled={b.is_write_locked && !isAdmin}>
-                        {b.name} {b.is_write_locked && !isAdmin ? ' 🔒 (잠김)' : ''}
+                      <option key={b.name} value={b.name} disabled={b.is_write_locked && !isSuperUser}>
+                        {b.name} {b.is_write_locked && !isSuperUser ? ' 🔒 (잠김)' : ''}
                       </option>
                     ))}
                   </optgroup>
@@ -937,11 +941,11 @@ if (isAdmin && scheduledAt) {
             <input placeholder="제목을 입력하세요."
             className="flex-1 p-3 border border-gray-300 rounded-sm font-bold text-gray-900" value={title} onChange={(e) => setTitle(e.target.value)} required />
             <div className="w-full md:w-48 p-3 border border-gray-200 bg-gray-50 rounded-sm flex items-center justify-between font-bold text-gray-600">
-              <div>{currentUser} {isAdmin && <span className="text-xs text-red-500 ml-1">(Admin)</span>}</div>
+              <div>{currentUser} {isSuperUser && <span className="text-xs text-red-500 ml-1">(Admin)</span>}</div>
             </div>
           </div>
 
-          {isAdmin && (
+          {isSuperUser && (
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-3 py-2.5 bg-indigo-50 border border-indigo-100 rounded-sm mt-1">
               <div className="flex items-center">
                 <input
