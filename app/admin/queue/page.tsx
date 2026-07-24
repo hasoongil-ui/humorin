@@ -9,29 +9,49 @@ export default function QueueClient() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // 🚨 시간 수정 모달을 위한 상태 변수
   const [editModal, setEditModal] = useState({ isOpen: false, id: '', title: '' });
   const [newTime, setNewTime] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // 🚨 2중 방어 및 디버깅 레이더가 장착된 광속 Fetch 엔진
   const fetchQueue = async () => {
     try {
-      const res = await fetch('/api/admin/queue');
+      const res = await fetch(`/api/admin/queue?_t=${Date.now()}`, { 
+        cache: 'no-store',
+        headers: { 
+          'Pragma': 'no-cache', 
+          'Cache-Control': 'no-cache' 
+        }
+      });
+      
       if (res.ok) {
         const data = await res.json();
-        setQueue(data.data || []);
+        
+        // 🚨 디버깅 레이더: 브라우저 F12 (콘솔 탭)에서 백엔드가 준 원본 데이터를 직접 확인하십시오!
+        console.log("📡 백엔드 응답 원본 데이터:", data);
+        
+        // 🚨 2중 방어 로직: 백엔드가 배열을 바로 주든, { data: [...] } 형태로 주든 무조건 낚아챔
+        const queueData = Array.isArray(data) ? data : (data?.data || []);
+        
+        setQueue(queueData);
+        sessionStorage.setItem('admin_queue_cache', JSON.stringify(queueData));
       } else {
         alert('관리자 권한이 만료되었거나 접근할 수 없습니다.');
         router.push('/');
       }
     } catch (error) {
-      console.error(error);
+      console.error("데이터 로딩 중 에러 발생:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    const cached = sessionStorage.getItem('admin_queue_cache');
+    if (cached) {
+      setQueue(JSON.parse(cached));
+      setIsLoading(false);
+    }
     fetchQueue();
   }, []);
 
@@ -42,7 +62,9 @@ export default function QueueClient() {
       const res = await fetch(`/api/admin/queue?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
         alert('예약이 성공적으로 취소되었습니다.');
-        setQueue(queue.filter(post => post.id !== id));
+        const newQueue = queue.filter(post => post.id !== id);
+        setQueue(newQueue);
+        sessionStorage.setItem('admin_queue_cache', JSON.stringify(newQueue));
       } else {
         alert('예약 취소에 실패했습니다.');
       }
@@ -51,9 +73,7 @@ export default function QueueClient() {
     }
   };
 
-  // 🚨 수정 버튼 클릭 시 모달 열기
   const openEditModal = (post: any) => {
-    // DB의 UTC 시간을 한국 시간 기준의 input 양식(YYYY-MM-DDThh:mm)으로 변환
     const dateObj = new Date(post.scheduled_at);
     const tzOffset = dateObj.getTimezoneOffset() * 60000;
     const localISOTime = (new Date(dateObj.getTime() - tzOffset)).toISOString().slice(0, 16);
@@ -62,13 +82,11 @@ export default function QueueClient() {
     setEditModal({ isOpen: true, id: post.id, title: post.title });
   };
 
-  // 🚨 변경된 시간 서버로 전송
   const handleTimeUpdate = async () => {
     if (!newTime) { alert('변경할 시간을 선택해 주세요.'); return; }
     
     setIsUpdating(true);
     try {
-      // 입력받은 한국 시간을 다시 UTC 표준시로 변환하여 서버에 전송
       const standardTime = new Date(newTime + '+09:00').toISOString();
 
       const res = await fetch('/api/admin/queue', {
@@ -79,8 +97,9 @@ export default function QueueClient() {
 
       if (res.ok) {
         alert('예약 시간이 성공적으로 변경되었습니다!');
-        // 화면을 새로고침하지 않고 해당 리스트의 시간만 즉시 교체
-        setQueue(queue.map(p => p.id === editModal.id ? { ...p, scheduled_at: standardTime } : p));
+        const newQueue = queue.map(p => p.id === editModal.id ? { ...p, scheduled_at: standardTime } : p);
+        setQueue(newQueue);
+        sessionStorage.setItem('admin_queue_cache', JSON.stringify(newQueue));
         setEditModal({ isOpen: false, id: '', title: '' });
       } else {
         alert('시간 변경에 실패했습니다.');
@@ -92,7 +111,6 @@ export default function QueueClient() {
     }
   };
 
-  // 날짜 포맷 변환 함수
   const formatScheduledTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -161,43 +179,46 @@ export default function QueueClient() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b-2 border-gray-800 text-[14px] text-gray-700">
-                    <th className="py-3 px-2 text-center w-20">상태</th>
-                    <th className="py-3 px-4">예약 발행 시간</th>
-                    <th className="py-3 px-4 w-32">게시판</th>
-                    <th className="py-3 px-4">제목</th>
-                    <th className="py-3 px-4">발행할 계정</th>
-                    <th className="py-3 px-2 text-center w-36">관리</th>
+                  <tr className="border-b-2 border-gray-800 text-[13px] text-gray-700 bg-gray-50">
+                    <th className="py-2 px-2 text-center w-12 font-bold">번호</th>
+                    <th className="py-2 px-2 text-center w-20 font-bold">상태</th>
+                    <th className="py-2 px-4 font-bold">예약 발행 시간</th>
+                    <th className="py-2 px-4 w-28 font-bold">게시판</th>
+                    <th className="py-2 px-4 font-bold">제목</th>
+                    <th className="py-2 px-4 font-bold w-36">발행할 계정</th>
+                    <th className="py-2 px-2 text-center w-32 font-bold">관리</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {queue.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()).map((post) => {
+                  {queue.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()).map((post, index) => {
                     const timeInfo = formatScheduledTime(post.scheduled_at);
                     return (
-                      <tr key={post.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-4 px-2 text-center">
-                          <span className="px-3 py-1 bg-amber-100 text-amber-700 font-bold text-xs rounded-sm">
+                      <tr key={post.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors text-[13px]">
+                        <td className="py-2 px-2 text-center font-bold text-gray-500">
+                          {index + 1}
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 font-bold text-[11px] rounded-sm">
                             대기 중
                           </span>
                         </td>
-                        <td className={`py-4 px-4 font-bold ${timeInfo.type === 'urgent' ? 'text-rose-600' : 'text-gray-700'}`}>
+                        <td className={`py-2 px-4 font-bold ${timeInfo.type === 'urgent' ? 'text-rose-600' : 'text-gray-700'}`}>
                           {timeInfo.text}
                         </td>
-                        <td className="py-4 px-4 text-gray-600 font-bold text-[14px]">
+                        <td className="py-2 px-4 text-gray-600 font-bold">
                           {post.category}
                         </td>
-                        <td className="py-4 px-4 font-black text-gray-800">
+                        <td className="py-2 px-4 font-bold text-gray-800 truncate max-w-[200px] md:max-w-md">
                           {post.title}
                         </td>
-                        <td className="py-4 px-4 text-indigo-600 font-bold text-[14px]">
-                          {post.author} <span className="text-xs text-gray-400">({post.author_id})</span>
+                        <td className="py-2 px-4 text-indigo-600 font-bold">
+                          {post.author} <span className="text-[11px] text-gray-400 block md:inline">({post.author_id})</span>
                         </td>
-                        <td className="py-4 px-2 text-center flex justify-center gap-2">
-                          {/* 🚨 알림창 대신 모달창 열기 함수 연결 및 버튼 이름 명확화 */}
-                          <button onClick={() => openEditModal(post)} className="px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-600 text-xs font-bold rounded-sm hover:bg-blue-100 transition-colors">
+                        <td className="py-2 px-2 text-center flex justify-center gap-1.5">
+                          <button onClick={() => openEditModal(post)} className="px-2 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-[11px] font-bold rounded-sm hover:bg-blue-100 transition-colors">
                             시간변경
                           </button>
-                          <button onClick={() => handleDelete(post.id, post.title)} className="px-3 py-1.5 border border-rose-300 text-rose-500 text-xs font-bold rounded-sm hover:bg-rose-50 transition-colors">
+                          <button onClick={() => handleDelete(post.id, post.title)} className="px-2 py-1 border border-rose-300 text-rose-500 text-[11px] font-bold rounded-sm hover:bg-rose-50 transition-colors">
                             취소(삭제)
                           </button>
                         </td>
@@ -211,7 +232,6 @@ export default function QueueClient() {
         </div>
       </div>
 
-      {/* 🚨 시간 변경 팝업 모달 UI */}
       {editModal.isOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-md shadow-2xl w-full max-w-md overflow-hidden">
@@ -222,7 +242,7 @@ export default function QueueClient() {
             <div className="p-5">
               <div className="mb-4">
                 <p className="text-[13px] text-gray-500 font-bold mb-1">선택된 게시글</p>
-                <p className="font-black text-gray-800 bg-gray-50 p-2 rounded-sm border border-gray-200 line-clamp-2">
+                <p className="font-black text-gray-800 bg-gray-50 p-2 rounded-sm border border-gray-200 line-clamp-2 text-sm">
                   {editModal.title}
                 </p>
               </div>
@@ -232,22 +252,22 @@ export default function QueueClient() {
                   type="datetime-local" 
                   value={newTime} 
                   onChange={(e) => setNewTime(e.target.value)} 
-                  className="w-full p-3 border border-blue-300 rounded-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50/30"
+                  className="w-full p-3 border border-blue-300 rounded-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50/30 text-sm"
                 />
               </div>
               <div className="flex gap-2 justify-end">
                 <button 
                   onClick={() => setEditModal({ isOpen: false, id: '', title: '' })} 
-                  className="px-4 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-sm hover:bg-gray-200"
+                  className="px-4 py-2 bg-gray-100 text-gray-700 font-bold text-sm rounded-sm hover:bg-gray-200"
                 >
                   닫기
                 </button>
                 <button 
                   onClick={handleTimeUpdate} 
                   disabled={isUpdating}
-                  className="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-sm hover:bg-blue-700 disabled:opacity-50"
+                  className="px-6 py-2 bg-blue-600 text-white font-bold text-sm rounded-sm hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isUpdating ? '변경 중...' : '시간 변경 완료'}
+                  {isUpdating ? '변경 중...' : '변경 완료'}
                 </button>
               </div>
             </div>
