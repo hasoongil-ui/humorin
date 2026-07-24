@@ -19,6 +19,17 @@ export async function GET(request: Request) {
         status = 'scheduled' AND scheduled_at <= CURRENT_TIMESTAMP
     `;
 
+    // 🚨 능동 핑(Ping) 로직 추가: 발행된 예약글이 1개라도 있을 경우에만 실행
+    if (rowCount !== null && rowCount > 0) {
+      const sitemapUrl = 'https://www.humorin.kr/sitemap.xml';
+      
+      // 🛡️ Vercel 타임아웃 셧다운 방어막: 타 서버 응답 대기 없이 병렬 광속 처리 후 즉시 종료
+      await Promise.allSettled([
+        fetch(`https://www.google.com/ping?sitemap=${sitemapUrl}`),
+        fetch(`https://www.bing.com/ping?sitemap=${sitemapUrl}`)
+      ]);
+    }
+
     return NextResponse.json({ 
       success: true, 
       message: `성공적으로 ${rowCount}개의 예약글이 실시간 발행 처리되었습니다.` 
