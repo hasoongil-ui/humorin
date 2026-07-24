@@ -180,13 +180,13 @@ export default function QueueClient() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b-2 border-gray-800 text-[13px] text-gray-700 bg-gray-50">
-                    <th className="py-2 px-2 text-center w-12 font-bold">번호</th>
-                    <th className="py-2 px-2 text-center w-20 font-bold">상태</th>
-                    <th className="py-2 px-4 font-bold">예약 발행 시간</th>
-                    <th className="py-2 px-4 w-28 font-bold">게시판</th>
+                    <th className="py-2 px-2 text-center w-10 font-bold whitespace-nowrap">번호</th>
+                    <th className="py-2 px-2 text-center w-16 font-bold whitespace-nowrap">상태</th>
+                    <th className="py-2 px-3 font-bold whitespace-nowrap">예약 발행 시간</th>
+                    <th className="py-2 px-3 font-bold whitespace-nowrap">게시판</th>
                     <th className="py-2 px-4 font-bold">제목</th>
-                    <th className="py-2 px-4 font-bold w-36">발행할 계정</th>
-                    <th className="py-2 px-2 text-center w-32 font-bold">관리</th>
+                    <th className="py-2 px-3 font-bold whitespace-nowrap">발행할 계정</th>
+                    <th className="py-2 px-2 text-center w-28 font-bold whitespace-nowrap">관리</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -194,27 +194,28 @@ export default function QueueClient() {
                     const timeInfo = formatScheduledTime(post.scheduled_at);
                     return (
                       <tr key={post.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors text-[13px]">
-                        <td className="py-2 px-2 text-center font-bold text-gray-500">
+                        <td className="py-2 px-2 text-center font-bold text-gray-500 whitespace-nowrap">
                           {index + 1}
                         </td>
-                        <td className="py-2 px-2 text-center">
+                        <td className="py-2 px-2 text-center whitespace-nowrap">
                           <span className="px-2 py-0.5 bg-amber-100 text-amber-700 font-bold text-[11px] rounded-sm">
                             대기 중
                           </span>
                         </td>
-                        <td className={`py-2 px-4 font-bold ${timeInfo.type === 'urgent' ? 'text-rose-600' : 'text-gray-700'}`}>
+                        <td className={`py-2 px-3 font-bold whitespace-nowrap ${timeInfo.type === 'urgent' ? 'text-rose-600' : 'text-gray-700'}`}>
                           {timeInfo.text}
                         </td>
-                        <td className="py-2 px-4 text-gray-600 font-bold">
+                        <td className="py-2 px-3 text-gray-600 font-bold whitespace-nowrap">
                           {post.category}
                         </td>
-                        <td className="py-2 px-4 font-bold text-gray-800 truncate max-w-[200px] md:max-w-md">
+                        <td className="py-2 px-4 font-bold text-gray-800 truncate max-w-[150px] sm:max-w-[200px] md:max-w-xs lg:max-w-md xl:max-w-lg">
                           {post.title}
                         </td>
-                        <td className="py-2 px-4 text-indigo-600 font-bold">
-                          {post.author} <span className="text-[11px] text-gray-400 block md:inline">({post.author_id})</span>
+                        <td className="py-2 px-3 text-indigo-600 font-bold whitespace-nowrap">
+                          <span className="block">{post.author}</span>
+                          <span className="text-[11px] text-gray-400 block mt-0.5">({post.author_id})</span>
                         </td>
-                        <td className="py-2 px-2 text-center flex justify-center gap-1.5">
+                        <td className="py-2 px-2 text-center flex justify-center gap-1.5 whitespace-nowrap min-w-[110px]">
                           <button onClick={() => openEditModal(post)} className="px-2 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-[11px] font-bold rounded-sm hover:bg-blue-100 transition-colors">
                             시간변경
                           </button>
