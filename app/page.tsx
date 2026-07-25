@@ -109,33 +109,36 @@ export default async function HomePage() {
     });
   } catch (e) { }
 
+  // 🚨 [패치 1] 투데이 베스트: 발행(published)된 글만 가져오도록 방어막 추가
   const bestQuery = sql`
     SELECT p.id, p.title, p.content, p.author, p.date, p.best_at, p.likes, p.is_blinded, 
            (SELECT COUNT(*) FROM comments WHERE comments.post_id = p.id) as comment_count 
     FROM posts p 
     JOIN boards b ON p.category = b.name 
-    WHERE p.likes >= 10 AND COALESCE(p.dislikes, 0) < 10 AND b.allow_best = true 
+    WHERE p.likes >= 10 AND COALESCE(p.dislikes, 0) < 10 AND b.allow_best = true AND p.status = 'published'
     ORDER BY p.best_at DESC NULLS LAST, p.date DESC 
     LIMIT 10
   `;
 
+  // 🚨 [패치 2] 전체 새글 보기: 발행(published)된 글만 가져오도록 방어막 추가
   const allPostsQuery = sql`
     SELECT p.id, p.title, p.content, p.author, p.date, p.likes, p.is_blinded, 
            (SELECT COUNT(*) FROM comments WHERE comments.post_id = p.id) as comment_count 
     FROM posts p 
     JOIN boards b ON p.category = b.name 
-    WHERE b.is_all_visible = true 
+    WHERE b.is_all_visible = true AND p.status = 'published'
     ORDER BY p.date DESC 
     LIMIT 10
   `;
 
+  // 🚨 [패치 3] 개별 게시판 위젯: 발행(published)된 글만 가져오도록 방어막 추가
   const boardQueries = mainBoards.map(board => {
     const pattern = `[${board.name}]%`;
     return sql`
       SELECT id, title, content, author, date, likes, is_blinded, 
              (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) as comment_count 
       FROM posts 
-      WHERE title LIKE ${pattern} 
+      WHERE title LIKE ${pattern} AND status = 'published'
       ORDER BY date DESC 
       LIMIT 10
     `;
