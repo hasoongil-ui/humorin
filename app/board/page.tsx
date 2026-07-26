@@ -5,8 +5,44 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import CategoryIcon from './CategoryIcon';
 import HybridPrefetchTrigger from './HybridPrefetchTrigger';
+import { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(props: any): Promise<Metadata> {
+  const searchParams = await props.searchParams;
+  const bestType = searchParams?.best || '';
+  const category = searchParams?.category || 'all';
+  const keyword = searchParams?.q || '';
+  
+  let title = '전체글 보기';
+  let description = '유머인 커뮤니티의 전체 게시글 목록입니다. 다양한 유머와 감동적인 이야기들을 만나보세요.';
+  
+  if (keyword) {
+    title = `'${keyword}' 검색 결과`;
+    description = `유머인 커뮤니티에서 '${keyword}'(으)로 검색한 결과입니다.`;
+  } else if (bestType === 'today') {
+    title = '투데이 베스트';
+    description = '오늘 하루 유머인에서 가장 많은 추천을 받은 베스트 게시글 모음입니다.';
+  } else if (bestType === 'showcase') {
+    title = '명작 쇼케이스';
+    description = '수많은 유머인들을 웃고 울린 역대급 레전드 명작 쇼케이스 게시글입니다.';
+  } else if (bestType === '100') {
+    title = '백베스트';
+    description = '추천 100개 이상을 받은 유머인 백베스트 게시글 모음입니다.';
+  } else if (bestType === '1000') {
+    title = '천베스트';
+    description = '추천 1000개 이상을 받은 유머인 천베스트 명예의 전당입니다.';
+  } else if (category !== 'all') {
+    title = `${category} 게시판`;
+    description = `유머인 ${category} 게시판입니다. 유저들이 공유하는 다양한 재미와 정보들을 확인해보세요.`;
+  }
+  
+  return {
+    title: `${title} - 유머인`,
+    description: description,
+  };
+}
 
 function formatDate(dateString: any) {
   const dbDate = new Date(dateString);

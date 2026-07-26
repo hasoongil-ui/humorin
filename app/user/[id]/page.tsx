@@ -1,6 +1,31 @@
 // @ts-nocheck
 import { sql } from '@vercel/postgres';
 import Link from 'next/link';
+import { Metadata } from 'next';
+
+export async function generateMetadata(props: any): Promise<Metadata> {
+  const params = await props.params;
+  const rawUrlId = params.id || '';
+  const targetParam = decodeURIComponent(rawUrlId);
+  
+  try {
+    const { rows } = await sql`
+      SELECT nickname FROM users WHERE user_id = ${targetParam} OR nickname = ${targetParam}
+    `;
+    if (rows.length > 0) {
+      const nickname = rows[0].nickname;
+      return {
+        title: `${nickname}님의 프로필 - 유머인`,
+        description: `${nickname}님의 유머인 커뮤니티 프로필 페이지입니다. 활동 내역과 작성한 게시글을 확인해보세요.`,
+      };
+    }
+  } catch (e) {}
+  
+  return {
+    title: '유저 프로필 - 유머인',
+    description: '유머인 커뮤니티 유저 프로필 페이지입니다.',
+  };
+}
 
 function formatDate(dateString: string) {
   try {
