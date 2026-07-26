@@ -80,10 +80,16 @@ export async function generateMetadata(props: any): Promise<Metadata> {
     const postContent = post.content || '';
 
     const plainText = postContent.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
-    const description = plainText.length > 0
-      ?
-      (plainText.length > 80 ? plainText.substring(0, 80) + '...' : plainText)
-      : cleanTitle;
+    
+    // 💡 [SEO 핀셋 1] 제목과 설명문이 중복되는 현상 방어 및 로봇용 고유 설명문 강제 주입
+    let description = plainText.length > 0
+      ? (plainText.length > 80 ? plainText.substring(0, 80) + '...' : plainText)
+      : `${cleanTitle} - 유머인 게시글`;
+
+    if (description === cleanTitle) {
+      description = `${cleanTitle} - 유머인 커뮤니티에서 제공하는 재미있는 유머 및 이슈 게시글입니다. 더 많은 이미지와 꿀잼 콘텐츠를 확인해보세요.`;
+    }
+
     let ogImageUrl = null;
     let twitterImageUrl = null;
 
@@ -122,7 +128,6 @@ export async function generateMetadata(props: any): Promise<Metadata> {
       },
       openGraph: {
         title: cleanTitle,
-
         description: description,
         url: postUrl,
         siteName: '유머인',
@@ -133,7 +138,6 @@ export async function generateMetadata(props: any): Promise<Metadata> {
       twitter: {
         card: 'summary_large_image',
         title: cleanTitle,
-
         description: description,
         images: twitterImageUrl ? [twitterImageUrl] : [],
       }
@@ -318,7 +322,6 @@ export default async function PostDetailPage(props: any) {
       relatedPosts = [...relatedPosts, ...fallbackPicks];
     }
 
-    // 💡 [핵심 수술 완료] 추천 썸네일 전용: DB 과부하 0% 스마트 핀셋 추출기 및 MP4 하이브리드 엔진 도입
     if (relatedPosts.length > 0) {
       const selectedIds = relatedPosts.map((p: any) => p.id);
 
@@ -1038,10 +1041,17 @@ export default async function PostDetailPage(props: any) {
       (match, attributes) => {
 
         imgCounter++;
-        const cleanAttrs = attributes
+        let cleanAttrs = attributes
           .replace(/\bloading=(["'])(.*?)\1/gi, '')
           .replace(/\bfetchpriority=(["'])(.*?)\1/gi, '')
           .replace(/\bdecoding=(["'])(.*?)\1/gi, '');
+          
+        // 💡 [SEO 핀셋 2] 이미지 태그에 Alt 속성이 없을 경우 제목 기반 자동 주입
+        if (!/alt=(["'])(.*?)\1/i.test(cleanAttrs)) {
+          const safeAltTitle = postData.cleanTitle.replace(/"/g, '&quot;');
+          cleanAttrs += ` alt="${safeAltTitle} - 첨부이미지 ${imgCounter}"`;
+        }
+
         if (imgCounter === 1) {
           return `<img${cleanAttrs} fetchpriority="high" loading="eager" decoding="sync">`;
         } else {
@@ -1100,7 +1110,8 @@ export default async function PostDetailPage(props: any) {
       <main className="max-w-[1000px] mx-auto p-5 md:p-8 mt-4 mb-20 overflow-hidden">
 
         <div className="border-b-2 border-gray-800 pb-4 mb-4">
-          <h1 className="text-2xl md:text-3xl font-black mb-4"><span className="text-[#3b4890] mr-2">[{postData.cat}]</span>{postData.cleanTitle}</h1>
+          {/* 💡 [SEO 핀셋 3] HTML 표준 위반인 H1 태그 중복을 방지하기 위해 H2로 강제 전환 (스타일은 100% 동일하게 유지됨) */}
+          <h2 className="text-2xl md:text-3xl font-black mb-4"><span className="text-[#3b4890] mr-2">[{postData.cat}]</span>{postData.cleanTitle}</h2>
           <div className="flex justify-between items-center text-gray-500 text-sm font-bold flex-wrap gap-y-2">
 
             <div className="flex items-center gap-2">
