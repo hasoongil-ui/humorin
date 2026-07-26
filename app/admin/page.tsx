@@ -30,6 +30,23 @@ async function verifyAdmin() {
   return false;
 }
 
+// 💡 [안전한 시각적 마스크] 미국 시간(UTC)을 한국 시간(KST)으로 변환하는 순수 UI 렌더링 함수 추가
+function formatKST(dateString: any) {
+  if (!dateString) return '-';
+  try {
+    const dbDate = new Date(dateString);
+    const kstDate = new Date(dbDate.getTime() + 9 * 60 * 60 * 1000);
+    const yy = String(kstDate.getFullYear()).slice(-2);
+    const mm = String(kstDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(kstDate.getDate()).padStart(2, '0');
+    const hh = String(kstDate.getHours()).padStart(2, '0');
+    const min = String(kstDate.getMinutes()).padStart(2, '0');
+    return `${yy}.${mm}.${dd} ${hh}:${min}`;
+  } catch (e) {
+    return '-';
+  }
+}
+
 async function updateUserStatus(formData: FormData) { 'use server'; if (!(await verifyAdmin())) throw new Error("Unauthorized"); const targetUser = formData.get('userid') as string;
 const newStatus = formData.get('status') as string; try { await sql`UPDATE users SET status = ${newStatus} WHERE user_id = ${targetUser}`;
 } catch (error) { } revalidatePath('/admin'); }
@@ -144,7 +161,15 @@ export default async function AdminDashboardPage(props: any) {
     }
     const currentSearchTotal = Number(countResult.rows[0].count);
     totalPages = Math.ceil(currentSearchTotal / limit) || 1;
-    userList = queryResult.rows.map(row => ({ ...row, userid: row.user_id, created_at: new Date(row.created_at).toLocaleDateString('ko-KR').slice(2), last_login: new Date(row.last_login).toLocaleDateString('ko-KR').slice(2) }));
+    
+    // 💡 [시각적 마스크 핀셋 적용] DB 원본은 건드리지 않고, 오직 화면 출력용으로만 KST 적용
+    userList = queryResult.rows.map(row => ({ 
+      ...row, 
+      userid: row.user_id, 
+      created_at: formatKST(row.created_at), 
+      last_login: formatKST(row.last_login) 
+    }));
+    
     if (heavyDays !== null) {
       const intervalStr = `${heavyDays} days`;
       const { rows: heavy } = await sql`
