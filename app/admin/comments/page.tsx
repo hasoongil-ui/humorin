@@ -25,11 +25,18 @@ async function verifyAdmin() {
   } catch { return false; }
 }
 
-function formatDate(dateString: any) {
+// 💡 [안전한 시각적 마스크] 미국 시간(UTC)을 한국 시간(KST)으로 변환하는 순수 UI 렌더링 함수
+function formatKST(dateString: any) {
   if (!dateString) return '-';
   try {
-    const d = new Date(dateString);
-    return `${d.getFullYear().toString().slice(2)}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const dbDate = new Date(dateString);
+    const kstDate = new Date(dbDate.getTime() + 9 * 60 * 60 * 1000);
+    const yy = String(kstDate.getFullYear()).slice(-2);
+    const mm = String(kstDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(kstDate.getDate()).padStart(2, '0');
+    const hh = String(kstDate.getHours()).padStart(2, '0');
+    const min = String(kstDate.getMinutes()).padStart(2, '0');
+    return `${yy}-${mm}-${dd} ${hh}:${min}`;
   } catch (e) { return '-'; }
 }
 
@@ -217,7 +224,7 @@ export default async function AdminCommentsPage(props: any) {
                         <div className="text-gray-800">{comment.author}</div>
                         <div className="text-[10px] text-gray-400 font-mono mt-0.5">{comment.author_id}</div>
                       </td>
-                      <td className="px-3 py-2 text-center text-[11px] font-bold text-gray-400">{formatDate(comment.created_at)}</td>
+                      <td className="px-3 py-2 text-center text-[11px] font-bold text-gray-400">{formatKST(comment.created_at)}</td>
                       <td className="px-3 py-2 text-center text-[12px] font-bold text-rose-500">{comment.report_count || 0}</td>
                       <td className="px-3 py-2 text-center">
                         {(!comment.is_blinded) ? <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-sm border border-emerald-100">정상</span> : <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm border border-rose-100">블라인드</span>}

@@ -28,11 +28,18 @@ async function verifyAdmin() {
   } catch { return false; }
 }
 
-function formatDate(dateString: any) {
+// 💡 [안전한 시각적 마스크] 미국 시간(UTC)을 한국 시간(KST)으로 변환하는 순수 UI 렌더링 함수
+function formatKST(dateString: any) {
   if (!dateString) return '-';
   try {
-    const d = new Date(dateString);
-    return `${d.getFullYear().toString().slice(2)}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const dbDate = new Date(dateString);
+    const kstDate = new Date(dbDate.getTime() + 9 * 60 * 60 * 1000);
+    const yy = String(kstDate.getFullYear()).slice(-2);
+    const mm = String(kstDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(kstDate.getDate()).padStart(2, '0');
+    const hh = String(kstDate.getHours()).padStart(2, '0');
+    const min = String(kstDate.getMinutes()).padStart(2, '0');
+    return `${yy}-${mm}-${dd} ${hh}:${min}`;
   } catch (e) { return '-'; }
 }
 
@@ -230,7 +237,7 @@ export default async function AdminPostsPage(props: any) {
                           <div className="text-gray-800">{post.author}</div>
                           <div className="text-[10px] text-gray-400 font-mono mt-0.5">{post.author_id}</div>
                         </td>
-                        <td className="px-3 py-2 text-center text-[11px] font-bold text-gray-400">{formatDate(post.date)}</td>
+                        <td className="px-3 py-2 text-center text-[11px] font-bold text-gray-400">{formatKST(post.date)}</td>
                         <td className="px-3 py-2 text-center">
                           {/* 💡 [수술 2] is_blinded 값을 최우선으로 검사하여 붉은색 경고 렌더링! */}
                           {post.is_blinded ? (
