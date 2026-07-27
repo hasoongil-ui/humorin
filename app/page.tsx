@@ -229,6 +229,18 @@ export default async function HomePage() {
             <li className="py-10 text-center text-sm font-bold text-gray-400">등록된 게시물이 없습니다.</li>
           )}
         </ul>
+
+        {/* 💡 [신규 패치] 하단 와이드 버튼 (전체 새글 보기 제목 강제 변환) */}
+        {title !== '명작 쇼케이스' && (
+          <div className="p-3 bg-white border-t border-gray-100">
+            <Link 
+              href={link} 
+              className="flex items-center justify-center w-full py-2.5 bg-gray-50 border border-gray-200 rounded-sm text-[13px] font-bold text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors shadow-sm"
+            >
+              {title === '전체 새글 보기' ? '전체 새글 더보기' : `${title} 글 더보기`} <span className="ml-1 text-[11px]">➔</span>
+            </Link>
+          </div>
+        )}
       </div>
     );
   };
@@ -243,7 +255,6 @@ export default async function HomePage() {
     <Suspense fallback={<div className="min-h-screen bg-[#f4f5f7]"></div>}>
       <div className="min-h-screen bg-[#f4f5f7] font-sans text-gray-800">
         <Navbar />
-        {/* 💡 [v43.5 완벽 동기화] 스마트폰 환경에서 상하 여백(py-2, mb-6)을 맞춰 길이를 게시판과 동일하게 세팅, 좌우는 px-1 적용 */}
         <main className="max-w-[1200px] mx-auto px-1 py-2 mb-6 md:p-4 md:py-8 md:mb-10">
 
           <div className="hidden md:flex bg-[#414a66] rounded-sm p-6 md:p-10 mb-8 shadow-sm flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
