@@ -133,7 +133,9 @@ export async function POST(request: Request) {
     
     try {
       const headersList = await headers();
-      const currentIp = headersList.get('x-user-ip') || '알수없음';
+      
+      // 🚀 [수술 완료] 클라우드플레어 IP(x-user-ip) 껍데기를 뚫고, 진짜 유저 작성자 IP 적출 (1줄 변경)
+      const currentIp = headersList.get('cf-connecting-ip') || headersList.get('x-forwarded-for')?.split(',')[0].trim() || '알수없음';
       
       await client.sql`
         INSERT INTO access_logs (user_id, action_type, ip_address) 
