@@ -13,7 +13,9 @@ export default function CopyProtection() {
 
       // 1. 메모장 같은 곳에 붙여넣을 때 쓸 '글자' 버젼
       const selectedText = selection.toString();
-      const currentUrl = window.location.href;
+      
+      // 💡 [수정 완료] 파라미터(?category=...) 꼬리표를 날리고 순수 오리지널 도메인+경로만 추출
+      const currentUrl = window.location.origin + window.location.pathname;
       const sourceLinkText = `\n\n출처: ${currentUrl}`;
 
       // 2. 타 커뮤니티(디시, 펨코)에 붙여넣을 때 쓸 '사진+글씨' 버젼 (HTML)
