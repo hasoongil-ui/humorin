@@ -1,15 +1,12 @@
-// 파일 위치: app/api/auth/naver/callback/route.ts
-// 🚀 [수술 1] Vercel Edge 네트워크 적용 (서울 한국 부팅)
 export const runtime = 'edge';
 
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { cookies, headers } from 'next/headers';
-import { waitUntil } from '@vercel/functions'; // 🚀 [추가] 백그라운드 처리용 함수
+import { waitUntil } from '@vercel/functions';
 
 const SECRET_KEY = process.env.AUTH_SECRET || 'humorin-super-secret-key-2026-very-safe';
 
-// 🚀 [수술 2] Web Crypto API (Edge 호환)
 async function generateSignature(userId: string, secret: string) {
   const encoder = new TextEncoder();
   const keyData = encoder.encode(secret);
@@ -62,10 +59,8 @@ export async function GET(request: Request) {
         const daysPassed = (Date.now() - withdrawDate) / (1000 * 60 * 60 * 24);
         
         if (daysPassed < 7) {
-          // 🚨 7일 미만: 가차 없이 쫓아냄
           return NextResponse.redirect(new URL('/login?error=cooldown', request.url));
         } else {
-          // 🚀 [리셋 수술 완료] 7일 경과 후: 포인트와 정보를 싹 초기화하여 신규 가입으로 처리!
           let isNickUnique = false;
           let attempt = 0;
           while (!isNickUnique && attempt < 5) {
@@ -118,9 +113,8 @@ export async function GET(request: Request) {
 
     try {
       const headersList = await headers();
-      const currentIp = headersList.get('x-user-ip') || '알수없음';
+      const currentIp = headersList.get('cf-connecting-ip') || headersList.get('x-forwarded-for')?.split(',')[0].trim() || '알수없음';
       
-      // 🚀 [수술 3] waitUntil을 활용한 백그라운드 처리! (유저 통신 대기시간 0초로 단축)
       waitUntil(
         Promise.all([
           sql`INSERT INTO access_logs (user_id, action_type, ip_address) VALUES (${expectedUserId}, 'LOGIN_NAVER', ${currentIp})`,

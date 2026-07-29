@@ -10,8 +10,6 @@ export async function POST(request: Request) {
   try {
     const { id, password } = await request.json();
 
-    // 🚀 [수술 완료] 프론트엔드를 뚫고 들어온 기괴한 공백까지 백엔드에서 최종 강제 삭제
-    // (단, 비밀번호는 유저가 의도한 공백일 수 있으므로 절대 건드리지 않음)
     const cleanId = id ? String(id).trim() : '';
 
     const { rows } = await sql`
@@ -25,27 +23,21 @@ export async function POST(request: Request) {
       const isPasswordMatch = await bcrypt.compare(password, user.password);
 
       if (isPasswordMatch) {
-
-        // 1. 마지막 로그인 시간 업데이트
         await sql`
           UPDATE users 
           SET last_login = NOW() 
           WHERE user_id = ${cleanId}
         `;
 
-        // 🛡️ [추가] 90일 물레방아 IP 기록 시스템 작동!
         try {
           const headersList = await headers();
-          // 문지기(middleware/proxy)가 넘겨준 진짜 IP를 가져옵니다.
-          const currentIp = headersList.get('x-user-ip') || '알수없음';
+          const currentIp = headersList.get('cf-connecting-ip') || headersList.get('x-forwarded-for')?.split(',')[0].trim() || '알수없음';
 
-          // 로그 기록장에 저장
           await sql`
             INSERT INTO access_logs (user_id, action_type, ip_address) 
             VALUES (${user.user_id}, 'LOGIN', ${currentIp})
           `;
 
-          // ♻️ 90일 지난 낡은 데이터 자동 삭제 (서버 용량 방어)
           await sql`
             DELETE FROM access_logs WHERE created_at < NOW() - INTERVAL '90 days'
           `;
@@ -58,7 +50,6 @@ export async function POST(request: Request) {
           { status: 200 }
         );
 
-        // 쿠키 설정
         response.cookies.set({
           name: 'humorin_user',
           value: user.nickname || user.user_id,
