@@ -1,15 +1,21 @@
 {
-  "name": "HUMORIN - 유머인",
+  "name": "유머인 - 세상을 웃게 하는 공간",
   "short_name": "유머인",
+  "description": "최고의 유머 커뮤니티 유머인입니다.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b4890",
   "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
-  ],
-  "start_url": "/",
-  "display": "browser",
-  "background_color": "#ffffff",
-  "theme_color": "#3b4890"
+  ]
 }

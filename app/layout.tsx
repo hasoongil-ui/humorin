@@ -3,6 +3,7 @@ import Link from "next/link";
 import Script from "next/script";
 import "./globals.css";
 import CopyProtection from "./components/CopyProtection";
+import InAppBrowserCheck from "./components/InAppBrowserCheck";
 
 const siteTitle = "유머인 - 오늘의 재미, 유머 커뮤니티";
 const siteDescription = "매일 업데이트되는 유머, 감동, 지식, 최신 이슈가 살아 숨 쉬는 종합 커뮤니티입니다. 오늘의 재미, 유머인에서 만나보세요.";
@@ -137,7 +138,9 @@ export default function RootLayout({
         />
         {/* 구글 애널리틱스 (GA4) 추적 코드 끝 */}
 
+        <InAppBrowserCheck />
         <CopyProtection />
+        
         <div id="ad-space-top" className="w-full"></div>
         <div className="flex-grow">
           {children}
