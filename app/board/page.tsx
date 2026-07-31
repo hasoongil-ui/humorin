@@ -190,14 +190,16 @@ export default async function BoardPage(props: any) {
     } catch (e) {}
   }
 
+  // 💡 [핵심 수술 영역] 게시판 종류에 따른 공지사항 선별 로직 최적화
   if (page === 1 && !keyword && bestType === '') {
     try {
       if (isAll) {
+         // 전체 게시판일 경우 [전체 최상단 고정(is_notice = true)] 데이터만 가져오도록 수정 완료
          const { rows } = await sql`
           SELECT * FROM posts 
-          WHERE (is_notice = true OR is_board_notice = true)
+          WHERE is_notice = true
             AND COALESCE(status, 'published') = 'published'
-          ORDER BY is_notice DESC, is_board_notice DESC, date DESC
+          ORDER BY date DESC
         `;
         noticePosts = rows;
       } else {
