@@ -16,9 +16,6 @@ export async function GET(req: NextRequest) {
   kakaoAuthUrl.searchParams.append('client_id', clientId);
   kakaoAuthUrl.searchParams.append('redirect_uri', redirectUri);
   kakaoAuthUrl.searchParams.append('response_type', 'code');
-  
-  // 🚀 [여기 딱 1줄 추가됨!] 카카오톡이 켜져 있어도 무조건 계정/비밀번호 입력창을 강제로 띄웁니다!
-  kakaoAuthUrl.searchParams.append('prompt', 'login');
 
   // 카카오 로그인 화면으로 유저를 이동시킵니다.
   return NextResponse.redirect(kakaoAuthUrl.toString());
