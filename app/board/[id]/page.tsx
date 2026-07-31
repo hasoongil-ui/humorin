@@ -81,7 +81,6 @@ export async function generateMetadata(props: any): Promise<Metadata> {
 
     const plainText = postContent.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
     
-    // 💡 [SEO 핀셋 1] 제목과 설명문이 중복되는 현상 방어 및 로봇용 고유 설명문 강제 주입
     let description = plainText.length > 0
       ? (plainText.length > 80 ? plainText.substring(0, 80) + '...' : plainText)
       : `${cleanTitle} - 유머인 게시글`;
@@ -430,6 +429,7 @@ export default async function PostDetailPage(props: any) {
     return `/board${qStr ? `?${qStr}` : ''}`;
   };
   const titleClasses = "group-hover:underline mr-1 line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug";
+  
   const deletePost = async () => {
     'use server';
     if (!isAdmin && !isAuthor) return;
@@ -655,6 +655,7 @@ export default async function PostDetailPage(props: any) {
 
     revalidatePath(`/board/${postId}`);
   };
+
   const editComment = async (formData: FormData) => {
     'use server';
     if (!currentUserId) return;
@@ -732,6 +733,7 @@ export default async function PostDetailPage(props: any) {
     }
     revalidatePath(`/board/${postId}`);
   };
+
   const toggleCommentLike = async (formData: FormData) => {
     'use server';
     if (!currentUserId) return;
@@ -758,6 +760,7 @@ export default async function PostDetailPage(props: any) {
       await sql`UPDATE comments SET likes = COALESCE(likes, 0) + 1 WHERE id = ${commentId}`;
     }
   };
+
   const toggleCommentDislike = async (formData: FormData) => {
     'use server';
     if (!currentUserId) return;
@@ -867,12 +870,29 @@ export default async function PostDetailPage(props: any) {
     }
     revalidatePath(`/board/${postId}`);
   };
+
+  // 💡 [핵심 수술 영역 1] 댓글 텍스트 내 인터넷 주소를 추출하여 링크 <a> 태그로 자동 변환하는 렌더링 함수
+  const renderTextWithLinks = (text: string) => {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s<]+)/g;
+    const parts = text.split(urlRegex);
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   const renderCommentNode = (node: any, depth: number = 0, parentAuthor: string | null = null) => {
     const isReply = depth > 0;
     const pcIndent = isReply ? Math.min(depth * 1.5, 4) : 0;
     const nodeStyle = { '--pc-indent': `${pcIndent}rem` } as React.CSSProperties;
     
-    // 💡 [핵심 수술 영역 1] 모바일 좌우 여백 압축 (Edge-to-Edge)
     const indentClass = isReply
       ? 'pl-[1.5rem] pr-4 sm:pl-[2rem] md:pl-[calc(1rem+var(--pc-indent))]'
       : 'px-4';
@@ -921,7 +941,6 @@ export default async function PostDetailPage(props: any) {
 
     return (
       <div key={node.id} className="w-full">
-        {/* 💡 [핵심 수술 영역 2] 모바일에서 패딩 줄임 (py-4 -> py-3 sm:py-4) */}
         <div className={`py-3 sm:py-4 border-b border-gray-100 relative group transition-colors duration-300 ${bgColorClass} ${indentClass}`} style={nodeStyle}>
           <input type="checkbox" id={`edit-${node.id}`} className="hidden peer/edit" />
           <div className="flex justify-between items-start mb-2 mt-1">
@@ -974,13 +993,16 @@ export default async function PostDetailPage(props: any) {
             ) : (
               <>
                 <div className="peer-checked/edit:hidden">
-                  {/* 💡 [핵심 수술 영역 3] 모바일 폰트 확대 (16px) 및 줄간격 확장 (leading-[1.6]) */}
                   <div className="text-[16px] sm:text-[15px] mb-2 sm:mb-3 whitespace-pre-wrap text-gray-800 flex flex-col md:flex-row md:items-start gap-1.5">
 
                     {isReply && parentAuthor && !isDeleted && (
                       <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-gray-400 bg-gray-200/60 px-1.5 py-0.5 rounded-sm shrink-0 mt-0.5 border border-gray-200 self-start md:self-auto">↳ @{parentAuthor}</span>
                     )}
-                    <span className={`${isDeleted ? 'text-gray-400 italic text-[14px]' : ''} leading-[1.6] sm:leading-relaxed break-all break-words [overflow-wrap:anywhere]`}>{node.content}</span>
+                    
+                    {/* 💡 [핵심 수술 영역 2] 단순 텍스트 렌더링을 Auto-link 렌더링 함수로 교체 */}
+                    <span className={`${isDeleted ? 'text-gray-400 italic text-[14px]' : ''} leading-[1.6] sm:leading-relaxed break-all break-words [overflow-wrap:anywhere]`}>
+                      {isDeleted ? node.content : renderTextWithLinks(node.content)}
+                    </span>
 
                   </div>
                   {node.image_data && (
@@ -1018,6 +1040,22 @@ export default async function PostDetailPage(props: any) {
 
   let finalContent = post.content || '';
   if (finalContent) {
+    
+    // 💡 [핵심 수술 영역 3] 본문 내 순수 텍스트(URL)를 <a> 태그로 자동 변환 (HTML 태그 내부의 속성은 보호)
+    let inAnchor = false;
+    let textParts = finalContent.split(/(<[^>]+>)/g);
+    for (let i = 0; i < textParts.length; i++) {
+      const part = textParts[i];
+      if (part.toLowerCase().startsWith('<a ')) {
+        inAnchor = true;
+      } else if (part.toLowerCase().startsWith('</a')) {
+        inAnchor = false;
+      } else if (!part.startsWith('<') && !inAnchor) {
+        textParts[i] = part.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline break-all">$1</a>');
+      }
+    }
+    finalContent = textParts.join('');
+
     finalContent = finalContent.replace(
       /<video([^>]*)src="([^"]+)"([^>]*)>/gi,
       (match, beforeSrc, srcUrl, afterSrc) => {
@@ -1050,7 +1088,6 @@ export default async function PostDetailPage(props: any) {
           .replace(/\bfetchpriority=(["'])(.*?)\1/gi, '')
           .replace(/\bdecoding=(["'])(.*?)\1/gi, '');
           
-        // 💡 [SEO 핀셋 2] 이미지 태그에 Alt 속성이 없을 경우 제목 기반 자동 주입
         if (!/alt=(["'])(.*?)\1/i.test(cleanAttrs)) {
           const safeAltTitle = postData.cleanTitle.replace(/"/g, '&quot;');
           cleanAttrs += ` alt="${safeAltTitle} - 첨부이미지 ${imgCounter}"`;
@@ -1114,7 +1151,6 @@ export default async function PostDetailPage(props: any) {
       <main className="max-w-[1000px] mx-auto p-5 md:p-8 mt-4 mb-20 overflow-hidden">
 
         <div className="border-b-2 border-gray-800 pb-4 mb-4">
-          {/* 💡 [SEO 핀셋 3] HTML 표준 위반인 H1 태그 중복을 방지하기 위해 H2로 강제 전환 (스타일은 100% 동일하게 유지됨) */}
           <h2 className="text-2xl md:text-3xl font-black mb-4"><span className="text-[#3b4890] mr-2">[{postData.cat}]</span>{postData.cleanTitle}</h2>
           <div className="flex justify-between items-center text-gray-500 text-sm font-bold flex-wrap gap-y-2">
 
@@ -1309,7 +1345,6 @@ export default async function PostDetailPage(props: any) {
           <Link href={backToListUrl} className="px-8 py-2 bg-[#414a66] text-white font-bold text-sm rounded-sm hover:bg-[#2a3042] transition-colors">목록으로</Link>
         </div>
 
-        {/* 💡 [핵심 수술 영역 4] 댓글 컨테이너 전체의 Edge-to-Edge 반응형 클래스 적용 */}
         <div className="mt-16 bg-white sm:bg-gray-50 pt-5 sm:p-5 border-t sm:border rounded-none sm:rounded-sm shadow-none sm:shadow-sm">
           <h3 className="font-bold text-lg border-b pb-3 border-gray-200 px-4 sm:px-0">댓글 <span className="text-[#e74c3c]">{comments.length}</span></h3>
           <div className="mt-0 sm:mt-4">{commentTree.map(node => renderCommentNode(node, 0))}</div>
@@ -1318,7 +1353,6 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
 
-        {/* 💡 [핵심 수술 적용 완료] 본문 하단 추천글 썸네일 지원 UI (Flex 동기화 및 철벽 16:9 비율) */}
         {relatedPosts.length > 0 && (
           <div className="mt-10 border-t border-gray-200 pt-8">
             <h3 className="font-black text-[17px] text-gray-800 mb-4 flex items-center gap-1.5 px-1">
@@ -1330,7 +1364,6 @@ export default async function PostDetailPage(props: any) {
                 return (
                   <Link href={`/board/${rp.id}${listQueryStr}`} key={`related-${rp.id}`} className="flex flex-col h-full bg-white border border-gray-200 hover:border-gray-400 hover:shadow-md rounded-sm transition-all group overflow-hidden">
                     
-                    {/* 💡 [완벽 방어 + MP4 지원] 16:9 철벽 썸네일 컨테이너 */}
                     <div className="w-full relative pt-[56.25%] bg-gray-50 border-b border-gray-100 shrink-0 overflow-hidden">
                       {rp.thumb ? (
                         rp.thumb.type === 'mp4' ? (
