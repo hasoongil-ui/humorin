@@ -871,9 +871,11 @@ export default async function PostDetailPage(props: any) {
     const isReply = depth > 0;
     const pcIndent = isReply ? Math.min(depth * 1.5, 4) : 0;
     const nodeStyle = { '--pc-indent': `${pcIndent}rem` } as React.CSSProperties;
+    
+    // 💡 [핵심 수술 영역 1] 모바일 좌우 여백 압축 (Edge-to-Edge)
     const indentClass = isReply
-      ? 'pl-[1.5rem] sm:pl-[2rem] md:pl-[calc(1rem+var(--pc-indent))]'
-      : 'pl-4';
+      ? 'pl-[1.5rem] pr-4 sm:pl-[2rem] md:pl-[calc(1rem+var(--pc-indent))]'
+      : 'px-4';
 
     const isCommentAuthor = currentUserId === node.author_id ||
       (!node.author_id && currentUser === node.author);
@@ -919,7 +921,8 @@ export default async function PostDetailPage(props: any) {
 
     return (
       <div key={node.id} className="w-full">
-        <div className={`py-4 pr-4 border-b border-gray-100 relative group transition-colors duration-300 ${bgColorClass} ${indentClass}`} style={nodeStyle}>
+        {/* 💡 [핵심 수술 영역 2] 모바일에서 패딩 줄임 (py-4 -> py-3 sm:py-4) */}
+        <div className={`py-3 sm:py-4 border-b border-gray-100 relative group transition-colors duration-300 ${bgColorClass} ${indentClass}`} style={nodeStyle}>
           <input type="checkbox" id={`edit-${node.id}`} className="hidden peer/edit" />
           <div className="flex justify-between items-start mb-2 mt-1">
             <div className="font-bold text-[13.5px] flex items-center gap-2 flex-wrap">
@@ -971,12 +974,13 @@ export default async function PostDetailPage(props: any) {
             ) : (
               <>
                 <div className="peer-checked/edit:hidden">
-                  <div className="text-[15px] mb-3 whitespace-pre-wrap text-gray-800 flex flex-col md:flex-row md:items-start gap-1.5">
+                  {/* 💡 [핵심 수술 영역 3] 모바일 폰트 확대 (16px) 및 줄간격 확장 (leading-[1.6]) */}
+                  <div className="text-[16px] sm:text-[15px] mb-2 sm:mb-3 whitespace-pre-wrap text-gray-800 flex flex-col md:flex-row md:items-start gap-1.5">
 
                     {isReply && parentAuthor && !isDeleted && (
                       <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-gray-400 bg-gray-200/60 px-1.5 py-0.5 rounded-sm shrink-0 mt-0.5 border border-gray-200 self-start md:self-auto">↳ @{parentAuthor}</span>
                     )}
-                    <span className={`${isDeleted ? 'text-gray-400 italic text-[14px]' : ''} leading-relaxed break-all break-words [overflow-wrap:anywhere]`}>{node.content}</span>
+                    <span className={`${isDeleted ? 'text-gray-400 italic text-[14px]' : ''} leading-[1.6] sm:leading-relaxed break-all break-words [overflow-wrap:anywhere]`}>{node.content}</span>
 
                   </div>
                   {node.image_data && (
@@ -1004,7 +1008,7 @@ export default async function PostDetailPage(props: any) {
           </div>
         </div>
         <input type="checkbox" id={`reply-${node.id}`} className="hidden peer/reply" />
-        <div className={`hidden peer-checked/reply:block bg-gray-100 py-3 pr-3 border-b border-gray-200 ${isReply ? 'pl-[1.5rem] sm:pl-[2rem] md:pl-[calc(1rem+var(--pc-indent))]' : 'pl-3 md:pl-4'}`} style={nodeStyle}>
+        <div className={`hidden peer-checked/reply:block bg-gray-100 py-3 pr-4 sm:pr-3 border-b border-gray-200 ${isReply ? 'pl-[1.5rem] sm:pl-[2rem] md:pl-[calc(1rem+var(--pc-indent))]' : 'pl-4 md:pl-4'}`} style={nodeStyle}>
           {!isCommentLocked && currentUser && !isDeleted && <CommentForm postId={postId} parentId={node.id} author={displayCommentAuthor} actionType="reply" submitAction={addComment} />}
         </div>
         {node.children && node.children.map((child: any) => renderCommentNode(child, depth + 1, displayCommentAuthor))}
@@ -1305,10 +1309,11 @@ export default async function PostDetailPage(props: any) {
           <Link href={backToListUrl} className="px-8 py-2 bg-[#414a66] text-white font-bold text-sm rounded-sm hover:bg-[#2a3042] transition-colors">목록으로</Link>
         </div>
 
-        <div className="mt-16 bg-gray-50 p-5 border rounded-sm shadow-sm">
-          <h3 className="font-bold text-lg border-b pb-3 border-gray-200">댓글 <span className="text-[#e74c3c]">{comments.length}</span></h3>
-          <div className="mt-4">{commentTree.map(node => renderCommentNode(node, 0))}</div>
-          <div className="mt-8">
+        {/* 💡 [핵심 수술 영역 4] 댓글 컨테이너 전체의 Edge-to-Edge 반응형 클래스 적용 */}
+        <div className="mt-16 bg-white sm:bg-gray-50 pt-5 sm:p-5 border-t sm:border rounded-none sm:rounded-sm shadow-none sm:shadow-sm">
+          <h3 className="font-bold text-lg border-b pb-3 border-gray-200 px-4 sm:px-0">댓글 <span className="text-[#e74c3c]">{comments.length}</span></h3>
+          <div className="mt-0 sm:mt-4">{commentTree.map(node => renderCommentNode(node, 0))}</div>
+          <div className="mt-6 sm:mt-8 px-4 sm:px-0 mb-4 sm:mb-0">
             {currentUser ? <CommentForm postId={postId} actionType="main" submitAction={addComment} /> : <div className="p-4 bg-white border border-gray-200 text-center font-bold text-sm text-gray-500 rounded-sm shadow-sm">로그인이 필요합니다.</div>}
           </div>
         </div>
