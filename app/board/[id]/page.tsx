@@ -1094,7 +1094,7 @@ export default async function PostDetailPage(props: any) {
         }
 
         if (imgCounter === 1) {
-          return `<img${cleanAttrs} fetchpriority="high" loading="eager" decoding="sync">`;
+          return `<img${cleanAttrs} fetchpriority="high" loading="eager" decoding="async">`;
         } else {
           return `<img${cleanAttrs} loading="lazy" decoding="async">`;
         }
@@ -1258,7 +1258,9 @@ export default async function PostDetailPage(props: any) {
               <style dangerouslySetInnerHTML={{
                 __html: `
               .post-content-area .ql-editor img {
-                min-height: 200px !important;
+                min-height: 300px !important;
+                width: 100% !important;
+                object-fit: contain !important;
                 background-color: #f4f5f7 !important;
                 content-visibility: auto !important;
               }
