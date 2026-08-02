@@ -1257,19 +1257,11 @@ export default async function PostDetailPage(props: any) {
 
               <style dangerouslySetInnerHTML={{
                 __html: `
-              @keyframes shimmerLoading {
-                0% { background-position: -1000px 0; }
-                100% { background-position: 1000px 0; }
-              }
-
               .post-content-area .ql-editor img {
                 min-height: 300px !important;
                 width: 100% !important;
                 object-fit: contain !important;
-                background: #f4f5f7 !important;
-                background-image: linear-gradient(90deg, #f4f5f7 0px, #e8e9ec 200px, #f4f5f7 400px) !important;
-                background-size: 1000px 100% !important;
-                animation: shimmerLoading 2s infinite linear !important;
+                background-color: #f4f5f7 !important;
                 content-visibility: auto !important;
               }
 
