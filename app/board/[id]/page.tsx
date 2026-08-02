@@ -273,6 +273,7 @@ export default async function PostDetailPage(props: any) {
     recCategoryPattern = `%[${listCategory}]%`;
   }
 
+  // 💡 [핵심 수술 영역: 추천 알고리즘 다채로움 극대화 및 꿀잼 필터 이식]
   let relatedPosts = [];
   try {
     if (bestType) {
@@ -284,7 +285,7 @@ export default async function PostDetailPage(props: any) {
           AND is_blinded = false 
           AND COALESCE(status, 'published') = 'published'
         ORDER BY id DESC 
-        LIMIT 30
+        LIMIT 150
       `;
       relatedPosts = bestRecent.sort(() => 0.5 - Math.random()).slice(0, 3);
     } else {
@@ -292,11 +293,12 @@ export default async function PostDetailPage(props: any) {
         SELECT id, title, views, likes 
         FROM posts 
         WHERE title LIKE ${recCategoryPattern} 
+          AND likes >= 3 
           AND id != ${postId} 
           AND is_blinded = false 
           AND COALESCE(status, 'published') = 'published'
         ORDER BY id DESC 
-        LIMIT 30
+        LIMIT 150
       `;
       relatedPosts = recentPosts.sort(() => 0.5 - Math.random()).slice(0, 3);
     }
@@ -310,7 +312,7 @@ export default async function PostDetailPage(props: any) {
           AND is_blinded = false
           AND COALESCE(status, 'published') = 'published'
         ORDER BY best_at DESC NULLS LAST, date DESC
-        LIMIT 30
+        LIMIT 150
       `;
       const existingIds = new Set(relatedPosts.map(p => p.id));
       existingIds.add(Number(postId));
