@@ -69,7 +69,7 @@ export async function generateMetadata(props: any): Promise<Metadata> {
   const postId = params.id;
 
   try {
-    const { rows } = await sql`SELECT title, content FROM posts WHERE id = ${postId}`;
+    const { rows } = await sql`SELECT title, content, date, author FROM posts WHERE id = ${postId}`;
     const post = rows[0];
 
     if (!post) {
@@ -133,6 +133,8 @@ export async function generateMetadata(props: any): Promise<Metadata> {
         images: ogImageUrl ? [{ url: ogImageUrl }] : [],
         videos: videoUrl ? [{ url: videoUrl }] : [],
         type: 'article',
+        publishedTime: post.date ? new Date(post.date).toISOString() : undefined,
+        authors: [post.author || '익명'],
       },
       twitter: {
         card: 'summary_large_image',
@@ -273,7 +275,6 @@ export default async function PostDetailPage(props: any) {
     recCategoryPattern = `%[${listCategory}]%`;
   }
 
-  // 💡 [핵심 수술 영역: 추천 알고리즘 다채로움 극대화 및 꿀잼 필터 이식]
   let relatedPosts = [];
   try {
     if (bestType) {
@@ -293,7 +294,7 @@ export default async function PostDetailPage(props: any) {
         SELECT id, title, views, likes 
         FROM posts 
         WHERE title LIKE ${recCategoryPattern} 
-          AND likes >= 3 
+          AND likes >= 1
           AND id != ${postId} 
           AND is_blinded = false 
           AND COALESCE(status, 'published') = 'published'
