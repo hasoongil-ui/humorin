@@ -237,11 +237,16 @@ export function CommentReportButton({ commentId, currentUserId, isAdmin }: any) 
 // ---------------------------------------------------------
 // 🟢 3. 스마트 인라인 댓글 수정폼 컴포넌트
 // ---------------------------------------------------------
+
+// 🛡️ [핵심 수술 완료] 안드로이드 Scoped Storage 권한 락 완벽 우회 엔진 (수정 폼 이식)
 const detectAndRestoreFile = (file: File): Promise<File> => {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const arr = new Uint8Array(reader.result as ArrayBuffer);
+      // 💡 1. 안드로이드가 잠그기 전에 파일 전체를 RAM(ArrayBuffer)으로 통째로 복사
+      const fullArrayBuffer = reader.result as ArrayBuffer;
+      const arr = new Uint8Array(fullArrayBuffer);
+      
       if (arr.length < 12) return resolve(file);
 
       let realType = file.type;
@@ -267,91 +272,104 @@ const detectAndRestoreFile = (file: File): Promise<File> => {
         ext = 'webp';
       }
 
+      let newFileName = file.name;
+
       if (ext && (file.type !== realType || !file.type || file.type === 'application/octet-stream')) {
         const hasValidExtension = new RegExp(`\\.${ext}$`, 'i').test(file.name);
-        const newFileName = hasValidExtension
-          ? file.name
-          : file.name.replace(/\.[^/.]+$/, "") + `.${ext}`;
-
-        const restoredFile = new File([file], newFileName, {
+        if (!hasValidExtension) {
+            newFileName = file.name.replace(/\.[^/.]+$/, "") + `.${ext}`;
+        }
+        
+        // 💡 2. 원본 'file' 대신, 복제된 'fullArrayBuffer'를 재료로 새 파일을 창조
+        const restoredFile = new File([fullArrayBuffer], newFileName, {
           type: realType,
           lastModified: file.lastModified || Date.now(),
         });
         resolve(restoredFile);
       } else {
-        resolve(file);
+        // 💡 3. 확장자가 정상이더라도 안드로이드 권한 락을 끊어내기 위해 무조건 메모리 복제본 반환!
+        const clonedFile = new File([fullArrayBuffer], newFileName, {
+          type: file.type || 'image/jpeg',
+          lastModified: file.lastModified || Date.now(),
+        });
+        resolve(clonedFile);
       }
     };
     reader.onerror = () => resolve(file);
-    reader.readAsArrayBuffer(file.slice(0, 32));
+    
+    // 💡 4. 기존 32바이트 slice()를 제거하고, 파일 '전체'를 순식간에 읽어들임
+    reader.readAsArrayBuffer(file);
   });
 };
 
+// 🚨 [신규 엔진 이식] WebP 파일 내부를 투시하여 움짤(ANIM)인지 판독하는 함수
 const isAnimatedWebP = (file: File): Promise<boolean> => {
-  return new Promise((resolve) => {
-    if (file.type !== 'image/webp') return resolve(false);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const arr = new Uint8Array(reader.result as ArrayBuffer);
-      for (let i = 0; i < arr.length - 4; i++) {
-        if (arr[i] === 0x41 && arr[i + 1] === 0x4E && arr[i + 2] === 0x49 && arr[i + 3] === 0x4D) {
-          return resolve(true);
-        }
-      }
-      resolve(false);
-    };
-    reader.onerror = () => resolve(false);
-    reader.readAsArrayBuffer(file.slice(0, 256));
-  });
+    return new Promise((resolve) => {
+        if (file.type !== 'image/webp') return resolve(false);
+        const reader = new FileReader();
+        reader.onload = () => {
+            const arr = new Uint8Array(reader.result as ArrayBuffer);
+            // 파일의 앞부분 헤더를 스캔하여 'ANIM' 청크(움짤 식별자)가 있는지 확인
+            for (let i = 0; i < arr.length - 4; i++) {
+                if (arr[i] === 0x41 && arr[i + 1] === 0x4E && arr[i + 2] === 0x49 && arr[i + 3] === 0x4D) {
+                    return resolve(true); // "이건 WebP 움짤이다!"
+                }
+            }
+            resolve(false); // "일반 WebP 사진이다"
+        };
+        reader.onerror = () => resolve(false);
+        reader.readAsArrayBuffer(file.slice(0, 256)); // 속도 저하를 막기 위해 파일 앞부분만 0.01초 만에 스캔
+    });
 };
 
+// 🛠️ [미나의 초경량 압축기 이식]
 const compressImageToWebP = (file: File): Promise<File> => {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        const MAX_WIDTH = 800;
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const MAX_WIDTH = 800;
 
-        if (width > MAX_WIDTH) {
-          height = Math.round((height * MAX_WIDTH) / width);
-          width = MAX_WIDTH;
-        }
+                if (width > MAX_WIDTH) {
+                    height = Math.round((height * MAX_WIDTH) / width);
+                    width = MAX_WIDTH;
+                }
 
-        canvas.width = width;
-        canvas.height = height;
+                canvas.width = width;
+                canvas.height = height;
 
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
-                const newFile = new File([blob], newFileName, {
-                  type: 'image/webp',
-                });
-                resolve(newFile);
-              } else {
-                resolve(file);
-              }
-            },
-            'image/webp',
-            0.8
-          );
-        } else {
-          resolve(file);
-        }
-      };
-      img.onerror = () => resolve(file);
-    };
-    reader.onerror = () => resolve(file);
-  });
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob) {
+                                const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+                                const newFile = new File([blob], newFileName, {
+                                    type: 'image/webp',
+                                });
+                                resolve(newFile);
+                            } else {
+                                resolve(file);
+                            }
+                        },
+                        'image/webp',
+                        0.8
+                    );
+                } else {
+                    resolve(file);
+                }
+            };
+            img.onerror = () => resolve(file);
+        };
+        reader.onerror = () => resolve(file);
+    });
 };
 
 export function EditCommentForm({ commentId, initialContent, initialImage, editAction }: any) {
