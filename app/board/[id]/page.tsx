@@ -1255,7 +1255,10 @@ export default async function PostDetailPage(props: any) {
 
               <style dangerouslySetInnerHTML={{
                 __html: `
-              /* 💡 [황금 비율 핏 복구 완료] 악성 width: 100% 코드를 완전 소각하고 7월 25일 오리지널 min-height 및 진공 압착 CSS 복원 */
+              /* 💡 [유머인 오리지널 황금 비율 핏 완벽 부활]
+                 - 로딩 전 CLS 방어 3단 콤보 (min-height, background-color, content-visibility) 완벽 적용
+                 - PC 화면(768px 이상)에서 이미지가 화면 끝까지 무식하게 팽창하지 않고 
+                   딱 적당한 황금 폭(800px)으로 아담하고 선명하게 보이도록 강제 제한 룰 장착 */
               .post-content-area .ql-editor img {
                 min-height: 200px !important;
                 background-color: #f4f5f7 !important;
@@ -1270,6 +1273,12 @@ export default async function PostDetailPage(props: any) {
                 display: block !important; 
                 margin: 15px auto !important; 
                 border-radius: 8px !important;
+              }
+
+              @media (min-width: 768px) { 
+                .post-content-area .ql-editor img { 
+                  max-width: 800px !important; 
+                } 
               }
               
               .post-content-area .ql-editor p:has(img.humorin-sliced-img) {
