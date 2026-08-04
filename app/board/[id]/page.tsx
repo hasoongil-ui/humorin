@@ -874,7 +874,6 @@ export default async function PostDetailPage(props: any) {
     revalidatePath(`/board/${postId}`);
   };
 
-  // 💡 [핵심 수술 영역 1] 댓글 텍스트 내 인터넷 주소를 추출하여 링크 <a> 태그로 자동 변환하는 렌더링 함수
   const renderTextWithLinks = (text: string) => {
     if (!text) return null;
     const urlRegex = /(https?:\/\/[^\s<]+)/g;
@@ -1002,7 +1001,6 @@ export default async function PostDetailPage(props: any) {
                       <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-gray-400 bg-gray-200/60 px-1.5 py-0.5 rounded-sm shrink-0 mt-0.5 border border-gray-200 self-start md:self-auto">↳ @{parentAuthor}</span>
                     )}
                     
-                    {/* 💡 [핵심 수술 영역 2] 단순 텍스트 렌더링을 Auto-link 렌더링 함수로 교체 */}
                     <span className={`${isDeleted ? 'text-gray-400 italic text-[14px]' : ''} leading-[1.6] sm:leading-relaxed break-all break-words [overflow-wrap:anywhere]`}>
                       {isDeleted ? node.content : renderTextWithLinks(node.content)}
                     </span>
@@ -1043,8 +1041,6 @@ export default async function PostDetailPage(props: any) {
 
   let finalContent = post.content || '';
   if (finalContent) {
-    
-    // 💡 [핵심 수술 영역 3] 본문 내 순수 텍스트(URL)를 <a> 태그로 자동 변환 (HTML 태그 내부의 속성은 보호)
     let inAnchor = false;
     let textParts = finalContent.split(/(<[^>]+>)/g);
     for (let i = 0; i < textParts.length; i++) {
@@ -1127,7 +1123,6 @@ export default async function PostDetailPage(props: any) {
         'margin': [/.*/],
         'margin-top': [/.*/],
         'margin-bottom': [/.*/],
-
         'margin-left': [/.*/],
         'margin-right': [/.*/],
         'padding': [/.*/],
@@ -1139,7 +1134,6 @@ export default async function PostDetailPage(props: any) {
         'border-bottom-right-radius': [/.*/],
         'vertical-align': [/.*/],
         'max-width': [/.*/],
-
         'width': [/.*/],
         'height': [/.*/],
         'aspect-ratio': [/.*/]
@@ -1147,6 +1141,7 @@ export default async function PostDetailPage(props: any) {
     },
     allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'youtu.be']
   });
+
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
       <VideoVolumeFix />
@@ -1260,10 +1255,9 @@ export default async function PostDetailPage(props: any) {
 
               <style dangerouslySetInnerHTML={{
                 __html: `
+              /* 💡 [황금 비율 핏 복구 완료] 악성 width: 100% 코드를 완전 소각하고 7월 25일 오리지널 min-height 및 진공 압착 CSS 복원 */
               .post-content-area .ql-editor img {
-                min-height: 300px !important;
-                width: 100% !important;
-                object-fit: contain !important;
+                min-height: 200px !important;
                 background-color: #f4f5f7 !important;
                 content-visibility: auto !important;
               }
