@@ -117,7 +117,7 @@ export default function NavbarClient(props: NavbarClientProps) {
     if (mounted && scrollContainerRef.current) {
       const container = scrollContainerRef.current;
       const activeEl = container.querySelector('.humorin-active-menu') as HTMLElement;
-      
+
       if (activeEl) {
         const containerRect = container.getBoundingClientRect();
         const elRect = activeEl.getBoundingClientRect();
@@ -132,7 +132,7 @@ export default function NavbarClient(props: NavbarClientProps) {
   }, [pathname, currentCategory, bestType, mounted]);
 
   const user = initialUser ? { nickname: initialUser.nickname, level: initialUser.level, points: Number(initialUser.points) || 0 } : null;
-  
+
   // 💡 [핵심 추가] 현재 접속한 사람이 최고 관리자(대장님)인지 판독하는 초정밀 센서
   const isAdmin = initialUser && (initialUser.is_admin || initialUser.user_id === 'admin' || initialUser.nickname === '관리자' || initialUser.nickname === '상실의 시대');
 
@@ -164,7 +164,7 @@ export default function NavbarClient(props: NavbarClientProps) {
   const mobileFlatList = [
     { name: '전체글 보기', link: '/board' },
     { name: '🔥투데이 베스트', link: '/board?best=today' },
-    { name: '🏆 이주의 VVIP', link: '/hall-of-fame' }, 
+    { name: '🏆 이주의 VVIP', link: '/hall-of-fame' },
     { name: '🏛️ 명작 쇼케이스', link: '/board?best=showcase' },
     { name: '💯 백베스트', link: '/board?best=100' },
     { name: '👑 천베스트', link: '/board?best=1000' },
@@ -186,9 +186,31 @@ export default function NavbarClient(props: NavbarClientProps) {
 
       <header className="bg-white px-4 border-b border-gray-200 shadow-sm relative z-30 h-[68px] flex items-center">
         <div className="w-full max-w-[1200px] mx-auto flex justify-between items-center">
-          <Link href="/" className="shrink-0 flex items-center pt-1"><img src="/logo_final.png" alt="유머.in 로고" style={{
-            height: '36px', objectFit: 'contain'
-          }} /></Link>
+          <Link href="/" className="shrink-0 flex items-center pt-1 select-none">
+            <div className="flex items-center text-[#384893] tracking-tighter">
+              {/* 🟢 외부 폰트 로드 삭제 -> 기기 기본 폰트 중 가장 묵직하고 깔끔한 font-black 적용 (덜컹거림 0%) */}
+              <span className="text-[28px] font-black">유머</span>
+
+              {/* 🟢 모바일/PC 모두에서 100% 돌아가도록 표준 렌더링 클래스 주입 */}
+              <div className="inline-flex items-center justify-center w-[36px] h-[36px] mb-1 bg-gradient-to-br from-[#ffdc18] to-[#f59e0b] rounded-[11px] text-white font-sans font-black text-[22px] pb-[2px] ml-1.5 shadow-[0_2px_4px_rgba(245,158,11,0.2)] animate-[flip-coin_6s_infinite_ease-in-out] [transform-style:preserve-3d] [backface-visibility:hidden] [transform-origin:center]">
+                in
+              </div>
+            </div>
+
+            {/* 🟢 모바일 크롬/사파리 완벽 연동을 위한 크로스 브라우징 웹키트 가속 엔진 탑재 */}
+            <style jsx global>{`
+    @keyframes flip-coin {
+      0%, 85% { 
+        transform: perspective(400px) rotateY(0deg);
+        -webkit-transform: perspective(400px) rotateY(0deg);
+      }
+      100% { 
+        transform: perspective(400px) rotateY(360deg);
+        -webkit-transform: perspective(400px) rotateY(360deg);
+      }
+    }
+  `}</style>
+          </Link>
           <div className="flex items-center gap-2 md:gap-4 h-[32px]">
             {user ? (
               <>
@@ -200,9 +222,9 @@ export default function NavbarClient(props: NavbarClientProps) {
                 <div className="flex items-center gap-1.5">
                   {/* 💡 [핵심 추가] 오직 관리자에게만 보이는 관제탑 바로가기 (새창 열기) */}
                   {isAdmin && (
-                    <Link 
-                      href="/admin/queue" 
-                      target="_blank" 
+                    <Link
+                      href="/admin/queue"
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="px-3 py-1.5 bg-rose-600 text-white text-[11px] md:text-xs font-bold rounded-sm hover:bg-rose-700 transition-colors shadow-sm shrink-0 flex items-center gap-1"
                       title="새 창으로 예약 관제탑 열기"
@@ -245,7 +267,7 @@ export default function NavbarClient(props: NavbarClientProps) {
               let isActive = false;
               if (item.name === '전체글 보기') isActive = (pathname === '/board' || pathname === '/') && currentCategory === 'all' && bestType === '';
               else if (item.name === '🔥투데이 베스트') isActive = bestType === 'today';
-              else if (item.name === '🏆 이주의 VVIP') isActive = !!pathname?.includes('/hall-of-fame'); 
+              else if (item.name === '🏆 이주의 VVIP') isActive = !!pathname?.includes('/hall-of-fame');
               else if (item.name === '🏛️ 명작 쇼케이스') isActive = bestType === 'showcase';
               else if (item.name === '💯 백베스트') isActive = bestType === '100';
               else if (item.name === '👑 천베스트') isActive = bestType === '1000';
@@ -267,7 +289,7 @@ export default function NavbarClient(props: NavbarClientProps) {
                 let isActive = false;
                 if (group.name === '전체글 보기') isActive = (pathname === '/board' || pathname === '/') && currentCategory === 'all' && bestType === '';
                 if (group.name === '🔥투데이 베스트') isActive = bestType === 'today';
-                
+
                 const activeClass = isActive ? 'bg-[#2a3042] text-white humorin-active-menu' : 'hover:bg-[#5b6586] hover:text-white';
 
                 return (
@@ -324,11 +346,11 @@ export default function NavbarClient(props: NavbarClientProps) {
             {activeGroup.sub?.map((subItem: any) => {
               // 💡 [핵심 수술 5] 포탈 하위 메뉴 드롭다운에서도 완벽하게 VVIP 활성화를 잡아냄!
               const isActive = subItem.name === '🏆 이주의 VVIP' ? !!pathname?.includes('/hall-of-fame') :
-                               subItem.name === '🏛️ 명작 쇼케이스' ? bestType === 'showcase' :
-                               subItem.name === '💯 백베스트' ? bestType === '100' :
-                               subItem.name === '👑 천베스트' ? bestType === '1000' :
-                               currentCategory === subItem.name;
-              
+                subItem.name === '🏛️ 명작 쇼케이스' ? bestType === 'showcase' :
+                  subItem.name === '💯 백베스트' ? bestType === '100' :
+                    subItem.name === '👑 천베스트' ? bestType === '1000' :
+                      currentCategory === subItem.name;
+
               const link = subItem.link || `/board?category=${subItem.name}`;
 
               if (subItem.isSpecial) {
