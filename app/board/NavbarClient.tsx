@@ -188,16 +188,16 @@ export default function NavbarClient(props: NavbarClientProps) {
         <div className="w-full max-w-[1200px] mx-auto flex justify-between items-center">
           <Link href="/" className="shrink-0 flex items-center pt-1 select-none">
             <div className="flex items-center text-[#384893] tracking-tighter">
-              {/* 🟢 외부 폰트 로드 삭제 -> 기기 기본 폰트 중 가장 묵직하고 깔끔한 font-black 적용 (덜컹거림 0%) */}
-              <span className="text-[28px] font-black">유머</span>
+              {/* 🌟 파이어폭스 뼈다귀 폰트 완벽 교정 및 크롬/사파리 철통 유지 코어 코드 */}
+              <span className="text-[28px] font-black font-sans" style={{ fontFamily: "'Apple SD Gothic Neo', 'Malgun Gothic', '맑은 고딕', sans-serif" }}>유머</span>
 
-              {/* 🟢 모바일/PC 모두에서 100% 돌아가도록 표준 렌더링 클래스 주입 */}
+              {/* 스마트폰 및 PC에서 6초마다 엣지있게 회전하는 무결점 코인 박스 */}
               <div className="inline-flex items-center justify-center w-[36px] h-[36px] mb-1 bg-gradient-to-br from-[#ffdc18] to-[#f59e0b] rounded-[11px] text-white font-sans font-black text-[22px] pb-[2px] ml-1.5 shadow-[0_2px_4px_rgba(245,158,11,0.2)] animate-[flip-coin_6s_infinite_ease-in-out] [transform-style:preserve-3d] [backface-visibility:hidden] [transform-origin:center]">
                 in
               </div>
             </div>
 
-            {/* 🟢 모바일 크롬/사파리 완벽 연동을 위한 크로스 브라우징 웹키트 가속 엔진 탑재 */}
+            {/* 크로스 브라우징 하드웨어 가속 애니메이션 엔진 */}
             <style jsx global>{`
     @keyframes flip-coin {
       0%, 85% { 
