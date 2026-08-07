@@ -157,7 +157,7 @@ export default async function PostDetailPage(props: any) {
   const post = postRows[0];
 
   if (!post) {
-    return <div className="p-20 text-center text-2xl font-bold">글을 찾을 수 없습니다</div>;
+    return <div className="p-20 text-center text-2xl font-bold">글을 찾을 수 구</div>;
   }
 
   const postData = extractData(post.title);
@@ -377,40 +377,40 @@ export default async function PostDetailPage(props: any) {
       const searchPattern = `%${keyword}%`;
       let countRes, rowsRes;
       if (searchType === 'title') {
-        countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE (${isAll}::boolean = true OR category = ${listCategory}) AND title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR category != '익명 다락방') AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
-        rowsRes = await sql`SELECT * FROM posts WHERE (${isAll}::boolean = true OR category = ${listCategory}) AND title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR category != '익명 다락방') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+        countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p INNER JOIN boards b ON p.category = b.name WHERE (${isAll}::boolean = true OR p.category = ${listCategory}) AND p.title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR p.category != '익명 다락방') AND COALESCE(p.status, 'published') = 'published' AND (${isAll}::boolean = false OR b.is_all_visible = true) LIMIT 1000) AS sub`;
+        rowsRes = await sql`SELECT p.* FROM posts p INNER JOIN boards b ON p.category = b.name WHERE (${isAll}::boolean = true OR p.category = ${listCategory}) AND p.title ILIKE ${searchPattern} AND (${isAll}::boolean = false OR p.category != '익명 다락방') AND COALESCE(p.status, 'published') = 'published' AND (${isAll}::boolean = false OR b.is_all_visible = true) ORDER BY p.date DESC LIMIT ${limit} OFFSET ${offset}`;
       } else if (searchType === 'content') {
-        countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE (${isAll}::boolean = true OR category = ${listCategory}) AND content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR category != '익명 다락방') AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
-        rowsRes = await sql`SELECT * FROM posts WHERE (${isAll}::boolean = true OR category = ${listCategory}) AND content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR category != '익명 다락방') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+        countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p INNER JOIN boards b ON p.category = b.name WHERE (${isAll}::boolean = true OR p.category = ${listCategory}) AND p.content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR p.category != '익명 다락방') AND COALESCE(p.status, 'published') = 'published' AND (${isAll}::boolean = false OR b.is_all_visible = true) LIMIT 1000) AS sub`;
+        rowsRes = await sql`SELECT p.* FROM posts p INNER JOIN boards b ON p.category = b.name WHERE (${isAll}::boolean = true OR p.category = ${listCategory}) AND p.content ILIKE ${searchPattern} AND (${isAll}::boolean = false OR p.category != '익명 다락방') AND COALESCE(p.status, 'published') = 'published' AND (${isAll}::boolean = false OR b.is_all_visible = true) ORDER BY p.date DESC LIMIT ${limit} OFFSET ${offset}`;
       } else {
-        countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE (${isAll}::boolean = true OR category = ${listCategory}) AND author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR category != '익명 다락방') AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
-        rowsRes = await sql`SELECT * FROM posts WHERE (${isAll}::boolean = true OR category = ${listCategory}) AND author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR category != '익명 다락방') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+        countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p INNER JOIN boards b ON p.category = b.name WHERE (${isAll}::boolean = true OR p.category = ${listCategory}) AND p.author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR p.category != '익명 다락방') AND COALESCE(p.status, 'published') = 'published' AND (${isAll}::boolean = false OR b.is_all_visible = true) LIMIT 1000) AS sub`;
+        rowsRes = await sql`SELECT p.* FROM posts p INNER JOIN boards b ON p.category = b.name WHERE (${isAll}::boolean = true OR p.category = ${listCategory}) AND p.author ILIKE ${searchPattern} AND (${isAll}::boolean = false OR p.category != '익명 다락방') AND COALESCE(p.status, 'published') = 'published' AND (${isAll}::boolean = false OR b.is_all_visible = true) ORDER BY p.date DESC LIMIT ${limit} OFFSET ${offset}`;
       }
       totalListCount = Number(countRes.rows[0].count);
       listPosts = rowsRes.rows;
     }
     else if (bestType === 'today') {
-      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p INNER JOIN boards b ON p.category = b.name WHERE p.likes >= 10 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND (${isAll}::boolean = false OR b.is_all_visible = true) LIMIT 1000) AS sub`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 10 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY best_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT p.* FROM posts p INNER JOIN boards b ON p.category = b.name WHERE p.likes >= 10 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND (${isAll}::boolean = false OR b.is_all_visible = true) ORDER BY p.best_at DESC NULLS LAST, p.date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else if (bestType === '100') {
-      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p INNER JOIN boards b ON p.category = b.name WHERE p.likes >= 100 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND (${isAll}::boolean = false OR b.is_all_visible = true) LIMIT 1000) AS sub`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 100 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY best100_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT p.* FROM posts p INNER JOIN boards b ON p.category = b.name WHERE p.likes >= 100 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND (${isAll}::boolean = false OR b.is_all_visible = true) ORDER BY p.best100_at DESC NULLS LAST, p.date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else if (bestType === '1000') {
-      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p INNER JOIN boards b ON p.category = b.name WHERE p.likes >= 1000 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND (${isAll}::boolean = false OR b.is_all_visible = true) LIMIT 1000) AS sub`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT * FROM posts WHERE likes >= 1000 AND COALESCE(dislikes, 0) < ${bestCutoff} AND COALESCE(status, 'published') = 'published' ORDER BY best1000_at DESC NULLS LAST, date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT p.* FROM posts p INNER JOIN boards b ON p.category = b.name WHERE p.likes >= 1000 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND (${isAll}::boolean = false OR b.is_all_visible = true) ORDER BY p.best1000_at DESC NULLS LAST, p.date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
     else {
-      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE (${isAll}::boolean = true OR category = ${listCategory}) AND (${isAll}::boolean = false OR category != '익명 다락방') AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+      const countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p INNER JOIN boards b ON p.category = b.name WHERE (${isAll}::boolean = true OR p.category = ${listCategory}) AND (${isAll}::boolean = false OR p.category != '익명 다락방') AND COALESCE(p.status, 'published') = 'published' AND (${isAll}::boolean = false OR b.is_all_visible = true) LIMIT 1000) AS sub`;
       totalListCount = Number(countRes.rows[0].count);
-      const { rows } = await sql`SELECT * FROM posts WHERE (${isAll}::boolean = true OR category = ${listCategory}) AND (${isAll}::boolean = false OR category != '익명 다락방') AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      const { rows } = await sql`SELECT p.* FROM posts p INNER JOIN boards b ON p.category = b.name WHERE (${isAll}::boolean = true OR p.category = ${listCategory}) AND (${isAll}::boolean = false OR p.category != '익명 다락방') AND COALESCE(p.status, 'published') = 'published' AND (${isAll}::boolean = false OR b.is_all_visible = true) ORDER BY p.date DESC LIMIT ${limit} OFFSET ${offset}`;
       listPosts = rows;
     }
   } catch (e) {
