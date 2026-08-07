@@ -243,26 +243,26 @@ export default async function BoardPage(props: any) {
     let countRes, rowsRes;
     if (searchType === 'title') {
        if (isAll) {
-           countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.title ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' LIMIT 1000) AS sub`;
+           countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.title ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' LIMIT 10000) AS sub`;
            rowsRes = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE p.title ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' ORDER BY p.date DESC LIMIT ${limit} OFFSET ${offset}`;
        } else {
-           countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+           countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' LIMIT 10000) AS sub`;
            rowsRes = await sql`SELECT * FROM posts WHERE category = ${category} AND title ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
        }
     } else if (searchType === 'content') {
         if (isAll) {
-            countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.content ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' LIMIT 1000) AS sub`;
+            countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.content ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' LIMIT 10000) AS sub`;
             rowsRes = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE p.content ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' ORDER BY p.date DESC LIMIT ${limit} OFFSET ${offset}`;
         } else {
-            countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+            countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' LIMIT 10000) AS sub`;
             rowsRes = await sql`SELECT * FROM posts WHERE category = ${category} AND content ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
         }
     } else {
         if (isAll) {
-             countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.author ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' LIMIT 1000) AS sub`;
+             countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.author ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' LIMIT 10000) AS sub`;
              rowsRes = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE p.author ILIKE ${searchPattern} AND p.date >= ${cutoffIso}::timestamp AND b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' ORDER BY p.date DESC LIMIT ${limit} OFFSET ${offset}`;
         } else {
-             countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+             countRes = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' LIMIT 10000) AS sub`;
              rowsRes = await sql`SELECT * FROM posts WHERE category = ${category} AND author ILIKE ${searchPattern} AND date >= ${cutoffIso}::timestamp AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
         }
     }
@@ -270,37 +270,37 @@ export default async function BoardPage(props: any) {
     posts = rowsRes.rows;
   }
   else if (bestType === 'today') {
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 10 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true LIMIT 1000) AS sub`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 10 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true LIMIT 10000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 10 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true ORDER BY p.best_at DESC NULLS LAST, p.date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === '100') {
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 100 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true LIMIT 1000) AS sub`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 100 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true LIMIT 10000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 100 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true ORDER BY p.best100_at DESC NULLS LAST, p.date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === 'showcase') {
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 30 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true LIMIT 1000) AS sub`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 30 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true LIMIT 10000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 30 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true ORDER BY p.date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else if (bestType === '1000') {
-    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 1000 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true LIMIT 1000) AS sub`;
+    const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 1000 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true LIMIT 10000) AS sub`;
     totalCount = Number(countResult.rows[0].count);
     const { rows } = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE p.likes >= 1000 AND COALESCE(p.dislikes, 0) < ${bestCutoff} AND COALESCE(p.status, 'published') = 'published' AND b.allow_best = true ORDER BY p.best1000_at DESC NULLS LAST, p.date DESC LIMIT ${limit} OFFSET ${offset}`;
     posts = rows;
   }
   else {
     if (isAll) {
-         const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' LIMIT 1000) AS sub`;
+         const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts p JOIN boards b ON p.category = b.name WHERE b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' LIMIT 10000) AS sub`;
          totalCount = Number(countResult.rows[0].count);
          const { rows } = await sql`SELECT p.* FROM posts p JOIN boards b ON p.category = b.name WHERE b.is_all_visible = true AND COALESCE(p.status, 'published') = 'published' ORDER BY p.date DESC LIMIT ${limit} OFFSET ${offset}`;
          posts = rows;
     } else {
-         const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND COALESCE(status, 'published') = 'published' LIMIT 1000) AS sub`;
+         const countResult = await sql`SELECT COUNT(*) FROM (SELECT 1 FROM posts WHERE category = ${category} AND COALESCE(status, 'published') = 'published' LIMIT 10000) AS sub`;
          totalCount = Number(countResult.rows[0].count);
          const { rows } = await sql`SELECT * FROM posts WHERE category = ${category} AND COALESCE(status, 'published') = 'published' ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
          posts = rows;
