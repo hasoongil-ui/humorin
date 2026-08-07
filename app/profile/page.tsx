@@ -1,3 +1,4 @@
+// 파일 위치: app/profile/page.tsx
 // @ts-nocheck
 import { sql } from '@vercel/postgres';
 import { redirect } from 'next/navigation';
@@ -64,6 +65,7 @@ export default async function ProfilePage(props: any) {
   let profileImage = null;
   let currentEmail = ''; 
   let myPosts: any[] = [];
+  let myComments: any[] = [];
   let myScraps: any[] = [];
   let totalItems = 0;
   let vvipWinCount = 0; // 💡 신규 추가: VVIP 당첨 횟수
@@ -88,6 +90,20 @@ export default async function ProfilePage(props: any) {
 
       const postsResult = await sql`SELECT * FROM posts WHERE author_id = ${currentUserId} ORDER BY id DESC LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
       myPosts = postsResult.rows;
+
+    } else if (currentTab === 'comments') {
+      const countRes = await sql`SELECT COUNT(*) FROM comments WHERE author_id = ${currentUserId}`;
+      totalItems = parseInt(countRes.rows[0].count, 10);
+
+      const commentsResult = await sql`
+        SELECT c.id, c.content, c.created_at, c.post_id, p.title as post_title 
+        FROM comments c 
+        LEFT JOIN posts p ON c.post_id = p.id 
+        WHERE c.author_id = ${currentUserId} 
+        ORDER BY c.created_at DESC 
+        LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
+      `;
+      myComments = commentsResult.rows;
 
     } else if (currentTab === 'scraps') {
       const countRes = await sql`SELECT COUNT(*) FROM scraps WHERE author_id = ${currentUserId}`;
@@ -255,9 +271,10 @@ export default async function ProfilePage(props: any) {
         </div>
 
         <div className="flex border-b border-gray-200 bg-white">
-          <Link href="/profile?tab=posts" className={`flex-1 py-4 text-center font-bold text-sm transition-colors ${currentTab === 'posts' ? 'text-[#3b4890] border-b-2 border-[#3b4890] bg-indigo-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>내가 쓴 글</Link>
-          <Link href="/profile?tab=scraps" className={`flex-1 py-4 text-center font-bold text-sm transition-colors ${currentTab === 'scraps' ? 'text-[#3b4890] border-b-2 border-[#3b4890] bg-indigo-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>스크랩 북</Link>
-          <Link href="/profile?tab=settings" className={`flex-1 py-4 text-center font-bold text-sm transition-colors ${currentTab === 'settings' ? 'text-[#3b4890] border-b-2 border-[#3b4890] bg-indigo-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>정보 수정</Link>
+          <Link href="/profile?tab=posts" className={`flex-1 py-3 md:py-4 text-center font-bold text-[13px] md:text-sm transition-colors ${currentTab === 'posts' ? 'text-[#3b4890] border-b-2 border-[#3b4890] bg-indigo-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>내가 쓴 글</Link>
+          <Link href="/profile?tab=comments" className={`flex-1 py-3 md:py-4 text-center font-bold text-[13px] md:text-sm transition-colors ${currentTab === 'comments' ? 'text-[#3b4890] border-b-2 border-[#3b4890] bg-indigo-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>내가 쓴 댓글</Link>
+          <Link href="/profile?tab=scraps" className={`flex-1 py-3 md:py-4 text-center font-bold text-[13px] md:text-sm transition-colors ${currentTab === 'scraps' ? 'text-[#3b4890] border-b-2 border-[#3b4890] bg-indigo-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>스크랩 북</Link>
+          <Link href="/profile?tab=settings" className={`flex-1 py-3 md:py-4 text-center font-bold text-[13px] md:text-sm transition-colors ${currentTab === 'settings' ? 'text-[#3b4890] border-b-2 border-[#3b4890] bg-indigo-50/30' : 'text-gray-500 hover:bg-gray-50'}`}>정보 수정</Link>
         </div>
 
         <div className="p-6 md:p-8">
@@ -274,6 +291,32 @@ export default async function ProfilePage(props: any) {
                         <Link href={`/board/${post.id}`} className="flex-1 min-w-0">
                           <div className="text-[15px] font-bold text-gray-800 truncate mb-1">{post.title}</div>
                           <div className="text-xs text-gray-400 font-medium">{formatDate(post.date)} · 조회 {post.views || 0} · 공감 {post.likes || 0}</div>
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                  {renderPagination()}
+                </>
+              )}
+            </div>
+          )}
+
+          {currentTab === 'comments' && (
+            <div>
+              {myComments.length === 0 ? (
+                <div className="text-center py-16 text-gray-400 font-bold text-sm">아직 작성하신 댓글이 없습니다.</div>
+              ) : (
+                <>
+                  <div className="divide-y divide-gray-100">
+                    {myComments.map((comment: any) => (
+                      <div key={comment.id} className="py-4 hover:bg-gray-50 transition-colors px-2 rounded-sm flex justify-between items-center gap-4">
+                        <Link href={`/board/${comment.post_id}`} className="flex-1 min-w-0">
+                          <div className="text-[14px] font-bold text-gray-800 truncate mb-1">
+                            {comment.content === '작성자가 삭제한 댓글입니다.' ? comment.content : (comment.content || '📷 사진/동영상을 첨부했습니다.')}
+                          </div>
+                          <div className="text-[12px] text-gray-400 font-medium truncate">
+                            원본글: {comment.post_title || '삭제된 게시글'} · {formatDate(comment.created_at)}
+                          </div>
                         </Link>
                       </div>
                     ))}
