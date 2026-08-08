@@ -1266,6 +1266,14 @@ export default async function PostDetailPage(props: any) {
                 margin: 15px auto !important; 
                 border-radius: 8px !important;
               }
+
+              /* [v46.6 추가] 쇼츠 등 세로형 MP4 동영상 거대 여백(블랙박스) 제거 및 자동 핏 조절 */
+              .post-content-area .ql-editor video.humorin-mp4 {
+                max-height: 75vh !important; 
+                width: auto !important;      
+                aspect-ratio: auto !important; 
+                background-color: transparent !important; 
+              }
               
               .post-content-area .ql-editor p:has(img.humorin-sliced-img) {
                 margin: 0 !important;
