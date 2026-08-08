@@ -79,15 +79,11 @@ export async function generateMetadata(props: any): Promise<Metadata> {
     const { cleanTitle } = extractData(post.title);
     const postContent = post.content || '';
 
-    const plainText = postContent.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
-    
-    let description = plainText.length > 0
+    // [v46.5 투트랙 패치] 1. 구글 검색 엔진을 위한 순수 텍스트 80자 추출
+    const plainText = postContent.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    const seoDescription = plainText.length > 0
       ? (plainText.length > 80 ? plainText.substring(0, 80) + '...' : plainText)
-      : `${cleanTitle} - 유머인 게시글`;
-
-    if (description === cleanTitle) {
-      description = `${cleanTitle} - 유머인 커뮤니티에서 제공하는 재미있는 유머 및 이슈 게시글입니다. 더 많은 이미지와 꿀잼 콘텐츠를 확인해보세요.`;
-    }
+      : '유머인 커뮤니티 게시글입니다.';
 
     let ogImageUrl = null;
     let twitterImageUrl = null;
@@ -121,13 +117,13 @@ export async function generateMetadata(props: any): Promise<Metadata> {
 
     return {
       title: `${cleanTitle} - 유머인`,
-      description: description,
+      description: seoDescription, // 구글 SEO용 본문 텍스트 (중복 문서 페널티 방어)
       alternates: {
         canonical: postUrl,
       },
       openGraph: {
-        title: cleanTitle,
-        description: description,
+        title: cleanTitle, // 카톡/카페 공유용: "유머인" 꼬리표 없는 순수 제목
+        description: '',   // 카톡/카페 공유용: 스팸 홍보 문구 영구 삭제 (완벽한 빈칸)
         url: postUrl,
         siteName: '유머인',
         images: ogImageUrl ? [{ url: ogImageUrl }] : [],
@@ -139,7 +135,7 @@ export async function generateMetadata(props: any): Promise<Metadata> {
       twitter: {
         card: 'summary_large_image',
         title: cleanTitle,
-        description: description,
+        description: '',   // 트위터 공유용도 동일하게 빈칸 처리
         images: twitterImageUrl ? [twitterImageUrl] : [],
       }
     };
