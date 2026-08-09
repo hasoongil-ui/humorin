@@ -1,3 +1,5 @@
+// 파일 위치: app/board/NavbarClient.tsx
+// @ts-nocheck
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
@@ -60,6 +62,11 @@ export default function NavbarClient(props: NavbarClientProps) {
   const [showRightArrow, setShowRightArrow] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  // 🌟 [신규 수술 A] 스마트 반응형 헤더 & 읽기 진행바 상태 관리
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const [scrollProgress, setScrollProgress] = useState(0);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -102,6 +109,46 @@ export default function NavbarClient(props: NavbarClientProps) {
       setHoveredMenuId(null);
     }, 150);
   };
+
+  // 🌟 [신규 수술 B] 전체 화면 스크롤 이벤트 감지기 (스마트 헤더 & 진행바 로직)
+  useEffect(() => {
+    const handleGlobalScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // 1. 읽기 진행바 계산
+      const winHeight = window.innerHeight;
+      const docHeight = document.documentElement.scrollHeight;
+      // 전체 스크롤 가능한 높이
+      const totalScroll = docHeight - winHeight;
+      // 현재 스크롤 비율 (0 ~ 100)
+      const scrolled = totalScroll > 0 ? (currentScrollY / totalScroll) * 100 : 0;
+      setScrollProgress(scrolled);
+
+      // 2. 스마트 반응형 헤더 표시/숨김 로직
+      // 스크롤이 맨 위쪽에 있을 때는 항상 보임 (예: 50px 이내)
+      if (currentScrollY < 50) {
+        setIsVisible(true);
+      } 
+      // 아래로 스크롤할 때 (숨김)
+      else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setIsVisible(false);
+      } 
+      // 위로 스크롤할 때 (표시)
+      else if (currentScrollY < lastScrollY) {
+        setIsVisible(true);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    // Passive 속성으로 렌더링 성능 저하 방지
+    window.addEventListener('scroll', handleGlobalScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', handleGlobalScroll);
+    };
+  }, [lastScrollY]);
+
 
   useEffect(() => {
     setTimeout(checkScrollState, 100);
@@ -184,153 +231,167 @@ export default function NavbarClient(props: NavbarClientProps) {
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
 
-      <header className="bg-white px-4 border-b border-gray-200 shadow-sm relative z-30 h-[68px] flex items-center">
-        <div className="w-full max-w-[1200px] mx-auto flex justify-between items-center">
-          <Link href="/" className="shrink-0 flex items-center pt-1 select-none">
-            <div className="flex items-center text-[#384893] tracking-tighter">
-              {/* 🟢 외부 폰트 로드 삭제 -> 기기 기본 폰트 중 가장 묵직하고 깔끔한 font-black 적용 (덜컹거림 0%) */}
-              <span className="text-[28px] font-black">유머</span>
+      {/* 🌟 [신규 수술 C] 헤더 전체를 감싸는 고정 래퍼. isVisible에 따라 translateY 조작 */}
+      <div 
+        className={`sticky top-0 z-[100] w-full transition-transform duration-300 ease-in-out ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}
+      >
+        <header className="bg-white px-4 border-b border-gray-200 shadow-sm relative h-[68px] flex items-center">
+          <div className="w-full max-w-[1200px] mx-auto flex justify-between items-center">
+            <Link href="/" className="shrink-0 flex items-center pt-1 select-none">
+              <div className="flex items-center text-[#384893] tracking-tighter">
+                {/* 🟢 외부 폰트 로드 삭제 -> 기기 기본 폰트 중 가장 묵직하고 깔끔한 font-black 적용 (덜컹거림 0%) */}
+                <span className="text-[28px] font-black">유머</span>
 
-              {/* 🟢 모바일/PC 모두에서 100% 돌아가도록 표준 렌더링 클래스 주입 */}
-              <div className="inline-flex items-center justify-center w-[36px] h-[36px] mb-1 bg-gradient-to-br from-[#ffdc18] to-[#f59e0b] rounded-[11px] text-white font-sans font-black text-[22px] pb-[2px] ml-1.5 shadow-[0_2px_4px_rgba(245,158,11,0.2)] animate-[flip-coin_6s_infinite_ease-in-out] [transform-style:preserve-3d] [backface-visibility:hidden] [transform-origin:center]">
-                in
+                {/* 🟢 모바일/PC 모두에서 100% 돌아가도록 표준 렌더링 클래스 주입 */}
+                <div className="inline-flex items-center justify-center w-[36px] h-[36px] mb-1 bg-gradient-to-br from-[#ffdc18] to-[#f59e0b] rounded-[11px] text-white font-sans font-black text-[22px] pb-[2px] ml-1.5 shadow-[0_2px_4px_rgba(245,158,11,0.2)] animate-[flip-coin_6s_infinite_ease-in-out] [transform-style:preserve-3d] [backface-visibility:hidden] [transform-origin:center]">
+                  in
+                </div>
               </div>
-            </div>
 
-            {/* 🟢 모바일 크롬/사파리 완벽 연동을 위한 크로스 브라우징 웹키트 가속 엔진 탑재 */}
-            <style jsx global>{`
-    @keyframes flip-coin {
-      0%, 85% { 
-        transform: perspective(400px) rotateY(0deg);
-        -webkit-transform: perspective(400px) rotateY(0deg);
+              {/* 🟢 모바일 크롬/사파리 완벽 연동을 위한 크로스 브라우징 웹키트 가속 엔진 탑재 */}
+              <style jsx global>{`
+      @keyframes flip-coin {
+        0%, 85% { 
+          transform: perspective(400px) rotateY(0deg);
+          -webkit-transform: perspective(400px) rotateY(0deg);
+        }
+        100% { 
+          transform: perspective(400px) rotateY(360deg);
+          -webkit-transform: perspective(400px) rotateY(360deg);
+        }
       }
-      100% { 
-        transform: perspective(400px) rotateY(360deg);
-        -webkit-transform: perspective(400px) rotateY(360deg);
-      }
-    }
-  `}</style>
-          </Link>
-          <div className="flex items-center gap-2 md:gap-4 h-[32px]">
-            {user ? (
-              <>
-                <div className="text-[13px] md:text-[14px] font-medium text-gray-700 hidden sm:flex items-center gap-1.5">
-                  <span className={`font-black ${tierInfo.color}`}>{tierInfo.icon} [{tierInfo.name}]</span>
-                  <Link href={`/user/${user.nickname}`} className="font-bold text-[#3b4890] hover:underline cursor-pointer tracking-tight">{user.nickname}</Link>
-                  <span className="text-rose-500 font-bold text-[13px]">({user.points.toLocaleString()} P)</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {/* 💡 [핵심 추가] 오직 관리자에게만 보이는 관제탑 바로가기 (새창 열기) */}
-                  {isAdmin && (
-                    <Link
-                      href="/admin/queue"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 bg-rose-600 text-white text-[11px] md:text-xs font-bold rounded-sm hover:bg-rose-700 transition-colors shadow-sm shrink-0 flex items-center gap-1"
-                      title="새 창으로 예약 관제탑 열기"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                      예약관제탑
-                    </Link>
-                  )}
-                  <Link href="/profile" className="px-3 py-1.5 bg-[#ebedf5] text-[#3b4890] text-[11px] md:text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors shadow-sm shrink-0">내정보</Link>
-                  <form action={handleLogoutAction}>
-                    <button type="submit" className="px-3 py-1.5 bg-gray-100 text-gray-600 text-[11px] md:text-xs font-bold rounded-sm hover:bg-gray-200 transition-colors shadow-sm shrink-0">로그아웃</button>
-                  </form>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center gap-1.5"><Link href="/login" className="px-4 py-1.5 bg-[#ebedf5] text-[#3b4890] text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors shrink-0">로그인</Link><Link href="/signup" className="px-4 py-1.5 bg-[#2a3042] text-white text-xs font-bold rounded-sm hover:bg-gray-900 transition-colors shrink-0">회원가입</Link></div>
-            )}
+    `}</style>
+            </Link>
+            <div className="flex items-center gap-2 md:gap-4 h-[32px]">
+              {user ? (
+                <>
+                  <div className="text-[13px] md:text-[14px] font-medium text-gray-700 hidden sm:flex items-center gap-1.5">
+                    <span className={`font-black ${tierInfo.color}`}>{tierInfo.icon} [{tierInfo.name}]</span>
+                    <Link href={`/user/${user.nickname}`} className="font-bold text-[#3b4890] hover:underline cursor-pointer tracking-tight">{user.nickname}</Link>
+                    <span className="text-rose-500 font-bold text-[13px]">({user.points.toLocaleString()} P)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {/* 💡 [핵심 추가] 오직 관리자에게만 보이는 관제탑 바로가기 (새창 열기) */}
+                    {isAdmin && (
+                      <Link
+                        href="/admin/queue"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-rose-600 text-white text-[11px] md:text-xs font-bold rounded-sm hover:bg-rose-700 transition-colors shadow-sm shrink-0 flex items-center gap-1"
+                        title="새 창으로 예약 관제탑 열기"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                        예약관제탑
+                      </Link>
+                    )}
+                    <Link href="/profile" className="px-3 py-1.5 bg-[#ebedf5] text-[#3b4890] text-[11px] md:text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors shadow-sm shrink-0">내정보</Link>
+                    <form action={handleLogoutAction}>
+                      <button type="submit" className="px-3 py-1.5 bg-gray-100 text-gray-600 text-[11px] md:text-xs font-bold rounded-sm hover:bg-gray-200 transition-colors shadow-sm shrink-0">로그아웃</button>
+                    </form>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-1.5"><Link href="/login" className="px-4 py-1.5 bg-[#ebedf5] text-[#3b4890] text-xs font-bold rounded-sm hover:bg-[#dce0f0] transition-colors shrink-0">로그인</Link><Link href="/signup" className="px-4 py-1.5 bg-[#2a3042] text-white text-xs font-bold rounded-sm hover:bg-gray-900 transition-colors shrink-0">회원가입</Link></div>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <nav className="bg-[#414a66] text-gray-200 shadow-md relative z-20 min-h-[48px] md:min-h-[52px]">
-        <div className="max-w-[1200px] mx-auto relative group flex">
-          {showLeftArrow && (
-            <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-[#414a66] via-[#414a66]/80 to-transparent z-40 flex items-center pointer-events-none">
-              <button onClick={() => scrollByArrow('left')} className="w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center ml-2 pointer-events-auto transition-all shadow-lg active:scale-95"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg></button>
-            </div>
-          )}
-          {showRightArrow && (
-            <div className="absolute right-[80px] top-0 bottom-0 w-20 bg-gradient-to-l from-[#414a66] via-[#414a66]/80 to-transparent z-40 flex items-center justify-end pointer-events-none">
-              <button onClick={() => scrollByArrow('right')} className="w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center mr-1 pointer-events-auto transition-all shadow-lg active:scale-95"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5 15.75 12l-7.5 7.5" /></svg></button>
-            </div>
-          )}
+        <nav className="bg-[#414a66] text-gray-200 shadow-md relative min-h-[48px] md:min-h-[52px]">
+          <div className="max-w-[1200px] mx-auto relative group flex">
+            {showLeftArrow && (
+              <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-[#414a66] via-[#414a66]/80 to-transparent z-40 flex items-center pointer-events-none">
+                <button onClick={() => scrollByArrow('left')} className="w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center ml-2 pointer-events-auto transition-all shadow-lg active:scale-95"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg></button>
+              </div>
+            )}
+            {showRightArrow && (
+              <div className="absolute right-[80px] top-0 bottom-0 w-20 bg-gradient-to-l from-[#414a66] via-[#414a66]/80 to-transparent z-40 flex items-center justify-end pointer-events-none">
+                <button onClick={() => scrollByArrow('right')} className="w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center mr-1 pointer-events-auto transition-all shadow-lg active:scale-95"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5 15.75 12l-7.5 7.5" /></svg></button>
+              </div>
+            )}
 
-          <div ref={scrollContainerRef} onScroll={checkScrollState} className="flex items-center overflow-x-auto whitespace-nowrap hide-scrollbar relative py-0.5 w-full">
-            <div className="w-2 shrink-0 md:hidden"></div>
+            <div ref={scrollContainerRef} onScroll={checkScrollState} className="flex items-center overflow-x-auto whitespace-nowrap hide-scrollbar relative py-0.5 w-full">
+              <div className="w-2 shrink-0 md:hidden"></div>
 
-            {mobileFlatList.map((item) => {
-              // 💡 [핵심 수술 3] VVIP 등 특수 메뉴도 완벽하게 활성화 불이 들어오도록 경로 인식 엔진 장착!
-              let isActive = false;
-              if (item.name === '전체글 보기') isActive = (pathname === '/board' || pathname === '/') && currentCategory === 'all' && bestType === '';
-              else if (item.name === '🔥투데이 베스트') isActive = bestType === 'today';
-              else if (item.name === '🏆 이주의 VVIP') isActive = !!pathname?.includes('/hall-of-fame');
-              else if (item.name === '🏛️ 명작 쇼케이스') isActive = bestType === 'showcase';
-              else if (item.name === '💯 백베스트') isActive = bestType === '100';
-              else if (item.name === '👑 천베스트') isActive = bestType === '1000';
-              else if (item.name === '💬 전체 포럼 보기') isActive = false;
-              else isActive = currentCategory === item.name;
-
-              // 💡 타겟팅을 위한 humorin-active-menu 클래스 삽입
-              const activeClass = isActive ? 'bg-[#2a3042] text-white humorin-active-menu' : 'hover:bg-[#5b6586] hover:text-white';
-
-              return (
-                <Link key={`mob-${item.name}`} href={item.link} className={`flex md:hidden shrink-0 px-4 py-3.5 text-[13px] font-bold transition-colors ${activeClass}`}>
-                  {item.name}
-                </Link>
-              );
-            })}
-
-            {menuGroups.map((group: any) => {
-              if (group.isSingle) {
+              {mobileFlatList.map((item) => {
+                // 💡 [핵심 수술 3] VVIP 등 특수 메뉴도 완벽하게 활성화 불이 들어오도록 경로 인식 엔진 장착!
                 let isActive = false;
-                if (group.name === '전체글 보기') isActive = (pathname === '/board' || pathname === '/') && currentCategory === 'all' && bestType === '';
-                if (group.name === '🔥투데이 베스트') isActive = bestType === 'today';
+                if (item.name === '전체글 보기') isActive = (pathname === '/board' || pathname === '/') && currentCategory === 'all' && bestType === '';
+                else if (item.name === '🔥투데이 베스트') isActive = bestType === 'today';
+                else if (item.name === '🏆 이주의 VVIP') isActive = !!pathname?.includes('/hall-of-fame');
+                else if (item.name === '🏛️ 명작 쇼케이스') isActive = bestType === 'showcase';
+                else if (item.name === '💯 백베스트') isActive = bestType === '100';
+                else if (item.name === '👑 천베스트') isActive = bestType === '1000';
+                else if (item.name === '💬 전체 포럼 보기') isActive = false;
+                else isActive = currentCategory === item.name;
 
+                // 💡 타겟팅을 위한 humorin-active-menu 클래스 삽입
                 const activeClass = isActive ? 'bg-[#2a3042] text-white humorin-active-menu' : 'hover:bg-[#5b6586] hover:text-white';
 
                 return (
-                  <Link key={`pc-${group.name}`} href={group.link!} className={`hidden md:inline-block shrink-0 px-5 py-4 text-[13px] sm:text-sm font-bold transition-colors ${activeClass}`}>
-                    {group.name}
+                  <Link key={`mob-${item.name}`} href={item.link} className={`flex md:hidden shrink-0 px-4 py-3.5 text-[13px] font-bold transition-colors ${activeClass}`}>
+                    {item.name}
                   </Link>
                 );
-              }
+              })}
 
-              // 💡 [핵심 수술 4] PC 버전에서도 하위 메뉴가 활성화되면 부모 그룹 버튼에 불이 켜지고 타겟팅 되도록 연동
-              const isGroupActive = group.sub?.some((subItem: any) => {
-                if (subItem.name === '🏆 이주의 VVIP') return !!pathname?.includes('/hall-of-fame');
-                if (subItem.name === '🏛️ 명작 쇼케이스') return bestType === 'showcase';
-                if (subItem.name === '💯 백베스트') return bestType === '100';
-                if (subItem.name === '👑 천베스트') return bestType === '1000';
-                return currentCategory === subItem.name;
-              });
+              {menuGroups.map((group: any) => {
+                if (group.isSingle) {
+                  let isActive = false;
+                  if (group.name === '전체글 보기') isActive = (pathname === '/board' || pathname === '/') && currentCategory === 'all' && bestType === '';
+                  if (group.name === '🔥투데이 베스트') isActive = bestType === 'today';
 
-              const activeClass = isGroupActive ? 'bg-[#2a3042] text-white humorin-active-menu' : 'hover:bg-[#5b6586] hover:text-white';
+                  const activeClass = isActive ? 'bg-[#2a3042] text-white humorin-active-menu' : 'hover:bg-[#5b6586] hover:text-white';
 
-              return (
-                <div key={`pc-${group.name}`} className="hidden md:inline-block group shrink-0" onMouseEnter={(e) => handleMouseEnter(e, group.name)} onMouseLeave={handleMouseLeave}>
-                  <button className={`px-5 py-4 text-[13px] sm:text-sm font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap ${activeClass}`}>
-                    {group.name}
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-2.5 h-2.5 opacity-60 group-hover:rotate-180 transition-transform"><path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
-                  </button>
-                </div>
-              );
-            })}
+                  return (
+                    <Link key={`pc-${group.name}`} href={group.link!} className={`hidden md:inline-block shrink-0 px-5 py-4 text-[13px] sm:text-sm font-bold transition-colors ${activeClass}`}>
+                      {group.name}
+                    </Link>
+                  );
+                }
 
-            <div className="w-24 shrink-0 md:hidden"></div>
-            <div className="w-28 shrink-0 hidden md:block"></div>
+                // 💡 [핵심 수술 4] PC 버전에서도 하위 메뉴가 활성화되면 부모 그룹 버튼에 불이 켜지고 타겟팅 되도록 연동
+                const isGroupActive = group.sub?.some((subItem: any) => {
+                  if (subItem.name === '🏆 이주의 VVIP') return !!pathname?.includes('/hall-of-fame');
+                  if (subItem.name === '🏛️ 명작 쇼케이스') return bestType === 'showcase';
+                  if (subItem.name === '💯 백베스트') return bestType === '100';
+                  if (subItem.name === '👑 천베스트') return bestType === '1000';
+                  return currentCategory === subItem.name;
+                });
+
+                const activeClass = isGroupActive ? 'bg-[#2a3042] text-white humorin-active-menu' : 'hover:bg-[#5b6586] hover:text-white';
+
+                return (
+                  <div key={`pc-${group.name}`} className="hidden md:inline-block group shrink-0" onMouseEnter={(e) => handleMouseEnter(e, group.name)} onMouseLeave={handleMouseLeave}>
+                    <button className={`px-5 py-4 text-[13px] sm:text-sm font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap ${activeClass}`}>
+                      {group.name}
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-2.5 h-2.5 opacity-60 group-hover:rotate-180 transition-transform"><path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                    </button>
+                  </div>
+                );
+              })}
+
+              <div className="w-24 shrink-0 md:hidden"></div>
+              <div className="w-28 shrink-0 hidden md:block"></div>
+            </div>
+
+            <Link href="/boards" className="absolute right-0 top-0 bottom-0 bg-[#414a66] h-full px-4 flex items-center text-[13px] font-black text-yellow-400 hover:text-white transition-colors shadow-[-15px_0_15px_-5px_rgba(65,74,102,1)] z-50 shrink-0 border-l border-[#5b6586]">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 mr-1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+              전체
+            </Link>
           </div>
+        </nav>
 
-          <Link href="/boards" className="absolute right-0 top-0 bottom-0 bg-[#414a66] h-full px-4 flex items-center text-[13px] font-black text-yellow-400 hover:text-white transition-colors shadow-[-15px_0_15px_-5px_rgba(65,74,102,1)] z-50 shrink-0 border-l border-[#5b6586]">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 mr-1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
-            전체
-          </Link>
+        {/* 🌟 [신규 수술 D] 읽기 진행바 (Reading Progress Bar) 추가 */}
+        <div className="h-[2px] w-full bg-gray-200">
+          <div 
+            className="h-full bg-gradient-to-r from-yellow-400 to-rose-500 transition-all duration-100 ease-out" 
+            style={{ width: `${scrollProgress}%` }}
+          />
         </div>
-      </nav>
+      </div>
 
+      {/* 포탈은 sticky 래퍼 바깥에 두어 화면 스크롤과 무관하게 안정적으로 떠있게 유지 */}
       <div className="hidden md:block">
         {mounted && hoveredMenuId && menuRect && activeGroup && typeof document !== 'undefined' && createPortal(
           <div
