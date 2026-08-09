@@ -1089,6 +1089,27 @@ export default async function PostDetailPage(props: any) {
           cleanAttrs += ` alt="${safeAltTitle} - 첨부이미지 ${imgCounter}"`;
         }
 
+        // 💡 [수술 핵심 1] 이미지 비율 파싱을 통한 완벽한 공간 사전 예약 (덜컹거림 및 회색박스 100% 파괴)
+        const widthMatch = attributes.match(/width=(["']?)(\d+)\1/i) || attributes.match(/width:\s*(\d+)px/i);
+        const heightMatch = attributes.match(/height=(["']?)(\d+)\1/i) || attributes.match(/height:\s*(\d+)px/i);
+        
+        let injectionStyle = 'content-visibility: auto; background-color: transparent; ';
+        if (widthMatch && heightMatch && widthMatch[2] && heightMatch[2]) {
+            const w = widthMatch[2];
+            const h = heightMatch[2];
+            // 비율을 알 경우 완벽한 aspect-ratio 공간 예약
+            injectionStyle += `aspect-ratio: ${w} / ${h}; width: 100%; max-width: ${w}px; height: auto;`;
+        } else {
+            // 뷰어 환경에서 비율을 모르는 짤방일 경우, 투명한 가벽(최소 높이)으로 텍스트 밀림 80% 방어
+            injectionStyle += `min-height: 250px;`;
+        }
+
+        if (/style=(["'])(.*?)\1/i.test(cleanAttrs)) {
+           cleanAttrs = cleanAttrs.replace(/style=(["'])(.*?)\1/i, `style="$2; ${injectionStyle}"`);
+        } else {
+           cleanAttrs += ` style="${injectionStyle}"`;
+        }
+
         if (imgCounter === 1) {
           return `<img${cleanAttrs} fetchpriority="high" loading="eager" decoding="async">`;
         } else {
@@ -1133,7 +1154,9 @@ export default async function PostDetailPage(props: any) {
         'max-width': [/.*/],
         'width': [/.*/],
         'height': [/.*/],
-        'aspect-ratio': [/.*/]
+        'aspect-ratio': [/.*/],
+        'min-height': [/.*/],
+        'content-visibility': [/.*/]
       }
     },
     allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'youtu.be']
@@ -1252,8 +1275,9 @@ export default async function PostDetailPage(props: any) {
 
               <style dangerouslySetInnerHTML={{
                 __html: `
+              /* 🚨 [고질병 해결] 흉측한 회색 박스(background-color: #f4f5f7) 영구 삭제 */
               .post-content-area .ql-editor img {
-                background-color: #f4f5f7 !important;
+                background-color: transparent !important;
                 content-visibility: auto !important;
               }
 
