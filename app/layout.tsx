@@ -172,6 +172,28 @@ export default function RootLayout({
             </div>
           </div>
         </footer>
+
+        {/* 🚀 [신규 패치] PWA 서비스 워커 등록 엔진 */}
+        <Script
+          id="pwa-sw-register"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').then(
+                    function(registration) {
+                      console.log('🚀 PWA 서비스 워커 가동 완료: ', registration.scope);
+                    },
+                    function(err) {
+                      console.log('🚨 PWA 서비스 워커 등록 실패: ', err);
+                    }
+                  );
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );
