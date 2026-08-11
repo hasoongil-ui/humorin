@@ -170,7 +170,7 @@ export default async function HomePage() {
 
             return (
               <li key={`widget-${post.id}`} className="hover:bg-gray-50 transition-colors">
-                <Link href={`/board/${post.id}${querySuffix}`} className="flex items-start md:items-center justify-between px-4 py-2.5 gap-3 md:gap-0">
+                <Link href={`/board/${post.id}${querySuffix}`} className="group flex items-start md:items-center justify-between px-4 py-2.5 gap-3 md:gap-0">
                   
                   <div className="flex flex-col md:flex-row md:items-center flex-1 min-w-0 pr-0 md:pr-3">
                     <div className="flex items-center md:inline-flex min-w-0">
@@ -178,7 +178,7 @@ export default async function HomePage() {
                         <span className="text-[14px] text-gray-400 md:text-gray-500 truncate">블라인드 처리된 글입니다.</span>
                       ) : (
                         <>
-                          <span className="text-[15px] text-gray-900 md:text-gray-800 font-semibold md:font-medium hover:underline line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug">
+                          <span className="text-[15px] text-gray-900 md:text-gray-800 font-semibold md:font-medium group-hover:underline line-clamp-2 md:line-clamp-none md:truncate break-all md:break-normal whitespace-normal md:whitespace-nowrap leading-snug">
                             {cleanTitle}
                           </span>
                           {post.comment_count > 0 && (
