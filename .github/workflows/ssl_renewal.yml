@@ -35,7 +35,8 @@ jobs:
       - name: 3. Vercel 인증서 갱신 대기 (30분)
         run: sleep 1800
 
-      - name: 4. 방화벽 완벽 복구 (주황색 구름으로 변경)
+      - name: 4. [비상 복구 보장] 방화벽 완벽 복구 (주황색 구름으로 변경)
+        if: always() # 🚨 핵심 방어 로직: 앞 단계에서 취소/에러가 나도 무조건 실행됨
         env:
           CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -48,6 +49,7 @@ jobs:
           sleep 60
 
       - name: 5. [크로스체크] SSL 인증서 갱신 상태 딥 체크
+        if: always()
         run: |
           echo "유머인(humorin.kr) 실제 보안 인증서 유효기간 추출 중..."
           
