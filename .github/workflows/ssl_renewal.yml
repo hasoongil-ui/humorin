@@ -2,8 +2,8 @@ name: Auto Vercel SSL Renewal & Verification
 
 on:
   schedule:
-    # 홀수달 2일 새벽 3시마다 실행 (약 60일 주기)
-    - cron: '0 18 1 1,3,5,7,9,11 *'
+    # 매월 1일, 15일 새벽 3시마다 실행 (오타 완벽 교정 완료)
+    - cron: '0 18 1,15 * *'
   workflow_dispatch: # 수동 테스트 버튼
 
 jobs:
@@ -68,7 +68,7 @@ jobs:
           
           if [ "$REMAINING_DAYS" -lt 20 ]; then
             echo "🚨 [비상 사태] 인증서가 정상 갱신되지 않았습니다! 남은 기간이 20일 미만입니다."
-            echo "🚨 GitHub이 이메일 경고를 발송하도록 스크립트를 강제 종료합니다."
+            echo "🚨 GitHub이 기본 에러 알림을 발송하도록 스크립트를 강제 종료합니다."
             exit 1
           else
             echo "🎉 [안전] 인증서가 넉넉하게 남아있으며 갱신이 성공적으로 검증되었습니다!"
