@@ -34,18 +34,21 @@ export async function GET(request: Request) {
     const { rows: settings } = await sql`SELECT value FROM site_settings WHERE key = 'vip_blacklist'`;
     const rawBlacklist = (settings.length > 0 && settings[0].value) ? settings[0].value : '__dummy_nobody__';
 
-    // 🚀 16대 인덱스를 활용한 활동지수 계산 및 TOP 1 추출 (수정 완료)
+    // 🚀 16대 인덱스를 활용한 활동지수 계산 및 TOP 1 추출
+    // 🛡️ [영구 방어막 패치] 로봇이 몇 시에 작동하든 무조건 "지난주 월요일 00:00 ~ 일요일 23:59" 구간만 정확히 자르도록 date_trunc 적용
     const { rows: topVips } = await sql`
       WITH PostStats AS (
         SELECT author_id, COUNT(*) as post_count, COALESCE(SUM(likes), 0) as post_likes
         FROM posts
-        WHERE date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul') - INTERVAL '7 days'
+        WHERE date >= date_trunc('week', (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul') - INTERVAL '7 days')
+          AND date < date_trunc('week', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')
         GROUP BY author_id
       ),
       CommentStats AS (
         SELECT author_id, COUNT(*) as comment_count
         FROM comments
-        WHERE created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul') - INTERVAL '7 days'
+        WHERE created_at >= date_trunc('week', (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul') - INTERVAL '7 days')
+          AND created_at < date_trunc('week', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')
         GROUP BY author_id
       )
       SELECT 
