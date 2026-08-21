@@ -85,6 +85,11 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
   const [isSmartMode, setIsSmartMode] = useState(false);
   const [smartInterval, setSmartInterval] = useState(60); 
 
+  // ✨ AI 제목 최적화 전용 상태값
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiTitles, setAiTitles] = useState<string[]>([]);
+  const [showAiModal, setShowAiModal] = useState(false);
+
   const router = useRouter();
   const quillRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -229,6 +234,43 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
       setIsEditorReady(true);
     });
   }, [isGlobalLocked, isSuperUser, router]);
+
+  // ✨ AI 제목 최적화 엔진 호출 로직
+  const handleAiTitleOptimize = async () => {
+    if (!title.trim()) {
+      alert('변환할 원본 제목을 입력칸에 먼저 적어주세요.');
+      return;
+    }
+    setIsAiLoading(true);
+    setShowAiModal(true);
+    setAiTitles([]);
+
+    try {
+      const res = await fetch('/api/admin/ai-title', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+      });
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        setAiTitles(data.titles);
+      } else {
+        alert(data.error || 'AI 통신에 실패했습니다.');
+        setShowAiModal(false);
+      }
+    } catch (error) {
+      alert('AI 서버 오류가 발생했습니다.');
+      setShowAiModal(false);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const handleAiTitleSelect = (selectedTitle: string) => {
+    setTitle(selectedTitle);
+    setShowAiModal(false);
+  };
 
   const isAnimatedWebP = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -767,7 +809,52 @@ export default function WriteClient({ currentUser, isAdmin, isGlobalLocked, boar
                 ))
                ) : ( <option value="">게시판을 불러오는 중...</option> )}
             </select>
-            <input placeholder="제목을 입력하세요." className="flex-1 p-3 border border-gray-300 rounded-sm font-bold text-gray-900" value={title} onChange={(e) => setTitle(e.target.value)} required />
+            
+            {/* ✨ AI 제목 최적화가 이식된 새로운 제목 입력칸 */}
+            <div className="flex-1 relative flex items-center">
+              <input placeholder="제목을 입력하세요." className="w-full p-3 border border-gray-300 rounded-sm font-bold text-gray-900 pr-[110px]" value={title} onChange={(e) => setTitle(e.target.value)} required />
+              
+              {isSuperUser && (
+                <button
+                  type="button"
+                  onClick={handleAiTitleOptimize}
+                  disabled={isAiLoading || !title.trim()}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-[12px] font-bold rounded shadow-sm hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 transition-all flex items-center gap-1"
+                >
+                  {isAiLoading ? <Loader2 className="animate-spin" size={14} /> : '✨ AI 최적화'}
+                </button>
+              )}
+
+              {showAiModal && isSuperUser && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-purple-200 shadow-xl rounded-md z-[9999] overflow-hidden">
+                  <div className="bg-purple-50 px-3 py-2 border-b border-purple-100 flex justify-between items-center">
+                    <span className="text-[12px] font-bold text-purple-700">✨ AI 추천 제목 (클릭하여 덮어쓰기)</span>
+                    <button type="button" onClick={() => setShowAiModal(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none font-bold">×</button>
+                  </div>
+                  <div className="p-2 space-y-1 max-h-60 overflow-y-auto">
+                    {isAiLoading ? (
+                      <div className="p-4 text-center text-[13px] font-bold text-purple-600 animate-pulse flex items-center justify-center gap-2">
+                        <Loader2 className="animate-spin" size={16} /> Gemini AI가 SEO 최적화 제목을 생성 중입니다...
+                      </div>
+                    ) : aiTitles.length > 0 ? (
+                      aiTitles.map((t, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleAiTitleSelect(t)}
+                          className="w-full text-left p-3 hover:bg-purple-50 rounded border border-transparent hover:border-purple-200 transition-colors text-[14px] font-bold text-gray-800"
+                        >
+                          {t}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-sm text-gray-500">추천된 제목이 없습니다.</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="w-full md:w-48 p-3 border border-gray-200 bg-gray-50 rounded-sm flex items-center justify-between font-bold text-gray-600">
               <div>{currentUser} {isSuperUser && <span className="text-xs text-red-500 ml-1">(Admin)</span>}</div>
             </div>
