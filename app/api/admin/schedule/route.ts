@@ -27,9 +27,56 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { title, content, category, author_id, scheduled_at, youtube } = await req.json();
+    const { title, content, category, author_id, scheduled_at, youtube, isSmartMode, smartInterval } = await req.json();
 
-    const finalAuthorId = author_id || validUserId;
+    let finalAuthorId = author_id || validUserId;
+    let finalScheduledAt = scheduled_at ? new Date(scheduled_at).toISOString() : null;
+
+    if (isSmartMode) {
+      const { rows: lastPostRows } = await sql`
+        SELECT author_id, scheduled_at 
+        FROM posts 
+        WHERE status = 'scheduled' AND scheduled_at IS NOT NULL 
+        ORDER BY scheduled_at DESC 
+        LIMIT 1
+      `;
+      
+      const lastAuthorId = lastPostRows.length > 0 ? lastPostRows[0].author_id : null;
+      const maxDateStr = lastPostRows.length > 0 ? lastPostRows[0].scheduled_at : null;
+
+      const { rows: settings } = await sql`SELECT value FROM site_settings WHERE key = 'test_account_list'`;
+      let testAccounts: string[] = [];
+      if (settings.length > 0 && settings[0].value) {
+        testAccounts = settings[0].value.split(',').map((id: string) => id.trim()).filter(Boolean);
+      }
+      
+      if (testAccounts.length > 0) {
+        const filteredAccounts = testAccounts.filter(id => id !== lastAuthorId);
+        const poolToUse = filteredAccounts.length > 0 ? filteredAccounts : testAccounts;
+        finalAuthorId = poolToUse[Math.floor(Math.random() * poolToUse.length)];
+      } else {
+        finalAuthorId = 'ruffian71'; 
+      }
+
+      // ✨ [마스터 패치] 시간 꼬리물기 + 100% 휴먼 패턴(랜덤 오차) 엔진 가동
+      const intervalMs = (smartInterval || 60) * 60 * 1000;
+      
+      // 3분(180,000ms) ~ 14분(840,000ms) 사이의 불규칙한 랜덤 시간 생성
+      const randomJitterMs = Math.floor(Math.random() * 12 * 60 * 1000) + (3 * 60 * 1000);
+      
+      let nextTime = new Date();
+      
+      if (maxDateStr) {
+         const maxDate = new Date(maxDateStr);
+         if (maxDate > nextTime) {
+            nextTime = maxDate; 
+         }
+      }
+      
+      // 설정된 기본 간격(예: 60분)에 사람 같은 불규칙한 랜덤 시간(3~14분)을 더함
+      nextTime.setTime(nextTime.getTime() + intervalMs + randomJitterMs);
+      finalScheduledAt = nextTime.toISOString();
+    }
 
     const { rows: userRows } = await sql`
       SELECT nickname FROM users WHERE user_id = ${finalAuthorId}
@@ -45,7 +92,7 @@ export async function POST(req: Request) {
       )
       VALUES (
         ${titleWithCategory}, ${content}, ${category}, ${authorNickname}, ${finalAuthorId}, 
-        'scheduled', ${scheduled_at}::timestamp, CURRENT_TIMESTAMP, ${youtube || null}
+        'scheduled', ${finalScheduledAt}::timestamp, CURRENT_TIMESTAMP, ${youtube || null}
       )
     `;
 

@@ -13,26 +13,20 @@ export default function QueueClient() {
   const [newTime, setNewTime] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // 🚨 2중 방어 및 디버깅 레이더가 장착된 광속 Fetch 엔진
+  const [testAccountsText, setTestAccountsText] = useState('');
+  const [isSavingAccounts, setIsSavingAccounts] = useState(false);
+
   const fetchQueue = async () => {
     try {
       const res = await fetch(`/api/admin/queue?_t=${Date.now()}`, { 
         cache: 'no-store',
-        headers: { 
-          'Pragma': 'no-cache', 
-          'Cache-Control': 'no-cache' 
-        }
+        headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
       });
       
       if (res.ok) {
         const data = await res.json();
-        
-        // 🚨 디버깅 레이더: 브라우저 F12 (콘솔 탭)에서 백엔드가 준 원본 데이터를 직접 확인하십시오!
         console.log("📡 백엔드 응답 원본 데이터:", data);
-        
-        // 🚨 2중 방어 로직: 백엔드가 배열을 바로 주든, { data: [...] } 형태로 주든 무조건 낚아챔
         const queueData = Array.isArray(data) ? data : (data?.data || []);
-        
         setQueue(queueData);
         sessionStorage.setItem('admin_queue_cache', JSON.stringify(queueData));
       } else {
@@ -46,6 +40,18 @@ export default function QueueClient() {
     }
   };
 
+  const fetchTestAccounts = async () => {
+    try {
+      const res = await fetch('/api/admin/settings?key=test_account_list');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.value) setTestAccountsText(data.value);
+      }
+    } catch (err) {
+      console.error("테스트 계정 명단 로딩 실패:", err);
+    }
+  };
+
   useEffect(() => {
     const cached = sessionStorage.getItem('admin_queue_cache');
     if (cached) {
@@ -53,11 +59,11 @@ export default function QueueClient() {
       setIsLoading(false);
     }
     fetchQueue();
+    fetchTestAccounts();
   }, []);
 
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`정말 예약 대기 중인 [ ${title} ] 글을 취소하시겠습니까?\n취소된 글은 영구 삭제됩니다.`)) return;
-    
     try {
       const res = await fetch(`/api/admin/queue?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -77,24 +83,20 @@ export default function QueueClient() {
     const dateObj = new Date(post.scheduled_at);
     const tzOffset = dateObj.getTimezoneOffset() * 60000;
     const localISOTime = (new Date(dateObj.getTime() - tzOffset)).toISOString().slice(0, 16);
-    
     setNewTime(localISOTime);
     setEditModal({ isOpen: true, id: post.id, title: post.title });
   };
 
   const handleTimeUpdate = async () => {
     if (!newTime) { alert('변경할 시간을 선택해 주세요.'); return; }
-    
     setIsUpdating(true);
     try {
       const standardTime = new Date(newTime + '+09:00').toISOString();
-
       const res = await fetch('/api/admin/queue', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: editModal.id, new_scheduled_at: standardTime })
       });
-
       if (res.ok) {
         alert('예약 시간이 성공적으로 변경되었습니다!');
         const newQueue = queue.map(p => p.id === editModal.id ? { ...p, scheduled_at: standardTime } : p);
@@ -111,14 +113,29 @@ export default function QueueClient() {
     }
   };
 
+  const handleSaveTestAccounts = async () => {
+    setIsSavingAccounts(true);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'test_account_list', value: testAccountsText })
+      });
+      if (res.ok) alert('스마트 예약 테스트 계정 명단이 성공적으로 저장되었습니다!');
+      else alert('명단 저장에 실패했습니다.');
+    } catch (e) {
+      alert('서버 에러가 발생했습니다.');
+    } finally {
+      setIsSavingAccounts(false);
+    }
+  };
+
   const formatScheduledTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = date.getTime() - now.getTime();
-    
     const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth();
     const isTomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000).getDate() === date.getDate();
-    
     const timeStr = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
     
     if (diffMs < 0) return { text: `${timeStr} (발행 처리 중)`, type: 'processing' };
@@ -131,7 +148,6 @@ export default function QueueClient() {
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
       return { text: `${dayStr} ${timeStr} (${diffHours > 0 ? diffHours + '시간 뒤' : '곧 발행'})`, type: 'urgent' };
     }
-    
     return { text: `${dayStr} ${timeStr}`, type: 'normal' };
   };
 
@@ -141,9 +157,7 @@ export default function QueueClient() {
         <h1 className="text-lg font-bold flex items-center gap-2">
           <span className="text-yellow-400">유머 in</span> | Vercel Cron 무인 예약 관제탑
         </h1>
-        <div className="text-sm font-bold text-gray-300">
-          👤 상실의 시대 (Master)
-        </div>
+        <div className="text-sm font-bold text-gray-300">👤 상실의 시대 (Master)</div>
       </div>
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 mt-6">
@@ -156,15 +170,13 @@ export default function QueueClient() {
           </Link>
         </div>
 
-        <div className="bg-white border border-gray-200 shadow-sm rounded-md p-6">
+        <div className="bg-white border border-gray-200 shadow-sm rounded-md p-6 mb-8">
           <div className="flex justify-between items-end border-b border-gray-300 pb-4 mb-4">
             <div>
               <h2 className="text-2xl font-black text-gray-800 flex items-center gap-2">
                 ⏱️ 대기 중인 예약 게시글 <span className="text-indigo-600">{queue.length}건</span>
               </h2>
-              <p className="text-[13px] text-gray-500 font-bold mt-1">
-                설정된 시간이 되면 Vercel Cron 봇이 SEO에 완벽하게 최적화된 방식으로 글을 자동 발행합니다.
-              </p>
+              <p className="text-[13px] text-gray-500 font-bold mt-1">설정된 시간이 되면 Vercel Cron 봇이 SEO에 완벽하게 최적화된 방식으로 글을 자동 발행합니다.</p>
             </div>
             <Link href="/board/write" className="px-6 py-2.5 bg-[#414a66] text-white font-bold rounded-sm shadow-sm hover:bg-[#2a3042] transition-all">
               + 새 예약글 작성
@@ -194,34 +206,20 @@ export default function QueueClient() {
                     const timeInfo = formatScheduledTime(post.scheduled_at);
                     return (
                       <tr key={post.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors text-[13px]">
-                        <td className="py-2 px-2 text-center font-bold text-gray-500 whitespace-nowrap">
-                          {index + 1}
-                        </td>
+                        <td className="py-2 px-2 text-center font-bold text-gray-500 whitespace-nowrap">{index + 1}</td>
                         <td className="py-2 px-2 text-center whitespace-nowrap">
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 font-bold text-[11px] rounded-sm">
-                            대기 중
-                          </span>
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 font-bold text-[11px] rounded-sm">대기 중</span>
                         </td>
-                        <td className={`py-2 px-3 font-bold whitespace-nowrap ${timeInfo.type === 'urgent' ? 'text-rose-600' : 'text-gray-700'}`}>
-                          {timeInfo.text}
-                        </td>
-                        <td className="py-2 px-3 text-gray-600 font-bold whitespace-nowrap">
-                          {post.category}
-                        </td>
-                        <td className="py-2 px-4 font-bold text-gray-800 truncate max-w-[150px] sm:max-w-[200px] md:max-w-xs lg:max-w-md xl:max-w-lg">
-                          {post.title}
-                        </td>
+                        <td className={`py-2 px-3 font-bold whitespace-nowrap ${timeInfo.type === 'urgent' ? 'text-rose-600' : 'text-gray-700'}`}>{timeInfo.text}</td>
+                        <td className="py-2 px-3 text-gray-600 font-bold whitespace-nowrap">{post.category}</td>
+                        <td className="py-2 px-4 font-bold text-gray-800 truncate max-w-[150px] sm:max-w-[200px] md:max-w-xs lg:max-w-md xl:max-w-lg">{post.title}</td>
                         <td className="py-2 px-3 text-indigo-600 font-bold whitespace-nowrap">
                           <span className="block">{post.author}</span>
                           <span className="text-[11px] text-gray-400 block mt-0.5">({post.author_id})</span>
                         </td>
                         <td className="py-2 px-2 text-center flex justify-center gap-1.5 whitespace-nowrap min-w-[110px]">
-                          <button onClick={() => openEditModal(post)} className="px-2 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-[11px] font-bold rounded-sm hover:bg-blue-100 transition-colors">
-                            시간변경
-                          </button>
-                          <button onClick={() => handleDelete(post.id, post.title)} className="px-2 py-1 border border-rose-300 text-rose-500 text-[11px] font-bold rounded-sm hover:bg-rose-50 transition-colors">
-                            취소(삭제)
-                          </button>
+                          <button onClick={() => openEditModal(post)} className="px-2 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-[11px] font-bold rounded-sm hover:bg-blue-100 transition-colors">시간변경</button>
+                          <button onClick={() => handleDelete(post.id, post.title)} className="px-2 py-1 border border-rose-300 text-rose-500 text-[11px] font-bold rounded-sm hover:bg-rose-50 transition-colors">취소(삭제)</button>
                         </td>
                       </tr>
                     );
@@ -230,6 +228,31 @@ export default function QueueClient() {
               </table>
             </div>
           )}
+        </div>
+
+        <div className="bg-white border border-gray-200 shadow-sm rounded-md p-6">
+          <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+            <span className="text-indigo-600">🚀</span> 스마트 예약 테스트 계정 (룰렛 명단 관리)
+          </h2>
+          <p className="text-[13px] text-gray-500 mb-4 font-semibold">
+            스마트 자동 할당 모드 작동 시 무작위로 배정될 테스트 로그인 아이디를 쉼표(,)로 구분하여 입력하세요.<br/>
+            (예: test01, test02, humor123) ※ 명단이 비어있을 경우 자동으로 'ruffian71' 계정으로 안전하게 발행됩니다.
+          </p>
+          <textarea
+            value={testAccountsText}
+            onChange={(e) => setTestAccountsText(e.target.value)}
+            className="w-full h-36 p-4 border border-gray-300 rounded-sm text-[13px] font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-3 leading-relaxed"
+            placeholder="테스트 아이디들을 쉼표로 구분해서 입력하세요..."
+          ></textarea>
+          <div className="flex justify-end">
+            <button 
+              onClick={handleSaveTestAccounts}
+              disabled={isSavingAccounts}
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-sm transition-colors disabled:opacity-50"
+            >
+              {isSavingAccounts ? '저장 중...' : '테스트 명단 저장'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -243,9 +266,7 @@ export default function QueueClient() {
             <div className="p-5">
               <div className="mb-4">
                 <p className="text-[13px] text-gray-500 font-bold mb-1">선택된 게시글</p>
-                <p className="font-black text-gray-800 bg-gray-50 p-2 rounded-sm border border-gray-200 line-clamp-2 text-sm">
-                  {editModal.title}
-                </p>
+                <p className="font-black text-gray-800 bg-gray-50 p-2 rounded-sm border border-gray-200 line-clamp-2 text-sm">{editModal.title}</p>
               </div>
               <div className="mb-6">
                 <label className="block text-[13px] text-blue-700 font-bold mb-2">새로운 예약 발행 시간 설정</label>
@@ -257,17 +278,8 @@ export default function QueueClient() {
                 />
               </div>
               <div className="flex gap-2 justify-end">
-                <button 
-                  onClick={() => setEditModal({ isOpen: false, id: '', title: '' })} 
-                  className="px-4 py-2 bg-gray-100 text-gray-700 font-bold text-sm rounded-sm hover:bg-gray-200"
-                >
-                  닫기
-                </button>
-                <button 
-                  onClick={handleTimeUpdate} 
-                  disabled={isUpdating}
-                  className="px-6 py-2 bg-blue-600 text-white font-bold text-sm rounded-sm hover:bg-blue-700 disabled:opacity-50"
-                >
+                <button onClick={() => setEditModal({ isOpen: false, id: '', title: '' })} className="px-4 py-2 bg-gray-100 text-gray-700 font-bold text-sm rounded-sm hover:bg-gray-200">닫기</button>
+                <button onClick={handleTimeUpdate} disabled={isUpdating} className="px-6 py-2 bg-blue-600 text-white font-bold text-sm rounded-sm hover:bg-blue-700 disabled:opacity-50">
                   {isUpdating ? '변경 중...' : '변경 완료'}
                 </button>
               </div>
