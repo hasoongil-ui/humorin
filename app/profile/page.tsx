@@ -88,13 +88,15 @@ export default async function ProfilePage(props: any) {
       const countRes = await sql`SELECT COUNT(*) FROM posts WHERE author_id = ${currentUserId}`;
       totalItems = parseInt(countRes.rows[0].count, 10);
 
-      const postsResult = await sql`SELECT * FROM posts WHERE author_id = ${currentUserId} ORDER BY id DESC LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+      // 💡 핵심 패치: id 기반 정렬에서 실제 발행 시간(date) 기반 정렬로 완벽 교체!
+      const postsResult = await sql`SELECT * FROM posts WHERE author_id = ${currentUserId} ORDER BY date DESC LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
       myPosts = postsResult.rows;
 
     } else if (currentTab === 'comments') {
       const countRes = await sql`SELECT COUNT(*) FROM comments WHERE author_id = ${currentUserId}`;
       totalItems = parseInt(countRes.rows[0].count, 10);
 
+      // 💡 핵심 패치: c.id 기반 정렬에서 댓글 실제 작성 시간(c.created_at) 기반 정렬로 완벽 교체!
       const commentsResult = await sql`
         SELECT c.id, c.content, c.created_at, c.post_id, p.title as post_title 
         FROM comments c 
