@@ -1,3 +1,4 @@
+// 파일 위치: app/hall-of-fame/page.tsx
 import { sql } from '@vercel/postgres';
 import Link from 'next/link';
 import Navbar from '../board/Navbar'; // 상단 메뉴바 컴포넌트
@@ -55,6 +56,10 @@ export default async function HallOfFamePage() {
             </h1>
             <p className="text-indigo-200 font-bold text-sm md:text-base">
               매주 유머인을 빛내주신 가장 감사한 이웃들의 영광스러운 기록입니다.
+            </p>
+            {/* 💡 [핀셋 추가됨] VIP 활동지수 별도 산정 안내 툴팁 */}
+            <p className="text-indigo-300/70 font-medium text-xs mt-2 bg-[#1e2332] inline-block px-3 py-1.5 rounded-full border border-indigo-500/30">
+              ※ 주간 VIP 활동지수는 게시글 10점, 댓글 2점, 추천 1점으로 별도 산정됩니다.
             </p>
           </div>
         </div>
