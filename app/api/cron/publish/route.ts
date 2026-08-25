@@ -1,5 +1,7 @@
+// 파일 위치: app/api/cron/publish/route.ts
 import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache'; // 💡 [수술 핵심] 캐시 파괴 모듈 수입
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +30,9 @@ export async function GET(request: Request) {
         fetch(`https://www.google.com/ping?sitemap=${sitemapUrl}`),
         fetch(`https://www.bing.com/ping?sitemap=${sitemapUrl}`)
       ]);
+
+      // 🚨 [나비효과 방어 완료] 예약글이 실제 발행된 순간에만 전체 화면 캐시 100% 강제 폭파
+      revalidatePath('/', 'layout');
     }
 
     return NextResponse.json({ 
