@@ -3,6 +3,7 @@
 
 import { useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 // 🛡️ [핵심 수술 완료] 안드로이드 Scoped Storage 권한 락 완벽 우회 엔진
 const detectAndRestoreFile = (file: File): Promise<File> => {
@@ -139,6 +140,10 @@ const compressImageToWebP = (file: File): Promise<File> => {
 };
 
 export default function CommentForm({ postId, parentId, author, actionType, submitAction }: any) {
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    
     const [content, setContent] = useState('');
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState('');
@@ -249,6 +254,11 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
             const cb = document.getElementById(`reply-${parentId}`) as HTMLInputElement;
             if (cb) cb.checked = false;
         }
+
+        // 🛡️ [마스터 패치] revalidatePath 스크롤 붕괴(패대기) 완벽 차단 방어막 가동
+        const currentQuery = searchParams.toString();
+        const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname;
+        router.replace(currentUrl, { scroll: false });
     };
 
     return (
