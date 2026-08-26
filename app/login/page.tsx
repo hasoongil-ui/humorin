@@ -13,7 +13,7 @@ function LoginForm() {
 
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect');
-  const isAdminMode = searchParams.get('mode') === 'admin'; 
+  const isAdminMode = searchParams.get('mode') === 'admin';
 
   useEffect(() => {
     const error = searchParams.get('error');
@@ -67,19 +67,18 @@ function LoginForm() {
       {/* 🚀 [추가 완료] 로그인 페이지용 유도 문구 */}
       <div className="text-center mb-6">
         <h3 className="text-lg font-bold text-gray-800 mb-2">3초 만에 빠른 로그인</h3>
-        <p className="text-sm text-gray-500">복잡한 절차 없이 SNS로 간편하게 로그인하세요!</p>
+        <p className="text-sm text-gray-500 leading-relaxed">
+          복잡한 정보 입력 NO!<br />완벽한 익명으로 안전하고 간편하게 시작하세요.
+        </p>
       </div>
 
       <div className="w-full bg-[#f3f6fa] border border-[#e2e8f0] rounded-md py-2.5 mb-2 flex flex-col sm:flex-row items-center justify-center text-[13px] tracking-tight">
         <div className="flex items-center gap-1 text-[#3b4890] font-bold">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"></path>
-          </svg>
-          <span>안심하세요!</span>
+          <span>🔒 안심하세요!</span>
         </div>
         <span className="hidden sm:inline-block ml-1"></span>
         <span className="text-[#3b4890] font-bold mt-0.5 sm:mt-0">
-          닉네임과 이메일만으로 간편하게 시작
+          실명 노출 없는 100% 익명 활동 보장
         </span>
       </div>
 
@@ -114,6 +113,9 @@ function LoginForm() {
             </div>
             Google로 시작하기
           </button>
+          <p className="mt-4 text-center text-[12px] text-gray-500 font-medium break-keep">
+            * SNS 프로필(실명/사진)은 절대 연동되지 않습니다.
+          </p>
         </div>
 
         <div className="text-center mt-3.5 mb-1 text-[11px] text-gray-400 font-medium tracking-tight leading-tight">
