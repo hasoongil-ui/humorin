@@ -9,6 +9,7 @@ const detectAndRestoreFile = (file: File): Promise<File> => {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => {
+      // 💡 1. 안드로이드가 잠그기 전에 파일 전체를 RAM(ArrayBuffer)으로 통째로 복사
       const fullArrayBuffer = reader.result as ArrayBuffer;
       const arr = new Uint8Array(fullArrayBuffer);
       
@@ -45,12 +46,14 @@ const detectAndRestoreFile = (file: File): Promise<File> => {
             newFileName = file.name.replace(/\.[^/.]+$/, "") + `.${ext}`;
         }
         
+        // 💡 2. 원본 'file' 대신, 복제된 'fullArrayBuffer'를 재료로 새 파일을 창조
         const restoredFile = new File([fullArrayBuffer], newFileName, {
           type: realType,
           lastModified: file.lastModified || Date.now(),
         });
         resolve(restoredFile);
       } else {
+        // 💡 3. 확장자가 정상이더라도 안드로이드 권한 락을 끊어내기 위해 무조건 메모리 복제본 반환!
         const clonedFile = new File([fullArrayBuffer], newFileName, {
           type: file.type || 'image/jpeg',
           lastModified: file.lastModified || Date.now(),
@@ -59,6 +62,8 @@ const detectAndRestoreFile = (file: File): Promise<File> => {
       }
     };
     reader.onerror = () => resolve(file);
+    
+    // 💡 4. 기존 32바이트 slice()를 제거하고, 파일 '전체'를 순식간에 읽어들임
     reader.readAsArrayBuffer(file);
   });
 };
@@ -70,15 +75,16 @@ const isAnimatedWebP = (file: File): Promise<boolean> => {
         const reader = new FileReader();
         reader.onload = () => {
             const arr = new Uint8Array(reader.result as ArrayBuffer);
+            // 파일의 앞부분 헤더를 스캔하여 'ANIM' 청크(움짤 식별자)가 있는지 확인
             for (let i = 0; i < arr.length - 4; i++) {
                 if (arr[i] === 0x41 && arr[i + 1] === 0x4E && arr[i + 2] === 0x49 && arr[i + 3] === 0x4D) {
-                    return resolve(true);
+                    return resolve(true); // "이건 WebP 움짤이다!"
                 }
             }
-            resolve(false);
+            resolve(false); // "일반 WebP 사진이다"
         };
         reader.onerror = () => resolve(false);
-        reader.readAsArrayBuffer(file.slice(0, 256));
+        reader.readAsArrayBuffer(file.slice(0, 256)); // 속도 저하를 막기 위해 파일 앞부분만 0.01초 만에 스캔
     });
 };
 
@@ -145,10 +151,15 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
         let rawFile = e.target.files?.[0];
         if (!rawFile) return;
 
+        // 🛡️ [바이너리 복제 스캐너 가동] 안드로이드 권한 락을 뚫고 완벽한 새 파일로 복원!
         const file = await detectAndRestoreFile(rawFile);
+
+        // 🚨 WebP 움짤 판독 스캔
         const isWebPAnim = await isAnimatedWebP(file);
 
+        // 🚨 투트랙 용량 통제소
         if (file.type === 'image/gif' || isWebPAnim) {
+            // [트랙 1] 움짤(GIF/WebP)은 2MB 이하만 첨부 가능!
             if (file.size > 2 * 1024 * 1024) {
                 alert('🚨 움짤(GIF 및 WebP 애니메이션)은 서버 쾌적화를 위해 2MB 이하만 첨부 가능합니다.');
                 if (fileInputRef.current) fileInputRef.current.value = '';
@@ -157,6 +168,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
             setImageFile(file);
             setPreviewUrl(URL.createObjectURL(file));
         } else {
+            // [트랙 2] 일반 사진(일반 WebP 포함)은 3MB까지 허용 후 압축
             if (file.size > 3 * 1024 * 1024) {
                 alert('일반 이미지는 최대 3MB까지 선택 가능합니다.');
                 if (fileInputRef.current) fileInputRef.current.value = '';
@@ -214,6 +226,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
 
         const result = await submitAction(formData);
 
+        // 💡 [수술 완료] 에러 발생 시 작성창을 날리지 않고 경고창만 부드럽게 띄우도록 수정
         if (result && result.error) {
             if (result.error === 'forbidden_word') {
                 alert(`🚨 작성하신 댓글에 금지된 단어 [ ${result.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
@@ -265,8 +278,8 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
                 onChange={(e) => setContent(e.target.value)}
                 maxLength={1500}
                 rows={3}
-                readOnly={isSubmitting}
-                className={`w-full p-3 text-[14px] outline-none resize-y ${isSubmitting ? 'bg-gray-50' : ''}`}
+                disabled={isSubmitting}
+                className="w-full p-3 text-[14px] outline-none resize-y"
                 placeholder={actionType === 'reply' ? "답글을 입력하세요..." : "건전한 커뮤니티 문화를 위해 배려 부탁드립니다."}
             ></textarea>
 
@@ -276,7 +289,8 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
                     <button
                         type="button"
                         onClick={removeImage}
-                        className={`absolute top-1 left-4 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-md hover:bg-red-600 ${isSubmitting ? 'pointer-events-none opacity-50' : ''}`}
+                        disabled={isSubmitting}
+                        className="absolute top-1 left-4 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-md hover:bg-red-600 disabled:opacity-50"
                         title="이미지 삭제"
                     >
                         X
@@ -286,8 +300,8 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
 
             <div className="bg-gray-50 border-t border-gray-100 px-2 sm:px-3 py-2 flex flex-wrap justify-between items-center gap-2">
                 <div>
-                    <input type="file" ref={fileInputRef} id={uniqueId} accept="image/*" className="hidden" onChange={handleFileChange} />
-                    <label htmlFor={uniqueId} className={`cursor-pointer px-2 sm:px-3 py-1.5 bg-white border border-gray-300 text-gray-600 text-[11px] sm:text-[12px] font-bold rounded-sm shadow-sm flex items-center justify-center gap-1 whitespace-nowrap flex-shrink-0 ${isSubmitting ? 'pointer-events-none opacity-50' : 'hover:bg-gray-100'}`}>
+                    <input type="file" ref={fileInputRef} id={uniqueId} accept="image/*" className="hidden" onChange={handleFileChange} disabled={isSubmitting} />
+                    <label htmlFor={uniqueId} className={`cursor-pointer px-2 sm:px-3 py-1.5 bg-white border border-gray-300 text-gray-600 text-[11px] sm:text-[12px] font-bold rounded-sm hover:bg-gray-100 shadow-sm flex items-center justify-center gap-1 whitespace-nowrap flex-shrink-0 ${isSubmitting ? 'opacity-50' : ''}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3 sm:w-4 sm:h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
                         {previewUrl ? '이미지 변경' : '이미지 첨부'}
                     </label>
@@ -299,11 +313,11 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
                     </span>
                     <div className="flex flex-wrap gap-1.5 sm:gap-2">
                         {actionType === 'reply' && (
-                            <label htmlFor={`reply-${parentId}`} className={`cursor-pointer px-3 sm:px-4 py-1.5 bg-white border border-gray-300 text-gray-600 text-[11px] sm:text-[12px] font-bold rounded-sm shadow-sm flex items-center justify-center whitespace-nowrap flex-shrink-0 ${isSubmitting ? 'pointer-events-none opacity-50' : 'hover:bg-gray-100'}`}>
+                            <label htmlFor={`reply-${parentId}`} className="cursor-pointer px-3 sm:px-4 py-1.5 bg-white border border-gray-300 text-gray-600 text-[11px] sm:text-[12px] font-bold rounded-sm hover:bg-gray-100 shadow-sm flex items-center justify-center whitespace-nowrap flex-shrink-0">
                                 취소
                             </label>
                         )}
-                        <button type="submit" className={`px-3 sm:px-5 py-1.5 text-white text-[11px] sm:text-[13px] font-bold rounded-sm shadow-sm flex items-center justify-center gap-1 whitespace-nowrap flex-shrink-0 ${isSubmitting ? 'bg-gray-400 pointer-events-none' : 'bg-[#414a66] hover:bg-[#2a3042]'}`}>
+                        <button type="submit" disabled={isSubmitting} className="px-3 sm:px-5 py-1.5 bg-[#414a66] text-white text-[11px] sm:text-[13px] font-bold rounded-sm hover:bg-[#2a3042] shadow-sm disabled:bg-gray-400 flex items-center justify-center gap-1 whitespace-nowrap flex-shrink-0">
                             {isSubmitting && <Loader2 className="w-3 h-3 animate-spin" />}
                             {isSubmitting ? '등록 중...' : '댓글 등록'}
                         </button>
