@@ -1,7 +1,7 @@
 // 파일 위치: app/board/[id]/CommentForm.tsx
 'use client';
 
-import { useState, useRef, useTransition } from 'react';
+import { useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 
 // 🛡️ [핵심 수술 완료] 안드로이드 Scoped Storage 권한 락 완벽 우회 엔진
@@ -146,9 +146,6 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
     const [botTrap, setBotTrap] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const uniqueId = parentId ? `image-${parentId}` : 'image-main';
-    
-    // 🛡️ [핵심 패치] 스크롤 요동 방어용 리액트 트랜지션 엔진 추가
-    const [isPending, startTransition] = useTransition();
 
     const handleFileChange = async (e: any) => {
         let rawFile = e.target.files?.[0];
@@ -227,39 +224,31 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
         formData.append('imageUrl', finalImageUrl);
         formData.append('bot_trap', botTrap);
 
-        // 🛡️ [핵심 패치 적용] startTransition 보호막으로 서버 통신과 상태 비우기를 캡슐화!
-        // 서버에서 새 댓글 화면 준비가 완벽히 끝날 때까지 텍스트창을 쥐고 버텨 스크롤 튕김을 원천 차단.
-        startTransition(() => {
-            submitAction(formData).then((result: any) => {
-                if (result && result.error) {
-                    if (result.error === 'forbidden_word') {
-                        alert(`🚨 작성하신 댓글에 금지된 단어 [ ${result.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
-                    } else if (result.error === 'newbie_link') {
-                        alert(`🚨 ${result.message}`);
-                    } else {
-                        alert(`🚨 오류가 발생했습니다: ${result.message || '다시 시도해 주십시오.'}`);
-                    }
-                    setIsSubmitting(false);
-                    return;
-                }
+        const result = await submitAction(formData);
 
-                // 서버 렌더링이 완료된 타이밍에 맞춰 안전하게 입력창을 텅 비움
-                setContent('');
-                setImageFile(null);
-                setPreviewUrl('');
-                if (fileInputRef.current) fileInputRef.current.value = '';
-                setIsSubmitting(false);
+        // 💡 [수술 완료] 에러 발생 시 작성창을 날리지 않고 경고창만 부드럽게 띄우도록 수정
+        if (result && result.error) {
+            if (result.error === 'forbidden_word') {
+                alert(`🚨 작성하신 댓글에 금지된 단어 [ ${result.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
+            } else if (result.error === 'newbie_link') {
+                alert(`🚨 ${result.message}`);
+            } else {
+                alert(`🚨 오류가 발생했습니다: ${result.message || '다시 시도해 주십시오.'}`);
+            }
+            setIsSubmitting(false);
+            return;
+        }
 
-                if (actionType === 'reply' && parentId) {
-                    const cb = document.getElementById(`reply-${parentId}`) as HTMLInputElement;
-                    if (cb) cb.checked = false;
-                }
-            }).catch((error: any) => {
-                console.error(error);
-                alert('🚨 오류가 발생했습니다. 다시 시도해 주십시오.');
-                setIsSubmitting(false);
-            });
-        });
+        setContent('');
+        setImageFile(null);
+        setPreviewUrl('');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        setIsSubmitting(false);
+
+        if (actionType === 'reply' && parentId) {
+            const cb = document.getElementById(`reply-${parentId}`) as HTMLInputElement;
+            if (cb) cb.checked = false;
+        }
     };
 
     return (
