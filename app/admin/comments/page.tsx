@@ -1,3 +1,4 @@
+// 파일 위치: app/admin/comments/page.tsx
 // @ts-nocheck
 import { sql } from '@vercel/postgres';
 import { cookies } from 'next/headers';
@@ -50,7 +51,17 @@ async function handleBulkAction(formData: FormData) {
   try {
     for (const id of selectedIds) {
       if (action === 'delete') {
+        // 💡 [핵심 패치 추가] 삭제하기 전에 이 댓글이 어떤 게시글(post_id)에 달린 것인지 확인합니다.
+        const { rows } = await sql`SELECT post_id FROM comments WHERE id = ${id}`;
+        
+        // 1. 댓글 삭제
         await sql`DELETE FROM comments WHERE id = ${id}`;
+        
+        // 2. [핵심 패치 추가] 부모 게시글이 있다면, 간판 숫자(comment_count)를 1 깎아줍니다.
+        if (rows.length > 0 && rows[0].post_id) {
+          const targetPostId = rows[0].post_id;
+          await sql`UPDATE posts SET comment_count = GREATEST(COALESCE(comment_count, 0) - 1, 0) WHERE id = ${targetPostId}`;
+        }
       } else if (action === 'hide') {
         await sql`UPDATE comments SET is_blinded = true WHERE id = ${id}`;
       } else if (action === 'show') {
