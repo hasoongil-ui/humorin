@@ -226,7 +226,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
 
         const result = await submitAction(formData);
 
-        // 💡 [수술 완료] 에러 발생 시 작성창을 날리지 않고 경고창만 부드럽게 띄우도록 수정
+        // 💡 에러 발생 시 작성창을 날리지 않고 경고창만 부드럽게 띄우도록 유지
         if (result && result.error) {
             if (result.error === 'forbidden_word') {
                 alert(`🚨 작성하신 댓글에 금지된 단어 [ ${result.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
@@ -239,20 +239,24 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
             return;
         }
 
-        setContent('');
-        setImageFile(null);
-        setPreviewUrl('');
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        setIsSubmitting(false);
+        // 💡 [핵심 패치 복구] 브라우저 캐시 때문에 오해를 받았던 완벽한 스크롤 방어막 재가동!
+        // 서버에서 댓글 목록을 다시 그려내는(Revalidate) 찰나의 시간 동안 입력창의 물리적 높이를 유지시켜, 스크롤이 바닥으로 내동댕이쳐지는 것을 100% 방지합니다.
+        setTimeout(() => {
+            setContent('');
+            setImageFile(null);
+            setPreviewUrl('');
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            setIsSubmitting(false);
 
-        if (actionType === 'reply' && parentId) {
-            const cb = document.getElementById(`reply-${parentId}`) as HTMLInputElement;
-            if (cb) cb.checked = false;
-        }
+            if (actionType === 'reply' && parentId) {
+                const cb = document.getElementById(`reply-${parentId}`) as HTMLInputElement;
+                if (cb) cb.checked = false;
+            }
+        }, 400); // 0.4초 딜레이 홀딩
     };
 
     return (
-        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden flex flex-col mt-2">
+        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden flex flex-col mt-2 transition-all duration-300">
 
             <div className="absolute opacity-0 -z-50 h-0 w-0 overflow-hidden" aria-hidden="true">
                 <label htmlFor={`humorin_secret_trap_${uniqueId}`}>웹사이트 주소</label>
@@ -279,7 +283,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
                 maxLength={1500}
                 rows={3}
                 disabled={isSubmitting}
-                className="w-full p-3 text-[14px] outline-none resize-y"
+                className="w-full p-3 text-[14px] outline-none resize-y disabled:bg-white disabled:opacity-80"
                 placeholder={actionType === 'reply' ? "답글을 입력하세요..." : "건전한 커뮤니티 문화를 위해 배려 부탁드립니다."}
             ></textarea>
 
