@@ -9,7 +9,6 @@ const detectAndRestoreFile = (file: File): Promise<File> => {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => {
-      // 💡 1. 안드로이드가 잠그기 전에 파일 전체를 RAM(ArrayBuffer)으로 통째로 복사
       const fullArrayBuffer = reader.result as ArrayBuffer;
       const arr = new Uint8Array(fullArrayBuffer);
       
@@ -46,14 +45,12 @@ const detectAndRestoreFile = (file: File): Promise<File> => {
             newFileName = file.name.replace(/\.[^/.]+$/, "") + `.${ext}`;
         }
         
-        // 💡 2. 원본 'file' 대신, 복제된 'fullArrayBuffer'를 재료로 새 파일을 창조
         const restoredFile = new File([fullArrayBuffer], newFileName, {
           type: realType,
           lastModified: file.lastModified || Date.now(),
         });
         resolve(restoredFile);
       } else {
-        // 💡 3. 확장자가 정상이더라도 안드로이드 권한 락을 끊어내기 위해 무조건 메모리 복제본 반환!
         const clonedFile = new File([fullArrayBuffer], newFileName, {
           type: file.type || 'image/jpeg',
           lastModified: file.lastModified || Date.now(),
@@ -62,8 +59,6 @@ const detectAndRestoreFile = (file: File): Promise<File> => {
       }
     };
     reader.onerror = () => resolve(file);
-    
-    // 💡 4. 기존 32바이트 slice()를 제거하고, 파일 '전체'를 순식간에 읽어들임
     reader.readAsArrayBuffer(file);
   });
 };
@@ -75,16 +70,15 @@ const isAnimatedWebP = (file: File): Promise<boolean> => {
         const reader = new FileReader();
         reader.onload = () => {
             const arr = new Uint8Array(reader.result as ArrayBuffer);
-            // 파일의 앞부분 헤더를 스캔하여 'ANIM' 청크(움짤 식별자)가 있는지 확인
             for (let i = 0; i < arr.length - 4; i++) {
                 if (arr[i] === 0x41 && arr[i + 1] === 0x4E && arr[i + 2] === 0x49 && arr[i + 3] === 0x4D) {
-                    return resolve(true); // "이건 WebP 움짤이다!"
+                    return resolve(true);
                 }
             }
-            resolve(false); // "일반 WebP 사진이다"
+            resolve(false);
         };
         reader.onerror = () => resolve(false);
-        reader.readAsArrayBuffer(file.slice(0, 256)); // 속도 저하를 막기 위해 파일 앞부분만 0.01초 만에 스캔
+        reader.readAsArrayBuffer(file.slice(0, 256));
     });
 };
 
@@ -151,15 +145,10 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
         let rawFile = e.target.files?.[0];
         if (!rawFile) return;
 
-        // 🛡️ [바이너리 복제 스캐너 가동] 안드로이드 권한 락을 뚫고 완벽한 새 파일로 복원!
         const file = await detectAndRestoreFile(rawFile);
-
-        // 🚨 WebP 움짤 판독 스캔
         const isWebPAnim = await isAnimatedWebP(file);
 
-        // 🚨 투트랙 용량 통제소
         if (file.type === 'image/gif' || isWebPAnim) {
-            // [트랙 1] 움짤(GIF/WebP)은 2MB 이하만 첨부 가능!
             if (file.size > 2 * 1024 * 1024) {
                 alert('🚨 움짤(GIF 및 WebP 애니메이션)은 서버 쾌적화를 위해 2MB 이하만 첨부 가능합니다.');
                 if (fileInputRef.current) fileInputRef.current.value = '';
@@ -168,7 +157,6 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
             setImageFile(file);
             setPreviewUrl(URL.createObjectURL(file));
         } else {
-            // [트랙 2] 일반 사진(일반 WebP 포함)은 3MB까지 허용 후 압축
             if (file.size > 3 * 1024 * 1024) {
                 alert('일반 이미지는 최대 3MB까지 선택 가능합니다.');
                 if (fileInputRef.current) fileInputRef.current.value = '';
@@ -226,7 +214,6 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
 
         const result = await submitAction(formData);
 
-        // 💡 에러 발생 시 작성창을 날리지 않고 경고창만 부드럽게 띄우도록 유지
         if (result && result.error) {
             if (result.error === 'forbidden_word') {
                 alert(`🚨 작성하신 댓글에 금지된 단어 [ ${result.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
@@ -239,25 +226,30 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
             return;
         }
 
-        // 💡 [핵심 패치 복구] 브라우저 캐시 때문에 오해를 받았던 완벽한 스크롤 방어막 재가동!
-        // 서버에서 댓글 목록을 다시 그려내는(Revalidate) 찰나의 시간 동안 입력창의 물리적 높이를 유지시켜, 스크롤이 바닥으로 내동댕이쳐지는 것을 100% 방지합니다.
-        setTimeout(() => {
-            setContent('');
-            setImageFile(null);
-            setPreviewUrl('');
-            if (fileInputRef.current) fileInputRef.current.value = '';
-            setIsSubmitting(false);
+        setContent('');
+        setImageFile(null);
+        setPreviewUrl('');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        setIsSubmitting(false);
 
-            if (actionType === 'reply' && parentId) {
-                const cb = document.getElementById(`reply-${parentId}`) as HTMLInputElement;
-                if (cb) cb.checked = false;
-            }
-        }, 400); // 0.4초 딜레이 홀딩
+        if (actionType === 'reply' && parentId) {
+            const cb = document.getElementById(`reply-${parentId}`) as HTMLInputElement;
+            if (cb) cb.checked = false;
+        }
+
+        // 💡 [핵심 패치 1] 브라우저의 포커스(초점) 추적 앵커링 완벽 차단
+        if (typeof document !== 'undefined') {
+            (document.activeElement as HTMLElement)?.blur();
+        }
     };
 
     return (
-        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden flex flex-col mt-2 transition-all duration-300">
-
+        <form 
+            onSubmit={handleSubmit} 
+            className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden flex flex-col mt-2"
+            style={{ overflowAnchor: 'none' }}
+        >
+            {/* 💡 [핵심 패치 2] style={{ overflowAnchor: 'none' }} 추가로 스크롤 튕김의 근원을 물리적으로 봉인! */}
             <div className="absolute opacity-0 -z-50 h-0 w-0 overflow-hidden" aria-hidden="true">
                 <label htmlFor={`humorin_secret_trap_${uniqueId}`}>웹사이트 주소</label>
                 <input
@@ -283,7 +275,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
                 maxLength={1500}
                 rows={3}
                 disabled={isSubmitting}
-                className="w-full p-3 text-[14px] outline-none resize-y disabled:bg-white disabled:opacity-80"
+                className="w-full p-3 text-[14px] outline-none resize-y"
                 placeholder={actionType === 'reply' ? "답글을 입력하세요..." : "건전한 커뮤니티 문화를 위해 배려 부탁드립니다."}
             ></textarea>
 
