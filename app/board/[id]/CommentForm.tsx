@@ -4,7 +4,6 @@
 import { useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 
-// 🛡️ [핵심 수술 완료] 안드로이드 Scoped Storage 권한 락 완벽 우회 엔진
 const detectAndRestoreFile = (file: File): Promise<File> => {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -17,44 +16,19 @@ const detectAndRestoreFile = (file: File): Promise<File> => {
       let realType = file.type;
       let ext = '';
 
-      if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) {
-        realType = 'image/jpeg';
-        ext = 'jpg';
-      }
-      else if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) {
-        realType = 'image/png';
-        ext = 'png';
-      }
-      else if (arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x38) {
-        realType = 'image/gif';
-        ext = 'gif';
-      }
-      else if (
-        arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46 &&
-        arr[8] === 0x57 && arr[9] === 0x45 && arr[10] === 0x42 && arr[11] === 0x50
-      ) {
-        realType = 'image/webp';
-        ext = 'webp';
-      }
+      if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) { realType = 'image/jpeg'; ext = 'jpg'; }
+      else if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) { realType = 'image/png'; ext = 'png'; }
+      else if (arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x38) { realType = 'image/gif'; ext = 'gif'; }
+      else if (arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46 && arr[8] === 0x57 && arr[9] === 0x45 && arr[10] === 0x42 && arr[11] === 0x50) { realType = 'image/webp'; ext = 'webp'; }
 
       let newFileName = file.name;
-
       if (ext && (file.type !== realType || !file.type || file.type === 'application/octet-stream')) {
         const hasValidExtension = new RegExp(`\\.${ext}$`, 'i').test(file.name);
-        if (!hasValidExtension) {
-            newFileName = file.name.replace(/\.[^/.]+$/, "") + `.${ext}`;
-        }
-        
-        const restoredFile = new File([fullArrayBuffer], newFileName, {
-          type: realType,
-          lastModified: file.lastModified || Date.now(),
-        });
+        if (!hasValidExtension) newFileName = file.name.replace(/\.[^/.]+$/, "") + `.${ext}`;
+        const restoredFile = new File([fullArrayBuffer], newFileName, { type: realType, lastModified: file.lastModified || Date.now() });
         resolve(restoredFile);
       } else {
-        const clonedFile = new File([fullArrayBuffer], newFileName, {
-          type: file.type || 'image/jpeg',
-          lastModified: file.lastModified || Date.now(),
-        });
+        const clonedFile = new File([fullArrayBuffer], newFileName, { type: file.type || 'image/jpeg', lastModified: file.lastModified || Date.now() });
         resolve(clonedFile);
       }
     };
@@ -63,7 +37,6 @@ const detectAndRestoreFile = (file: File): Promise<File> => {
   });
 };
 
-// 🚨 [신규 엔진] WebP 파일 내부를 투시하여 움짤(ANIM)인지 판독하는 함수
 const isAnimatedWebP = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
         if (file.type !== 'image/webp') return resolve(false);
@@ -71,9 +44,7 @@ const isAnimatedWebP = (file: File): Promise<boolean> => {
         reader.onload = () => {
             const arr = new Uint8Array(reader.result as ArrayBuffer);
             for (let i = 0; i < arr.length - 4; i++) {
-                if (arr[i] === 0x41 && arr[i + 1] === 0x4E && arr[i + 2] === 0x49 && arr[i + 3] === 0x4D) {
-                    return resolve(true);
-                }
+                if (arr[i] === 0x41 && arr[i + 1] === 0x4E && arr[i + 2] === 0x49 && arr[i + 3] === 0x4D) return resolve(true);
             }
             resolve(false);
         };
@@ -82,7 +53,6 @@ const isAnimatedWebP = (file: File): Promise<boolean> => {
     });
 };
 
-// 🛠️ [미나의 초경량 압축기]
 const compressImageToWebP = (file: File): Promise<File> => {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -96,35 +66,19 @@ const compressImageToWebP = (file: File): Promise<File> => {
                 let height = img.height;
                 const MAX_WIDTH = 800;
 
-                if (width > MAX_WIDTH) {
-                    height = Math.round((height * MAX_WIDTH) / width);
-                    width = MAX_WIDTH;
-                }
-
-                canvas.width = width;
-                canvas.height = height;
+                if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
+                canvas.width = width; canvas.height = height;
 
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
                     ctx.drawImage(img, 0, 0, width, height);
-                    canvas.toBlob(
-                        (blob) => {
-                            if (blob) {
-                                const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
-                                const newFile = new File([blob], newFileName, {
-                                    type: 'image/webp',
-                                });
-                                resolve(newFile);
-                            } else {
-                                resolve(file);
-                            }
-                        },
-                        'image/webp',
-                        0.8
-                    );
-                } else {
-                    resolve(file);
-                }
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+                            resolve(new File([blob], newFileName, { type: 'image/webp' }));
+                        } else resolve(file);
+                    }, 'image/webp', 0.8);
+                } else resolve(file);
             };
             img.onerror = () => resolve(file);
         };
@@ -162,7 +116,6 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
                 if (fileInputRef.current) fileInputRef.current.value = '';
                 return;
             }
-
             try {
                 const compressedFile = await compressImageToWebP(file);
                 setImageFile(compressedFile);
@@ -183,6 +136,11 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!content.trim() && !previewUrl) return;
+
+        // 💡 [핵심 패치 성공] 등록 버튼을 누르자마자 가장 먼저 초점(Focus)을 파괴합니다! (지각 방지)
+        if (typeof document !== 'undefined') {
+            (document.activeElement as HTMLElement)?.blur();
+        }
 
         setIsSubmitting(true);
         let finalImageUrl = '';
@@ -212,16 +170,13 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
         formData.append('imageUrl', finalImageUrl);
         formData.append('bot_trap', botTrap);
 
+        // 💡 여기서 서버가 응답을 줄 때까지 기다려도, 초점은 이미 날아갔기 때문에 브라우저가 추적하지 못합니다!
         const result = await submitAction(formData);
 
         if (result && result.error) {
-            if (result.error === 'forbidden_word') {
-                alert(`🚨 작성하신 댓글에 금지된 단어 [ ${result.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
-            } else if (result.error === 'newbie_link') {
-                alert(`🚨 ${result.message}`);
-            } else {
-                alert(`🚨 오류가 발생했습니다: ${result.message || '다시 시도해 주십시오.'}`);
-            }
+            if (result.error === 'forbidden_word') alert(`🚨 작성하신 댓글에 금지된 단어 [ ${result.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
+            else if (result.error === 'newbie_link') alert(`🚨 ${result.message}`);
+            else alert(`🚨 오류가 발생했습니다: ${result.message || '다시 시도해 주십시오.'}`);
             setIsSubmitting(false);
             return;
         }
@@ -236,11 +191,6 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
             const cb = document.getElementById(`reply-${parentId}`) as HTMLInputElement;
             if (cb) cb.checked = false;
         }
-
-        // 💡 [핵심 패치 1] 브라우저의 포커스(초점) 추적 앵커링 완벽 차단
-        if (typeof document !== 'undefined') {
-            (document.activeElement as HTMLElement)?.blur();
-        }
     };
 
     return (
@@ -249,24 +199,13 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
             className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden flex flex-col mt-2"
             style={{ overflowAnchor: 'none' }}
         >
-            {/* 💡 [핵심 패치 2] style={{ overflowAnchor: 'none' }} 추가로 스크롤 튕김의 근원을 물리적으로 봉인! */}
             <div className="absolute opacity-0 -z-50 h-0 w-0 overflow-hidden" aria-hidden="true">
                 <label htmlFor={`humorin_secret_trap_${uniqueId}`}>웹사이트 주소</label>
-                <input
-                    type="text"
-                    id={`humorin_secret_trap_${uniqueId}`}
-                    name="humorin_secret_trap"
-                    value={botTrap}
-                    onChange={(e) => setBotTrap(e.target.value)}
-                    tabIndex={-1}
-                    autoComplete="off"
-                />
+                <input type="text" id={`humorin_secret_trap_${uniqueId}`} name="humorin_secret_trap" value={botTrap} onChange={(e) => setBotTrap(e.target.value)} tabIndex={-1} autoComplete="off" />
             </div>
 
             {actionType === 'reply' && author && (
-                <div className="px-3 pt-2 text-[12px] font-bold text-[#3b4890]">
-                    ↳ @{author} 님에게 답글 작성 중...
-                </div>
+                <div className="px-3 pt-2 text-[12px] font-bold text-[#3b4890]">↳ @{author} 님에게 답글 작성 중...</div>
             )}
 
             <textarea
@@ -282,15 +221,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
             {previewUrl && (
                 <div className="px-3 pb-3 relative inline-block">
                     <img src={previewUrl} alt="첨부됨" className="h-20 object-cover rounded-sm border shadow-sm" />
-                    <button
-                        type="button"
-                        onClick={removeImage}
-                        disabled={isSubmitting}
-                        className="absolute top-1 left-4 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-md hover:bg-red-600 disabled:opacity-50"
-                        title="이미지 삭제"
-                    >
-                        X
-                    </button>
+                    <button type="button" onClick={removeImage} disabled={isSubmitting} className="absolute top-1 left-4 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-md hover:bg-red-600 disabled:opacity-50" title="이미지 삭제">X</button>
                 </div>
             )}
 
@@ -309,9 +240,7 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
                     </span>
                     <div className="flex flex-wrap gap-1.5 sm:gap-2">
                         {actionType === 'reply' && (
-                            <label htmlFor={`reply-${parentId}`} className="cursor-pointer px-3 sm:px-4 py-1.5 bg-white border border-gray-300 text-gray-600 text-[11px] sm:text-[12px] font-bold rounded-sm hover:bg-gray-100 shadow-sm flex items-center justify-center whitespace-nowrap flex-shrink-0">
-                                취소
-                            </label>
+                            <label htmlFor={`reply-${parentId}`} className="cursor-pointer px-3 sm:px-4 py-1.5 bg-white border border-gray-300 text-gray-600 text-[11px] sm:text-[12px] font-bold rounded-sm hover:bg-gray-100 shadow-sm flex items-center justify-center whitespace-nowrap flex-shrink-0">취소</label>
                         )}
                         <button type="submit" disabled={isSubmitting} className="px-3 sm:px-5 py-1.5 bg-[#414a66] text-white text-[11px] sm:text-[13px] font-bold rounded-sm hover:bg-[#2a3042] shadow-sm disabled:bg-gray-400 flex items-center justify-center gap-1 whitespace-nowrap flex-shrink-0">
                             {isSubmitting && <Loader2 className="w-3 h-3 animate-spin" />}
