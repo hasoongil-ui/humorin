@@ -2,14 +2,21 @@ name: Auto Vercel SSL Renewal & Verification
 
 on:
   schedule:
-    # 매월 1일, 15일 새벽 3시마다 실행 (오타 완벽 교정 완료)
     - cron: '0 18 1,15 * *'
-  workflow_dispatch: # 수동 테스트 버튼
+  workflow_dispatch:
+
+# 🚨 인간의 실수(중복 실행)로 인한 방화벽 충돌 원천 차단 로직
+concurrency: 
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
 
 jobs:
   ssl-renewal-and-verify:
     runs-on: ubuntu-latest
     steps:
+      - name: 0. 깃허브 저장소 코드 가져오기 (Checkout 필수)
+        uses: actions/checkout@v4
+
       - name: 1. 유머인 DNS 레코드 ID 가져오기
         env:
           CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
@@ -30,13 +37,20 @@ jobs:
           AUTH_HEADER="Authorization: Bearer ${CF_API_TOKEN}"
           curl -s -X PATCH "$API_URL/${{ env.ID_ROOT }}" -H "$AUTH_HEADER" -H "Content-Type: application/json" -d '{"proxied": false}'
           curl -s -X PATCH "$API_URL/${{ env.ID_WWW }}" -H "$AUTH_HEADER" -H "Content-Type: application/json" -d '{"proxied": false}'
-          echo "방화벽 해제 완료. Vercel 갱신을 위해 30분 대기합니다..."
+          echo "방화벽 해제 완료. Vercel 서버 기상 및 갱신 대기 작업으로 진입합니다..."
 
-      - name: 3. Vercel 인증서 갱신 대기 (30분)
-        run: sleep 1800
+      - name: 3. Vercel 인증서 갱신 강제 촉발 및 대기 (30분)
+        run: |
+          echo "🚨 Vercel 자동 갱신을 깨우기 위해 5분 간격으로 강제 접속(Ping)을 시도합니다."
+          for i in {1..6}; do
+            curl -k -sI https://humorin.kr > /dev/null || true
+            curl -k -sI https://www.humorin.kr > /dev/null || true
+            echo "✅ $i 번째 Vercel 기상 트리거 전송 완료"
+            sleep 300
+          done
 
       - name: 4. [비상 복구 보장] 방화벽 완벽 복구 (주황색 구름으로 변경)
-        if: always() # 🚨 핵심 방어 로직: 앞 단계에서 취소/에러가 나도 무조건 실행됨
+        if: always()
         env:
           CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -52,20 +66,14 @@ jobs:
         if: always()
         run: |
           echo "유머인(humorin.kr) 실제 보안 인증서 유효기간 추출 중..."
-          
-          # 인증서 만료일 강제 추출
-          EXP_DATE=$(echo | openssl s_client -servername humorin.kr -connect humorin.kr:443 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2)
-          
-          # 날짜 계산 (남은 일수)
+          EXP_DATE=$(echo | openssl s_client -servername humorin.kr -connect 76.76.21.21:443 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2)
           EXP_SECONDS=$(date -d "$EXP_DATE" +%s)
           NOW_SECONDS=$(date +%s)
           REMAINING_DAYS=$(( ($EXP_SECONDS - $NOW_SECONDS) / 86400 ))
-          
           echo "================================================="
           echo "✅ 추출된 SSL 만료일: $EXP_DATE"
           echo "✅ 현재 남은 유효 기간: $REMAINING_DAYS 일"
           echo "================================================="
-          
           if [ "$REMAINING_DAYS" -lt 20 ]; then
             echo "🚨 [비상 사태] 인증서가 정상 갱신되지 않았습니다! 남은 기간이 20일 미만입니다."
             echo "🚨 GitHub이 기본 에러 알림을 발송하도록 스크립트를 강제 종료합니다."
