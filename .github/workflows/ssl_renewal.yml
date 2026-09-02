@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 0. 깃허브 저장소 코드 가져오기 (Checkout 필수)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 1. 유머인 DNS 레코드 ID 가져오기
         env:
