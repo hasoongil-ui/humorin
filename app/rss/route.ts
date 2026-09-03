@@ -7,13 +7,19 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     // 1. 대표님 DB에서 정상 게시글 20개를 불러옵니다.
-    // 🚨 중요: 본문 컬럼명이 'content'가 맞는지 확인해 주세요! (만약 body라면 body로 수정)
+    // ✨ [마스터 패치]: date(최초 생성일)가 아닌 COALESCE(scheduled_at, date)를 actual_date로 추출하여
+    // 로봇이 '실제 세상에 공개된 시간(발행일)'을 기준으로 빈틈없이 최신 글을 수집하도록 강제 정렬합니다.
     const { rows: recentPosts } = await sql`
-      SELECT id, title, author, date, content 
+      SELECT 
+        id, 
+        title, 
+        author, 
+        COALESCE(scheduled_at, date) AS actual_date, 
+        content 
       FROM posts 
       WHERE COALESCE(status, 'published') = 'published' 
         AND is_blinded = false
-      ORDER BY date DESC 
+      ORDER BY COALESCE(scheduled_at, date) DESC 
       LIMIT 20
     `;
 
@@ -36,7 +42,7 @@ export async function GET() {
             <description><![CDATA[${safeTitle} 게시글입니다.]]></description>
             <content:encoded><![CDATA[${safeContent}]]></content:encoded>
             <dc:creator><![CDATA[${safeAuthor}]]></dc:creator>
-            <pubDate>${new Date(post.date).toUTCString()}</pubDate>
+            <pubDate>${new Date(post.actual_date).toUTCString()}</pubDate>
           </item>
         `;
       })
