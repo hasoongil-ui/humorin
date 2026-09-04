@@ -1,7 +1,7 @@
-// 파일 위치: app/board/[id]/CommentForm.tsx
+// 파일 위치: app/board/[id]/edit/CommentForm.tsx
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, startTransition } from 'react';
 import { Loader2 } from 'lucide-react';
 
 // 🛡️ [핵심 수술 완료] 안드로이드 Scoped Storage 권한 락 완벽 우회 엔진
@@ -224,31 +224,40 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
         formData.append('imageUrl', finalImageUrl);
         formData.append('bot_trap', botTrap);
 
-        const result = await submitAction(formData);
+        // 🛡️ [마스터 핀셋 수술]: startTransition으로 Next.js revalidatePath 스크롤 튐(레이아웃 붕괴) 완벽 방어
+        startTransition(() => {
+            submitAction(formData)
+                .then((result: any) => {
+                    // 💡 에러 발생 시 작성창을 날리지 않고 경고창만 부드럽게 띄우도록 유지
+                    if (result && result.error) {
+                        if (result.error === 'forbidden_word') {
+                            alert(`🚨 작성하신 댓글에 금지된 단어 [ ${result.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
+                        } else if (result.error === 'newbie_link') {
+                            alert(`🚨 ${result.message}`);
+                        } else {
+                            alert(`🚨 오류가 발생했습니다: ${result.message || '다시 시도해 주십시오.'}`);
+                        }
+                        setIsSubmitting(false);
+                        return;
+                    }
 
-        // 💡 [수술 완료] 에러 발생 시 작성창을 날리지 않고 경고창만 부드럽게 띄우도록 수정
-        if (result && result.error) {
-            if (result.error === 'forbidden_word') {
-                alert(`🚨 작성하신 댓글에 금지된 단어 [ ${result.word} ]가 포함되어 있습니다.\n특수문자나 띄어쓰기로 우회해도 모두 감지되니 건전한 커뮤니티 문화를 위해 수정해 주십시오.`);
-            } else if (result.error === 'newbie_link') {
-                alert(`🚨 ${result.message}`);
-            } else {
-                alert(`🚨 오류가 발생했습니다: ${result.message || '다시 시도해 주십시오.'}`);
-            }
-            setIsSubmitting(false);
-            return;
-        }
+                    // 정상 등록 완료 후 UI 리셋
+                    setContent('');
+                    setImageFile(null);
+                    setPreviewUrl('');
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                    setIsSubmitting(false);
 
-        setContent('');
-        setImageFile(null);
-        setPreviewUrl('');
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        setIsSubmitting(false);
-
-        if (actionType === 'reply' && parentId) {
-            const cb = document.getElementById(`reply-${parentId}`) as HTMLInputElement;
-            if (cb) cb.checked = false;
-        }
+                    if (actionType === 'reply' && parentId) {
+                        const cb = document.getElementById(`reply-${parentId}`) as HTMLInputElement;
+                        if (cb) cb.checked = false;
+                    }
+                })
+                .catch(() => {
+                    alert('🚨 서버 통신 중 오류가 발생했습니다.');
+                    setIsSubmitting(false);
+                });
+        });
     };
 
     return (
@@ -278,8 +287,9 @@ export default function CommentForm({ postId, parentId, author, actionType, subm
                 onChange={(e) => setContent(e.target.value)}
                 maxLength={1500}
                 rows={3}
-                disabled={isSubmitting}
-                className="w-full p-3 text-[14px] outline-none resize-y"
+                // 💡 포커스 증발로 인한 스크롤 보조 튐을 원천 차단하기 위해 disabled 대신 readOnly 사용
+                readOnly={isSubmitting}
+                className={`w-full p-3 text-[14px] outline-none resize-y ${isSubmitting ? 'bg-gray-50 text-gray-400' : ''}`}
                 placeholder={actionType === 'reply' ? "답글을 입력하세요..." : "건전한 커뮤니티 문화를 위해 배려 부탁드립니다."}
             ></textarea>
 
