@@ -1090,10 +1090,11 @@ export default async function PostDetailPage(props: any) {
         }
 
         // 💡 [수술 핵심 1] 이미지 비율 파싱을 통한 완벽한 공간 사전 예약 (덜컹거림 및 회색박스 100% 파괴)
+        // 🚨 [v46.9 패치] 스크롤 처짐의 진짜 원흉 content-visibility 속성 영구 제거
         const widthMatch = attributes.match(/width=(["']?)(\d+)\1/i) || attributes.match(/width:\s*(\d+)px/i);
         const heightMatch = attributes.match(/height=(["']?)(\d+)\1/i) || attributes.match(/height:\s*(\d+)px/i);
         
-        let injectionStyle = 'content-visibility: auto; background-color: transparent; ';
+        let injectionStyle = 'background-color: transparent; ';
         if (widthMatch && heightMatch && widthMatch[2] && heightMatch[2]) {
             const w = widthMatch[2];
             const h = heightMatch[2];
@@ -1276,9 +1277,9 @@ export default async function PostDetailPage(props: any) {
               <style dangerouslySetInnerHTML={{
                 __html: `
               /* 🚨 [고질병 해결] 흉측한 회색 박스(background-color: #f4f5f7) 영구 삭제 */
+              /* 🚨 [v46.9 패치] 스크롤 처짐 주범 content-visibility 영구 삭제 */
               .post-content-area .ql-editor img {
                 background-color: transparent !important;
-                content-visibility: auto !important;
               }
 
               .post-content-area .ql-editor img,
