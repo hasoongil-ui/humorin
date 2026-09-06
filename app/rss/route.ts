@@ -7,8 +7,9 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     // 1. 대표님 DB에서 정상 게시글 20개를 불러옵니다.
-    // ✨ [마스터 패치]: date(최초 생성일)가 아닌 COALESCE(scheduled_at, date)를 actual_date로 추출하여
-    // 로봇이 '실제 세상에 공개된 시간(발행일)'을 기준으로 빈틈없이 최신 글을 수집하도록 강제 정렬합니다.
+    // ✨ [마스터 패치 v46.9]: 미래 시간 예약글 강제 노출 방어 및 RSS 스크래핑 완벽 차단
+    // 로봇이 '실제 세상에 공개된 시간(발행일)'을 기준으로 빈틈없이 최신 글을 수집하도록 하되,
+    // 아직 시간이 도래하지 않은 예약글은 RSS 피드에서 완벽하게 은폐시킵니다.
     const { rows: recentPosts } = await sql`
       SELECT 
         id, 
@@ -19,6 +20,7 @@ export async function GET() {
       FROM posts 
       WHERE COALESCE(status, 'published') = 'published' 
         AND is_blinded = false
+        AND COALESCE(scheduled_at, date) <= CURRENT_TIMESTAMP
       ORDER BY COALESCE(scheduled_at, date) DESC 
       LIMIT 20
     `;
