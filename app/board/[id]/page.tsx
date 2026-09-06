@@ -1163,15 +1163,18 @@ export default async function PostDetailPage(props: any) {
     allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'youtu.be']
   });
 
-  // 💡 [SEO 핀셋 패치]: 구조화된 데이터(Schema.org) 생성 (화면 덜컹거림 0%)
-  const schemaData = {
+  // 💡 [SEO 핀셋 패치]: 구조화된 데이터(Schema.org) 생성 (구글 에러 10000% 방어)
+  const postUrl = `https://www.humorin.kr/board/${postId}`;
+  const schemaText = extractTextOnly(post.content || '').substring(0, 300) || postData.cleanTitle;
+  const schemaImageMatch = (post.content || '').match(/<img[^>]+src=["']([^"']+)["']/i);
+
+  const schemaData: any = {
     "@context": "https://schema.org",
     "@type": "DiscussionForumPosting",
-    "mainEntityOfPage": {
-      "@type": "WebPage",
-      "@id": `https://www.humorin.kr/board/${postId}`
-    },
+    "@id": postUrl,
+    "url": postUrl,
     "headline": postData.cleanTitle,
+    "text": schemaText,
     "datePublished": getSeoDatetime(post.date),
     "author": {
       "@type": "Person",
@@ -1184,9 +1187,17 @@ export default async function PostDetailPage(props: any) {
     }
   };
 
+  if (schemaImageMatch && schemaImageMatch[1]) {
+    schemaData.image = [schemaImageMatch[1]];
+  }
+
+  if (displayAuthorIdPost) {
+    schemaData.author.url = `https://www.humorin.kr/user/${displayAuthorIdPost}`;
+  }
+
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
-      {/* 💡 구글/네이버 봇에게만 먹여주는 투명 바코드 */}
+      {/* 💡 구글/네이버 봇에게만 먹여주는 투명 바코드 (결함 완전 해체) */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
