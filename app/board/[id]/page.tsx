@@ -1163,8 +1163,34 @@ export default async function PostDetailPage(props: any) {
     allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'youtu.be']
   });
 
+  // 💡 [SEO 핀셋 패치]: 구조화된 데이터(Schema.org) 생성 (화면 덜컹거림 0%)
+  const schemaData = {
+    "@context": "https://schema.org",
+    "@type": "DiscussionForumPosting",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `https://www.humorin.kr/board/${postId}`
+    },
+    "headline": postData.cleanTitle,
+    "datePublished": getSeoDatetime(post.date),
+    "author": {
+      "@type": "Person",
+      "name": displayAuthorPost
+    },
+    "interactionStatistic": {
+      "@type": "InteractionCounter",
+      "interactionType": "https://schema.org/CommentAction",
+      "userInteractionCount": comments.length
+    }
+  };
+
   return (
     <div className="bg-white font-sans rounded-sm shadow-sm border border-gray-200 relative">
+      {/* 💡 구글/네이버 봇에게만 먹여주는 투명 바코드 */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
+      />
       <VideoVolumeFix />
 
       <main className="max-w-[1000px] mx-auto p-5 md:p-8 mt-4 mb-20 overflow-hidden">
