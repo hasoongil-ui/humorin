@@ -69,7 +69,8 @@ export async function generateMetadata(props: any): Promise<Metadata> {
   const postId = params.id;
 
   try {
-    const { rows } = await sql`SELECT title, content, date, author FROM posts WHERE id = ${postId}`;
+    // 💡 [수술 핵심] 과거 작성일(date)이 아닌, 실제 공개되는 예약일(scheduled_at)을 구글에 먼저 넘겨주어 엇박자 완벽 방어
+    const { rows } = await sql`SELECT title, content, COALESCE(scheduled_at, date) AS date, author FROM posts WHERE id = ${postId}`;
     const post = rows[0];
 
     if (!post) {
