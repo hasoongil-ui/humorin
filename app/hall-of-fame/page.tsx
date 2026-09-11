@@ -100,7 +100,7 @@ export default async function HallOfFamePage() {
                               />
                               <div className="absolute -bottom-2 -right-2 text-2xl drop-shadow-md">🥇</div>
                             </div>
-                            <div className="font-black text-[17px] text-gray-800 group-hover:text-[#3b4890] transition-colors truncate mb-3">
+                            <div className="font-black font-sans text-[17px] text-gray-800 group-hover:text-[#3b4890] transition-colors truncate mb-3">
                               {vip.awarded_nickname}
                             </div>
                             <div className="mt-auto pt-3 border-t border-gray-100">
