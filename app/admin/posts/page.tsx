@@ -112,18 +112,18 @@ export default async function AdminPostsPage(props: any) {
     let countResult;
     let queryResult;
 
-    if (q && type === 'title') {
-      countResult = await sql`SELECT COUNT(*) FROM posts WHERE title ILIKE ${'%' + q + '%'}`;
-      queryResult = await sql`SELECT * FROM posts WHERE title ILIKE ${'%' + q + '%'} ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+if (q && type === 'title') {
+      countResult = await sql`SELECT COUNT(*) FROM posts WHERE title ILIKE ${'%' + q + '%'} AND COALESCE(scheduled_at, date) <= CURRENT_TIMESTAMP`;
+      queryResult = await sql`SELECT * FROM posts WHERE title ILIKE ${'%' + q + '%'} AND COALESCE(scheduled_at, date) <= CURRENT_TIMESTAMP ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     } else if (q && type === 'author') {
-      countResult = await sql`SELECT COUNT(*) FROM posts WHERE author ILIKE ${'%' + q + '%'}`;
-      queryResult = await sql`SELECT * FROM posts WHERE author ILIKE ${'%' + q + '%'} ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      countResult = await sql`SELECT COUNT(*) FROM posts WHERE author ILIKE ${'%' + q + '%'} AND COALESCE(scheduled_at, date) <= CURRENT_TIMESTAMP`;
+      queryResult = await sql`SELECT * FROM posts WHERE author ILIKE ${'%' + q + '%'} AND COALESCE(scheduled_at, date) <= CURRENT_TIMESTAMP ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     } else if (q && type === 'author_id') {
-      countResult = await sql`SELECT COUNT(*) FROM posts WHERE author_id ILIKE ${'%' + q + '%'}`;
-      queryResult = await sql`SELECT * FROM posts WHERE author_id ILIKE ${'%' + q + '%'} ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      countResult = await sql`SELECT COUNT(*) FROM posts WHERE author_id ILIKE ${'%' + q + '%'} AND COALESCE(scheduled_at, date) <= CURRENT_TIMESTAMP`;
+      queryResult = await sql`SELECT * FROM posts WHERE author_id ILIKE ${'%' + q + '%'} AND COALESCE(scheduled_at, date) <= CURRENT_TIMESTAMP ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     } else {
-      countResult = await sql`SELECT COUNT(*) FROM posts`;
-      queryResult = await sql`SELECT * FROM posts ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
+      countResult = await sql`SELECT COUNT(*) FROM posts WHERE COALESCE(scheduled_at, date) <= CURRENT_TIMESTAMP`;
+      queryResult = await sql`SELECT * FROM posts WHERE COALESCE(scheduled_at, date) <= CURRENT_TIMESTAMP ORDER BY date DESC LIMIT ${limit} OFFSET ${offset}`;
     }
 
     const currentSearchTotal = Number(countResult.rows[0].count);
