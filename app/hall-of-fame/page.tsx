@@ -3,7 +3,7 @@ import { sql } from '@vercel/postgres';
 import Link from 'next/link';
 import Navbar from '../board/Navbar'; // 상단 메뉴바 컴포넌트
 
-export const revalidate = 3600; 
+export const revalidate = 3600;
 
 interface VIPRecord {
   id: number;
@@ -29,7 +29,7 @@ export default async function HallOfFamePage() {
     groupedData[vip.year][vip.month].push(vip);
   });
 
-  const kstNow = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Seoul"}));
+  const kstNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
   const currentYear = kstNow.getFullYear();
   const currentMonth = kstNow.getMonth() + 1;
 
@@ -66,7 +66,7 @@ export default async function HallOfFamePage() {
 
         <div className="max-w-[1000px] mx-auto px-4 -mt-6 relative z-20">
           <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 md:p-8">
-            
+
             {Object.keys(groupedData).sort((a, b) => Number(b) - Number(a)).map(year => (
               <div key={year} className="mb-16 last:mb-0">
                 <div className="flex items-center gap-4 mb-8 border-b-2 border-gray-800 pb-3">
@@ -79,11 +79,11 @@ export default async function HallOfFamePage() {
                 {Object.keys(groupedData[Number(year)]).sort((a, b) => Number(b) - Number(a)).map(month => {
                   const vipsInMonth = groupedData[Number(year)][Number(month)];
                   const totalWeeks = getWeeksInMonth(Number(year), Number(month));
-                  
+
                   const weekCards = [];
                   for (let w = 1; w <= totalWeeks; w++) {
                     const vip = vipsInMonth.find(v => v.week === w);
-                    
+
                     if (vip) {
                       weekCards.push(
                         <Link href={`/user/${vip.user_id}`} key={`vip-${vip.id}`} className="block group">
@@ -92,15 +92,18 @@ export default async function HallOfFamePage() {
                             <div className="text-[12px] font-black text-orange-600 mb-4">{month}월 {w}주차 VIP</div>
                             <div className="w-20 h-20 mx-auto rounded-full p-1 border-2 border-yellow-400 mb-3 relative bg-white shadow-sm">
                               {/* 💡 서버 다운을 유발했던 onError 제거 & 안전한 엑스박스 방어 로직 적용 */}
-                              <img 
-                                src={vip.awarded_profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(vip.awarded_nickname || '유머인')}&background=F3F4F6&color=9CA3AF`} 
+                              <img
+                                src={vip.awarded_profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(vip.awarded_nickname || '유머인')}&background=F3F4F6&color=9CA3AF`}
                                 alt={vip.awarded_nickname || '유머인'}
                                 className="w-full h-full rounded-full object-cover"
                                 loading="lazy"
                               />
                               <div className="absolute -bottom-2 -right-2 text-2xl drop-shadow-md">🥇</div>
                             </div>
-                            <div className="font-black font-sans text-[17px] text-gray-800 group-hover:text-[#3b4890] transition-colors truncate mb-3">
+                            <div
+                              className="font-black font-sans text-[17px] text-gray-800 group-hover:text-[#3b4890] transition-colors truncate mb-3"
+                              style={{ fontFamily: '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif' }}
+                            >
                               {vip.awarded_nickname}
                             </div>
                             <div className="mt-auto pt-3 border-t border-gray-100">
