@@ -154,7 +154,7 @@ export default async function PostDetailPage(props: any) {
   const post = postRows[0];
 
   if (!post) {
-    return <div className="p-20 text-center text-2xl font-bold">글을 찾을 수 구</div>;
+    return <div className="p-20 text-center text-2xl font-bold">글을 찾을 수 없습니다.</div>;
   }
 
   const postData = extractData(post.title);
