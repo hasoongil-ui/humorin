@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 
 // 구글/네이버 로봇이 접근할 때마다 무조건 DB에서 최신 상태를 강제로 새로고침 (캐싱 렉 원천 차단)
-export const dynamic = 'force-dynamic'; 
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
@@ -15,13 +15,13 @@ export async function GET() {
         id, 
         title, 
         author, 
-        COALESCE(scheduled_at, date) AS actual_date, 
+        date AS actual_date, 
         content 
       FROM posts 
       WHERE COALESCE(status, 'published') = 'published' 
         AND is_blinded = false
         AND COALESCE(scheduled_at, date) <= CURRENT_TIMESTAMP
-      ORDER BY COALESCE(scheduled_at, date) DESC 
+      ORDER BY date DESC 
       LIMIT 20
     `;
 
@@ -35,7 +35,7 @@ export async function GET() {
         const safeAuthor = post.author ? post.author.replace(/]]>/g, ']]&gt;') : '유머인';
         const safeContent = post.content ? post.content.replace(/]]>/g, ']]&gt;') : '';
         const postURL = `${siteURL}/board/${post.id}`;
-        
+
         return `
           <item>
             <title><![CDATA[${safeTitle}]]></title>
