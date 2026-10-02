@@ -39,10 +39,10 @@ jobs:
           curl -s -X PATCH "$API_URL/${{ env.ID_WWW }}" -H "$AUTH_HEADER" -H "Content-Type: application/json" -d '{"proxied": false}'
           echo "방화벽 해제 완료. Vercel 서버 기상 및 갱신 대기 작업으로 진입합니다..."
 
-      - name: 3. Vercel 인증서 갱신 강제 촉발 및 대기 (30분)
+      - name: 3. Vercel 인증서 갱신 강제 촉발 및 대기 (120분)
         run: |
           echo "🚨 Vercel 자동 갱신을 깨우기 위해 5분 간격으로 강제 접속(Ping)을 시도합니다."
-          for i in {1..6}; do
+          for i in {1..24}; do
             curl -k -sI https://humorin.kr > /dev/null || true
             curl -k -sI https://www.humorin.kr > /dev/null || true
             echo "✅ $i 번째 Vercel 기상 트리거 전송 완료"
