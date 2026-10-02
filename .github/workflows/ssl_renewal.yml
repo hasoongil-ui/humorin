@@ -2,7 +2,7 @@ name: Auto Vercel SSL Renewal & Verification
 
 on:
   schedule:
-    - cron: '0 18 1,15 * *'
+    - cron: '0 18 * * *'
   workflow_dispatch:
 
 # 🚨 인간의 실수(중복 실행)로 인한 방화벽 충돌 원천 차단 로직
