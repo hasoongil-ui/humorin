@@ -229,7 +229,7 @@ export default function QueueClient() {
                     <th className="py-2 px-3 font-bold whitespace-nowrap">게시판</th>
                     <th className="py-2 px-4 font-bold">제목</th>
                     <th className="py-2 px-3 font-bold whitespace-nowrap">발행할 계정</th>
-                    <th className="py-2 px-2 text-center w-28 font-bold whitespace-nowrap">관리</th>
+                    <th className="py-2 px-2 text-center w-44 font-bold whitespace-nowrap">관리</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -243,12 +243,12 @@ export default function QueueClient() {
                         </td>
                         <td className={`py-2 px-3 font-bold whitespace-nowrap ${timeInfo.type === 'urgent' ? 'text-rose-600' : 'text-gray-700'}`}>{timeInfo.text}</td>
                         <td className="py-2 px-3 text-gray-600 font-bold whitespace-nowrap">{post.category}</td>
-                        <td className="py-2 px-4 font-bold text-gray-800 truncate max-w-[150px] sm:max-w-[200px] md:max-w-xs lg:max-w-md xl:max-w-lg">{post.title}</td>
+                        <td className="py-2 px-4 font-bold text-gray-800 truncate max-w-[150px] sm:max-w-[200px] md:max-w-xs lg:max-w-xs xl:max-w-sm">{post.title}</td>
                         <td className="py-2 px-3 text-indigo-600 font-bold whitespace-nowrap">
                           <span className="block">{post.author}</span>
                           <span className="text-[11px] text-gray-400 block mt-0.5">({post.author_id})</span>
                         </td>
-                        <td className="py-2 px-2 text-center flex justify-center gap-1.5 whitespace-nowrap min-w-[110px]">
+                        <td className="py-2 px-2 text-center flex justify-center gap-1.5 whitespace-nowrap min-w-[175px]">
                           <button onClick={() => openEditModal(post)} className="px-2 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-[11px] font-bold rounded-sm hover:bg-blue-100 transition-colors">수정</button>
                           <button onClick={() => handlePublishNow(post.id, post.title)} className="px-2 py-1 bg-emerald-50 border border-emerald-300 text-emerald-700 text-[11px] font-bold rounded-sm hover:bg-emerald-100 transition-colors">즉시발행</button>
                           <button onClick={() => handleDelete(post.id, post.title)} className="px-2 py-1 border border-rose-300 text-rose-500 text-[11px] font-bold rounded-sm hover:bg-rose-50 transition-colors">취소(삭제)</button>
