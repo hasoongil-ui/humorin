@@ -1,5 +1,6 @@
 import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 
@@ -56,19 +57,64 @@ export async function PATCH(req: Request) {
   if (!(await verifyAdmin())) return new Response("Unauthorized", { status: 401 });
 
   try {
-    const { id, new_scheduled_at } = await req.json();
+    const { id, new_scheduled_at, new_title, new_category } = await req.json();
 
-    if (!id || !new_scheduled_at) return NextResponse.json({ error: '데이터 누락' }, { status: 400 });
+    if (!id || (!new_scheduled_at && !(new_title && new_category))) return NextResponse.json({ error: '데이터 누락' }, { status: 400 });
+
+    if (new_title && new_category) {
+      const cleanTitle = String(new_title).replace(/^\[.*?\]\s*/, '');
+      const formattedTitle = `[${new_category}] ${cleanTitle}`;
+      await sql`
+        UPDATE posts 
+        SET title = ${formattedTitle}, category = ${new_category} 
+        WHERE id = ${id} AND status = 'scheduled'
+      `;
+    }
+
+    if (new_scheduled_at) {
 
     await sql`
       UPDATE posts 
-      SET scheduled_at = ${new_scheduled_at}::timestamp 
+      SET scheduled_at = ${new_scheduled_at}::timestamptz 
       WHERE id = ${id} AND status = 'scheduled'
     `;
+    }
     
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('예약 시간 수정 에러:', error);
     return NextResponse.json({ error: '수정 실패' }, { status: 500 });
+  }
+}
+
+
+export async function POST(req: Request) {
+  if (!(await verifyAdmin())) return new Response("Unauthorized", { status: 401 });
+
+  try {
+    const { id } = await req.json();
+    if (!id) return NextResponse.json({ error: '데이터 누락' }, { status: 400 });
+
+    const { rowCount } = await sql`
+      UPDATE posts 
+      SET status = 'published', date = CURRENT_TIMESTAMP 
+      WHERE id = ${id} AND status = 'scheduled'
+    `;
+
+    if (rowCount !== null && rowCount > 0) {
+      const sitemapUrl = 'https://www.humorin.kr/sitemap.xml';
+      await Promise.allSettled([
+        fetch(`https://www.google.com/ping?sitemap=${sitemapUrl}`),
+        fetch(`https://www.bing.com/ping?sitemap=${sitemapUrl}`)
+      ]);
+      revalidatePath('/', 'layout');
+      revalidatePath('/board');
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ error: '발행 대상 없음' }, { status: 404 });
+  } catch (error) {
+    console.error('즉시 발행 에러:', error);
+    return NextResponse.json({ error: '발행 실패' }, { status: 500 });
   }
 }

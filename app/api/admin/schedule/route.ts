@@ -92,7 +92,7 @@ export async function POST(req: Request) {
       )
       VALUES (
         ${titleWithCategory}, ${content}, ${category}, ${authorNickname}, ${finalAuthorId}, 
-        'scheduled', ${finalScheduledAt}::timestamp, CURRENT_TIMESTAMP, ${youtube || null}
+        'scheduled', ${finalScheduledAt}::timestamptz, CURRENT_TIMESTAMP, ${youtube || null}
       )
     `;
 

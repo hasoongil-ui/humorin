@@ -11,6 +11,8 @@ export default function QueueClient() {
 
   const [editModal, setEditModal] = useState({ isOpen: false, id: '', title: '' });
   const [newTime, setNewTime] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editCategory, setEditCategory] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
   const [testAccountsText, setTestAccountsText] = useState('');
@@ -79,27 +81,53 @@ export default function QueueClient() {
     }
   };
 
+  const handlePublishNow = async (id: string, title: string) => {
+    if (!confirm("지금 즉시 [ " + title + " ] 글을 게시판에 발행하시겠습니까?")) return;
+    try {
+      const res = await fetch('/api/admin/queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      if (res.ok) {
+        alert('게시글이 즉시 발행되었습니다!');
+        const newQueue = queue.filter(post => post.id !== id);
+        setQueue(newQueue);
+        sessionStorage.setItem('admin_queue_cache', JSON.stringify(newQueue));
+      } else {
+        alert('즉시 발행에 실패했습니다.');
+      }
+    } catch (error) {
+      alert('서버 에러가 발생했습니다.');
+    }
+  };
+
   const openEditModal = (post: any) => {
     const dateObj = new Date(post.scheduled_at);
-    const tzOffset = dateObj.getTimezoneOffset() * 60000;
-    const localISOTime = (new Date(dateObj.getTime() - tzOffset)).toISOString().slice(0, 16);
-    setNewTime(localISOTime);
+    // KST(+09:00) 기준 datetime-local 값 생성 (브라우저 타임존 무관)
+    const kstISOTime = (new Date(dateObj.getTime() + 9 * 60 * 60 * 1000)).toISOString().slice(0, 16);
+    setNewTime(kstISOTime);
+    setEditCategory(post.category || '');
+    setEditTitle((post.title || '').replace(/^\[.*?\]\s*/, ''));
     setEditModal({ isOpen: true, id: post.id, title: post.title });
   };
 
   const handleTimeUpdate = async () => {
     if (!newTime) { alert('변경할 시간을 선택해 주세요.'); return; }
+    if (!editTitle.trim()) { alert('제목을 입력해 주세요.'); return; }
+    if (!editCategory.trim()) { alert('카테고리를 입력해 주세요.'); return; }
     setIsUpdating(true);
     try {
-      const standardTime = new Date(newTime + '+09:00').toISOString();
+      const suffix = newTime.length <= 16 ? ':00+09:00' : '+09:00';
+      const standardTime = new Date(newTime + suffix).toISOString();
       const res = await fetch('/api/admin/queue', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editModal.id, new_scheduled_at: standardTime })
+        body: JSON.stringify({ id: editModal.id, new_scheduled_at: standardTime, new_title: editTitle.trim(), new_category: editCategory.trim() })
       });
       if (res.ok) {
-        alert('예약 시간이 성공적으로 변경되었습니다!');
-        const newQueue = queue.map(p => p.id === editModal.id ? { ...p, scheduled_at: standardTime } : p);
+        alert('예약 정보가 성공적으로 변경되었습니다!');
+        const newQueue = queue.map(p => p.id === editModal.id ? { ...p, scheduled_at: standardTime, category: editCategory.trim(), title: `[${editCategory.trim()}] ${editTitle.trim()}` } : p);
         setQueue(newQueue);
         sessionStorage.setItem('admin_queue_cache', JSON.stringify(newQueue));
         setEditModal({ isOpen: false, id: '', title: '' });
@@ -134,21 +162,24 @@ export default function QueueClient() {
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = date.getTime() - now.getTime();
-    const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth();
-    const isTomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000).getDate() === date.getDate();
-    const timeStr = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const kstDay = (d: Date) => d.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
+    const isToday = kstDay(date) === kstDay(now);
+    const isTomorrow = kstDay(date) === kstDay(new Date(now.getTime() + 24 * 60 * 60 * 1000));
+    const timeStr = date.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
     
-    if (diffMs < 0) return { text: `${timeStr} (발행 처리 중)`, type: 'processing' };
-    
-    let dayStr = `${date.getMonth() + 1}월 ${date.getDate()}일`;
-    if (isToday) dayStr = '오늘';
-    else if (isTomorrow) dayStr = '내일';
+    const kstMonth = date.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric' }).replace(/\D/g, '');
+    const kstDate = date.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', day: 'numeric' }).replace(/\D/g, '');
+    let dayStr = `${kstMonth}월 ${kstDate}일 `;
+    if (isToday) dayStr = '오늘 ';
+    else if (isTomorrow) dayStr = '내일 ';
+
+    if (diffMs < 0) return { text: `${dayStr}${timeStr} (발행 대기/지연)`, type: 'processing' };
 
     if (isToday && diffMs < 3 * 60 * 60 * 1000) {
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-      return { text: `${dayStr} ${timeStr} (${diffHours > 0 ? diffHours + '시간 뒤' : '곧 발행'})`, type: 'urgent' };
+      return { text: `${dayStr}${timeStr} (${diffHours > 0 ? diffHours + '시간 뒤' : '곧 발행'})`, type: 'urgent' };
     }
-    return { text: `${dayStr} ${timeStr}`, type: 'normal' };
+    return { text: `${dayStr}${timeStr}`, type: 'normal' };
   };
 
   return (
@@ -218,7 +249,8 @@ export default function QueueClient() {
                           <span className="text-[11px] text-gray-400 block mt-0.5">({post.author_id})</span>
                         </td>
                         <td className="py-2 px-2 text-center flex justify-center gap-1.5 whitespace-nowrap min-w-[110px]">
-                          <button onClick={() => openEditModal(post)} className="px-2 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-[11px] font-bold rounded-sm hover:bg-blue-100 transition-colors">시간변경</button>
+                          <button onClick={() => openEditModal(post)} className="px-2 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-[11px] font-bold rounded-sm hover:bg-blue-100 transition-colors">수정</button>
+                          <button onClick={() => handlePublishNow(post.id, post.title)} className="px-2 py-1 bg-emerald-50 border border-emerald-300 text-emerald-700 text-[11px] font-bold rounded-sm hover:bg-emerald-100 transition-colors">즉시발행</button>
                           <button onClick={() => handleDelete(post.id, post.title)} className="px-2 py-1 border border-rose-300 text-rose-500 text-[11px] font-bold rounded-sm hover:bg-rose-50 transition-colors">취소(삭제)</button>
                         </td>
                       </tr>
@@ -260,7 +292,7 @@ export default function QueueClient() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-md shadow-2xl w-full max-w-md overflow-hidden">
             <div className="bg-[#1a1f36] px-5 py-4 flex justify-between items-center">
-              <h3 className="text-white font-bold text-lg">⏱️ 예약 시간 변경</h3>
+              <h3 className="text-white font-bold text-lg">⏱️ 예약 글 수정 (시간·카테고리·제목)</h3>
               <button onClick={() => setEditModal({ isOpen: false, id: '', title: '' })} className="text-gray-400 hover:text-white">✕</button>
             </div>
             <div className="p-5">
@@ -268,12 +300,36 @@ export default function QueueClient() {
                 <p className="text-[13px] text-gray-500 font-bold mb-1">선택된 게시글</p>
                 <p className="font-black text-gray-800 bg-gray-50 p-2 rounded-sm border border-gray-200 line-clamp-2 text-sm">{editModal.title}</p>
               </div>
-              <div className="mb-6">
-                <label className="block text-[13px] text-blue-700 font-bold mb-2">새로운 예약 발행 시간 설정</label>
+              <div className="mb-4">
+                <label className="block text-[13px] text-blue-700 font-bold mb-2">① 예약 발행 시간 (KST)</label>
                 <input 
                   type="datetime-local" 
                   value={newTime} 
                   onChange={(e) => setNewTime(e.target.value)} 
+                  className="w-full p-3 border border-blue-300 rounded-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50/30 text-sm"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-[13px] text-blue-700 font-bold mb-2">② 게시판 카테고리</label>
+                <input 
+                  type="text" 
+                  value={editCategory} 
+                  onChange={(e) => setEditCategory(e.target.value)} 
+                  list="queue-category-list"
+                  className="w-full p-3 border border-blue-300 rounded-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50/30 text-sm"
+                />
+                <datalist id="queue-category-list">
+                  {Array.from(new Set(queue.map(p => p.category).filter(Boolean))).map((c: any) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </div>
+              <div className="mb-6">
+                <label className="block text-[13px] text-blue-700 font-bold mb-2">③ 게시글 제목 (말머리 제외)</label>
+                <input 
+                  type="text" 
+                  value={editTitle} 
+                  onChange={(e) => setEditTitle(e.target.value)} 
                   className="w-full p-3 border border-blue-300 rounded-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50/30 text-sm"
                 />
               </div>
