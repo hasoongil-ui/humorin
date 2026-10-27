@@ -45,6 +45,7 @@ function formatKST(dateString: any) {
 
 async function handleBulkAction(formData: FormData) {
   'use server';
+  if (!(await verifyAdmin())) throw new Error('Unauthorized');
   const action = formData.get('action') as string;
   const selectedIds = formData.getAll('selected_ids');
   const targetCategory = formData.get('targetCategory') as string;

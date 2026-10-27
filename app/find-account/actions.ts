@@ -1,6 +1,7 @@
 'use server';
 
 import { sql } from '@vercel/postgres';
+import bcrypt from 'bcryptjs';
 
 // 1. 아이디 찾기 엔진 (이메일로 아이디 찾기)
 export async function findIdAction(email: string) {
@@ -39,8 +40,11 @@ export async function verifyAccountAction(userId: string, email: string) {
 
 // 3. 새 비밀번호 강제 주입 엔진
 export async function resetPasswordAction(userId: string, newPass: string) {
+  if (!userId || !newPass || newPass.trim().length < 4) return { success: false, message: '유효하지 않은 요청입니다.' };
+  if (userId.trim().toLowerCase() === 'admin') return { success: false, message: '최고 관리자 계정은 이 경로로 재설정할 수 없습니다.' };
   try {
-    const res = await sql`UPDATE users SET password = ${newPass} WHERE user_id = ${userId}`;
+    const hashedPassword = await bcrypt.hash(newPass, 10);
+    const res = await sql`UPDATE users SET password = ${hashedPassword} WHERE user_id = ${userId}`;
     if (res.rowCount && res.rowCount > 0) {
       return { success: true, message: '비밀번호가 성공적으로 변경되었습니다.' };
     }
