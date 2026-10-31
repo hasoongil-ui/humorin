@@ -1,4 +1,4 @@
-# ★★유머인 최종 통합 마스터 개발 명세서 v46.14 (MASTER_SPEC.md)
+# ★★유머인 최종 통합 마스터 개발 명세서 v46.15 (MASTER_SPEC.md)
 
 > [AI 에이전트 필수 지침] 본 문서(MASTER_SPEC.md)는 유머인 프로젝트의 단일 진실 원천(Single Source of Truth) 마스터 백서입니다. 향후 모든 코드 수정, 버그 패치, 신규 기능 추가 작업 시 AI 에이전트는 반드시 본 백서의 [제 0원칙]과 [5대 철통 보안 시스템], [절대 보존 로직]을 최우선으로 준수해야 하며, 작업 완료 즉시 본 문서의 버전 번호와 해당 본문 섹션, 폴더 구조도를 최신 상태로 자동 업데이트해야 합니다.
 
@@ -129,6 +129,7 @@
 
 [본문 6] 🤖 5대 철벽 차단 및 섀도우 밴 시스템 (서버 부하 0% 방어막)
 - 포인트 제어, 봇 트랩(허니팟), 뉴비 외부 링크 원천 차단, 베스트 자가 조작 방어. 정지(Banned) 및 그림자 차단(Shadowban).
+- 🌟 [v46.15 패치] 금칙어(forbidden_words) 양방향 정규화 및 빈 문자열 폭탄 방어 (app/api/post/route.ts & app/board/[id]/page.tsx): DB 금칙어 목록 비교 시 extractTextOnly(word)와 빈 문자열 가드(if (!cleanWord) continue)를 적용하여 영문 대소문자·공백·특수문자(@ 등)가 섞인 변칙 스팸 단어를 100% 차단하고 원본 금칙어 반환 무결성 유지.
 
 ---
 
@@ -303,7 +304,7 @@ CREATE INDEX IF NOT EXISTS idx_posts_scheduled_at ON posts(scheduled_at DESC NUL
 
 [본문 16] 🤖 [AI 복제 지시용 마스터 프롬프트] (새 커뮤니티 복제 시 AI 에디터 명령어 원문)
 
-"내가 첨부한 MASTER_SPEC.md (유머인 최종 통합 마스터 개발 명세서 v46.14)를 바이트 단위로 완벽하게 숙지해.
+"내가 첨부한 MASTER_SPEC.md (유머인 최종 통합 마스터 개발 명세서 v46.15)를 바이트 단위로 완벽하게 숙지해.
 현재 열려있는 폴더는 저 명세서대로 아키텍처와 5대 철통 보안(비밀번호 암호화, 서명 쿠키 위조 방어, Spoofing 방어, R2 요금 폭탄 방어, API 글쓰기 잠금 백도어 차단 로직 global_write_lock, 관리자 전용 북마크 접속 은폐 로직), 예외 처리가 10000% 완벽하게 세팅된 마스터 템플릿이야. 
 
 명세서에 적힌 [절대 보존 로직]들 (5대 보안 로직, CRON_SECRET VVIP 명예의 전당 주간 자동화 및 ISR 3600초 캐싱 갤러리 엑스박스 자동 방어 (Fallback), 프로필 네온/금괴 훈장 도파민 연동 및 site_settings 기반 VVIP 제외 블랙리스트 텍스트 파싱 로직, Vercel Cron 무인 예약 관제탑(app/admin/queue) 및 isSuperUser 마스터 키 우회 로직, 예약 작성자 자동 트래킹(adminAuthorId || ''), ::timestamptz 시차 점프 방어 및 관제탑 즉시발행/제목·카테고리·시간 통합 수정 엔진, 게시글 하단 방금 본 꿀잼 인기글 썸네일 추천 엔진, 스마트폰 조회수 반응형 정렬 최적화, 15,000px 기준 WebP 무손실 스마트 분할, 틈새 0px Flexbox 진공 압착 및 원본 Width 자물쇠, 투데이/백/천 베스트 시간별 정렬, 모바일 업로드 튕김 방어 useWebWorker 제어, 안드로이드 Scoped Storage 권한 락 우회 ArrayBuffer 3중 해킹 엔진(detectAndRestoreFile), Vercel/Neon 셧다운 및 $40 조기 경보망, DB-R2 분리, 초경량 썸네일 자동 추출 및 메인 화면 하이브리드 렌더링(page.tsx, WriteClient.tsx 연동), Cloudflare WAF 규칙, 5대 철벽 방어막, globals.css 투트랙 로직, 관리자 사면권(is_safe) 영구 방어 로직, 순수 SQL 베스트 정렬 엔진, 댓글창 WebP 엑스레이 스캐너(isAnimatedWebP), 특수기호 댓글창 레이아웃 뚫림 방어(word-break: break-all), 로그아웃 서명 파쇄기(humorin_signature 삭제), 소셜 로그인 탈퇴 7일 쿨타임 완벽 리셋 엔진, 소셜 0.1초 광속 통과를 위한 waitUntil 엔진, 18대 무적 DB 인덱스와 INNER JOIN boards 고속 스위치 연동, 스마트폰 사생활 보호(내정보 숨김), 엣지 투 엣지 극미세 여백(px-1) 가독성 극대화 및 하단 여백 완전 동기화, 모바일 폰트 15px/semibold 핀셋 최적화, WebP 동영상 스마트 라우팅 자동 우회 엔진, 3대 페이지 generateMetadata SEO 핀셋 패치 및 H2 강제 전환/Alt 속성 자동 부여 로직, 관리자 대시보드 KST 시각적 마스크 적용(formatKST), 뷰어 이미지 강제 팽창(width: 100%) 영구 금지 및 맞춤형 회색 박스 CLS 방어, 자체 업로드 MP4와 유튜브 투트랙 분리 CSS, 댓글 수정창(EditCommentForm) 최신 안드로이드 파일 복원 엔진 동기화 유지, 무설치 PWA 앱 팝업 완전체 엔진(sw.js 및 layout.tsx 등록) 영구 보존, 하이브리드 지연 로딩(Native Lazy Loading) 서버비 철벽 방어 엔진 유지, 예약 봇 15분 주기(*/15) DB 셧다운 방어 및 revalidatePath 메인 화면 즉시 갱신 로직 영구 보존, 폼 제출 시 스크롤 처짐 방어(content-visibility 소각 및 startTransition 강제), Vercel 월 $40~$50 과금 정상 판정 및 호들갑 금지령(Rule 5), RSS 피드 미래 시간 예약글 강제 노출 완벽 방어막(<= CURRENT_TIMESTAMP) 영구 보존, 구조화 데이터(Schema.org) 강제 주입 영구 금지, Cloudflare Full 모드 기반 Vercel SSL Invalid 에러 영구 무시 및 15년 커스텀 인증서(Plan B) 업로드 지시 절대 금지령, AI 제목 최적화 gemini-3.6-flash 고정 및 팝업창 z-[9999] 최상단 노출)은 단 1줄도 훼손하거나 수정하지 마.
@@ -313,10 +314,10 @@ DB 스키마 역시 명세서 15번에 적힌 전체 SQL 구조(weekly_vips, cat
 
 ---
 
-[본문 17] 📂 App Router 전체 폴더 구조도 (v46.14 기준)
+[본문 17] 📂 App Router 전체 폴더 구조도 (v46.15 기준)
 ```
 hurmoin/
-├── MASTER_SPEC.md                      # ★ 단일 진실 원천 백서 (v46.14)
+├── MASTER_SPEC.md                      # ★ 단일 진실 원천 백서 (v46.15)
 ├── proxy.ts                            # Next.js 16 미들웨어: 진짜 IP(x-real-ip 폴백) 명찰 부착, 정적 리소스 제외 matcher
 ├── vercel.json                         # 크론 */15 (Neon Scale to zero 수면 보장)
 ├── .github/workflows/ssl_renewal.yml   # Node 24(checkout@v5), 120분 대기망, 투트랙 스케줄, 말일 생존 신고

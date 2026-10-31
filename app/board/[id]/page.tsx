@@ -640,7 +640,9 @@ export default async function PostDetailPage(props: any) {
 
     const cleanContent = extractTextOnly(content);
     for (const word of forbiddenWords) {
-      if (cleanContent.includes(word)) return { error: 'forbidden_word', word: word };
+      const cleanWord = extractTextOnly(word);
+      if (!cleanWord) continue;
+      if (cleanContent.includes(cleanWord)) return { error: 'forbidden_word', word: word };
     }
 
     if (!content.trim() && !imageUrl) return;
@@ -694,7 +696,9 @@ export default async function PostDetailPage(props: any) {
 
     const cleanContent = extractTextOnly(content || '');
     for (const word of forbiddenWords) {
-      if (cleanContent.includes(word)) return { error: 'forbidden_word', word: word };
+      const cleanWord = extractTextOnly(word);
+      if (!cleanWord) continue;
+      if (cleanContent.includes(cleanWord)) return { error: 'forbidden_word', word: word };
     }
 
     if (!content.trim() && !imageUrl) return;

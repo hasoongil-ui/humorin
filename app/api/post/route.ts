@@ -32,7 +32,9 @@ export async function POST(request: Request) {
     const cleanTitle = extractTextOnly(title);
 
     for (const word of forbiddenWords) {
-      if (cleanContent.includes(word) || cleanTitle.includes(word)) {
+      const cleanWord = extractTextOnly(word);
+      if (!cleanWord) continue;
+      if (cleanContent.includes(cleanWord) || cleanTitle.includes(cleanWord)) {
         return NextResponse.json({ error: 'forbidden_word', word: word }, { status: 400 });
       }
     }
