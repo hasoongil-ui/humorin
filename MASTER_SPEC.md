@@ -1,4 +1,4 @@
-# ★★유머인 최종 통합 마스터 개발 명세서 v46.15 (MASTER_SPEC.md)
+# ★★유머인 최종 통합 마스터 개발 명세서 v46.16 (MASTER_SPEC.md)
 
 > [AI 에이전트 필수 지침] 본 문서(MASTER_SPEC.md)는 유머인 프로젝트의 단일 진실 원천(Single Source of Truth) 마스터 백서입니다. 향후 모든 코드 수정, 버그 패치, 신규 기능 추가 작업 시 AI 에이전트는 반드시 본 백서의 [제 0원칙]과 [5대 철통 보안 시스템], [절대 보존 로직]을 최우선으로 준수해야 하며, 작업 완료 즉시 본 문서의 버전 번호와 해당 본문 섹션, 폴더 구조도를 최신 상태로 자동 업데이트해야 합니다.
 
@@ -35,10 +35,11 @@
 - 🌟 [v42.0 패치] 관리자 접속 비밀 통로 북마크 은폐: 푸터(하단)에 숨겨진 링크를 만들 경우 크롤링 봇의 타겟이 되고 모바일 오터치를 유발하므로 절대 코드로 삽입하지 않는다. 관리자 전용 로그인(?mode=admin)은 오직 운영진의 브라우저 '즐겨찾기(Bookmark)'를 통해서만 접속하도록 아키텍처를 강제한다.
 
 3. 파일 업로드 요금 폭탄 및 악성 웹 쉘 방어 (R2 스토리지 보호)
-- 비로그인 업로드 원천 차단: app/api/upload/route.ts 최상단에 쿠키 검증 문지기를 세워, 로그인하지 않은 해킹 봇(Bot)이 API를 무한 호출해 10GB짜리 쓰레기 파일을 올리는 요금 폭탄 테러 완벽 차단.
-- 업로더 꼬리표 실명제: S3/R2에 업로드되는 최종 파일명에 유저 아이디를 삽입(${userId}-${Date.now()}-...)하여 악성 유저 즉각 색출 가능.
-- 악성 쉘(Shell) 화이트리스트 필터: .php, .exe 등 해킹 파일이 위장하여 올라오지 못하도록 allowedTypes 명단(jpeg, png, mp4 등)으로 철저히 검사하여 위반 시 400 에러 반환.
-- 자동 격리 분류: referer를 분석하여 프로필 사진은 profiles/ 폴더로, 일반 게시글 사진은 메인 폴더로 안전하게 자동 격리.
+- 비로그인 및 위조 원천 차단: app/api/upload/route.ts 최상단에 쿠키 검증 문지기를 세워 humorin_userid 및 humorin_signature 쿠키를 AUTH_SECRET 기반 crypto.createHmac('sha256')으로 서명 대조 검증(미로그인 401, 서명 불일치 403 차단)함으로써 로그인하지 않은 해킹 봇(Bot)이 API를 무한 호출해 10GB짜리 쓰레기 파일을 올리는 요금 폭탄 테러 완벽 차단.
+- 🌟 [v46.16 명문화] R2 Presigned URL 직통 업로드(Vercel 패싱 아키텍처): /api/upload는 무거운 파일 본체를 받지 않고 JSON 메타데이터(filename, contentType, isThumbnail)만 검증한 뒤 @aws-sdk/s3-request-presigner(getSignedUrl, expiresIn: 60, 유효시간 60초)로 1회용 직통 업로드 티켓(uploadUrl)과 publicUrl만 발급함. 실제 이미지·동영상 바이너리는 브라우저(WriteClient.tsx, EditClient.tsx, CommentForm.tsx, InteractiveButtons.tsx, ProfileAvatar.tsx 등 5대 호출 컴포넌트)가 Cloudflare R2로 직접 PUT 전송하므로 Vercel Serverless 4.5MB 요청 제한과 Vercel 함수 트래픽/CPU 과금을 100% 우회함.
+- 업로더 꼬리표 실명제: S3/R2에 업로드되는 최종 파일명에 유저 아이디를 삽입(${userId}-${Date.now()}-${safeRandomName}.${extension})하여 악성 유저 즉각 색출 가능.
+- 악성 쉘(Shell) 화이트리스트 필터 및 MIME 복원: 안드로이드 빈 타입('' 또는 application/octet-stream) 시 백엔드 getMimeType(filename, fallback)으로 자동 복원한 뒤, .php, .exe 등 해킹 파일이 위장하여 올라오지 못하도록 allowedTypes 7종 명단(image/jpeg, image/png, image/gif, image/webp, video/mp4, video/webm, video/quicktime)으로 철저히 검사하여 위반 시 400 에러 반환.
+- 자동 격리 분류 및 썸네일 분기: 동영상 썸네일(isThumbnail) 요청 시 파일명에 'thumb_' 접두사를 강제 부착하고, referer를 분석하여 프로필(/profile) 사진은 profiles/ 폴더로, 일반 게시글/댓글 미디어는 메인 폴더로 안전하게 자동 격리.
 
 4. 신분 위조(Spoofing) 강제 글쓰기 차단
 - 모든 글쓰기 API 지문인식 도입: app/api/post/route.ts 내부에서 일반 유저의 글쓰기 시에도 crypto.createHmac 서명 검증을 전면 도입. 해커가 크롬 개발자 도구로 본인의 humorin_userid 쿠키를 남의 아이디나 admin으로 조작하여 강제 글쓰기(Spoofing)를 시도하는 행위를 완벽하게 무력화.
@@ -106,11 +107,11 @@
 [본문 5] 🛠️ 에디터 극한 최적화 엔진 (업로드 문지기)
 - 🛡️ 본문 누적 30MB 방어막.
 - 📷 본문 사진 다이어트: 1200px / 300KB 이하 WebP 압축. 모바일 메모리 폭주 방지 useWebWorker: false 강제 적용.
-- 🎬 동영상 스마트 바이패스: 10MB 제한, video/mp4 MIME 강제 부착 및 썸네일 강제 렌더링(#t=0.001).
+- 🎬 동영상 스마트 바이패스: 10MB 제한(게시글당 최대 4개 제한), video/mp4 MIME 강제 부착 및 썸네일 강제 렌더링(#t=0.001), 브라우저 -> R2 60초 Presigned URL 직통 PUT 전송(Vercel 서버 경유 없음, 4.5MB 병목 우회).
 - 🏃♂️ 본문 움짤 엑스레이: 댓글창 정지 이미지는 압축, 움직이는 움짤(isAnimatedWebP)은 통과.
 - 🌟 [v32.0 패치] 안드로이드 11+ 다운로드 파일 철벽 방어 (3중 우회 엔진 cloneFileToUnlock): Scoped Storage 보안 락으로 인한 Failed to fetch 방어를 위해 Blob URL -> ArrayBuffer -> 구형 FileReader 단계를 거쳐 순수 File 객체로 재창조(WriteClient, CommentForm, ProfileAvatar 전면 적용). 백엔드 getMimeType 2중 복원 가동.
 - 🌟 [v38.0 패치] 외부 펌글 무제한 복붙 허용 및 이미지 프록시/파싱 방어막 (proxy.ts): 네이버 403 에러 우회를 위해 이미지 프록시 작동 및 Base64 요금 폭탄 차단 필터(Sanitizer) 가동.
-- 🌟 [v43.2 패치] 초경량 썸네일 자동 추출 & 업로드 문지기 (WriteClient.tsx & api/upload/route.ts): 동영상 첨부 시 기기 단에서 1~2KB WebP 썸네일을 백그라운드 자동 추출하여 동영상 꼬리표(poster="thumb_...")로 부착 후 서버로 동시 업로드.
+- 🌟 [v43.2 패치] 초경량 썸네일 자동 추출 & 업로드 문지기 (WriteClient.tsx & api/upload/route.ts): 동영상 첨부 시 기기 단에서 1~2KB WebP 썸네일을 백그라운드 자동 추출하여 동영상 꼬리표(poster="thumb_...")로 부착 후 브라우저 -> R2 60초 Presigned URL 직통 PUT 전송(Vercel 서버 경유 없음)으로 썸네일(isThumbnail: true)과 동영상 본체를 동시 업로드.
 - 🌟 [v43.3 패치] WebP/GIF 동영상 업로드 스마트 라우팅: 동영상 첨부 버튼으로 WebP/GIF 움짤 업로드 시 프론트엔드에서 file.type.startsWith('image/')를 판별해 자동으로 사진 업로드 엔진(uploadImagesRef)으로 우회.
 - 🌟 [v46.3 패치] 최신 안드로이드(폴드2 등) 댓글 수정창 엑스박스 원천 차단 (app/board/[id]/InteractiveButtons.tsx): 새 댓글창(CommentForm.tsx)의 파일 전체 강제 복제 엔진(detectAndRestoreFile)과 WebP 움짤 스캐너를 댓글 수정창(EditCommentForm)에 동일하게 이식.
 - 🌟 [v46.8 패치] 관리자 AI 제목 최적화 엔진 세대교체 대응 (app/api/admin/ai-title/route.ts): 구형 모델 차단 방어를 위해 최신 권장 모델인 gemini-3.6-flash로 호출 명칭을 하드코딩하여 영구 고정(latest 별칭 사용 금지).
@@ -153,7 +154,6 @@
 ### 🔎 [v46.13 실제 폴더 스캔 보강] 백서 누락 클라이언트 보조 컴포넌트 (절대 보존)
 - **app/components/InAppBrowserCheck.tsx** — 카카오톡 인앱 브라우저 탈출기: navigator.userAgent에서 kakaotalk을 감지하면, 안드로이드에 한해 `intent://...#Intent;scheme=https;package=com.android.chrome;end` 주소로 크롬 브라우저 강제 실행(인앱 브라우저의 업로드/로그인/쿠키 오류 회피).
 - **app/components/CopyProtection.tsx** — 복사(copy) 이벤트 가로채기: 메모장 등 일반 텍스트 붙여넣기 시 '글자' 버전, 타 커뮤니티 붙여넣기 시 '사진+글자' HTML 버전으로 분기하여 출처 링크를 자동 부착(?category= 등 꼬리표는 제거한 순수 경로만 추출).
-- **app/board/HybridPrefetchTrigger.tsx** — 하이브리드 프리패치 트리거: 게시글 상세(/board/숫자) 링크에 사용자가 접근(호버/터치)할 때만 router.prefetch(href)를 실행하고 Set으로 중복 프리패치를 차단하여, 체감 속도는 올리고 무차별 프리패치로 인한 Vercel Function 호출 과금은 억제.
 - **app/board/CategoryIcon.tsx** — 카테고리명 기반 인라인 SVG 아이콘 매핑(예: 사건/사고/멘붕=red, 유머=orange, 감동=rose). 외부 아이콘 라이브러리·이미지 요청 0건의 초경량 렌더링.
 - **app/board/[id]/VideoVolumeFix.tsx** — 뷰어 진입 후 자체 MP4(video.volume = 0.2)와 유튜브 플레이어의 기본 볼륨을 20%로 낮춰 갑작스러운 고음량 재생 방지.
 - **app/board/[id]/YouTubeViewer.tsx** — 유튜브 iframe 래퍼: 플레이어 로딩 후 postMessage(`{event:'command', func:'setVolume', args:[20]}`)를 최대 3회 전송하여 볼륨 20% 고정 후 interval 해제.
@@ -304,26 +304,26 @@ CREATE INDEX IF NOT EXISTS idx_posts_scheduled_at ON posts(scheduled_at DESC NUL
 
 [본문 16] 🤖 [AI 복제 지시용 마스터 프롬프트] (새 커뮤니티 복제 시 AI 에디터 명령어 원문)
 
-"내가 첨부한 MASTER_SPEC.md (유머인 최종 통합 마스터 개발 명세서 v46.15)를 바이트 단위로 완벽하게 숙지해.
+"내가 첨부한 MASTER_SPEC.md (유머인 최종 통합 마스터 개발 명세서 v46.16)를 바이트 단위로 완벽하게 숙지해.
 현재 열려있는 폴더는 저 명세서대로 아키텍처와 5대 철통 보안(비밀번호 암호화, 서명 쿠키 위조 방어, Spoofing 방어, R2 요금 폭탄 방어, API 글쓰기 잠금 백도어 차단 로직 global_write_lock, 관리자 전용 북마크 접속 은폐 로직), 예외 처리가 10000% 완벽하게 세팅된 마스터 템플릿이야. 
 
-명세서에 적힌 [절대 보존 로직]들 (5대 보안 로직, CRON_SECRET VVIP 명예의 전당 주간 자동화 및 ISR 3600초 캐싱 갤러리 엑스박스 자동 방어 (Fallback), 프로필 네온/금괴 훈장 도파민 연동 및 site_settings 기반 VVIP 제외 블랙리스트 텍스트 파싱 로직, Vercel Cron 무인 예약 관제탑(app/admin/queue) 및 isSuperUser 마스터 키 우회 로직, 예약 작성자 자동 트래킹(adminAuthorId || ''), ::timestamptz 시차 점프 방어 및 관제탑 즉시발행/제목·카테고리·시간 통합 수정 엔진, 게시글 하단 방금 본 꿀잼 인기글 썸네일 추천 엔진, 스마트폰 조회수 반응형 정렬 최적화, 15,000px 기준 WebP 무손실 스마트 분할, 틈새 0px Flexbox 진공 압착 및 원본 Width 자물쇠, 투데이/백/천 베스트 시간별 정렬, 모바일 업로드 튕김 방어 useWebWorker 제어, 안드로이드 Scoped Storage 권한 락 우회 ArrayBuffer 3중 해킹 엔진(detectAndRestoreFile), Vercel/Neon 셧다운 및 $40 조기 경보망, DB-R2 분리, 초경량 썸네일 자동 추출 및 메인 화면 하이브리드 렌더링(page.tsx, WriteClient.tsx 연동), Cloudflare WAF 규칙, 5대 철벽 방어막, globals.css 투트랙 로직, 관리자 사면권(is_safe) 영구 방어 로직, 순수 SQL 베스트 정렬 엔진, 댓글창 WebP 엑스레이 스캐너(isAnimatedWebP), 특수기호 댓글창 레이아웃 뚫림 방어(word-break: break-all), 로그아웃 서명 파쇄기(humorin_signature 삭제), 소셜 로그인 탈퇴 7일 쿨타임 완벽 리셋 엔진, 소셜 0.1초 광속 통과를 위한 waitUntil 엔진, 18대 무적 DB 인덱스와 INNER JOIN boards 고속 스위치 연동, 스마트폰 사생활 보호(내정보 숨김), 엣지 투 엣지 극미세 여백(px-1) 가독성 극대화 및 하단 여백 완전 동기화, 모바일 폰트 15px/semibold 핀셋 최적화, WebP 동영상 스마트 라우팅 자동 우회 엔진, 3대 페이지 generateMetadata SEO 핀셋 패치 및 H2 강제 전환/Alt 속성 자동 부여 로직, 관리자 대시보드 KST 시각적 마스크 적용(formatKST), 뷰어 이미지 강제 팽창(width: 100%) 영구 금지 및 맞춤형 회색 박스 CLS 방어, 자체 업로드 MP4와 유튜브 투트랙 분리 CSS, 댓글 수정창(EditCommentForm) 최신 안드로이드 파일 복원 엔진 동기화 유지, 무설치 PWA 앱 팝업 완전체 엔진(sw.js 및 layout.tsx 등록) 영구 보존, 하이브리드 지연 로딩(Native Lazy Loading) 서버비 철벽 방어 엔진 유지, 예약 봇 15분 주기(*/15) DB 셧다운 방어 및 revalidatePath 메인 화면 즉시 갱신 로직 영구 보존, 폼 제출 시 스크롤 처짐 방어(content-visibility 소각 및 startTransition 강제), Vercel 월 $40~$50 과금 정상 판정 및 호들갑 금지령(Rule 5), RSS 피드 미래 시간 예약글 강제 노출 완벽 방어막(<= CURRENT_TIMESTAMP) 영구 보존, 구조화 데이터(Schema.org) 강제 주입 영구 금지, Cloudflare Full 모드 기반 Vercel SSL Invalid 에러 영구 무시 및 15년 커스텀 인증서(Plan B) 업로드 지시 절대 금지령, AI 제목 최적화 gemini-3.6-flash 고정 및 팝업창 z-[9999] 최상단 노출)은 단 1줄도 훼손하거나 수정하지 마.
+명세서에 적힌 [절대 보존 로직]들 (5대 보안 로직, CRON_SECRET VVIP 명예의 전당 주간 자동화 및 ISR 3600초 캐싱 갤러리 엑스박스 자동 방어 (Fallback), 프로필 네온/금괴 훈장 도파민 연동 및 site_settings 기반 VVIP 제외 블랙리스트 텍스트 파싱 로직, Vercel Cron 무인 예약 관제탑(app/admin/queue) 및 isSuperUser 마스터 키 우회 로직, 예약 작성자 자동 트래킹(adminAuthorId || ''), ::timestamptz 시차 점프 방어 및 관제탑 즉시발행/제목·카테고리·시간 통합 수정 엔진, 게시글 하단 방금 본 꿀잼 인기글 썸네일 추천 엔진, 스마트폰 조회수 반응형 정렬 최적화, 15,000px 기준 WebP 무손실 스마트 분할, 틈새 0px Flexbox 진공 압착 및 원본 Width 자물쇠, 투데이/백/천 베스트 시간별 정렬, 모바일 업로드 튕김 방어 useWebWorker 제어, 안드로이드 Scoped Storage 권한 락 우회 ArrayBuffer 3중 해킹 엔진(detectAndRestoreFile), Vercel/Neon 셧다운 및 $40 조기 경보망, DB-R2 분리, R2 60초 Presigned URL(getSignedUrl) 브라우저 직통 PUT 업로드 및 쿠키 HMAC 검증 아키텍처, 초경량 썸네일 자동 추출 및 메인 화면 하이브리드 렌더링(page.tsx, WriteClient.tsx 연동), Cloudflare WAF 규칙, 5대 철벽 방어막, globals.css 투트랙 로직, 관리자 사면권(is_safe) 영구 방어 로직, 순수 SQL 베스트 정렬 엔진, 댓글창 WebP 엑스레이 스캐너(isAnimatedWebP), 특수기호 댓글창 레이아웃 뚫림 방어(word-break: break-all), 로그아웃 서명 파쇄기(humorin_signature 삭제), 소셜 로그인 탈퇴 7일 쿨타임 완벽 리셋 엔진, 소셜 0.1초 광속 통과를 위한 waitUntil 엔진, 18대 무적 DB 인덱스와 INNER JOIN boards 고속 스위치 연동, 스마트폰 사생활 보호(내정보 숨김), 엣지 투 엣지 극미세 여백(px-1) 가독성 극대화 및 하단 여백 완전 동기화, 모바일 폰트 15px/semibold 핀셋 최적화, WebP 동영상 스마트 라우팅 자동 우회 엔진, 3대 페이지 generateMetadata SEO 핀셋 패치 및 H2 강제 전환/Alt 속성 자동 부여 로직, 관리자 대시보드 KST 시각적 마스크 적용(formatKST), 뷰어 이미지 강제 팽창(width: 100%) 영구 금지 및 맞춤형 회색 박스 CLS 방어, 자체 업로드 MP4와 유튜브 투트랙 분리 CSS, 댓글 수정창(EditCommentForm) 최신 안드로이드 파일 복원 엔진 동기화 유지, 무설치 PWA 앱 팝업 완전체 엔진(sw.js 및 layout.tsx 등록) 영구 보존, 하이브리드 지연 로딩(Native Lazy Loading) 서버비 철벽 방어 엔진 유지, 예약 봇 15분 주기(*/15) DB 셧다운 방어 및 revalidatePath 메인 화면 즉시 갱신 로직 영구 보존, 폼 제출 시 스크롤 처짐 방어(content-visibility 소각 및 startTransition 강제), Vercel 월 $40~$50 과금 정상 판정 및 호들갑 금지령(Rule 5), RSS 피드 미래 시간 예약글 강제 노출 완벽 방어막(<= CURRENT_TIMESTAMP) 영구 보존, 구조화 데이터(Schema.org) 강제 주입 영구 금지, Cloudflare Full 모드 기반 Vercel SSL Invalid 에러 영구 무시 및 15년 커스텀 인증서(Plan B) 업로드 지시 절대 금지령, AI 제목 최적화 gemini-3.6-flash 고정 및 팝업창 z-[9999] 최상단 노출)은 단 1줄도 훼손하거나 수정하지 마.
 
 DB 스키마 역시 명세서 15번에 적힌 전체 SQL 구조(weekly_vips, category, comment_count, 18대 Index 포함)에 완벽하게 맞춰져 있으니 절대 임의로 생략하거나 변경하지 마. (주의: 네이버 심사 통과를 위해 '재테크' 등 위험 카테고리는 영구 배제됨)
 너는 이제부터 보안과 비용 차단, 모바일 UX를 최우선으로 하는 내 전담 시니어 시스템 아키텍트야. 이 무적의 뼈대를 그대로 유지한 채로, 사이트의 디자인 메인 컬러를 '[원하는 색상]'으로 변경하고, 로고 텍스트를 '[새 사이트 이름]'으로 싹 바꿔서 세팅해 줘. 시작해!"
 
 ---
 
-[본문 17] 📂 App Router 전체 폴더 구조도 (v46.15 기준)
+[본문 17] 📂 App Router 전체 폴더 구조도 (v46.16 기준)
 ```
 hurmoin/
-├── MASTER_SPEC.md                      # ★ 단일 진실 원천 백서 (v46.15)
+├── MASTER_SPEC.md                      # ★ 단일 진실 원천 백서 (v46.16)
 ├── proxy.ts                            # Next.js 16 미들웨어: 진짜 IP(x-real-ip 폴백) 명찰 부착, 정적 리소스 제외 matcher
 ├── vercel.json                         # 크론 */15 (Neon Scale to zero 수면 보장)
 ├── .github/workflows/ssl_renewal.yml   # Node 24(checkout@v5), 120분 대기망, 투트랙 스케줄, 말일 생존 신고
 ├── public/                             # manifest.json, sw.js(PWA), 고정 배너
 └── app/
-    ├── layout.tsx / page.tsx / robots.ts / sitemap.ts   # layout: PWA sw 등록 / page: 하이브리드 썸네일 메인 / sitemap: 정적 고정형
+    ├── layout.tsx / page.tsx / globals.css / robots.ts / sitemap.ts   # layout: PWA sw 등록 / page: 하이브리드 썸네일 메인 / sitemap: 정적 고정형
     ├── admin/
     │   ├── page.tsx / BanButton.tsx / KickButton.tsx / SafeButton.tsx / UserInfoModal.tsx   # verifyAdmin + formatKST
     │   ├── blind/ boards/(page, DeleteButton) comments/ logs/ monitor/ posts/ setup/
@@ -341,11 +341,10 @@ hurmoin/
     │   ├── login/route.ts
     │   ├── post/route.ts               # HMAC 서명 검증 + global_write_lock / is_write_locked 403
     │   ├── report/{comment,post}/route.ts
-    │   └── upload/route.ts             # 비로그인 차단, allowedTypes, userId 꼬리표, profiles/ 격리
+    │   └── upload/route.ts             # [v46.16] HMAC 서명 검증, getMimeType, allowedTypes 7종, thumb_/profiles/ 격리, R2 60초 Presigned URL 발급
     ├── board/
     │   ├── layout.tsx / page.tsx / Navbar.tsx / NavbarClient.tsx / navActions.ts
     │   ├── CategoryIcon.tsx            # 카테고리명 → 인라인 SVG 아이콘 매핑 (외부 요청 0)
-    │   ├── HybridPrefetchTrigger.tsx   # /board/숫자 링크 접근 시에만 router.prefetch (Set 중복 차단)
     │   ├── write/(page.tsx, WriteClient.tsx)
     │   └── [id]/(page.tsx, CommentForm.tsx, DeleteConfirmButton.tsx, InteractiveButtons.tsx,
     │            VideoVolumeFix.tsx,    # MP4·유튜브 기본 볼륨 20%
